@@ -50,7 +50,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
 - [x] Stripe webhook signature check verified in production
 - [x] `/status` shows Payments as `Operational`
-- [ ] Stripe sandbox checkout tested end to end
+- [x] Stripe sandbox checkout tested end to end
 - [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
 - [x] `/status` shows Email as `Operational`
@@ -100,9 +100,9 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Approve the listing in admin
 - [ ] Search for the approved listing
 - [ ] Open listing details
-- [ ] Start checkout
-- [ ] Complete Stripe sandbox payment
-- [ ] Confirm booking appears for guest
+- [x] Start checkout
+- [x] Complete Stripe sandbox payment
+- [x] Confirm booking appears for guest
 - [ ] Confirm booking appears for host
 - [ ] Confirm payment appears in admin
 - [ ] Confirm confirmation emails are delivered
