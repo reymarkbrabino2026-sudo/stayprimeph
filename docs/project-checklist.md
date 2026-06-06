@@ -95,16 +95,16 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Verify guest email on production
 - [x] Log in and log out on production
 - [x] Reset password on production
-- [ ] Create a host account on production
-- [ ] Create a listing with real hosted photos
-- [ ] Approve the listing in admin
-- [ ] Search for the approved listing
-- [ ] Open listing details
+- [x] Create a host account on production
+- [x] Create a listing with real hosted photos
+- [x] Approve the listing in admin
+- [x] Search for the approved listing
+- [x] Open listing details
 - [x] Start checkout
 - [x] Complete Stripe sandbox payment
 - [x] Confirm booking appears for guest
-- [ ] Confirm booking appears for host
-- [ ] Confirm payment appears in admin
+- [x] Confirm booking appears for host
+- [x] Confirm payment appears in admin
 - [ ] Confirm confirmation emails are delivered
 - [ ] Confirm Sentry, analytics, logs, and rate-limit telemetry show activity
 
@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, and Vercel Analytics are now active. The remaining blockers are live Stripe mode, Redis rate limiting, legal review, protected-route hardening, real device QA, and host/admin booking checks.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, and host/admin booking checks are now active. The remaining blockers are live Stripe mode, Redis rate limiting, legal review, protected-route hardening, real device QA, and final confirmation-email telemetry.
