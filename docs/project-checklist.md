@@ -59,9 +59,9 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Password reset email tested
 - [x] Booking email tested
 - [ ] Upstash Redis configured for real distributed rate limiting
-- [ ] Sentry server DSN configured
-- [ ] Sentry browser/public DSN configured
-- [ ] Sentry error capture tested
+- [x] Sentry server DSN configured
+- [x] Sentry browser/public DSN configured
+- [x] Sentry error capture tested
 - [x] Vercel Analytics enabled and verified
 - [ ] Supabase Google login provider tested, if Google login is wanted
 - [ ] Supabase Facebook login provider tested, if Facebook login is wanted
@@ -83,7 +83,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Stripe test account ready
 - [x] Resend sender/domain ready
 - [ ] Upstash Redis account/database ready
-- [ ] Sentry project ready
+- [x] Sentry project ready
 - [ ] Legal/privacy review completed
 - [ ] Real device QA completed on iPhone
 - [ ] Real device QA completed on Android
@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, and Vercel Analytics are now active. The remaining blockers are live Stripe mode, Redis rate limiting, Sentry monitoring, legal review, protected-route hardening, real device QA, and host/admin booking checks.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, and Vercel Analytics are now active. The remaining blockers are live Stripe mode, Redis rate limiting, legal review, protected-route hardening, real device QA, and host/admin booking checks.
