@@ -62,7 +62,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Sentry server DSN configured
 - [ ] Sentry browser/public DSN configured
 - [ ] Sentry error capture tested
-- [ ] Vercel Analytics enabled and verified
+- [x] Vercel Analytics enabled and verified
 - [ ] Supabase Google login provider tested, if Google login is wanted
 - [ ] Supabase Facebook login provider tested, if Facebook login is wanted
 
@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, and core email QA are now active. The remaining blockers are live Stripe mode, Redis rate limiting, Sentry/analytics monitoring, legal review, protected-route hardening, real device QA, and host/admin booking checks.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, and Vercel Analytics are now active. The remaining blockers are live Stripe mode, Redis rate limiting, Sentry monitoring, legal review, protected-route hardening, real device QA, and host/admin booking checks.
