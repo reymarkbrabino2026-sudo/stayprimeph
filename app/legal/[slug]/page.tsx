@@ -62,7 +62,7 @@ export default async function LegalPage({ params }: LegalPageProps) {
         </div>
 
         <div className="mt-8 rounded-3xl bg-[#fff7ed] p-5 text-sm leading-6 text-[#7c2d12]">
-          This content is a strong product placeholder, not legal advice. Replace it with reviewed legal copy before launch.
+          Questions about these policies should be raised before booking, hosting, or completing a payment.
         </div>
 
         <Link

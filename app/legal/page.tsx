@@ -21,7 +21,7 @@ export default function LegalIndexPage() {
           Clear rules for guests, hosts, and marketplace operations.
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-black/65 sm:text-lg">
-          These pages are ready as product screens. Before launch, replace placeholder policy copy with reviewed legal guidance.
+          Review the policies that explain how bookings, privacy, cancellations, and safety work across StayPrimePH.
         </p>
 
         <div className="mt-10 grid gap-4 md:grid-cols-2">

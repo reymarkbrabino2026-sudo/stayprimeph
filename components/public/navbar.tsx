@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Sparkles, Utensils } from "lucide-react";
+import { Home } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
@@ -71,14 +71,6 @@ export function Navbar({ transparentOnTop = false }: { transparentOnTop?: boolea
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-10 text-sm md:flex">
           <Link href="/search" className="flex items-center gap-2 border-b-2 border-current pb-3 font-semibold">
             <Home size={16} /> Homes
-          </Link>
-          <Link href="/search" className={`relative flex items-center gap-2 pb-3 ${transparent ? "text-white/75 hover:text-white" : "text-black/65 hover:text-black"}`}>
-            <Sparkles size={16} /> Experiences
-            <span className="absolute -right-6 -top-3 rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-semibold text-white">NEW</span>
-          </Link>
-          <Link href="/search" className={`relative flex items-center gap-2 pb-3 ${transparent ? "text-white/75 hover:text-white" : "text-black/65 hover:text-black"}`}>
-            <Utensils size={16} /> Services
-            <span className="absolute -right-6 -top-3 rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-semibold text-white">NEW</span>
           </Link>
         </nav>
         <div className="flex items-center gap-3">

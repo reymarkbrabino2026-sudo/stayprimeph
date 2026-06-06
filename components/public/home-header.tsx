@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Search, Sparkles, Utensils } from "lucide-react";
+import { Home, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -72,16 +72,6 @@ export function HomeHeader() {
             <Link href="/search" className="flex items-center gap-2 border-b-2 border-current py-6 font-semibold">
               <Home size={24} strokeWidth={1.8} />
               Homes
-            </Link>
-            <Link href="/search" className="relative flex items-center gap-2 py-6 text-current/75 transition hover:text-current">
-              <Sparkles size={16} />
-              Experiences
-              <span className="absolute -right-8 top-3 rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-semibold text-white">NEW</span>
-            </Link>
-            <Link href="/search" className="relative flex items-center gap-2 py-6 text-current/75 transition hover:text-current">
-              <Utensils size={16} />
-              Services
-              <span className="absolute -right-8 top-3 rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-semibold text-white">NEW</span>
             </Link>
           </nav>
 

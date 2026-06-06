@@ -68,12 +68,12 @@ Use this as the active tracker for what is done, what is configured, and what st
 
 ## Product/code items still needed
 
-- [ ] Harden protected routes in `proxy.ts` so admin/host/guest pages cannot stream protected HTML before redirect
-- [ ] Replace legal placeholder/review-needed copy in `lib/legal-data.ts`
-- [ ] Replace listing map placeholder in `components/listings/map-section.tsx`
+- [x] Harden protected routes in `proxy.ts` so admin/host/guest pages cannot stream protected HTML before redirect
+- [x] Replace legal placeholder/review-needed copy in `lib/legal-data.ts`
+- [x] Replace listing map placeholder in `components/listings/map-section.tsx`
 - [ ] Convert browser/local-storage account settings into full backend-backed account management where needed
-- [ ] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
-- [ ] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
+- [x] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
+- [x] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
 
 ## User/account setup still needed
 
@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, and host/admin booking checks are now active. The remaining blockers are live Stripe mode, Redis rate limiting, legal review, protected-route hardening, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, and image-loading polish are now active. The remaining blockers are live Stripe mode, Redis rate limiting, backend-backed account settings where needed, legal review, real device QA, and final confirmation-email telemetry.

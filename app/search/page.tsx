@@ -50,8 +50,8 @@ export default async function SearchPage({
           </div>
 
           <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
-            {results.map((property) => (
-              <SearchResultCard key={property.id} property={property} isAuthenticated={Boolean(currentUser)} />
+            {results.map((property, index) => (
+              <SearchResultCard key={property.id} property={property} isAuthenticated={Boolean(currentUser)} priority={index < 2} />
             ))}
           </div>
         </section>

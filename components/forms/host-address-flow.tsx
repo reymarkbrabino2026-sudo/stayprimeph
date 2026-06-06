@@ -39,7 +39,15 @@ export function HostAddressFlow() {
         <div className="rounded-[3rem] bg-[#eef8f2] p-5 sm:p-8">
           <article className="mx-auto max-w-sm overflow-hidden rounded-[2rem] bg-white shadow-sm">
             <div className="relative aspect-[1.25/1]">
-              <Image src="/host-preview-house.jpg" alt="Sample villa" fill className="object-cover" sizes="(min-width: 1024px) 384px, 90vw" />
+              <Image
+                src="/host-preview-house.jpg"
+                alt="Sample villa"
+                fill
+                className="object-cover"
+                sizes="(min-width: 1024px) 384px, 90vw"
+                preload
+                loading="eager"
+              />
             </div>
             <div className="p-5">
               <h2 className="text-2xl font-semibold">Entire villa in Siargao, Philippines</h2>

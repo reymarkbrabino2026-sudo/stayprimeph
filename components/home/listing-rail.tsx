@@ -83,7 +83,15 @@ export function ListingRail({
         {items.map(([name, meta, rating, badge, imageId], index) => (
           <Link href={`/rooms/p${(index % 4) + 1}`} key={`${name}-${imageId}`} className="min-w-0 shrink-0 basis-[72vw] snap-start transition active:scale-[0.985] sm:basis-[calc((100%_-_1rem)/2)] md:basis-[calc((100%_-_3rem)/4)] xl:basis-[calc((100%_-_5rem)/6)] 2xl:basis-[calc((100%_-_6rem)/7)]">
             <div className="relative aspect-[1.08/1] overflow-hidden rounded-[1.25rem] bg-neutral-100 transition duration-300 md:hover:-translate-y-1">
-              <Image src="/host-preview-house.jpg" alt={name} fill sizes="(min-width:1536px) 14vw, (min-width:1280px) 16vw, (min-width:768px) 24vw, 72vw" className="object-cover" />
+              <Image
+                src="/host-preview-house.jpg"
+                alt={name}
+                fill
+                sizes="(min-width:1536px) 14vw, (min-width:1280px) 16vw, (min-width:768px) 24vw, 72vw"
+                className="object-cover"
+                preload={index === 0}
+                loading={index === 0 ? "eager" : undefined}
+              />
               <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">{badge}</span>
               <span className="absolute right-3 top-3 grid size-8 place-items-center text-white drop-shadow">
                 <Heart size={24} />

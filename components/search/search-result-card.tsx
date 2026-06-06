@@ -13,9 +13,11 @@ function isRenderableImage(src?: string) {
 export function SearchResultCard({
   property,
   isAuthenticated,
+  priority = false,
 }: {
   property: Property;
   isAuthenticated: boolean;
+  priority?: boolean;
 }) {
   const image = property.images[0]?.imageUrl;
 
@@ -29,6 +31,8 @@ export function SearchResultCard({
             fill
             sizes="(min-width:1280px) 24vw, (min-width:768px) 48vw, 100vw"
             className="object-cover transition duration-300 md:group-hover:scale-[1.02]"
+            preload={priority}
+            loading={priority ? "eager" : undefined}
           />
         ) : null}
         <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">

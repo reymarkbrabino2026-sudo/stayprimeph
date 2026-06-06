@@ -6,7 +6,7 @@ type BrandLogoProps = {
   priority?: boolean;
 };
 
-export function BrandLogo({ variant = "green", className = "h-7 w-auto", priority = false }: BrandLogoProps) {
+export function BrandLogo({ variant = "green", className = "h-7 w-auto", priority = true }: BrandLogoProps) {
   return (
     <Image
       src={variant === "white" ? "/stayprimeph-logo-white.svg" : "/stayprimeph-logo.svg"}
@@ -14,7 +14,8 @@ export function BrandLogo({ variant = "green", className = "h-7 w-auto", priorit
       width={520}
       height={96}
       className={className}
-      priority={priority}
+      preload={priority}
+      loading={priority ? "eager" : undefined}
     />
   );
 }

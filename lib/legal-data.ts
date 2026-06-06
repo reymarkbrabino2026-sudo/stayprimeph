@@ -11,13 +11,14 @@ export const legalPages: LegalPage[] = [
     slug: "terms",
     title: "Terms of Service",
     description: "The baseline terms for using StayPrimePH as a guest, host, or admin-managed marketplace participant.",
-    updatedAt: "May 19, 2026",
+    updatedAt: "June 7, 2026",
     sections: [
       {
         title: "Using the platform",
         body: [
-          "StayPrimePH is a booking marketplace prototype for discovering, listing, and reserving short-term stays.",
-          "Users are responsible for keeping account information accurate and for using the platform lawfully and respectfully.",
+          "StayPrimePH provides a marketplace for discovering, listing, and reserving short-term stays in the Philippines.",
+          "Guests, hosts, and admins are responsible for keeping account details accurate, protecting login access, and using the platform lawfully and respectfully.",
+          "StayPrimePH may limit, suspend, or remove accounts, listings, bookings, reviews, or messages when needed to protect users, comply with law, or prevent platform misuse.",
         ],
       },
       {
@@ -25,12 +26,15 @@ export const legalPages: LegalPage[] = [
         body: [
           "Hosts are responsible for truthful listing information, accurate availability, house rules, and safe guest experiences.",
           "Guests are responsible for reviewing listing details, respecting house rules, and completing payments through approved checkout flows.",
+          "A booking is not considered confirmed until the required checkout, host approval, and payment steps for that listing are complete.",
         ],
       },
       {
-        title: "Important note",
+        title: "Payments and disputes",
         body: [
-          "This page is product-ready placeholder copy and must be reviewed by a qualified legal professional before public launch.",
+          "Payments, refunds, and related fees are processed through approved payment partners and platform records.",
+          "Disputes should be raised through StayPrimePH support with relevant booking, payment, message, and photo evidence so admins can review the record fairly.",
+          "Guests and hosts should avoid off-platform payment requests because they reduce the protections available through StayPrimePH.",
         ],
       },
     ],
@@ -39,13 +43,14 @@ export const legalPages: LegalPage[] = [
     slug: "privacy",
     title: "Privacy Policy",
     description: "How StayPrimePH plans to handle account, listing, booking, payment, and messaging data.",
-    updatedAt: "May 19, 2026",
+    updatedAt: "June 7, 2026",
     sections: [
       {
         title: "Information we collect",
         body: [
           "The platform may collect account details, profile information, listing content, booking records, messages, payment references, and support reports.",
           "Sensitive payment details should be handled by payment providers such as Stripe rather than stored directly in the application database.",
+          "Technical data such as device, browser, IP address, analytics events, security logs, and error reports may be collected to keep the service reliable and secure.",
         ],
       },
       {
@@ -53,12 +58,15 @@ export const legalPages: LegalPage[] = [
         body: [
           "Data is used to provide search, booking, host management, admin moderation, safety review, fraud prevention, and customer support.",
           "Operational integrations such as email, analytics, error tracking, storage, and rate limiting should only receive the minimum information needed.",
+          "StayPrimePH may use contact details to send account notices, email verification, password reset links, booking updates, payment updates, safety messages, and support replies.",
         ],
       },
       {
-        title: "Important note",
+        title: "Sharing, retention, and choices",
         body: [
-          "This page is product-ready placeholder copy and must be reviewed by a qualified privacy/legal professional before public launch.",
+          "StayPrimePH shares personal data only when needed to operate the marketplace, process payments, deliver emails, store listing media, detect abuse, comply with legal duties, or protect users.",
+          "Booking and payment records may be retained for operational, tax, accounting, legal, fraud-prevention, and dispute-resolution purposes.",
+          "Users may request account support, correction of inaccurate information, or deletion review by contacting StayPrimePH support.",
         ],
       },
     ],
@@ -67,13 +75,14 @@ export const legalPages: LegalPage[] = [
     slug: "cancellation-policy",
     title: "Cancellation Policy",
     description: "A clear baseline for guest cancellations, host cancellations, refunds, and booking status changes.",
-    updatedAt: "May 19, 2026",
+    updatedAt: "June 7, 2026",
     sections: [
       {
         title: "Guest cancellations",
         body: [
           "Guests should review the cancellation terms shown during checkout before confirming a booking.",
           "Refund eligibility depends on the listing policy, booking status, payment status, and timing of the cancellation request.",
+          "When a refund is approved, timing depends on the payment provider, bank, card network, and original payment method.",
         ],
       },
       {
@@ -81,12 +90,15 @@ export const legalPages: LegalPage[] = [
         body: [
           "Hosts should avoid cancelling confirmed stays unless there is a legitimate safety, emergency, or availability issue.",
           "Admin review may be required when cancellations create guest harm or repeated reliability problems.",
+          "Hosts may be asked to provide supporting details, update availability, or help StayPrimePH support the affected guest.",
         ],
       },
       {
-        title: "Important note",
+        title: "Changes and exceptional cases",
         body: [
-          "This cancellation framework is placeholder policy copy and should be finalized before taking real payments.",
+          "Date changes, guest-count changes, and booking modifications depend on listing availability, host approval, and any price difference.",
+          "Safety incidents, verified emergencies, duplicate charges, failed payments, or platform errors may be reviewed separately from the standard cancellation flow.",
+          "StayPrimePH support may request evidence before changing a booking, issuing a refund, or reversing a cancellation decision.",
         ],
       },
     ],
@@ -95,13 +107,14 @@ export const legalPages: LegalPage[] = [
     slug: "safety-policy",
     title: "Safety Policy",
     description: "Safety expectations for guests, hosts, listings, reports, and emergency situations.",
-    updatedAt: "May 19, 2026",
+    updatedAt: "June 7, 2026",
     sections: [
       {
         title: "Safety expectations",
         body: [
           "Listings should disclose meaningful safety details, house rules, exterior cameras, alarms, pool risks, and guest limits.",
           "Guests and hosts should keep important communication in platform messages so admins can review a clear record if needed.",
+          "Users should not use StayPrimePH to threaten, harass, discriminate, misrepresent listings, request unsafe activity, or move protected bookings outside the platform.",
         ],
       },
       {
@@ -109,12 +122,15 @@ export const legalPages: LegalPage[] = [
         body: [
           "Safety reports should be routed to admins for review, evidence collection, and follow-up with the guest or host.",
           "Immediate threats should be escalated to local emergency services first.",
+          "StayPrimePH may restrict accounts, remove listings, pause bookings, or preserve records while a safety report is being reviewed.",
         ],
       },
       {
-        title: "Important note",
+        title: "Host and guest responsibilities",
         body: [
-          "This page is launch-prep content and must be reviewed for local regulations and operational feasibility before public release.",
+          "Hosts are expected to maintain safe access, clean facilities, working essentials, accurate amenity details, and clear arrival instructions.",
+          "Guests are expected to follow house rules, respect occupancy limits, avoid property damage, and report urgent stay issues promptly.",
+          "For medical, fire, crime, or immediate physical danger, users should contact local emergency services before contacting platform support.",
         ],
       },
     ],
