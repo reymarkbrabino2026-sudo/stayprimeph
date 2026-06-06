@@ -54,7 +54,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
 - [x] `/status` shows Email as `Operational`
-- [ ] Welcome email tested
+- [x] Welcome email tested
 - [ ] Email verification tested
 - [ ] Password reset email tested
 - [ ] Booking email tested
