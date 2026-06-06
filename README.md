@@ -48,7 +48,8 @@ Current required variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Prisma database connection |
+| `DATABASE_URL` | Prisma runtime database connection, preferably pooled for hosted/serverless deployments |
+| `DIRECT_URL` | Direct PostgreSQL connection used by Prisma migrations |
 | `NEXT_PUBLIC_APP_URL` | Public base URL used by the app |
 | `AUTH_SECRET` | Signs session cookies; keep server-only |
 | `PERSISTENCE_DRIVER` | `json` locally, `prisma` in production |
@@ -89,6 +90,7 @@ For the shortest production launch path, see `docs/launch-asap.md`.
 Production now targets managed PostgreSQL through Prisma. Local development can still use the lightweight JSON driver while you build quickly, but production is required to use:
 
 - `DATABASE_URL=postgresql://...`
+- `DIRECT_URL=postgresql://...`
 - `PERSISTENCE_DRIVER=prisma`
 
 To run PostgreSQL locally:
@@ -123,6 +125,7 @@ Build:
 ```powershell
 docker build `
   --build-arg DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" `
+  --build-arg DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" `
   --build-arg NEXT_PUBLIC_APP_URL="https://your-domain.com" `
   --build-arg AUTH_SECRET="build-time-placeholder-with-32-plus-characters" `
   --build-arg PERSISTENCE_DRIVER="prisma" `
@@ -147,6 +150,7 @@ Run:
 ```powershell
 docker run -p 3000:3000 `
   -e DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" `
+  -e DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" `
   -e NEXT_PUBLIC_APP_URL="https://your-domain.com" `
   -e AUTH_SECRET="your-real-provider-managed-secret" `
   -e PERSISTENCE_DRIVER="prisma" `

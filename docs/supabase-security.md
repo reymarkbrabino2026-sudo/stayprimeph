@@ -51,11 +51,12 @@ The migration:
 
 ## Important production note
 
-The app's trusted Next.js server still uses Prisma through `DATABASE_URL`. That server connection should use a private database credential stored only in Vercel environment variables.
+The app's trusted Next.js server still uses Prisma through `DATABASE_URL`, and Prisma migrations use `DIRECT_URL`. Both connections should use private database credentials stored only in Vercel environment variables.
 
 Browser code must never receive:
 
 - `DATABASE_URL`
+- `DIRECT_URL`
 - Supabase service role key
 - Stripe secret key
 - Auth/session secrets

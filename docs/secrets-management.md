@@ -6,7 +6,8 @@ Production secrets should live in your hosting provider's encrypted secret store
 
 | Secret | Notes |
 | --- | --- |
-| `DATABASE_URL` | Managed PostgreSQL connection string with TLS enabled |
+| `DATABASE_URL` | Managed PostgreSQL runtime connection string with TLS enabled, preferably pooled |
+| `DIRECT_URL` | Direct managed PostgreSQL connection string used only for Prisma migrations |
 | `AUTH_SECRET` | 32+ random characters used to sign session cookies |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis endpoint for distributed rate limiting |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |

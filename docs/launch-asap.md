@@ -4,7 +4,7 @@ This app is code-ready when `npm.cmd run lint`, `npm.cmd run test`, `npm.cmd run
 
 ## 1. Create production providers
 
-- PostgreSQL: create a managed Postgres database with TLS, then copy its connection string into `DATABASE_URL`.
+- PostgreSQL: create a managed Postgres database with TLS. Use the pooled connection string for `DATABASE_URL` and the direct connection string for `DIRECT_URL`.
 - Cloudinary: create a cloud, API key, and API secret for listing photos.
 - Stripe: use test mode first, create a webhook endpoint at `https://YOUR_DOMAIN/api/payments/webhook`, and subscribe it to checkout/payment events used by Checkout.
 - Resend: verify the sender domain and set `EMAIL_FROM` to that verified sender.
@@ -20,6 +20,7 @@ Required:
 
 ```text
 DATABASE_URL
+DIRECT_URL
 NEXT_PUBLIC_APP_URL
 AUTH_SECRET
 PERSISTENCE_DRIVER=prisma
@@ -46,7 +47,7 @@ Generate `AUTH_SECRET` locally:
 
 ## 3. Deploy database schema
 
-Run against the production database before the first hosted smoke test:
+Run against the production database before the first hosted smoke test. Prisma uses `DIRECT_URL` for migrations and `DATABASE_URL` for app runtime queries:
 
 ```powershell
 npm.cmd run db:migrate:prod
