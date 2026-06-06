@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, and Resend email configuration are now active. The remaining blockers are Stripe payments, Redis rate limiting, Sentry/analytics monitoring, legal review, protected-route hardening, and real end-to-end booking/payment/email QA.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, and Stripe sandbox checkout are now active. The remaining blockers are live Stripe mode, Redis rate limiting, Sentry/analytics monitoring, legal review, protected-route hardening, and real end-to-end booking/email QA.
