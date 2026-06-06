@@ -41,15 +41,16 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Prisma migrations applied successfully in production
 - [x] `/search` returns `200 OK` with Prisma persistence enabled
 
-## Provider setup still needed
+## Provider setup and integration tests
 
 - [x] Vercel Blob configured for real listing photo uploads
 - [x] Real listing photo upload tested in production
 - [ ] Stripe test keys configured
 - [ ] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
 - [ ] Stripe sandbox checkout tested end to end
-- [x] Resend API key configured
+- [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
+- [x] `/status` shows Email as `Operational`
 - [ ] Welcome email tested
 - [ ] Email verification tested
 - [ ] Password reset email tested
@@ -111,4 +112,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy, and database persistence is now active through Prisma/PostgreSQL. The remaining blockers are provider setup, legal review, protected-route hardening, and real end-to-end payment/photo/email QA.
+The app is live and healthy. Database persistence, production listing photo uploads, and Resend email configuration are now active. The remaining blockers are Stripe payments, Redis rate limiting, Sentry/analytics monitoring, legal review, protected-route hardening, and real end-to-end booking/payment/email QA.
