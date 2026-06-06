@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Landmark, ReceiptText, Smartphone, X } from "lucide-react";
+import { CreditCard, Landmark, Loader2, ReceiptText, Smartphone, X } from "lucide-react";
 import { submitManualPaymentDetails, type ManualPaymentActionState } from "@/app/guest/bookings/actions";
 import type { Booking, Payment } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -58,14 +58,18 @@ export function PayNowButton({
   propertyLocation,
   hostName,
   payment,
+  stripeReady,
 }: {
   booking: Booking;
   propertyTitle: string;
   propertyLocation: string;
   hostName: string;
   payment: Payment | null;
+  stripeReady: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [stripePending, setStripePending] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(submitManualPaymentDetails, initialState);
   const isSubmitted = payment?.paymentStatus === "submitted";
   const isRejected = payment?.paymentStatus === "rejected";
@@ -73,6 +77,27 @@ export function PayNowButton({
     isRejected && (payment?.paymentMethod === "gcash" || payment?.paymentMethod === "bank_transfer" || payment?.paymentMethod === "other")
       ? payment.paymentMethod
       : "gcash";
+
+  async function startStripeCheckout() {
+    setStripeError(null);
+    setStripePending(true);
+
+    try {
+      const response = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: booking.id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error ?? "Stripe checkout could not be started.");
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      setStripeError(error instanceof Error ? error.message : "Stripe checkout could not be started.");
+      setStripePending(false);
+    }
+  }
 
   if (isSubmitted && payment) {
     return (
@@ -115,8 +140,8 @@ export function PayNowButton({
           <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:mx-auto sm:max-w-2xl sm:rounded-[1.5rem] sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">External payment</p>
-                <h2 id="manual-payment-title" className="mt-2 text-2xl font-bold">Record payment details</h2>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Payment</p>
+                <h2 id="manual-payment-title" className="mt-2 text-2xl font-bold">Choose payment method</h2>
               </div>
               <button
                 type="button"
@@ -147,6 +172,34 @@ export function PayNowButton({
                 </div>
               </div>
             </div>
+
+            {stripeReady ? (
+              <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-3">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-[#083f35]">
+                      <CreditCard size={20} />
+                    </span>
+                    <div>
+                      <p className="font-semibold text-emerald-900">Stripe checkout</p>
+                      <p className="mt-1 text-sm leading-6 text-emerald-900/75">
+                        Pay securely online and confirm this booking automatically.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startStripeCheckout}
+                    disabled={stripePending}
+                    className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28] disabled:opacity-60"
+                  >
+                    {stripePending ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />}
+                    Pay {formatCurrency(booking.totalPrice)}
+                  </button>
+                </div>
+                {stripeError ? <p className="mt-3 rounded-xl bg-white p-3 text-sm text-rose-700">{stripeError}</p> : null}
+              </div>
+            ) : null}
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border p-4">

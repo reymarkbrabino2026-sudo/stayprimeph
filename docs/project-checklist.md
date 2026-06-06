@@ -45,6 +45,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 
 - [x] Vercel Blob configured for real listing photo uploads
 - [x] Real listing photo upload tested in production
+- [x] Stripe checkout UI wired to the server checkout route
 - [ ] Stripe test keys configured
 - [ ] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
 - [ ] Stripe sandbox checkout tested end to end

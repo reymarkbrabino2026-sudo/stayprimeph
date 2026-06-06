@@ -32,6 +32,7 @@ export default async function BookingDetailsPage({
   const host = booking ? await getUserById(booking.hostId) : null;
 
   if (!booking || !property || booking.guestId !== user?.id) notFound();
+  const stripeReady = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
   const existingReview = await getReviewForBooking(booking);
   const reviewEligible = canReviewBooking(booking);
 
@@ -92,6 +93,7 @@ export default async function BookingDetailsPage({
             propertyLocation={formatPropertyLocation(property)}
             hostName={host?.name ?? "your host"}
             payment={payment}
+            stripeReady={stripeReady}
           />
         )}
       </div>
