@@ -48,8 +48,8 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Stripe test keys configured
 - [ ] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
 - [ ] Stripe sandbox checkout tested end to end
-- [ ] Resend API key configured
-- [ ] Resend sender/domain verified
+- [x] Resend API key configured
+- [x] Resend sender/domain verified
 - [ ] Welcome email tested
 - [ ] Email verification tested
 - [ ] Password reset email tested
@@ -77,7 +77,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Supabase/Postgres connected to Vercel
 - [x] Vercel Blob storage ready
 - [ ] Stripe test account ready
-- [ ] Resend sender/domain ready
+- [x] Resend sender/domain ready
 - [ ] Upstash Redis account/database ready
 - [ ] Sentry project ready
 - [ ] Legal/privacy review completed
