@@ -58,7 +58,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Email verification tested
 - [x] Password reset email tested
 - [x] Booking email tested
-- [ ] Upstash Redis configured for real distributed rate limiting
+- [x] Upstash Redis configured for real distributed rate limiting
 - [x] Sentry server DSN configured
 - [x] Sentry browser/public DSN configured
 - [x] Sentry error capture tested
@@ -82,7 +82,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Vercel Blob storage ready
 - [x] Stripe test account ready
 - [x] Resend sender/domain ready
-- [ ] Upstash Redis account/database ready
+- [x] Upstash Redis account/database ready
 - [x] Sentry project ready
 - [ ] Legal/privacy review completed
 - [ ] Real device QA completed on iPhone
@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, and image-loading polish are now active. The remaining blockers are live Stripe mode, Redis rate limiting, backend-backed account settings where needed, legal review, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, and image-loading polish are now active. The remaining blockers are live Stripe mode, backend-backed account settings where needed, legal review, real device QA, and final confirmation-email telemetry.
