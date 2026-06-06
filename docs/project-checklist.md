@@ -1,97 +1,113 @@
 # StayPrimePH launch checklist
 
-This checklist separates **code-level readiness** from **launch readiness**.
+Use this as the active tracker for what is done, what is configured, and what still needs work before real public bookings/payments.
 
-- **Done** means the feature or integration path is implemented in the codebase.
-- **Launch-ready** means the feature is implemented, configured with real online provider credentials, deployed, and tested in the hosted environment.
+## Status key
 
-## Product foundations
+- [x] Done
+- [ ] Not done yet
+- [ ] Needs manual provider/account setup
+- [ ] Needs product/code work
 
-- [x] Guest, host, and admin roles
-- [x] Responsive public homepage
-- [x] Search, filters, and listing cards
-- [x] Listing detail pages with gallery, reviews, map, and booking card
-- [x] Guest trips, wishlist, messages, reviews, and profile pages
-- [x] Host listing wizard and management pages
-- [x] Admin dashboards for users, hosts, listings, bookings, payments, reports, reviews, disputes, and settings
-- [x] Top-level Support, Hosting, Company, Legal, Trust and Safety, an1d Status screens
+## Live site and deployment
 
-## Code implemented
+- [x] `stayprimeph.com` returns `200 OK`
+- [x] GitHub connected: `reymarkbrabino2026-sudo/stayprimeph`
+- [x] Vercel connected to the `main` branch
+- [x] Vercel framework set to Next.js
+- [x] Production domain connected
+- [x] Latest production deployment is Ready
 
-- [x] Real auth/session flow
-- [x] Password reset / email verification
-- [x] Real host-created listings feed into public pages
-- [x] Booking creation and price calculations
-- [x] Admin listing approval flow
-- [x] Redis-backed distributed rate limiting hooks
-- [x] Sentry error tracking integration hooks
-- [x] Analytics integration hook
-- [x] Email notification integration hooks
-- [x] Payment gateway integration path
-- [x] Real image storage path with Cloudinary support
-- [x] PostgreSQL + Prisma production path
-- [x] Seed data and local JSON development path
+## Automated checks
 
-## Quality, accessibility, and safeguards
+- [x] `npm run lint` passed
+- [x] `npm run test` passed: 21 tests
+- [x] `npm run test:e2e` passed: 38 tests
+- [x] `npm run build` passed
+- [x] `npm audit --audit-level=high` found 0 high vulnerabilities
+- [x] `robots.txt` works
+- [x] `sitemap.xml` works
+- [x] `manifest.webmanifest` works
+- [x] `favicon.ico` works
 
-- [x] Unit tests
-- [x] Integration tests
-- [x] End-to-end tests
-- [x] Automated accessibility audit
-- [x] Logging / observability hooks
-- [x] Safe-area spacing and reduced-motion support
-- [x] Responsive regression coverage
-- [x] Global error fallback
-- [x] Friendly 404 page
+## Database and persistence
 
-## SEO and deployment baseline
+- [x] PostgreSQL database connected
+- [x] `DATABASE_URL` configured in Vercel
+- [x] `DIRECT_URL` configured in Vercel
+- [x] `PERSISTENCE_DRIVER=prisma` configured in production
+- [x] Production is no longer using JSON/demo persistence
+- [x] Prisma migrations run before Vercel production build
+- [x] Prisma migrations applied successfully in production
+- [x] `/search` returns `200 OK` with Prisma persistence enabled
 
-- [x] Metadata baseline
-- [x] Robots file
-- [x] Sitemap
-- [x] PWA manifest baseline for future app packaging
-- [x] Security headers baseline
-- [x] Environment templates for development, test, and production
-- [x] Docker deployment path
-- [x] Secrets management guidance
+## Provider setup still needed
 
-## Provider/account setup still needed
+- [ ] Cloudinary or Vercel Blob configured for real listing photo uploads
+- [ ] Stripe test keys configured
+- [ ] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
+- [ ] Stripe sandbox checkout tested end to end
+- [ ] Resend API key configured
+- [ ] Resend sender/domain verified
+- [ ] Welcome email tested
+- [ ] Email verification tested
+- [ ] Password reset email tested
+- [ ] Booking email tested
+- [ ] Upstash Redis configured for real distributed rate limiting
+- [ ] Sentry server DSN configured
+- [ ] Sentry browser/public DSN configured
+- [ ] Sentry error capture tested
+- [ ] Vercel Analytics enabled and verified
+- [ ] Supabase Google login provider tested, if Google login is wanted
+- [ ] Supabase Facebook login provider tested, if Facebook login is wanted
 
-- [ ] Real hosted PostgreSQL database configured
-- [ ] Real Cloudinary account configured
-- [ ] Real Stripe test account + webhook configured
-- [ ] Real Resend sender/domain configured
-- [ ] Real Upstash Redis configured
-- [ ] Real Sentry project configured
-- [ ] Real analytics project verified in deployment
-- [ ] Real deployed test environment smoke-tested
-- [ ] Production domain configured
+## Product/code items still needed
 
-## Final human review still needed
+- [ ] Harden protected routes in `proxy.ts` so admin/host/guest pages cannot stream protected HTML before redirect
+- [ ] Replace legal placeholder/review-needed copy in `lib/legal-data.ts`
+- [ ] Replace listing map placeholder in `components/listings/map-section.tsx`
+- [ ] Convert browser/local-storage account settings into full backend-backed account management where needed
+- [ ] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
+- [ ] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
 
-- [x] Full SEO setup beyond baseline metadata, sitemap, and robots
-- [x] Legal page templates: terms, privacy policy, cancellation policy, safety policy
-- [x] Backup and recovery plan
-- [x] Monitoring alerts plan
-- [x] Security review checklist
-- [x] App-store packaging prep for future iOS / Android wrapper
-- [ ] Legal copy reviewed by a qualified legal/privacy professional
-- [ ] Monitoring alerts configured in real providers
-- [ ] Final penetration/security review completed
-- [ ] Manual accessibility audit with keyboard, screen reader, zoom, and reduced motion
-- [ ] Manual QA on real iPhone, Android, tablet, and desktop devices
-- [ ] Real sandbox payment test
-- [ ] Real email delivery test
-- [ ] Real photo upload test in deployed environment
-- [ ] Load/performance pass with production data volume
-- [ ] Manual launch QA checklist completed (`docs/manual-launch-qa.md`)
+## User/account setup still needed
 
-## Next recommended order
+- [x] Database provider account created
+- [x] Supabase/Postgres connected to Vercel
+- [ ] Cloudinary account or Vercel Blob storage ready
+- [ ] Stripe test account ready
+- [ ] Resend sender/domain ready
+- [ ] Upstash Redis account/database ready
+- [ ] Sentry project ready
+- [ ] Legal/privacy review completed
+- [ ] Real device QA completed on iPhone
+- [ ] Real device QA completed on Android
+- [ ] Real device QA completed on desktop
 
-Use `docs/launch-asap.md` as the active go-live runbook.
+## Final launch smoke test
 
-1. Configure online test services: hosted PostgreSQL, Cloudinary, Stripe test mode, Resend, Upstash, Sentry, and analytics.
-2. Deploy a test environment and run a real end-to-end smoke test.
-3. Test payment, email, and photo upload in the deployed environment.
-4. Complete manual device, accessibility, SEO, legal, backup, monitoring, and security reviews.
-5. Only then prepare the live domain and production credentials.
+- [ ] Register a new guest account on production
+- [ ] Verify guest email on production
+- [ ] Log in and log out on production
+- [ ] Reset password on production
+- [ ] Create a host account on production
+- [ ] Create a listing with real hosted photos
+- [ ] Approve the listing in admin
+- [ ] Search for the approved listing
+- [ ] Open listing details
+- [ ] Start checkout
+- [ ] Complete Stripe sandbox payment
+- [ ] Confirm booking appears for guest
+- [ ] Confirm booking appears for host
+- [ ] Confirm payment appears in admin
+- [ ] Confirm confirmation emails are delivered
+- [ ] Confirm Sentry, analytics, logs, and rate-limit telemetry show activity
+
+## Current launch verdict
+
+- [x] Demo/live-preview ready
+- [ ] Ready for real bookings
+- [ ] Ready for real payments
+- [ ] Ready for public marketing launch
+
+The app is live and healthy, and database persistence is now active through Prisma/PostgreSQL. The remaining blockers are provider setup, legal review, protected-route hardening, and real end-to-end payment/photo/email QA.
