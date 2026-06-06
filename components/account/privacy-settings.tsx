@@ -1,0 +1,352 @@
+"use client";
+
+import { Check, ChevronRight, LockKeyhole, X } from "lucide-react";
+import { useEffect, useState } from "react";
+
+type SettingId =
+  | "readReceipts"
+  | "searchEngines"
+  | "homeCity"
+  | "tripType"
+  | "lengthOfStay"
+  | "bookedServices"
+  | "aiFeatures";
+
+type PanelId = "blocked" | "data" | "delete";
+
+type Setting = {
+  id: SettingId;
+  title: string;
+  body?: string;
+  defaultChecked?: boolean;
+};
+
+const storageKey = "stayprimeph:privacy-settings:v1";
+const blockedStorageKey = "stayprimeph:privacy-blocked-people:v1";
+const dataRequestStorageKey = "stayprimeph:privacy-data-requested-at:v1";
+const deleteRequestStorageKey = "stayprimeph:privacy-delete-requested-at:v1";
+
+const sections: Array<{ title: string; intro?: string; settings?: Setting[]; actions?: Array<{ id: PanelId; title: string; boxed?: boolean }> }> = [
+  {
+    title: "Messages",
+    settings: [{ id: "readReceipts", title: "Show people when I've read their messages. Learn more", defaultChecked: true }],
+    actions: [{ id: "blocked", title: "Blocked people" }],
+  },
+  {
+    title: "Listings",
+    settings: [
+      {
+        id: "searchEngines",
+        title: "Include my listing(s) in search engines",
+        body: "Turning this on means search engines, like Google, will display your listing page(s) in search results.",
+      },
+    ],
+  },
+  {
+    title: "Reviews",
+    intro: "Choose what's shared when you write a review. Updating this setting will change what's displayed for all past reviews. Learn more",
+    settings: [
+      { id: "homeCity", title: "Show my home city and country", body: "Ex: City and country" },
+      { id: "tripType", title: "Show my trip type", body: "Ex: Stayed with kids or pets" },
+      { id: "lengthOfStay", title: "Show my length of stay", body: "Ex: A few nights, about a week, etc.", defaultChecked: true },
+      { id: "bookedServices", title: "Show my booked services", body: "Ex: Gourmet brunch or tasting menu" },
+    ],
+  },
+  {
+    title: "Data privacy",
+    settings: [
+      {
+        id: "aiFeatures",
+        title: "Help improve AI-powered features",
+        body: "When this is on, we use your data to develop and improve AI models that power certain features on StayPrimePH. Learn more",
+        defaultChecked: true,
+      },
+    ],
+    actions: [
+      { id: "data", title: "Request my personal data", boxed: true },
+      { id: "delete", title: "Delete my account", boxed: true },
+    ],
+  },
+];
+
+function defaultSettings() {
+  return Object.fromEntries(
+    sections.flatMap((section) =>
+      (section.settings ?? []).map((setting) => [setting.id, Boolean(setting.defaultChecked)]),
+    ),
+  ) as Record<SettingId, boolean>;
+}
+
+function readJson<T>(key: string, fallback: T) {
+  if (typeof window === "undefined") return fallback;
+
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readStorageValue(key: string) {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(key);
+}
+
+export function PrivacySettings() {
+  const [settings, setSettings] = useState<Record<SettingId, boolean>>(() => ({
+    ...defaultSettings(),
+    ...readJson<Partial<Record<SettingId, boolean>>>(storageKey, {}),
+  }));
+  const [openPanel, setOpenPanel] = useState<PanelId | null>(null);
+  const [blockedPeople, setBlockedPeople] = useState<string[]>(() => readJson<string[]>(blockedStorageKey, []));
+  const [blockedInput, setBlockedInput] = useState("");
+  const [dataRequestedAt, setDataRequestedAt] = useState<string | null>(() => readStorageValue(dataRequestStorageKey));
+  const [deleteRequestedAt, setDeleteRequestedAt] = useState<string | null>(() => readStorageValue(deleteRequestStorageKey));
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+
+  useEffect(() => {
+    window.localStorage.setItem(storageKey, JSON.stringify(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    window.localStorage.setItem(blockedStorageKey, JSON.stringify(blockedPeople));
+  }, [blockedPeople]);
+
+  function toggleSetting(id: SettingId) {
+    setSettings((current) => ({ ...current, [id]: !current[id] }));
+  }
+
+  function addBlockedPerson() {
+    const value = blockedInput.trim();
+    if (!value || blockedPeople.some((person) => person.toLowerCase() === value.toLowerCase())) return;
+    setBlockedPeople((current) => [...current, value]);
+    setBlockedInput("");
+  }
+
+  function requestDataExport() {
+    const requestedAt = new Date().toISOString();
+    const payload = {
+      requestedAt,
+      privacySettings: settings,
+      blockedPeople,
+      message: "Your StayPrimePH personal data request has been recorded.",
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "stayprimeph-personal-data-request.json";
+    link.click();
+    URL.revokeObjectURL(url);
+    window.localStorage.setItem(dataRequestStorageKey, requestedAt);
+    setDataRequestedAt(requestedAt);
+  }
+
+  function requestAccountDeletion() {
+    if (deleteConfirmation !== "DELETE") return;
+    const requestedAt = new Date().toISOString();
+    window.localStorage.setItem(deleteRequestStorageKey, requestedAt);
+    setDeleteRequestedAt(requestedAt);
+    setDeleteConfirmation("");
+  }
+
+  return (
+    <div>
+      {sections.map((section) => (
+        <section key={section.title} className="mt-10 border-b border-black/10 pb-6">
+          <h3 className="text-2xl font-semibold">{section.title}</h3>
+          {section.intro ? <p className="mt-2 text-sm text-black/65">{section.intro}</p> : null}
+          <div className="mt-5 space-y-5">
+            {section.settings?.map((setting) => (
+              <ToggleRow key={setting.id} setting={setting} checked={settings[setting.id]} onToggle={() => toggleSetting(setting.id)} />
+            ))}
+            {section.actions?.map((action) => (
+              <ActionRow
+                key={action.id}
+                title={action.title}
+                boxed={action.boxed}
+                open={openPanel === action.id}
+                onClick={() => setOpenPanel((current) => (current === action.id ? null : action.id))}
+              >
+                {action.id === "blocked" ? (
+                  <BlockedPeoplePanel
+                    people={blockedPeople}
+                    input={blockedInput}
+                    onInput={setBlockedInput}
+                    onAdd={addBlockedPerson}
+                    onRemove={(person) => setBlockedPeople((current) => current.filter((item) => item !== person))}
+                  />
+                ) : null}
+                {action.id === "data" ? <DataRequestPanel requestedAt={dataRequestedAt} onRequest={requestDataExport} /> : null}
+                {action.id === "delete" ? (
+                  <DeleteAccountPanel
+                    requestedAt={deleteRequestedAt}
+                    confirmation={deleteConfirmation}
+                    onConfirmation={setDeleteConfirmation}
+                    onRequest={requestAccountDeletion}
+                  />
+                ) : null}
+              </ActionRow>
+            ))}
+            {section.title === "Data privacy" ? (
+              <div className="mt-4 flex gap-5 rounded-2xl border border-black/15 p-6">
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#083f35] text-[#083f35]">
+                  <LockKeyhole size={22} />
+                </div>
+                <p>
+                  <strong>Committed to privacy</strong>
+                  <br />
+                  <span className="text-sm text-black/65">StayPrimePH is committed to keeping your data protected. See details in our Privacy Policy.</span>
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ToggleRow({ setting, checked, onToggle }: { setting: Setting; checked: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={onToggle} className="flex min-h-16 w-full items-center justify-between gap-8 text-left">
+      <span>
+        <span className="block font-semibold">{setting.title}</span>
+        {setting.body ? <span className="mt-1 block text-sm text-black/65">{setting.body}</span> : null}
+      </span>
+      <span className={`relative inline-flex h-8 w-12 shrink-0 items-center rounded-full transition ${checked ? "bg-[#222]" : "bg-black/45"}`}>
+        <span className={`grid size-7 place-items-center rounded-full bg-white shadow transition ${checked ? "translate-x-4" : "translate-x-0.5"}`}>
+          {checked ? <Check size={15} strokeWidth={2.4} /> : null}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ActionRow({
+  title,
+  boxed,
+  open,
+  onClick,
+  children,
+}: {
+  title: string;
+  boxed?: boolean;
+  open: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onClick}
+        className={`flex min-h-14 w-full items-center justify-between text-left font-semibold transition hover:bg-black/[0.04] ${boxed ? "rounded-2xl border border-black/15 px-4" : ""}`}
+      >
+        {title}
+        <ChevronRight size={20} className={`transition ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open ? <div className="mt-3 rounded-2xl border border-black/10 bg-black/[0.02] p-4">{children}</div> : null}
+    </div>
+  );
+}
+
+function BlockedPeoplePanel({
+  people,
+  input,
+  onInput,
+  onAdd,
+  onRemove,
+}: {
+  people: string[];
+  input: string;
+  onInput: (value: string) => void;
+  onAdd: () => void;
+  onRemove: (person: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-black/65">People you block cannot send you messages on StayPrimePH.</p>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input
+          value={input}
+          onChange={(event) => onInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onAdd();
+            }
+          }}
+          placeholder="Email or name"
+          className="min-h-12 flex-1 rounded-xl border border-black/15 px-4 outline-none focus:border-[#083f35]"
+        />
+        <button type="button" onClick={onAdd} className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white">
+          Block
+        </button>
+      </div>
+      {people.length > 0 ? (
+        <div className="space-y-2">
+          {people.map((person) => (
+            <div key={person} className="flex min-h-12 items-center justify-between rounded-xl bg-white px-4">
+              <span className="font-medium">{person}</span>
+              <button type="button" onClick={() => onRemove(person)} className="grid size-9 place-items-center rounded-full hover:bg-black/[0.06]" aria-label={`Unblock ${person}`}>
+                <X size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl bg-white p-4 text-sm text-black/65">No blocked people yet.</p>
+      )}
+    </div>
+  );
+}
+
+function DataRequestPanel({ requestedAt, onRequest }: { requestedAt: string | null; onRequest: () => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-black/65">Download a record of this browser&apos;s privacy preferences and submit a personal data export request.</p>
+      {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">Last requested {new Date(requestedAt).toLocaleString()}</p> : null}
+      <button type="button" onClick={onRequest} className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white">
+        Request data export
+      </button>
+    </div>
+  );
+}
+
+function DeleteAccountPanel({
+  requestedAt,
+  confirmation,
+  onConfirmation,
+  onRequest,
+}: {
+  requestedAt: string | null;
+  confirmation: string;
+  onConfirmation: (value: string) => void;
+  onRequest: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-black/65">Type DELETE to request account deletion. This records the request here without immediately removing your account.</p>
+      {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">Deletion request saved {new Date(requestedAt).toLocaleString()}</p> : null}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input
+          value={confirmation}
+          onChange={(event) => onConfirmation(event.target.value)}
+          placeholder="Type DELETE"
+          className="min-h-12 flex-1 rounded-xl border border-black/15 px-4 outline-none focus:border-[#083f35]"
+        />
+        <button
+          type="button"
+          onClick={onRequest}
+          disabled={confirmation !== "DELETE"}
+          className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25"
+        >
+          Request deletion
+        </button>
+      </div>
+    </div>
+  );
+}

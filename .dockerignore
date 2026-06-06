@@ -1,0 +1,12 @@
+.next
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+!.env.development.example
+!.env.production.example
+!.env.test
+dev.log
+dev.stderr.log
+dev.stdout.log

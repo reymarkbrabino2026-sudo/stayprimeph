@@ -1,0 +1,28 @@
+[
+  {
+    "id": "99d26590-5f4c-4ee9-89f2-50334ba7ee05",
+    "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+    "guestId": "demo-guest",
+    "hostId": "demo-host",
+    "checkIn": "2026-06-04",
+    "checkOut": "2026-06-10",
+    "guests": 4,
+    "totalPrice": 32794,
+    "status": "confirmed",
+    "paymentStatus": "paid",
+    "createdAt": "2026-05-31"
+  },
+  {
+    "id": "b4",
+    "propertyId": "p5",
+    "guestId": "demo-guest",
+    "hostId": "demo-host",
+    "checkIn": "2026-06-18",
+    "checkOut": "2026-06-21",
+    "guests": 2,
+    "totalPrice": 12600,
+    "status": "pending",
+    "paymentStatus": "pending",
+    "createdAt": "2026-05-31"
+  }
+]

@@ -1,0 +1,10 @@
+ALTER TABLE "Payment"
+  ADD COLUMN "guestId" TEXT,
+  ADD COLUMN "hostId" TEXT,
+  ADD COLUMN "notes" TEXT,
+  ADD COLUMN "rejectionReason" TEXT,
+  ADD COLUMN "confirmedBy" TEXT,
+  ADD COLUMN "submittedAt" TIMESTAMP(3),
+  ADD COLUMN "confirmedAt" TIMESTAMP(3),
+  ADD COLUMN "rejectedAt" TIMESTAMP(3),
+  ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

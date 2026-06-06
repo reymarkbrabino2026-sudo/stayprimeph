@@ -1,0 +1,232 @@
+[
+  {
+    "id": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+    "hostId": "demo-host",
+    "slug": "elegant-suburban-homes-illuminated-by-warm-lights-42b8ae68",
+    "title": "Elegant suburban homes illuminated by warm lights,",
+    "description": "Elegant suburban homes illuminated by warm lights, landscaped nighttime street.",
+    "address": "Brgy. Mamacao , Sta Maria Davao Occidental 8011, Brgy. Mamacao",
+    "city": "Sta Maria",
+    "country": "Philippines",
+    "barangay": "Mamacao",
+    "province": "Davao Occidental",
+    "zipCode": "8011",
+    "latitude": 6.5801,
+    "longitude": 125.4574,
+    "preciseLocation": false,
+    "pricePerNight": 6100,
+    "bedrooms": 3,
+    "bathrooms": 3,
+    "maxGuests": 4,
+    "propertyType": "house",
+    "status": "approved",
+    "rating": 0,
+    "amenities": [
+      "Wifi",
+      "TV",
+      "Kitchen",
+      "Workspace",
+      "Free parking",
+      "Washer",
+      "Air conditioning",
+      "Pool",
+      "Hot tub",
+      "Patio",
+      "Fire pit",
+      "Outdoor dining",
+      "BBQ grill",
+      "First aid kit",
+      "Fire extinguisher"
+    ],
+    "rules": [
+      "No smoking",
+      "No parties or events",
+      "Quiet hours after 10 PM",
+      "Exterior security camera present",
+      "Noise decibel monitor present"
+    ],
+    "createdAt": "2026-05-31",
+    "images": [
+      {
+        "id": "11ab0bd3-2284-4980-82aa-16ffdfd2bd68.jpg",
+        "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+        "imageUrl": "/uploads/listings/11ab0bd3-2284-4980-82aa-16ffdfd2bd68.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "fbef1fa8-415f-4570-8fe9-6d085c841f21.jpg",
+        "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+        "imageUrl": "/uploads/listings/fbef1fa8-415f-4570-8fe9-6d085c841f21.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "4a28497c-a880-4956-8f74-a751e87c271c.jpg",
+        "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+        "imageUrl": "/uploads/listings/4a28497c-a880-4956-8f74-a751e87c271c.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "bd1107f3-cc9d-4ea7-b02a-4eebe46937f1.jpg",
+        "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+        "imageUrl": "/uploads/listings/bd1107f3-cc9d-4ea7-b02a-4eebe46937f1.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "24d3c00a-93ff-4f72-b882-367f2da5df2b.jpg",
+        "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+        "imageUrl": "/uploads/listings/24d3c00a-93ff-4f72-b882-367f2da5df2b.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "1e45b93b-2430-4ab5-b63e-3fa08ca273b8.jpg",
+        "propertyId": "42b8ae68-c9df-45f6-80c4-93a31e935c66",
+        "imageUrl": "/uploads/listings/1e45b93b-2430-4ab5-b63e-3fa08ca273b8.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      }
+    ],
+    "discounts": {
+      "newListing": true,
+      "lastMinute": true,
+      "weekly": true,
+      "monthly": true
+    }
+  },
+  {
+    "id": "2740579d-5ebb-49c9-a37a-8d92cb31eb96",
+    "hostId": "demo-host",
+    "slug": "sunny-sta-maria-family-home-2740579d",
+    "title": "Sunny Sta Maria Family Home",
+    "description": "A neutral sample family home for local listing, booking, and host dashboard testing.",
+    "address": "Brgy. Mamacao , Sta Maria Davao Occidental 8011, Brgy. Mamacao",
+    "city": "Sta Maria",
+    "country": "Philippines",
+    "barangay": "Mamacao",
+    "province": "Davao Occidental",
+    "zipCode": "8011",
+    "latitude": 6.5801,
+    "longitude": 125.4574,
+    "preciseLocation": false,
+    "pricePerNight": 2500,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "maxGuests": 4,
+    "propertyType": "house",
+    "status": "approved",
+    "rating": 0,
+    "amenities": [
+      "Wifi",
+      "TV",
+      "Kitchen",
+      "Workspace",
+      "Free parking",
+      "Washer",
+      "Air conditioning",
+      "Pool",
+      "Hot tub",
+      "Patio",
+      "Fire pit",
+      "Outdoor dining",
+      "BBQ grill",
+      "First aid kit",
+      "Fire extinguisher"
+    ],
+    "rules": [
+      "No smoking",
+      "No parties or events",
+      "Quiet hours after 10 PM",
+      "Exterior security camera present",
+      "Noise decibel monitor present"
+    ],
+    "createdAt": "2026-05-31",
+    "images": [
+      {
+        "id": "8f11c787-699b-4d7b-a564-3e4da6f8aa9c.jpg",
+        "propertyId": "2740579d-5ebb-49c9-a37a-8d92cb31eb96",
+        "imageUrl": "/uploads/listings/8f11c787-699b-4d7b-a564-3e4da6f8aa9c.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "6072f694-eb52-4747-9196-8e84d0dbd7f1.jpg",
+        "propertyId": "2740579d-5ebb-49c9-a37a-8d92cb31eb96",
+        "imageUrl": "/uploads/listings/6072f694-eb52-4747-9196-8e84d0dbd7f1.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "56df238a-edb5-478f-9265-8d8ba30d2269.jpg",
+        "propertyId": "2740579d-5ebb-49c9-a37a-8d92cb31eb96",
+        "imageUrl": "/uploads/listings/56df238a-edb5-478f-9265-8d8ba30d2269.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "305d8ca2-58cc-409d-b99d-f8582e0f2898.jpg",
+        "propertyId": "2740579d-5ebb-49c9-a37a-8d92cb31eb96",
+        "imageUrl": "/uploads/listings/305d8ca2-58cc-409d-b99d-f8582e0f2898.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      },
+      {
+        "id": "7948f01f-cb3f-4a3e-bb2a-75775136e2ab.jpg",
+        "propertyId": "2740579d-5ebb-49c9-a37a-8d92cb31eb96",
+        "imageUrl": "/uploads/listings/7948f01f-cb3f-4a3e-bb2a-75775136e2ab.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      }
+    ],
+    "discounts": {
+      "newListing": true,
+      "lastMinute": true,
+      "weekly": true,
+      "monthly": true
+    }
+  },
+  {
+    "id": "p5",
+    "hostId": "demo-host",
+    "slug": "demo-host-garden-suite-p5",
+    "title": "Demo Host Garden Suite",
+    "description": "A calm garden suite prepared for demo bookings, host approvals, messaging, and wishlist checks.",
+    "address": "Demo Garden Lane, Tagaytay, Cavite",
+    "city": "Tagaytay",
+    "country": "Philippines",
+    "barangay": "San Jose",
+    "province": "Cavite",
+    "zipCode": "4120",
+    "latitude": 14.1153,
+    "longitude": 120.9621,
+    "preciseLocation": false,
+    "pricePerNight": 4200,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "maxGuests": 2,
+    "propertyType": "Guest suite",
+    "status": "approved",
+    "rating": 4.9,
+    "amenities": [
+      "Wifi",
+      "Kitchen",
+      "Free parking",
+      "Air conditioning",
+      "Workspace",
+      "Garden patio"
+    ],
+    "rules": [
+      "No smoking",
+      "No parties or events",
+      "Quiet hours after 10 PM",
+      "Instant book enabled"
+    ],
+    "createdAt": "2026-05-31",
+    "images": [
+      {
+        "id": "demo-host-garden-suite-cover",
+        "propertyId": "p5",
+        "imageUrl": "/host-preview-house.jpg",
+        "tone": "from-emerald-100 via-teal-50 to-stone-100"
+      }
+    ],
+    "discounts": {
+      "newListing": true,
+      "lastMinute": false,
+      "weekly": true,
+      "monthly": true
+    }
+  }
+]

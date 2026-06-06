@@ -1,0 +1,78 @@
+import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { resolveLocationCoordinates } from "@/lib/property-map";
+import { checkDistributedRateLimit } from "@/lib/rate-limit";
+
+interface NominatimSearchResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+}
+
+export async function GET(request: Request) {
+  const rateLimit = await checkDistributedRateLimit(`geocode:${request.headers.get("x-forwarded-for") ?? "local"}`, 30);
+  if (rateLimit.limited) {
+    logger.warn("rate_limited", { route: "/api/geocode" });
+    return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
+  }
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get("query")?.trim();
+
+  if (!query) {
+    logger.warn("geocode_missing_query");
+    return NextResponse.json({ error: "Missing address query." }, { status: 400 });
+  }
+
+  const knownCoordinates = resolveLocationCoordinates(query);
+  if (knownCoordinates) {
+    return NextResponse.json({
+      latitude: knownCoordinates[0],
+      longitude: knownCoordinates[1],
+      displayName: query,
+    });
+  }
+
+  const parts = query.split(",").map((part) => part.trim()).filter(Boolean);
+  const maybeZip = parts.at(-1);
+  const withoutZip = maybeZip && /^\d{4,}$/.test(maybeZip) ? parts.slice(0, -1) : parts;
+  const country = withoutZip.at(-1);
+  const province = withoutZip.at(-2);
+  const city = withoutZip.at(-3);
+  const barangay = withoutZip.at(-4);
+  const candidates = Array.from(new Set([
+    query,
+    withoutZip.join(", "),
+    barangay && city && province && country ? [barangay, city, province, country].join(", ") : "",
+    city && province && country ? [city, province, country].join(", ") : "",
+    province && country ? [province, country].join(", ") : "",
+  ].filter(Boolean)));
+
+  for (const candidate of candidates) {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&q=${encodeURIComponent(candidate)}`,
+      {
+        headers: {
+          "User-Agent": "stayprimeph-local-dev/1.0",
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) {
+      logger.error("geocode_upstream_failed", { status: response.status });
+      return NextResponse.json({ error: "Geocoding service unavailable." }, { status: 502 });
+    }
+
+    const [result] = (await response.json()) as NominatimSearchResult[];
+
+    if (result) {
+      return NextResponse.json({
+        latitude: Number(result.lat),
+        longitude: Number(result.lon),
+        displayName: result.display_name,
+      });
+    }
+  }
+
+  return NextResponse.json({ error: "Address not found." }, { status: 404 });
+}

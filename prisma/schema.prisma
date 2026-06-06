@@ -1,0 +1,294 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String       @id
+  name            String
+  email           String       @unique
+  password        String?
+  role            String
+  avatar          String?
+  phone           String?
+  emailVerifiedAt DateTime?
+  createdAt       DateTime     @default(now())
+  properties      Property[]
+  bookings        Booking[]    @relation("GuestBookings")
+  hosted          Booking[]    @relation("HostBookings")
+  reviews         Review[]
+  sent            Message[]    @relation("SentMessages")
+  received        Message[]    @relation("ReceivedMessages")
+  wishlists       Wishlist[]
+  hostProfile     HostProfile?
+  payouts         Payout[]
+  adminLogs       AdminLog[]
+  authTokens      AuthToken[]
+}
+
+model Property {
+  id            String               @id
+  hostId        String
+  slug          String               @unique
+  title         String
+  description   String
+  address       String
+  city          String
+  country       String
+  pricePerNight Int
+  bedrooms      Int
+  bathrooms     Int
+  maxGuests     Int
+  propertyType  String
+  status        String               @default("pending")
+  rating        Float                @default(0)
+  rules         String
+  createdAt     DateTime             @default(now())
+  host          User                 @relation(fields: [hostId], references: [id])
+  images        PropertyImage[]
+  amenities     PropertyAmenity[]
+  bookings      Booking[]
+  reviews       Review[]
+  wishlists     Wishlist[]
+  location      ListingLocation?
+  pricing       ListingPricing?
+  availability  ListingAvailability?
+  calendar      AvailabilityBlock[]
+  highlights    ListingHighlight[]
+  cancellations Cancellation[]
+  reports       Report[]
+  messages      Message[]
+
+  @@index([hostId])
+  @@index([status, city])
+}
+
+model PropertyImage {
+  id         String   @id
+  propertyId String
+  imageUrl   String
+  tone       String?
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Amenity {
+  id         String            @id
+  name       String            @unique
+  properties PropertyAmenity[]
+}
+
+model PropertyAmenity {
+  propertyId String
+  amenityId  String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, amenityId])
+}
+
+model Booking {
+  id            String        @id
+  propertyId    String
+  guestId       String
+  hostId        String
+  checkIn       DateTime
+  checkOut      DateTime
+  guests        Int
+  totalPrice    Int
+  status        String
+  paymentStatus String
+  createdAt     DateTime      @default(now())
+  property      Property      @relation(fields: [propertyId], references: [id])
+  guest         User          @relation("GuestBookings", fields: [guestId], references: [id])
+  host          User          @relation("HostBookings", fields: [hostId], references: [id])
+  messages      Message[]
+  payment       Payment?
+  cancellation  Cancellation?
+
+  @@index([propertyId, checkIn, checkOut])
+  @@index([guestId, status])
+  @@index([hostId, status])
+}
+
+model Review {
+  id         String   @id
+  propertyId String
+  guestId    String
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id])
+  guest      User     @relation(fields: [guestId], references: [id])
+}
+
+model Message {
+  id         String    @id
+  senderId   String
+  receiverId String
+  bookingId  String?
+  propertyId String?
+  message    String
+  createdAt  DateTime  @default(now())
+  sender     User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([propertyId])
+  @@index([senderId, receiverId])
+}
+
+model Wishlist {
+  id         String   @id
+  userId     String
+  propertyId String
+  user       User     @relation(fields: [userId], references: [id])
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  @@unique([userId, propertyId])
+}
+
+model Payment {
+  id              String    @id
+  bookingId       String    @unique
+  guestId         String?
+  hostId          String?
+  amount          Int
+  paymentMethod   String
+  paymentStatus   String
+  transactionId   String
+  notes           String?
+  rejectionReason String?
+  confirmedBy     String?
+  submittedAt     DateTime?
+  confirmedAt     DateTime?
+  rejectedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  booking         Booking   @relation(fields: [bookingId], references: [id])
+}
+
+model AuthToken {
+  id        String   @id
+  userId    String
+  tokenHash String   @unique
+  type      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model HostProfile {
+  id           String   @id
+  userId       String   @unique
+  bio          String?
+  responseRate Int?
+  joinedAt     DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ListingLocation {
+  id              String   @id
+  propertyId      String   @unique
+  latitude        Float
+  longitude       Float
+  barangay        String?
+  province        String?
+  zipCode         String?
+  preciseLocation Boolean  @default(false)
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model ListingPricing {
+  id              String   @id
+  propertyId      String   @unique
+  weekendPrice    Int
+  cleaningFee     Int
+  securityDeposit Int
+  currency        String
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model ListingAvailability {
+  id          String   @id
+  propertyId  String   @unique
+  instantBook Boolean  @default(false)
+  minNights   Int      @default(1)
+  maxNights   Int      @default(365)
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model AvailabilityBlock {
+  id         String   @id
+  propertyId String
+  date       DateTime
+  available  Boolean  @default(true)
+  minNights  Int?
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, date])
+  @@index([propertyId, date])
+}
+
+model ListingHighlight {
+  propertyId String
+  highlight  String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, highlight])
+}
+
+model Cancellation {
+  id         String   @id
+  bookingId  String   @unique
+  propertyId String
+  reason     String?
+  status     String
+  createdAt  DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Payout {
+  id          String   @id
+  hostId      String
+  amount      Int
+  status      String
+  availableOn DateTime
+  createdAt   DateTime @default(now())
+  host        User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@index([hostId, status])
+}
+
+model Report {
+  id         String    @id
+  propertyId String?
+  reporterId String?
+  type       String
+  status     String
+  details    String
+  createdAt  DateTime  @default(now())
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([status, type])
+}
+
+model AdminLog {
+  id         String   @id
+  adminId    String
+  action     String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+  admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+}

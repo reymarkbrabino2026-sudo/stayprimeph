@@ -1,0 +1,18 @@
+[
+  {
+    "id": "754b68f1-b9e6-447e-aad6-c08c938bc170",
+    "bookingId": "99d26590-5f4c-4ee9-89f2-50334ba7ee05",
+    "guestId": "demo-guest",
+    "hostId": "demo-host",
+    "amount": 32794,
+    "paymentMethod": "gcash",
+    "paymentStatus": "paid",
+    "transactionId": "DEMO-GCASH-REFERENCE",
+    "notes": "Demo payment reference for local testing.",
+    "submittedAt": "2026-05-31T16:56:32.250Z",
+    "createdAt": "2026-05-31T16:56:32.250Z",
+    "updatedAt": "2026-05-31T16:57:29.692Z",
+    "confirmedBy": "demo-host",
+    "confirmedAt": "2026-05-31T16:57:29.692Z"
+  }
+]
