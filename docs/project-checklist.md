@@ -48,6 +48,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Stripe checkout UI wired to the server checkout route
 - [x] Stripe test keys configured in Vercel Production
 - [x] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
+- [x] Stripe webhook signature check verified in production
 - [x] `/status` shows Payments as `Operational`
 - [ ] Stripe sandbox checkout tested end to end
 - [x] Resend API key configured in Vercel Production
