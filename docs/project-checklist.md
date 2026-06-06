@@ -55,7 +55,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Resend sender/domain verified
 - [x] `/status` shows Email as `Operational`
 - [x] Welcome email tested
-- [ ] Email verification tested
+- [x] Email verification tested
 - [ ] Password reset email tested
 - [ ] Booking email tested
 - [ ] Upstash Redis configured for real distributed rate limiting
@@ -91,8 +91,8 @@ Use this as the active tracker for what is done, what is configured, and what st
 
 ## Final launch smoke test
 
-- [ ] Register a new guest account on production
-- [ ] Verify guest email on production
+- [x] Register a new guest account on production
+- [x] Verify guest email on production
 - [ ] Log in and log out on production
 - [ ] Reset password on production
 - [ ] Create a host account on production
