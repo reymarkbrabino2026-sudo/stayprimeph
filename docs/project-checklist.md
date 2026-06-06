@@ -46,8 +46,9 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Vercel Blob configured for real listing photo uploads
 - [x] Real listing photo upload tested in production
 - [x] Stripe checkout UI wired to the server checkout route
-- [ ] Stripe test keys configured
-- [ ] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
+- [x] Stripe test keys configured in Vercel Production
+- [x] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
+- [x] `/status` shows Payments as `Operational`
 - [ ] Stripe sandbox checkout tested end to end
 - [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
@@ -78,7 +79,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Database provider account created
 - [x] Supabase/Postgres connected to Vercel
 - [x] Vercel Blob storage ready
-- [ ] Stripe test account ready
+- [x] Stripe test account ready
 - [x] Resend sender/domain ready
 - [ ] Upstash Redis account/database ready
 - [ ] Sentry project ready
