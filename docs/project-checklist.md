@@ -43,7 +43,8 @@ Use this as the active tracker for what is done, what is configured, and what st
 
 ## Provider setup still needed
 
-- [ ] Cloudinary or Vercel Blob configured for real listing photo uploads
+- [x] Vercel Blob configured for real listing photo uploads
+- [ ] Real listing photo upload tested in production
 - [ ] Stripe test keys configured
 - [ ] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
 - [ ] Stripe sandbox checkout tested end to end
@@ -74,7 +75,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 
 - [x] Database provider account created
 - [x] Supabase/Postgres connected to Vercel
-- [ ] Cloudinary account or Vercel Blob storage ready
+- [x] Vercel Blob storage ready
 - [ ] Stripe test account ready
 - [ ] Resend sender/domain ready
 - [ ] Upstash Redis account/database ready

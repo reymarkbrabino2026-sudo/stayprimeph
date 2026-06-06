@@ -2,12 +2,14 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { adminLinks } from "@/lib/navigation";
 
 export default function AdminSettingsPage() {
+  const hasCloudinary = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+  const hasVercelBlob = Boolean(process.env.PHOTO_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN);
   const settings = [
     ["App URL", Boolean(process.env.NEXT_PUBLIC_APP_URL), "Public canonical URL for links and auth callbacks."],
     ["Database", Boolean(process.env.DATABASE_URL), "PostgreSQL connection for production persistence."],
     ["Prisma persistence", process.env.PERSISTENCE_DRIVER === "prisma", "Production must use Prisma instead of local JSON files."],
     ["Stripe", Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY), "Checkout, webhook, and public key are configured together."],
-    ["Cloudinary", Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET), "Listing image uploads use durable cloud storage."],
+    ["Photo storage", hasCloudinary || hasVercelBlob, "Cloudinary or Vercel Blob is configured for durable listing photo uploads."],
     ["Resend email", Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM), "Transactional email sender is configured."],
     ["Upstash Redis", Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN), "Distributed rate limiting is configured."],
     ["Sentry", Boolean(process.env.SENTRY_DSN && process.env.NEXT_PUBLIC_SENTRY_DSN), "Server and browser error monitoring are configured."],
