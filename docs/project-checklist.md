@@ -56,7 +56,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] `/status` shows Email as `Operational`
 - [x] Welcome email tested
 - [x] Email verification tested
-- [ ] Password reset email tested
+- [x] Password reset email tested
 - [x] Booking email tested
 - [ ] Upstash Redis configured for real distributed rate limiting
 - [ ] Sentry server DSN configured
@@ -93,8 +93,8 @@ Use this as the active tracker for what is done, what is configured, and what st
 
 - [x] Register a new guest account on production
 - [x] Verify guest email on production
-- [ ] Log in and log out on production
-- [ ] Reset password on production
+- [x] Log in and log out on production
+- [x] Reset password on production
 - [ ] Create a host account on production
 - [ ] Create a listing with real hosted photos
 - [ ] Approve the listing in admin
@@ -115,4 +115,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, and booking email QA are now active. The remaining blockers are live Stripe mode, Redis rate limiting, Sentry/analytics monitoring, legal review, protected-route hardening, and password reset email QA.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, and core email QA are now active. The remaining blockers are live Stripe mode, Redis rate limiting, Sentry/analytics monitoring, legal review, protected-route hardening, real device QA, and host/admin booking checks.
