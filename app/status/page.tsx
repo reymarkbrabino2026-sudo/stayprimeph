@@ -13,12 +13,13 @@ export default function StatusPage() {
   const hasCloudinary = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
   const hasVercelBlob = Boolean(process.env.PHOTO_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN);
   const hasPhotoStorage = hasCloudinary || hasVercelBlob;
+  const hasResendEmail = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
   const services = [
     ["Web app", "Operational", "Core browsing, search, dashboards, and listing pages."],
     ["Authentication", "Operational", "Login, registration, password reset, and email verification paths are implemented."],
     ["Photo uploads", hasPhotoStorage ? "Operational" : "Configuration needed", "Cloudinary or Vercel Blob is required for hosted production uploads."],
     ["Payments", "Configuration needed", "Stripe test keys and webhook are required for online checkout testing."],
-    ["Email", "Configuration needed", "Resend sender/domain must be configured for real delivery."],
+    ["Email", hasResendEmail ? "Operational" : "Configuration needed", "Resend sender/domain must be configured for real delivery."],
     ["Monitoring", "Configuration needed", "Sentry, analytics, and provider alerts must be connected in deployment."],
   ];
 
