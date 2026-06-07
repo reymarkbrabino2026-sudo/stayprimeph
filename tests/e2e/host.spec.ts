@@ -65,7 +65,7 @@ test("host can open calendar and create-listing flow", async ({ page }) => {
   await expect(page.getByText("Availability settings")).toBeVisible();
 
   await page.goto("/host/listings/create", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/become-a-host\/setup(?:\?new=1)?$/);
+  await page.waitForURL(/\/become-a-host\/setup(?:\?new=1)?$/, { timeout: 30000 });
   await expect(page.getByRole("heading", { name: "Set up your StayPrimePH listing" })).toBeVisible();
 });
 

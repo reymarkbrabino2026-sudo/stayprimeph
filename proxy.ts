@@ -22,6 +22,7 @@ function withSecurityHeaders(response: NextResponse) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   response.headers.set("X-Request-Id", crypto.randomUUID());
@@ -47,6 +48,15 @@ async function hmacSha256(payload: string, secret: string) {
   return toHex(signature);
 }
 
+function constantTimeEqual(left: string, right: string) {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
 async function hasValidSession(value?: string) {
   const authSecret = process.env.AUTH_SECRET;
   if (!value || !authSecret) return false;
@@ -56,7 +66,7 @@ async function hasValidSession(value?: string) {
   if (!userId || !Number.isFinite(expiresAt) || expiresAt <= Date.now() || !signature) return false;
 
   const expected = await hmacSha256(`${userId}.${expiresAtValue}`, authSecret);
-  return expected.length === signature.length && expected === signature;
+  return constantTimeEqual(expected, signature);
 }
 
 function buildLoginUrl(request: NextRequest, role?: "admin" | "host" | "guest") {

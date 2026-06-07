@@ -22,9 +22,22 @@ export async function GET(request: Request) {
     logger.warn("reverse_geocode_missing_coordinates");
     return NextResponse.json({ error: "Missing coordinates." }, { status: 400 });
   }
+  const parsedLatitude = Number(latitude);
+  const parsedLongitude = Number(longitude);
+  if (
+    !Number.isFinite(parsedLatitude) ||
+    !Number.isFinite(parsedLongitude) ||
+    parsedLatitude < -90 ||
+    parsedLatitude > 90 ||
+    parsedLongitude < -180 ||
+    parsedLongitude > 180
+  ) {
+    logger.warn("reverse_geocode_invalid_coordinates");
+    return NextResponse.json({ error: "Invalid coordinates." }, { status: 400 });
+  }
 
   const response = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}`,
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(parsedLatitude))}&lon=${encodeURIComponent(String(parsedLongitude))}`,
     {
       headers: {
         "User-Agent": "stayprimeph-local-dev/1.0",

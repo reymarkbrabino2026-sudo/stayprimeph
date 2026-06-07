@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { AuthToken, Booking, Message, Payment, Property, PropertyImage, Review, User } from "@/lib/types";
@@ -173,47 +174,65 @@ export async function listBookingsFromDatabase(): Promise<Booking[]> {
 }
 
 export async function createBookingInDatabase(booking: Booking) {
-  await prisma.booking.create({
-    data: {
-      id: booking.id,
-      propertyId: booking.propertyId,
-      guestId: booking.guestId,
-      hostId: booking.hostId,
-      checkIn: new Date(booking.checkIn),
-      checkOut: new Date(booking.checkOut),
-      guests: booking.guests,
-      totalPrice: booking.totalPrice,
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-      createdAt: new Date(booking.createdAt),
-    },
-  });
+  const checkIn = new Date(booking.checkIn);
+  const checkOut = new Date(booking.checkOut);
+  await prisma.$transaction(async (tx) => {
+    const conflictingBooking = await tx.booking.findFirst({
+      where: {
+        propertyId: booking.propertyId,
+        status: { not: "cancelled" },
+        checkIn: { lt: checkOut },
+        checkOut: { gt: checkIn },
+      },
+      select: { id: true },
+    });
+    if (conflictingBooking) throw new Error("Those dates are no longer available.");
+
+    await tx.booking.create({
+      data: {
+        id: booking.id,
+        propertyId: booking.propertyId,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        checkIn,
+        checkOut,
+        guests: booking.guests,
+        totalPrice: booking.totalPrice,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        createdAt: new Date(booking.createdAt),
+      },
+    });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function updateBookingPaymentInDatabase(bookingId: string, paymentStatus: Booking["paymentStatus"], transactionId: string) {
-  const booking = await prisma.booking.update({ where: { id: bookingId }, data: { paymentStatus } });
   const now = new Date();
   const confirmedAt = paymentStatus === "paid" ? now : null;
 
-  await prisma.$executeRaw`
-    INSERT INTO "Payment" (
-      "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
-      "transactionId", "submittedAt", "confirmedAt", "createdAt", "updatedAt"
-    )
-    VALUES (
-      ${`payment-${bookingId}`}, ${bookingId}, ${booking.guestId}, ${booking.hostId}, ${booking.totalPrice},
-      ${"stripe"}, ${paymentStatus}, ${transactionId}, ${now}, ${confirmedAt}, ${now}, ${now}
-    )
-    ON CONFLICT ("bookingId") DO UPDATE SET
-      "guestId" = EXCLUDED."guestId",
-      "hostId" = EXCLUDED."hostId",
-      "amount" = EXCLUDED."amount",
-      "paymentMethod" = EXCLUDED."paymentMethod",
-      "paymentStatus" = EXCLUDED."paymentStatus",
-      "transactionId" = EXCLUDED."transactionId",
-      "confirmedAt" = EXCLUDED."confirmedAt",
-      "updatedAt" = EXCLUDED."updatedAt"
-  `;
+  await prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.update({ where: { id: bookingId }, data: { paymentStatus } });
+
+    await tx.$executeRaw`
+      INSERT INTO "Payment" (
+        "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
+        "transactionId", "submittedAt", "confirmedAt", "createdAt", "updatedAt"
+      )
+      VALUES (
+        ${`payment-${bookingId}`}, ${bookingId}, ${booking.guestId}, ${booking.hostId}, ${booking.totalPrice},
+        ${"stripe"}, ${paymentStatus}, ${transactionId}, ${now}, ${confirmedAt}, ${now}, ${now}
+      )
+      ON CONFLICT ("bookingId") DO UPDATE SET
+        "guestId" = EXCLUDED."guestId",
+        "hostId" = EXCLUDED."hostId",
+        "amount" = EXCLUDED."amount",
+        "paymentMethod" = EXCLUDED."paymentMethod",
+        "paymentStatus" = EXCLUDED."paymentStatus",
+        "transactionId" = EXCLUDED."transactionId",
+        "confirmedAt" = EXCLUDED."confirmedAt",
+        "updatedAt" = EXCLUDED."updatedAt"
+    `;
+  });
 }
 
 export async function updateBookingStatusInDatabase(bookingId: string, status: Booking["status"]) {

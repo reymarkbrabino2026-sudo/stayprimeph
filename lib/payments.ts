@@ -81,6 +81,9 @@ export async function submitManualPayment({
   if (booking.guestId !== guestId) throw new Error("Booking request not found.");
   if (booking.status === "cancelled") throw new Error("Cancelled bookings cannot be paid.");
   if (booking.paymentStatus === "paid") throw new Error("This booking is already paid.");
+  if (paymentInput.amount !== booking.totalPrice) {
+    throw new Error("Payment amount must match the booking total.");
+  }
 
   const existingPayment = await getPaymentByBookingId(booking.id);
   if (existingPayment && existingPayment.paymentStatus !== "rejected") {

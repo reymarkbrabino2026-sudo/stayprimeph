@@ -21,10 +21,12 @@ Use this as the active tracker for what is done, what is configured, and what st
 ## Automated checks
 
 - [x] `npm run lint` passed
-- [x] `npm run test` passed: 21 tests
+- [x] `npm run type-check` passed
+- [x] `npm run test` passed: 24 tests
 - [x] `npm run test:e2e` passed: 38 tests
 - [x] `npm run build` passed
-- [x] `npm audit --audit-level=high` found 0 high vulnerabilities
+- [x] `npm audit --audit-level=low` found 0 vulnerabilities
+- [x] Local production DAST-style probes passed for auth redirects, unauthenticated API rejection, geocode validation, and HSTS
 - [x] `robots.txt` works
 - [x] `sitemap.xml` works
 - [x] `manifest.webmanifest` works
@@ -101,11 +103,22 @@ Use this as the active tracker for what is done, what is configured, and what st
 ## Product/code items still needed
 
 - [x] Harden protected routes in `proxy.ts` so admin/host/guest pages cannot stream protected HTML before redirect
+- [x] Full security, vulnerability, and QA audit completed in `docs/stayprimeph-full-security-vulnerability-qa-audit-2026-06-07.md`
+- [x] Public room pages now hide non-approved listings from everyone except admin and owning host
+- [x] Public room pages no longer expose host email addresses
+- [x] Transactional email HTML now escapes interpolated fields and URL-encodes email tokens
+- [x] Manual payment submissions now require the submitted amount to match the booking total
+- [x] Booking creation now re-checks date overlap inside a serializable Prisma transaction
+- [x] Stripe booking/payment update path is transaction-wrapped
+- [x] HSTS and core security headers configured in middleware and Next headers
+- [x] Session HMAC verification uses constant-time comparison
+- [x] Geocode endpoints reject oversized queries and invalid coordinates
+- [x] Account profile email updates validate format and duplicate ownership server-side
 - [x] Replace legal placeholder/review-needed copy in `lib/legal-data.ts`
 - [x] Replace listing map placeholder in `components/listings/map-section.tsx`
 - [x] Convert browser/local-storage account settings into full backend-backed account management where needed
 - [x] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
-- [x] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
+- [ ] Fix remaining above-the-fold image priority/eager-loading warning for `/host-preview-house.jpg`
 - [x] Internal legal/privacy readiness pass completed and documented in `docs/legal-privacy-review.md`
 - [x] Public Terms, Privacy Policy, and Data Deletion pages strengthened for launch readiness
 - [x] Real-device QA runbook prepared in `docs/real-device-qa.md`
@@ -114,6 +127,17 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Live `/status` page shows Email, Rate limiting, and Monitoring as Operational
 - [x] Vercel production logs access verified
 - [ ] Production search has at least one approved public listing available for listing-detail, booking, and checkout QA
+
+## Security hardening still needed
+
+- [ ] Add a database-level booking overlap invariant, such as an exclusion constraint, lock table, or equivalent range guarantee
+- [ ] Wire persistent `AdminLog` records across admin approvals, user changes, listing changes, payment review, disputes, and settings
+- [ ] Add a shared CSRF/origin guard for custom non-webhook state-changing POST routes
+- [ ] Add upload byte verification, MIME sniffing, malware scanning, image moderation, and storage cleanup
+- [ ] Add field-level encryption or tokenization for sensitive tax, payout, identity, and account-setting data
+- [ ] Add session revocation, session rotation on privilege changes, admin/host MFA, and a device/session management screen
+- [ ] Add a nonce/hash-based Content-Security-Policy compatible with Next.js, Stripe, Sentry, maps, and analytics
+- [ ] Apply safe patch/minor dependency updates, then separately review Prisma, TypeScript, ESLint, and Node type major upgrades
 
 ## User/account setup still needed
 
@@ -157,4 +181,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, Stripe live-mode runbook, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, legal/privacy readiness copy, public business/legal contact details, map polish, nav cleanup, image-loading polish, backend-backed account settings, and automated production device-emulation QA are now active. The remaining blockers are at least one approved production listing for public search/listing/checkout QA, live Stripe account activation/keys/webhook/payment test, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, physical real-device QA, and final confirmation-email telemetry.
+The app is live-preview ready and the latest local audit passed lint, type-check, unit/integration tests, E2E tests, production build, npm audit, and production-style security probes. Recent security fixes cover public listing visibility, host email privacy, email HTML escaping, manual payment amount validation, booking race reduction, security headers, geocode validation, account email validation, and E2E stability. The remaining blockers are at least one approved production listing for public search/listing/checkout QA, live Stripe account activation/keys/webhook/payment test, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, physical real-device QA, final confirmation-email telemetry, and the security hardening items above before real public bookings/payments.

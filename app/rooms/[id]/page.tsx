@@ -33,6 +33,7 @@ import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
+import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
@@ -68,7 +69,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const property = await getPropertyById(id);
-  if (!property) return { title: "Stay not found | StayPrimePH" };
+  if (!property || property.status !== "approved") return { title: "Stay not found | StayPrimePH" };
 
   const locationLabel = formatPropertyLocation(property);
   const title = `${property.title} · ${locationLabel} | StayPrimePH`;
@@ -92,9 +93,11 @@ export default async function RoomPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const property = await getPropertyById(id);
+  const [property, currentUser] = await Promise.all([getPropertyById(id), getCurrentUser()]);
 
   if (!property) notFound();
+  const canPreviewListing = currentUser?.role === "admin" || currentUser?.id === property.hostId;
+  if (property.status !== "approved" && !canPreviewListing) notFound();
 
   const [users, reviews, bookings] = await Promise.all([getUsers(), getReviews(), getBookings()]);
   const host = users.find((user) => user.id === property.hostId);
@@ -372,7 +375,7 @@ export default async function RoomPage({
                     <MessageCircle size={18} /> Message host
                   </Link>
                   <span className="inline-flex min-h-12 items-center rounded-full bg-black/[0.05] px-5 font-medium text-black/70">
-                    {host?.email ?? "Host email available after booking"}
+                    Contact through StayPrimePH
                   </span>
                 </div>
               </div>

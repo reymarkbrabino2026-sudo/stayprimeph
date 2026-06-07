@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
-import { writeStoredBookings } from "@/lib/booking-store";
+import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { createBookingInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { sendBookingCreatedEmail } from "@/lib/email";
 import { getUserById } from "@/lib/users";
@@ -90,7 +90,9 @@ export async function createBooking(formData: FormData) {
   if (usesPrismaPersistence()) {
     await createBookingInDatabase(booking);
   } else {
-    await writeStoredBookings([booking, ...bookings]);
+    const latestBookings = await readStoredBookings();
+    if (hasDateConflict(latestBookings, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
+    await writeStoredBookings([booking, ...latestBookings]);
   }
   const guest = await getUserById(user.id);
   if (guest) {

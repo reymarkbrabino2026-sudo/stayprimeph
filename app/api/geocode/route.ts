@@ -22,6 +22,10 @@ export async function GET(request: Request) {
     logger.warn("geocode_missing_query");
     return NextResponse.json({ error: "Missing address query." }, { status: 400 });
   }
+  if (query.length > 200) {
+    logger.warn("geocode_query_too_long");
+    return NextResponse.json({ error: "Address query is too long." }, { status: 400 });
+  }
 
   const knownCoordinates = resolveLocationCoordinates(query);
   if (knownCoordinates) {

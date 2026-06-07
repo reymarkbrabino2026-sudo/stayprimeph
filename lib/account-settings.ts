@@ -67,6 +67,10 @@ function normalizeText(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function normalizeBoolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -306,15 +310,24 @@ async function writeStoredAccountSettings(userId: string, next: AccountSettingsD
 
 async function updateUserProfileFields(user: User, profile: PersonalInfoState) {
   const email = profile.email.trim().toLowerCase();
+  const nextEmail = email || user.email;
   const name = profile.legalName.trim() || user.name;
   const phone = profile.phone.trim();
 
+  if (!isValidEmail(nextEmail)) throw new Error("Use a valid email address.");
+
   if (usesPrismaPersistence()) {
+    const existingUser = await prisma.user.findFirst({
+      where: { email: nextEmail, NOT: { id: user.id } },
+      select: { id: true },
+    });
+    if (existingUser) throw new Error("That email is already used by another account.");
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
         name,
-        email: email || user.email,
+        email: nextEmail,
         phone,
       },
     });
@@ -322,7 +335,10 @@ async function updateUserProfileFields(user: User, profile: PersonalInfoState) {
   }
 
   const users = await readStoredUsers();
-  await writeStoredUsers(users.map((item) => (item.id === user.id ? { ...item, name, email: email || item.email, phone } : item)));
+  if (users.some((item) => item.id !== user.id && item.email.toLowerCase() === nextEmail)) {
+    throw new Error("That email is already used by another account.");
+  }
+  await writeStoredUsers(users.map((item) => (item.id === user.id ? { ...item, name, email: nextEmail, phone } : item)));
 }
 
 export async function getAccountSettings(user: User) {

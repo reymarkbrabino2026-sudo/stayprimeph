@@ -6,5 +6,5 @@ test("guest can sign in and reach the guest dashboard", async ({ page }) => {
   await page.getByPlaceholder("Password").fill("Guest123!");
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page).toHaveURL(/\/guest\/dashboard$/);
-  await expect(page.getByText("Guest Overview")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Guest Overview", exact: true })).toBeVisible();
 });
