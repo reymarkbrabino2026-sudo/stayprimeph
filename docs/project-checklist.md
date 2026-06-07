@@ -109,6 +109,9 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Internal legal/privacy readiness pass completed and documented in `docs/legal-privacy-review.md`
 - [x] Public Terms, Privacy Policy, and Data Deletion pages strengthened for launch readiness
 - [x] Real-device QA runbook prepared in `docs/real-device-qa.md`
+- [x] Final monitoring QA runbook prepared in `docs/final-monitoring-qa.md`
+- [x] Live `/status` page shows Email, Rate limiting, and Monitoring as Operational
+- [x] Vercel production logs access verified
 
 ## User/account setup still needed
 
