@@ -6,6 +6,15 @@ export type LegalPage = {
   sections: { title: string; body: string[] }[];
 };
 
+const operatorContactSection = {
+  title: "Operator and contact details",
+  body: [
+    "StayPrimePH is operated by Livewise Construction, trading as stayprimeph, in the Philippines.",
+    "Business address: 2nd Floor block 1 lot 5 Congressional Road Rainbow Subdivision Bagungbong Caloocan, Caloocan, Philippines, 1421.",
+    "Support email: support@stayprimeph.com. Privacy and data requests: privacy@stayprimeph.com. Phone: 0956 673 9577.",
+  ],
+};
+
 export const legalPages: LegalPage[] = [
   {
     slug: "terms",
@@ -53,6 +62,7 @@ export const legalPages: LegalPage[] = [
           "StayPrimePH may preserve records, cooperate with lawful requests, remove content, pause listings, or restrict accounts when needed for fraud prevention, safety review, dispute resolution, or legal compliance.",
         ],
       },
+      operatorContactSection,
     ],
   },
   {
@@ -97,7 +107,7 @@ export const legalPages: LegalPage[] = [
       {
         title: "Your privacy choices",
         body: [
-          "Users may request help accessing, correcting, exporting, blocking, objecting to, or deleting personal data by using account privacy tools or contacting StayPrimePH support.",
+          "Users may request help accessing, correcting, exporting, blocking, objecting to, or deleting personal data by using account privacy tools, contacting StayPrimePH support, or emailing privacy@stayprimeph.com.",
           "Marketing preferences can be changed in account notification settings. Essential account, security, booking, payment, and legal notices may still be sent when needed to operate the service.",
           "Users can remove a social-login connection through their Google or Facebook account settings, but should also contact StayPrimePH if they want platform account data reviewed for deletion.",
         ],
@@ -110,6 +120,7 @@ export const legalPages: LegalPage[] = [
           "If StayPrimePH identifies a personal data breach that requires notice, it will assess the incident, preserve relevant records, reduce harm where practical, and notify affected users and regulators when required by applicable law.",
         ],
       },
+      operatorContactSection,
     ],
   },
   {
@@ -121,7 +132,7 @@ export const legalPages: LegalPage[] = [
       {
         title: "How to request deletion",
         body: [
-          "Users can request account or personal data deletion from account privacy settings or by contacting StayPrimePH support from the email address linked to their account.",
+          "Users can request account or personal data deletion from account privacy settings, by contacting StayPrimePH support from the email address linked to their account, or by emailing privacy@stayprimeph.com.",
           "The request should include the account email address, the login provider used when known, and a short note that the user wants their StayPrimePH account data reviewed for deletion.",
           "For Facebook Login users, this page serves as the public data deletion instructions URL required by Meta.",
         ],
@@ -150,6 +161,7 @@ export const legalPages: LegalPage[] = [
           "Users should also remove StayPrimePH from their social provider account settings if they want to stop future provider access.",
         ],
       },
+      operatorContactSection,
     ],
   },
   {
@@ -182,6 +194,7 @@ export const legalPages: LegalPage[] = [
           "StayPrimePH support may request evidence before changing a booking, issuing a refund, or reversing a cancellation decision.",
         ],
       },
+      operatorContactSection,
     ],
   },
   {
@@ -214,6 +227,7 @@ export const legalPages: LegalPage[] = [
           "For medical, fire, crime, or immediate physical danger, users should contact local emergency services before contacting platform support.",
         ],
       },
+      operatorContactSection,
     ],
   },
 ];

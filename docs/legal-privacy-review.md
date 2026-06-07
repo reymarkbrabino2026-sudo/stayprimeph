@@ -17,6 +17,11 @@ This is an internal product/legal-readiness pass for StayPrimePH. It is not a su
 - Expanded Terms of Service to describe StayPrimePH's marketplace role, host responsibilities, booking records, platform standards, off-platform payment risk, and moderation rights.
 - Expanded Privacy Policy to cover account settings, social login data, operational providers, cross-border processing, retention/deletion, user privacy choices, security safeguards, and breach response.
 - Expanded Data Deletion Instructions to cover account privacy settings, support requests, Facebook/Google login data, retained records, and provider-side app removal.
+- Added public operator contact details for Livewise Construction, trading as stayprimeph:
+  - Business address: 2nd Floor block 1 lot 5 Congressional Road Rainbow Subdivision Bagungbong Caloocan, Caloocan, Philippines, 1421
+  - Support email: `support@stayprimeph.com`
+  - Privacy/data request email: `privacy@stayprimeph.com`
+  - Phone: `0956 673 9577`
 - Confirmed the Meta-required legal URLs exist:
   - Privacy: `https://stayprimeph.com/legal/privacy`
   - Terms: `https://stayprimeph.com/legal/terms`
@@ -32,7 +37,7 @@ This is an internal product/legal-readiness pass for StayPrimePH. It is not a su
 
 ## Still required from your end
 
-- Business/legal operator details: legal business name, trade name, physical business address, phone number, support email, privacy contact email, and any SEC/DTI/BIR registration details that should be public.
+- Any SEC/DTI/BIR registration details that should be public.
 - Qualified legal/privacy review: have a Philippine lawyer or qualified privacy professional approve the Terms, Privacy Policy, cancellation/refund language, safety policy, and data deletion instructions.
 - Data privacy officer or responsible privacy contact: decide who handles privacy requests and breach escalation.
 - NPC registration assessment: confirm whether StayPrimePH must register processing systems with the National Privacy Commission based on scale, sensitive data, risk, or processing volume.
