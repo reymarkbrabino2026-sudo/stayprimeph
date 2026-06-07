@@ -51,6 +51,14 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Stripe webhook signature check verified in production
 - [x] `/status` shows Payments as `Operational`
 - [x] Stripe sandbox checkout tested end to end
+- [x] Stripe live-mode runbook prepared in `docs/stripe-live-mode.md`
+- [ ] Stripe account activated for live charges
+- [ ] Stripe live publishable key configured in Vercel Production
+- [ ] Stripe live secret or restricted key configured in Vercel Production
+- [ ] Stripe live webhook endpoint configured at `https://stayprimeph.com/api/payments/webhook`
+- [ ] Stripe live webhook signing secret configured in Vercel Production
+- [ ] First low-value live payment tested end to end
+- [ ] First live payment refunded or reconciled, if it was only a launch test
 - [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
 - [x] `/status` shows Email as `Operational`
@@ -144,4 +152,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, legal/privacy readiness copy, map polish, nav cleanup, image-loading polish, and backend-backed account settings are now active. The remaining blockers are live Stripe mode, Meta app icon upload/publishing, business/legal contact details, qualified legal/privacy review, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, Stripe live-mode runbook, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, legal/privacy readiness copy, map polish, nav cleanup, image-loading polish, and backend-backed account settings are now active. The remaining blockers are live Stripe account activation/keys/webhook/payment test, Meta app icon upload/publishing, business/legal contact details, qualified legal/privacy review, real device QA, and final confirmation-email telemetry.

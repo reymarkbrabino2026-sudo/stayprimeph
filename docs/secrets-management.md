@@ -13,6 +13,8 @@ Production secrets should live in your hosting provider's encrypted secret store
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |
 | `SENTRY_DSN` | Server-side Sentry DSN |
 | `RESEND_API_KEY` | Resend API key for transactional email |
+| `STRIPE_SECRET_KEY` | Stripe server key. Use `sk_test_` for testing and `sk_live_` or a live restricted key for real payments |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for the matching test or live webhook endpoint |
 
 ## Required production config
 
@@ -23,6 +25,7 @@ Production secrets should live in your hosting provider's encrypted secret store
 | `NEXT_PUBLIC_SENTRY_DSN` | Browser-visible Sentry DSN |
 | `NEXT_PUBLIC_VERCEL_ANALYTICS` | Set to `enabled` in production |
 | `EMAIL_FROM` | Verified sender identity for transactional email |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key. Use `pk_test_` for testing and `pk_live_` for real payments |
 
 ## Recommended workflow
 
@@ -34,6 +37,7 @@ Production secrets should live in your hosting provider's encrypted secret store
 3. Rotate `AUTH_SECRET` and database credentials on a schedule and after any suspected leak.
 4. Run `npm run prod:check` before each deployment.
 5. Never paste real values into screenshots, issues, chat, or committed files.
+6. For Stripe live mode, keep the publishable, server, and webhook keys from the same Stripe mode. Do not mix `pk_live_` with `sk_test_`, or a live API key with a test webhook secret.
 
 ## Generate a secret
 
