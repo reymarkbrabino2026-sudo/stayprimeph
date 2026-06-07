@@ -72,6 +72,38 @@ export const legalPages: LegalPage[] = [
     ],
   },
   {
+    slug: "data-deletion",
+    title: "Data Deletion Instructions",
+    description: "How StayPrimePH users can request deletion of account data connected to email, Google, Facebook, bookings, listings, messages, and support records.",
+    updatedAt: "June 7, 2026",
+    sections: [
+      {
+        title: "How to request deletion",
+        body: [
+          "Users can request account or personal data deletion by contacting StayPrimePH support from the email address linked to their account.",
+          "The request should include the account email address, the login provider used when known, and a short note that the user wants their StayPrimePH account data reviewed for deletion.",
+          "For Facebook Login users, this page serves as the public data deletion instructions URL required by Meta.",
+        ],
+      },
+      {
+        title: "What may be deleted",
+        body: [
+          "StayPrimePH may delete or anonymize profile details, saved preferences, social login links, messages, wishlists, unpublished listings, and non-essential support records when deletion is approved.",
+          "Some booking, payment, tax, safety, fraud-prevention, dispute, and legal records may need to be retained for operational, accounting, compliance, or user-protection reasons.",
+          "When full deletion is not possible, StayPrimePH will limit retained data to what is reasonably needed and remove optional profile information where practical.",
+        ],
+      },
+      {
+        title: "Response process",
+        body: [
+          "StayPrimePH will review deletion requests after verifying that the requester controls the relevant account email or login identity.",
+          "Users should receive a response confirming the request status, any records that must be retained, and whether additional verification is needed.",
+          "For urgent privacy concerns, users should contact StayPrimePH support and include any relevant booking, listing, or account details so the team can locate the records.",
+        ],
+      },
+    ],
+  },
+  {
     slug: "cancellation-policy",
     title: "Cancellation Policy",
     description: "A clear baseline for guest cancellations, host cancellations, refunds, and booking status changes.",
