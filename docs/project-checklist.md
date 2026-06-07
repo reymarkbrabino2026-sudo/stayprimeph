@@ -109,9 +109,11 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Internal legal/privacy readiness pass completed and documented in `docs/legal-privacy-review.md`
 - [x] Public Terms, Privacy Policy, and Data Deletion pages strengthened for launch readiness
 - [x] Real-device QA runbook prepared in `docs/real-device-qa.md`
+- [x] Automated production device-emulation QA completed and documented in `docs/automated-device-qa-report.md`
 - [x] Final monitoring QA runbook prepared in `docs/final-monitoring-qa.md`
 - [x] Live `/status` page shows Email, Rate limiting, and Monitoring as Operational
 - [x] Vercel production logs access verified
+- [ ] Production search has at least one approved public listing available for listing-detail, booking, and checkout QA
 
 ## User/account setup still needed
 
@@ -138,9 +140,9 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Create a host account on production
 - [x] Create a listing with real hosted photos
 - [x] Approve the listing in admin
-- [x] Search for the approved listing
-- [x] Open listing details
-- [x] Start checkout
+- [ ] Search for the approved listing on production
+- [ ] Open listing details on production
+- [ ] Start checkout from a production listing
 - [x] Complete Stripe sandbox payment
 - [x] Confirm booking appears for guest
 - [x] Confirm booking appears for host
@@ -155,4 +157,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, Stripe live-mode runbook, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, legal/privacy readiness copy, public business/legal contact details, map polish, nav cleanup, image-loading polish, and backend-backed account settings are now active. The remaining blockers are live Stripe account activation/keys/webhook/payment test, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, Stripe live-mode runbook, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, legal/privacy readiness copy, public business/legal contact details, map polish, nav cleanup, image-loading polish, backend-backed account settings, and automated production device-emulation QA are now active. The remaining blockers are at least one approved production listing for public search/listing/checkout QA, live Stripe account activation/keys/webhook/payment test, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, physical real-device QA, and final confirmation-email telemetry.
