@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home } from "lucide-react";
+import { BriefcaseBusiness, Home, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
@@ -68,9 +68,15 @@ export function Navbar({ transparentOnTop = false }: { transparentOnTop?: boolea
         <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
           <BrandLogo variant={transparent ? "white" : "green"} className="h-7 w-auto" priority />
         </Link>
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-10 text-sm md:flex">
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm md:flex">
           <Link href="/search" className="flex items-center gap-2 border-b-2 border-current pb-3 font-semibold">
-            <Home size={16} /> Homes
+            <Home size={16} /> Stays
+          </Link>
+          <Link href="/search?category=local-guides" className="flex items-center gap-2 pb-3 font-semibold text-current/75 transition hover:text-current">
+            <Sparkles size={16} /> Local Guides
+          </Link>
+          <Link href="/search?category=guest-services" className="flex items-center gap-2 pb-3 font-semibold text-current/75 transition hover:text-current">
+            <BriefcaseBusiness size={16} /> Guest Services
           </Link>
         </nav>
         <div className="flex items-center gap-3">

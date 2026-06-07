@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Search } from "lucide-react";
+import { BriefcaseBusiness, Home, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -68,10 +68,18 @@ export function HomeHeader() {
             <BrandLogo variant={collapsed ? "green" : "white"} className="h-7 w-auto" priority />
           </Link>
 
-          <nav className={`absolute left-1/2 hidden -translate-x-1/2 items-center gap-9 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
+          <nav className={`absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
             <Link href="/search" className="flex items-center gap-2 border-b-2 border-current py-6 font-semibold">
               <Home size={24} strokeWidth={1.8} />
-              Homes
+              Stays
+            </Link>
+            <Link href="/search?category=local-guides" className="flex items-center gap-2 py-6 font-semibold text-current/85 transition hover:text-current">
+              <Sparkles size={22} strokeWidth={1.8} />
+              Local Guides
+            </Link>
+            <Link href="/search?category=guest-services" className="flex items-center gap-2 py-6 font-semibold text-current/85 transition hover:text-current">
+              <BriefcaseBusiness size={22} strokeWidth={1.8} />
+              Guest Services
             </Link>
           </nav>
 
