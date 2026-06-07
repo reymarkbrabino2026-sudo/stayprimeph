@@ -63,8 +63,12 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Sentry browser/public DSN configured
 - [x] Sentry error capture tested
 - [x] Vercel Analytics enabled and verified
-- [ ] Supabase Google login provider tested, if Google login is wanted
-- [ ] Supabase Facebook login provider tested, if Facebook login is wanted
+- [x] Supabase Google provider enabled in Supabase
+- [x] Google login button reaches Google sign-in
+- [ ] Google login tested end to end with a real account, if Google login is wanted
+- [x] Supabase Facebook provider enabled in Supabase
+- [x] Facebook login button reaches Facebook sign-in
+- [ ] Facebook login tested end to end with a real account, if Facebook login is wanted
 
 ## Product/code items still needed
 
@@ -115,4 +119,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, and image-loading polish are now active. The remaining blockers are live Stripe mode, backend-backed account settings where needed, legal review, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, and image-loading polish are now active. The remaining blockers are live Stripe mode, full real-account social login QA if needed, backend-backed account settings where needed, legal review, real device QA, and final confirmation-email telemetry.
