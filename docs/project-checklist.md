@@ -100,6 +100,7 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
 - [x] Internal legal/privacy readiness pass completed and documented in `docs/legal-privacy-review.md`
 - [x] Public Terms, Privacy Policy, and Data Deletion pages strengthened for launch readiness
+- [x] Real-device QA runbook prepared in `docs/real-device-qa.md`
 
 ## User/account setup still needed
 
