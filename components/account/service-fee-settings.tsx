@@ -1,12 +1,10 @@
 "use client";
 
 import { CircleDollarSign } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
+import { useMemo, useState, useTransition } from "react";
+import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import type { FinancialSettingsState, ServiceFeeMode } from "@/lib/account-settings-types";
 
-type FeeMode = "single" | "split";
-
-const storageKey = "stayprimeph:service-fee-mode:v1";
 const nightlyPrice = 10000;
 const nights = 3;
 const subtotal = nightlyPrice * nights;
@@ -15,18 +13,13 @@ function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-function serializeFeeMode(value: FeeMode) {
-  return value;
-}
-
-function deserializeFeeMode(value: string): FeeMode {
-  return value === "single" || value === "split" ? value : "split";
-}
-
-export function ServiceFeeSettings() {
-  const [savedMode, setSavedMode] = useLocalStorageState<FeeMode>(storageKey, "split", { serialize: serializeFeeMode, deserialize: deserializeFeeMode });
-  const [draftMode, setDraftMode] = useState<FeeMode | null>(null);
+export function ServiceFeeSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+  const [financial, setFinancial] = useState(initialFinancial);
+  const savedMode = financial.serviceFeeMode;
+  const [draftMode, setDraftMode] = useState<ServiceFeeMode | null>(null);
   const [showExample, setShowExample] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const selectedMode = draftMode ?? savedMode;
   const changed = selectedMode !== savedMode;
@@ -42,8 +35,22 @@ export function ServiceFeeSettings() {
   }, [selectedMode]);
 
   function save() {
-    setSavedMode(selectedMode);
-    setDraftMode(null);
+    const nextFinancial = { ...financial, serviceFeeMode: selectedMode };
+    const previous = financial;
+    setFinancial(nextFinancial);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveFinancialSettingsAction(nextFinancial);
+      if (!result.ok) {
+        setFinancial(previous);
+        setMessage(result.error);
+        return;
+      }
+
+      setFinancial(result.data);
+      setDraftMode(null);
+      setMessage("Saved.");
+    });
   }
 
   function cancel() {
@@ -53,6 +60,7 @@ export function ServiceFeeSettings() {
   return (
     <>
       <section className="mt-9">
+        {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-2xl font-semibold">Service fee settings</h3>
         <p className="mt-2">Choose a service fee pricing option for all of your listings.</p>
         <FeeOption
@@ -101,12 +109,12 @@ export function ServiceFeeSettings() {
         <button
           type="button"
           onClick={save}
-          disabled={!changed}
+          disabled={isPending || !changed}
           className="min-h-12 rounded-xl bg-[#222] px-10 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/[0.06] disabled:text-black/25"
         >
           Save
         </button>
-        <button type="button" onClick={cancel} disabled={!changed} className="min-h-12 rounded-xl bg-black/[0.06] px-10 font-semibold disabled:cursor-not-allowed disabled:text-black/25">
+        <button type="button" onClick={cancel} disabled={isPending || !changed} className="min-h-12 rounded-xl bg-black/[0.06] px-10 font-semibold disabled:cursor-not-allowed disabled:text-black/25">
           Cancel
         </button>
         <span className="self-center text-sm font-medium text-black/60">
@@ -126,13 +134,13 @@ function FeeOption({
   badge,
   onSelect,
 }: {
-  mode: FeeMode;
+  mode: ServiceFeeMode;
   selected: boolean;
   current: boolean;
   title: string;
   body: string;
   badge: string;
-  onSelect: (mode: FeeMode) => void;
+  onSelect: (mode: ServiceFeeMode) => void;
 }) {
   return (
     <button type="button" role="radio" aria-checked={selected} onClick={() => onSelect(mode)} className="mt-8 flex w-full gap-4 rounded-2xl border border-transparent p-3 text-left transition hover:border-black/10 hover:bg-black/[0.02]">

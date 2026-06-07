@@ -1,53 +1,50 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useMemo } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
+import { useMemo, useState, useTransition } from "react";
+import { saveBookingPermissionsAction } from "@/app/account-settings/actions";
+import { defaultBookingPermissions, type BookingPermissionId, type BookingPermissionState } from "@/lib/account-settings-types";
 
-type PermissionId = "profilePhoto" | "verifiedPhone" | "instantBooking" | "newGuests";
-
-type PermissionState = Record<PermissionId, boolean>;
-
-const storageKey = "stayprimeph:booking-permissions:v1";
-
-const defaults: PermissionState = {
-  profilePhoto: false,
-  verifiedPhone: true,
-  instantBooking: false,
-  newGuests: true,
-};
-
-const permissions: Array<{ id: PermissionId; title: string; body: string }> = [
+const permissions: Array<{ id: BookingPermissionId; title: string; body: string }> = [
   { id: "profilePhoto", title: "Require profile photo", body: "Guests must add a profile photo before booking your place." },
   { id: "verifiedPhone", title: "Require verified phone number", body: "Guests need a confirmed phone number before they can request a stay." },
   { id: "instantBooking", title: "Allow instant booking", body: "Eligible guests can book without waiting for manual approval." },
   { id: "newGuests", title: "Accept requests from new guests", body: "Let guests without past StayPrimePH trips send reservation requests." },
 ];
 
-function deserializeSettings(value: string) {
-  return { ...defaults, ...(JSON.parse(value) as Partial<PermissionState>) };
-}
-
-export function BookingPermissionSettings() {
-  const [settings, setSettings] = useLocalStorageState(storageKey, defaults, { deserialize: deserializeSettings });
+export function BookingPermissionSettings({ initialSettings }: { initialSettings: BookingPermissionState }) {
+  const [settings, setSettings] = useState(initialSettings);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const enabledCount = useMemo(() => Object.values(settings).filter(Boolean).length, [settings]);
 
-  function save(next: PermissionState) {
+  function save(next: BookingPermissionState) {
     setSettings(next);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveBookingPermissionsAction(next);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setSettings(result.data);
+      setMessage("Saved.");
+    });
   }
 
-  function togglePermission(id: PermissionId) {
+  function togglePermission(id: BookingPermissionId) {
     save({ ...settings, [id]: !settings[id] });
   }
 
   function resetDefaults() {
-    save(defaults);
+    save(defaultBookingPermissions);
   }
 
   return (
     <>
       <div className="mt-8">
+        {message ? <p className="mb-2 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         {permissions.map((permission) => {
           const checked = settings[permission.id];
           return (
@@ -56,8 +53,9 @@ export function BookingPermissionSettings() {
               type="button"
               role="switch"
               aria-checked={checked}
+              disabled={isPending}
               onClick={() => togglePermission(permission.id)}
-              className="grid w-full grid-cols-[1fr_auto] gap-6 border-b border-black/10 py-6 text-left"
+              className="grid w-full grid-cols-[1fr_auto] gap-6 border-b border-black/10 py-6 text-left disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span>
                 <span className="block font-semibold">{permission.title}</span>
@@ -79,7 +77,7 @@ export function BookingPermissionSettings() {
             <h3 className="font-semibold">Reservation requests</h3>
             <p className="mt-2 text-sm text-black/65">{requestSummary(settings)}</p>
           </div>
-          <button type="button" onClick={resetDefaults} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold transition hover:border-black">
+          <button type="button" onClick={resetDefaults} disabled={isPending} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-60">
             Reset
           </button>
         </div>
@@ -94,7 +92,7 @@ export function BookingPermissionSettings() {
   );
 }
 
-function requestSummary(settings: PermissionState) {
+function requestSummary(settings: BookingPermissionState) {
   if (!settings.newGuests) return "New guests without past StayPrimePH trips cannot send reservation requests.";
   if (settings.instantBooking) return "Eligible guests can book instantly; guests who do not qualify can still send a request.";
   return "Guests who do not meet your requirements can still send a message before booking.";

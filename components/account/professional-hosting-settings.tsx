@@ -2,23 +2,13 @@
 
 import Link from "next/link";
 import { BarChart3, Check, ClipboardCheck, Download, Settings2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
+import { useMemo, useState, useTransition } from "react";
+import { saveProfessionalHostingToolsAction } from "@/app/account-settings/actions";
+import { defaultProfessionalHostingTools, type ProfessionalHostingToolId, type ProfessionalHostingToolState } from "@/lib/account-settings-types";
 
-type ToolId = "professionalTools" | "ruleSets" | "bulkEditing";
 type CardId = "checklist" | "insights" | "controls";
 
-type ToolState = Record<ToolId, boolean>;
-
-const storageKey = "stayprimeph:professional-hosting-tools:v1";
-
-const defaults: ToolState = {
-  professionalTools: true,
-  ruleSets: false,
-  bulkEditing: false,
-};
-
-const tools: Array<{ id: ToolId; title: string; body: string }> = [
+const tools: Array<{ id: ProfessionalHostingToolId; title: string; body: string }> = [
   { id: "professionalTools", title: "Professional tools", body: "Access advanced hosting settings, listing tools, and performance views." },
   { id: "ruleSets", title: "Rule sets", body: "Create pricing and availability rules for selected nights." },
   { id: "bulkEditing", title: "Bulk editing", body: "Update listing details, prices, and availability faster across multiple spaces." },
@@ -30,22 +20,30 @@ const cards: Array<{ id: CardId; title: string; body: string; icon: React.ReactN
   { id: "controls", title: "Controls", body: "Tune prices and availability.", icon: <Settings2 size={24} /> },
 ];
 
-function deserializeTools(value: string) {
-  return { ...defaults, ...(JSON.parse(value) as Partial<ToolState>) };
-}
-
-export function ProfessionalHostingSettings() {
-  const [settings, setSettings] = useLocalStorageState(storageKey, defaults, { deserialize: deserializeTools });
+export function ProfessionalHostingSettings({ initialSettings }: { initialSettings: ProfessionalHostingToolState }) {
+  const [settings, setSettings] = useState(initialSettings);
   const [openCard, setOpenCard] = useState<CardId | null>(null);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const activeTools = useMemo(() => tools.filter((tool) => settings[tool.id]), [settings]);
   const hostingHref = settings.professionalTools ? "/host/dashboard" : "/become-a-host/upgrade";
 
-  function save(next: ToolState) {
+  function save(next: ProfessionalHostingToolState) {
     setSettings(next);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveProfessionalHostingToolsAction(next);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setSettings(result.data);
+      setMessage("Saved.");
+    });
   }
 
-  function toggleTool(id: ToolId) {
+  function toggleTool(id: ProfessionalHostingToolId) {
     const next = { ...settings, [id]: !settings[id] };
     if (id === "professionalTools" && settings.professionalTools) {
       next.ruleSets = false;
@@ -58,7 +56,7 @@ export function ProfessionalHostingSettings() {
   }
 
   function resetDefaults() {
-    save(defaults);
+    save(defaultProfessionalHostingTools);
     setOpenCard(null);
   }
 
@@ -80,6 +78,7 @@ export function ProfessionalHostingSettings() {
   return (
     <>
       <div className="mt-8">
+        {message ? <p className="mb-2 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         {tools.map((tool) => {
           const checked = settings[tool.id];
           return (
@@ -88,8 +87,9 @@ export function ProfessionalHostingSettings() {
               type="button"
               role="switch"
               aria-checked={checked}
+              disabled={isPending}
               onClick={() => toggleTool(tool.id)}
-              className="grid w-full grid-cols-[1fr_auto] gap-6 border-b border-black/10 py-6 text-left"
+              className="grid w-full grid-cols-[1fr_auto] gap-6 border-b border-black/10 py-6 text-left disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span>
                 <span className="block font-semibold">{tool.title}</span>
@@ -135,7 +135,7 @@ export function ProfessionalHostingSettings() {
             <h3 className="font-semibold">Enabled tools</h3>
             <p className="mt-2 text-sm text-black/65">{activeTools.length > 0 ? activeTools.map((tool) => tool.title).join(", ") : "No professional tools enabled."}</p>
           </div>
-          <button type="button" onClick={resetDefaults} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold transition hover:border-black">
+          <button type="button" onClick={resetDefaults} disabled={isPending} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-60">
             Reset
           </button>
         </div>
@@ -153,7 +153,7 @@ export function ProfessionalHostingSettings() {
   );
 }
 
-function ChecklistPanel({ settings }: { settings: ToolState }) {
+function ChecklistPanel({ settings }: { settings: ProfessionalHostingToolState }) {
   const items = [
     { label: "Professional tools enabled", done: settings.professionalTools },
     { label: "Rule sets available for calendar pricing", done: settings.ruleSets },
@@ -198,7 +198,7 @@ function InsightsPanel() {
   );
 }
 
-function ControlsPanel({ settings }: { settings: ToolState }) {
+function ControlsPanel({ settings }: { settings: ProfessionalHostingToolState }) {
   return (
     <div>
       <h3 className="font-semibold">Hosting controls</h3>

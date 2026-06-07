@@ -29,6 +29,7 @@ model User {
   payouts         Payout[]
   adminLogs       AdminLog[]
   authTokens      AuthToken[]
+  accountSettings AccountSettings?
 }
 
 model Property {
@@ -292,4 +293,19 @@ model AdminLog {
   admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([adminId, createdAt])
+}
+
+model AccountSettings {
+  id                       String   @id
+  userId                   String   @unique
+  personalInfo             Json
+  notificationPreferences  Json
+  privacy                  Json
+  bookingPermissions       Json
+  workTravel               Json
+  professionalHostingTools Json
+  financial                Json
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

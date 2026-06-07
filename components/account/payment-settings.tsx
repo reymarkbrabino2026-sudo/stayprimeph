@@ -1,27 +1,9 @@
 "use client";
 
 import { CreditCard, Download, Gift, Tag, X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
-
-type PaymentMethod = {
-  id: string;
-  cardholder: string;
-  brand: string;
-  last4: string;
-  expiry: string;
-  billingZip: string;
-};
-
-type GiftCredit = {
-  code: string;
-  amount: number;
-};
-
-type Coupon = {
-  code: string;
-  discount: string;
-};
+import { useMemo, useState, useTransition } from "react";
+import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import type { Coupon, FinancialSettingsState, GiftCredit, SavedPaymentMethod } from "@/lib/account-settings-types";
 
 type PaymentRecord = {
   id: string;
@@ -31,19 +13,12 @@ type PaymentRecord = {
   status: "Paid" | "Refunded";
 };
 
-const methodsKey = "stayprimeph:payment-methods:v1";
-const giftKey = "stayprimeph:gift-credits:v1";
-const couponKey = "stayprimeph:coupons:v1";
-const emptyMethods: PaymentMethod[] = [];
-const emptyGiftCredits: GiftCredit[] = [];
-const emptyCoupons: Coupon[] = [];
-
 const seedPayments: PaymentRecord[] = [
   { id: "PAY-1007", date: "2026-05-18", description: "Tagaytay weekend stay", amount: 184.25, status: "Paid" },
   { id: "PAY-1003", date: "2026-04-22", description: "Baguio cabin reservation", amount: 92.8, status: "Refunded" },
 ];
 
-const emptyMethod: Omit<PaymentMethod, "id"> = {
+const emptyMethod: Omit<SavedPaymentMethod, "id"> = {
   cardholder: "",
   brand: "Visa",
   last4: "",
@@ -51,23 +26,22 @@ const emptyMethod: Omit<PaymentMethod, "id"> = {
   billingZip: "",
 };
 
-function deserializeArray<T>(value: string) {
-  return JSON.parse(value) as T[];
-}
-
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 }
 
-export function PaymentSettings() {
+export function PaymentSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
   const [openPanel, setOpenPanel] = useState<"payments" | "method" | "gift" | "coupon" | null>(null);
-  const [methods, setMethods] = useLocalStorageState(methodsKey, emptyMethods, { deserialize: deserializeArray<PaymentMethod> });
-  const [giftCredits, setGiftCredits] = useLocalStorageState(giftKey, emptyGiftCredits, { deserialize: deserializeArray<GiftCredit> });
-  const [coupons, setCoupons] = useLocalStorageState(couponKey, emptyCoupons, { deserialize: deserializeArray<Coupon> });
+  const [financial, setFinancial] = useState(initialFinancial);
   const [methodDraft, setMethodDraft] = useState(emptyMethod);
   const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
   const [giftCode, setGiftCode] = useState("");
   const [couponCode, setCouponCode] = useState("");
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const methods = financial.paymentMethods;
+  const giftCredits = financial.giftCredits;
+  const coupons = financial.coupons;
 
   const paymentTotals = useMemo(() => {
     const paid = seedPayments.filter((item) => item.status === "Paid").reduce((sum, item) => sum + item.amount, 0);
@@ -75,26 +49,41 @@ export function PaymentSettings() {
     return { paid, refunded };
   }, []);
 
-  function saveMethods(next: PaymentMethod[]) {
-    setMethods(next);
+  function saveFinancial(next: FinancialSettingsState, onSaved?: () => void) {
+    setFinancial(next);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveFinancialSettingsAction(next);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setFinancial(result.data);
+      setMessage("Saved.");
+      onSaved?.();
+    });
   }
 
   function saveGiftCredits(next: GiftCredit[]) {
-    setGiftCredits(next);
+    saveFinancial({ ...financial, giftCredits: next });
   }
 
   function saveCoupons(next: Coupon[]) {
-    setCoupons(next);
+    saveFinancial({ ...financial, coupons: next });
   }
 
-  function openMethodForm(method?: PaymentMethod) {
+  function saveMethods(next: SavedPaymentMethod[]) {
+    saveFinancial({ ...financial, paymentMethods: next });
+  }
+
+  function openMethodForm(method?: SavedPaymentMethod) {
     setMethodDraft(method ? { cardholder: method.cardholder, brand: method.brand, last4: method.last4, expiry: method.expiry, billingZip: method.billingZip } : emptyMethod);
     setEditingMethodId(method?.id ?? null);
     setOpenPanel("method");
   }
 
   function saveMethod() {
-    const nextMethod: PaymentMethod = {
+    const nextMethod: SavedPaymentMethod = {
       id: editingMethodId ?? crypto.randomUUID(),
       cardholder: methodDraft.cardholder.trim(),
       brand: methodDraft.brand.trim() || "Card",
@@ -103,10 +92,11 @@ export function PaymentSettings() {
       billingZip: methodDraft.billingZip.trim(),
     };
     const next = editingMethodId ? methods.map((method) => (method.id === editingMethodId ? nextMethod : method)) : [...methods, nextMethod];
-    saveMethods(next);
-    setMethodDraft(emptyMethod);
-    setEditingMethodId(null);
-    setOpenPanel(null);
+    saveFinancial({ ...financial, paymentMethods: next }, () => {
+      setMethodDraft(emptyMethod);
+      setEditingMethodId(null);
+      setOpenPanel(null);
+    });
   }
 
   function addGiftCredit() {
@@ -139,6 +129,7 @@ export function PaymentSettings() {
   return (
     <>
       <section className="mt-9">
+        {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-2xl font-semibold">Your payments</h3>
         <p className="mt-2">Keep track of all your payments and refunds.</p>
         <PrimaryButton onClick={() => setOpenPanel((current) => (current === "payments" ? null : "payments"))}>Manage payments</PrimaryButton>
@@ -194,7 +185,7 @@ export function PaymentSettings() {
             <TextField label="Last 4 digits" value={methodDraft.last4} onChange={(value) => setMethodDraft({ ...methodDraft, last4: value.replace(/\D/g, "").slice(0, 4) })} />
             <TextField label="Expiration date" placeholder="MM/YY" value={methodDraft.expiry} onChange={(value) => setMethodDraft({ ...methodDraft, expiry: value })} />
             <TextField label="Billing ZIP/postal code" value={methodDraft.billingZip} onChange={(value) => setMethodDraft({ ...methodDraft, billingZip: value })} />
-            <FormActions onCancel={() => setOpenPanel(null)} onSave={saveMethod} disabled={!methodDraft.cardholder.trim() || methodDraft.last4.replace(/\D/g, "").length !== 4 || !methodDraft.expiry.trim()} />
+            <FormActions onCancel={() => setOpenPanel(null)} onSave={saveMethod} disabled={isPending || !methodDraft.cardholder.trim() || methodDraft.last4.replace(/\D/g, "").length !== 4 || !methodDraft.expiry.trim()} />
           </Panel>
         ) : null}
       </section>

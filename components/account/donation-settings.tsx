@@ -1,15 +1,9 @@
 "use client";
 
 import { Check, Download, HeartHandshake } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
-
-type DonationPreference = {
-  recurring: boolean;
-  amount: string;
-  nonprofit: string;
-  applyTo: "Bookings" | "Payouts" | "Both";
-};
+import { useMemo, useState, useTransition } from "react";
+import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import type { DonationPreference, FinancialSettingsState } from "@/lib/account-settings-types";
 
 type DonationRecord = {
   id: string;
@@ -19,30 +13,20 @@ type DonationRecord = {
   source: string;
 };
 
-const preferenceKey = "stayprimeph:donation-preference:v1";
-
-const defaultPreference: DonationPreference = {
-  recurring: false,
-  amount: "50",
-  nonprofit: "StayPrimePH Open Doors Fund",
-  applyTo: "Bookings",
-};
-
 const nonprofitOptions = ["StayPrimePH Open Doors Fund", "Philippine Red Cross", "Habitat for Humanity Philippines", "Local community stays"];
-
-function deserializePreference(value: string) {
-  return { ...defaultPreference, ...(JSON.parse(value) as Partial<DonationPreference>) };
-}
 
 function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-export function DonationSettings() {
-  const [preference, setPreference] = useLocalStorageState(preferenceKey, defaultPreference, { deserialize: deserializePreference });
-  const [draft, setDraft] = useState(defaultPreference);
+export function DonationSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+  const [financial, setFinancial] = useState(initialFinancial);
+  const preference = financial.donationPreference;
+  const [draft, setDraft] = useState(preference);
   const [editing, setEditing] = useState(false);
   const [showHow, setShowHow] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const donationAmount = Number.parseInt(preference.amount, 10) || 0;
   const history = useMemo<DonationRecord[]>(() => {
@@ -53,9 +37,24 @@ export function DonationSettings() {
     ];
   }, [donationAmount, preference.applyTo, preference.nonprofit, preference.recurring]);
 
-  function savePreference(next: DonationPreference) {
-    setPreference(next);
-    setDraft(next);
+  function savePreference(next: DonationPreference, onSaved?: () => void) {
+    const nextFinancial = { ...financial, donationPreference: next };
+    const previous = financial;
+    setFinancial(nextFinancial);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveFinancialSettingsAction(nextFinancial);
+      if (!result.ok) {
+        setFinancial(previous);
+        setMessage(result.error);
+        return;
+      }
+
+      setFinancial(result.data);
+      setDraft(result.data.donationPreference);
+      setMessage("Saved.");
+      onSaved?.();
+    });
   }
 
   function toggleRecurring() {
@@ -69,8 +68,7 @@ export function DonationSettings() {
 
   function saveDraft() {
     const amount = String(Math.max(1, Number.parseInt(draft.amount, 10) || 0));
-    savePreference({ ...draft, amount, recurring: true });
-    setEditing(false);
+    savePreference({ ...draft, amount, recurring: true }, () => setEditing(false));
   }
 
   function exportHistory() {
@@ -86,7 +84,8 @@ export function DonationSettings() {
   return (
     <>
       <div className="mt-8 border-y border-black/10 py-6">
-        <button type="button" role="switch" aria-checked={preference.recurring} onClick={toggleRecurring} className="grid w-full grid-cols-[1fr_auto] gap-6 text-left">
+        {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
+        <button type="button" role="switch" aria-checked={preference.recurring} onClick={toggleRecurring} disabled={isPending} className="grid w-full grid-cols-[1fr_auto] gap-6 text-left disabled:cursor-not-allowed disabled:opacity-60">
           <span>
             <span className="block font-semibold">Recurring donation</span>
             <span className="mt-1 block text-sm text-black/65">Automatically add a small donation when eligible transactions are completed.</span>
@@ -161,7 +160,7 @@ export function DonationSettings() {
               </select>
             </label>
             <div className="flex flex-wrap gap-3 pt-1">
-              <button type="button" onClick={saveDraft} disabled={!draft.amount || Number.parseInt(draft.amount, 10) <= 0} className="min-h-11 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+              <button type="button" onClick={saveDraft} disabled={isPending || !draft.amount || Number.parseInt(draft.amount, 10) <= 0} className="min-h-11 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
                 Save
               </button>
               <button type="button" onClick={() => setEditing(false)} className="min-h-11 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black">

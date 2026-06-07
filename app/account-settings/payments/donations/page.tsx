@@ -2,10 +2,13 @@ import { HeartHandshake } from "lucide-react";
 import { redirect } from "next/navigation";
 import { DonationSettings } from "@/components/account/donation-settings";
 import { AccountSettingsShell, SettingsTabs } from "@/components/account/settings-shell";
+import { getAccountSettings } from "@/lib/account-settings";
 import { getCurrentUser } from "@/lib/auth";
 
 export default async function DonationsPage() {
-  if (!(await getCurrentUser())) redirect("/login");
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const accountSettings = await getAccountSettings(user);
 
   return (
     <AccountSettingsShell active="Payments">
@@ -16,7 +19,7 @@ export default async function DonationsPage() {
         <h3 className="mt-5 text-2xl font-semibold">Donations</h3>
         <p className="mt-2 text-black/65">Support nonprofit stays by adding a donation preference to eligible bookings and payouts.</p>
       </section>
-      <DonationSettings />
+      <DonationSettings initialFinancial={accountSettings.financial} />
     </AccountSettingsShell>
   );
 }

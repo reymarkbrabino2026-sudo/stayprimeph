@@ -65,17 +65,37 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Vercel Analytics enabled and verified
 - [x] Supabase Google provider enabled in Supabase
 - [x] Google login button reaches Google sign-in
-- [ ] Google login tested end to end with a real account, if Google login is wanted
+- [x] Google login tested end to end with a real account
 - [x] Supabase Facebook provider enabled in Supabase
-- [x] Facebook login button reaches Facebook sign-in
-- [ ] Facebook login tested end to end with a real account, if Facebook login is wanted
+- [x] Supabase Auth Site URL set to `https://stayprimeph.com`
+- [x] Supabase Auth redirect URL includes `https://stayprimeph.com/auth/callback`
+- [x] Facebook redirect no longer goes to the protected Vercel deployment URL
+- [x] Facebook `email` permission enabled for testing
+- [x] Facebook login button reaches Facebook consent/sign-in
+- [x] Facebook login tested end to end with a real account
+
+## Meta/Facebook public launch setup
+
+- [x] Meta app created
+- [x] Meta app domain includes `stayprimeph.com`
+- [x] Meta app domain includes Supabase callback domain `iiqbmcycsdaukoigsqfx.supabase.co`
+- [x] Meta valid OAuth redirect URI includes `https://iiqbmcycsdaukoigsqfx.supabase.co/auth/v1/callback`
+- [x] Meta Privacy Policy URL set to `https://stayprimeph.com/legal/privacy`
+- [x] Meta Terms URL set to `https://stayprimeph.com/legal/terms`
+- [x] Meta data deletion page created at `https://stayprimeph.com/legal/data-deletion`
+- [x] Meta data deletion URL added in Meta Basic settings
+- [x] Meta app category set
+- [x] `1024 x 1024` Meta app icon asset created in the codebase
+- [ ] Meta app icon uploaded in Meta dashboard
+- [ ] Meta app published/live
+- [ ] Meta Login Review submitted/approved, if Meta requires it for public Facebook login
 
 ## Product/code items still needed
 
 - [x] Harden protected routes in `proxy.ts` so admin/host/guest pages cannot stream protected HTML before redirect
 - [x] Replace legal placeholder/review-needed copy in `lib/legal-data.ts`
 - [x] Replace listing map placeholder in `components/listings/map-section.tsx`
-- [ ] Convert browser/local-storage account settings into full backend-backed account management where needed
+- [x] Convert browser/local-storage account settings into full backend-backed account management where needed
 - [x] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
 - [x] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
 
@@ -119,4 +139,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, and image-loading polish are now active. The remaining blockers are live Stripe mode, full real-account social login QA if needed, backend-backed account settings where needed, legal review, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, image-loading polish, and backend-backed account settings are now active. The remaining blockers are live Stripe mode, Meta app icon upload/publishing, legal review, real device QA, and final confirmation-email telemetry.

@@ -1,7 +1,9 @@
 "use client";
 
 import { CheckCircle2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useState, useTransition } from "react";
+import { savePersonalInfoAction } from "@/app/account-settings/actions";
+import type { PersonalInfoField, PersonalInfoState } from "@/lib/account-settings-types";
 
 type SessionUser = {
   id: string;
@@ -10,20 +12,8 @@ type SessionUser = {
   phone: string;
 };
 
-type FieldKey =
-  | "legalName"
-  | "preferredName"
-  | "email"
-  | "phone"
-  | "identity"
-  | "residentialAddress"
-  | "mailingAddress"
-  | "emergencyContact";
-
-type ProfileState = Record<FieldKey, string>;
-
 const fieldMeta: Array<{
-  key: FieldKey;
+  key: PersonalInfoField;
   label: string;
   actionWhenEmpty: string;
   actionWhenFilled: string;
@@ -49,30 +39,13 @@ const fieldMeta: Array<{
   { key: "emergencyContact", label: "Emergency contact", actionWhenEmpty: "Add", actionWhenFilled: "Edit", placeholder: "Name, relationship, phone number", type: "textarea" },
 ];
 
-function storageKey(userId: string) {
-  return `stayprimeph-account-profile:${userId}`;
-}
-
 function maskEmail(email: string) {
   const [name, domain] = email.split("@");
   if (!name || !domain) return email;
   return `${name.charAt(0)}***${name.slice(-1)}@${domain}`;
 }
 
-function initialProfile(user: SessionUser): ProfileState {
-  return {
-    legalName: user.name,
-    preferredName: "",
-    email: user.email,
-    phone: user.phone,
-    identity: "",
-    residentialAddress: "Provided",
-    mailingAddress: "",
-    emergencyContact: "",
-  };
-}
-
-function displayValue(key: FieldKey, value: string) {
+function displayValue(key: PersonalInfoField, value: string) {
   if (!value) {
     if (key === "phone") return "Add a number so confirmed guests and StayPrimePH can get in touch. You can add other numbers and choose how they're used.";
     if (key === "identity") return "Not started";
@@ -83,29 +56,18 @@ function displayValue(key: FieldKey, value: string) {
   return value;
 }
 
-export function PersonalInfoEditor({ user }: { user: SessionUser }) {
-  const defaults = useMemo(() => initialProfile(user), [user]);
-  const [profile, setProfile] = useState<ProfileState>(defaults);
-  const [activeField, setActiveField] = useState<FieldKey | null>(null);
+export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; initialProfile: PersonalInfoState }) {
+  const [profile, setProfile] = useState<PersonalInfoState>(initialProfile);
+  const [activeField, setActiveField] = useState<PersonalInfoField | null>(null);
   const [draftValue, setDraftValue] = useState("");
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
   const activeMeta = fieldMeta.find((item) => item.key === activeField);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const stored = window.localStorage.getItem(storageKey(user.id));
-        if (stored) setProfile({ ...defaults, ...(JSON.parse(stored) as Partial<ProfileState>) });
-      } catch {
-        setProfile(defaults);
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [defaults, user.id]);
-
-  function openEditor(key: FieldKey) {
+  function openEditor(key: PersonalInfoField) {
     setActiveField(key);
     setDraftValue(profile[key]);
+    setMessage("");
   }
 
   function closeEditor() {
@@ -116,21 +78,36 @@ export function PersonalInfoEditor({ user }: { user: SessionUser }) {
   function saveField() {
     if (!activeField) return;
     const nextProfile = { ...profile, [activeField]: draftValue.trim() };
-    setProfile(nextProfile);
-    window.localStorage.setItem(storageKey(user.id), JSON.stringify(nextProfile));
-    closeEditor();
+    startTransition(async () => {
+      const result = await savePersonalInfoAction(nextProfile);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setProfile(result.data);
+      setMessage("Saved.");
+      closeEditor();
+    });
   }
 
   function startVerification() {
     const nextProfile = { ...profile, identity: "Verification started" };
-    setProfile(nextProfile);
-    window.localStorage.setItem(storageKey(user.id), JSON.stringify(nextProfile));
-    closeEditor();
+    startTransition(async () => {
+      const result = await savePersonalInfoAction(nextProfile);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setProfile(result.data);
+      setMessage("Saved.");
+      closeEditor();
+    });
   }
 
   return (
     <>
       <div className="mt-5">
+        {message ? <p className="mb-2 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         {fieldMeta.map((row) => {
           const value = profile[row.key];
           const action = value ? row.actionWhenFilled : row.actionWhenEmpty;
@@ -165,8 +142,8 @@ export function PersonalInfoEditor({ user }: { user: SessionUser }) {
                   <CheckCircle2 className="mt-0.5 shrink-0" size={22} />
                   <p className="text-sm leading-5">Start verification to confirm your identity before booking or hosting sensitive reservations.</p>
                 </div>
-                <button type="button" onClick={startVerification} className="mt-6 min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white">
-                  Start verification
+                <button type="button" onClick={startVerification} disabled={isPending} className="mt-6 min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+                  {isPending ? "Saving..." : "Start verification"}
                 </button>
               </div>
             ) : (
@@ -197,8 +174,8 @@ export function PersonalInfoEditor({ user }: { user: SessionUser }) {
                   <button type="button" onClick={closeEditor} className="min-h-12 rounded-xl px-5 font-semibold hover:bg-black/[0.06]">
                     Cancel
                   </button>
-                  <button type="button" onClick={saveField} className="min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white">
-                    Save
+                  <button type="button" onClick={saveField} disabled={isPending} className="min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+                    {isPending ? "Saving..." : "Save"}
                   </button>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { CircleDollarSign, LockKeyhole, WalletCards } from "lucide-react";
 
 import { PersonalInfoEditor } from "@/components/account/personal-info-editor";
 import { AccountSettingsShell } from "@/components/account/settings-shell";
+import { getAccountSettings } from "@/lib/account-settings";
 import { getCurrentUser } from "@/lib/auth";
 
 const infoCards = [
@@ -14,11 +15,12 @@ const infoCards = [
 export default async function AccountSettingsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const accountSettings = await getAccountSettings(user);
 
   return (
     <AccountSettingsShell active="Personal information">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Personal information</h2>
-      <PersonalInfoEditor user={{ id: user.id, name: user.name, email: user.email, phone: user.phone }} />
+      <PersonalInfoEditor user={{ id: user.id, name: user.name, email: user.email, phone: user.phone }} initialProfile={accountSettings.personalInfo} />
       <div className="mt-12 rounded-2xl border border-black/15 px-6">
         {infoCards.map(({ title, body, icon: Icon }, index) => (
           <div key={title} className={`flex gap-5 py-6 ${index > 0 ? "border-t border-black/15" : ""}`}>

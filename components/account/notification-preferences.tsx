@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { saveNotificationSettingsAction } from "@/app/account-settings/actions";
+import type { NotificationChannels, NotificationPreferencesState, NotificationScope } from "@/lib/account-settings-types";
 
 type PreferenceGroup = {
   title: string;
@@ -8,13 +10,7 @@ type PreferenceGroup = {
   items: string[];
 };
 
-type Channels = {
-  email: boolean;
-  push: boolean;
-  sms: boolean;
-};
-
-const channelLabels: Array<{ key: keyof Channels; label: string; description: string }> = [
+const channelLabels: Array<{ key: keyof NotificationChannels; label: string; description: string }> = [
   { key: "email", label: "Email", description: "Send updates to your account email." },
   { key: "push", label: "Push", description: "Show updates in the app and browser." },
   { key: "sms", label: "Text message", description: "Send urgent updates by SMS when available." },
@@ -24,23 +20,25 @@ function preferenceId(groupTitle: string, item: string) {
   return `${groupTitle}:${item}`;
 }
 
-function initialChannels(defaultOn: boolean): Channels {
+function initialChannels(defaultOn: boolean): NotificationChannels {
   return { email: defaultOn, push: defaultOn, sms: false };
 }
 
-function summarizeChannels(channels: Channels) {
+function summarizeChannels(channels: NotificationChannels) {
   const active = channelLabels.filter(({ key }) => channels[key]).map(({ label }) => label);
   return active.length > 0 ? active.join(" and ") : "Off";
 }
 
 export function NotificationPreferences({
   groups,
-  storageKey,
+  scope,
+  initialState,
   defaultOn = false,
   showMarketingUnsubscribe = false,
 }: {
   groups: PreferenceGroup[];
-  storageKey: string;
+  scope: NotificationScope;
+  initialState: NotificationPreferencesState;
   defaultOn?: boolean;
   showMarketingUnsubscribe?: boolean;
 }) {
@@ -49,29 +47,30 @@ export function NotificationPreferences({
       groups.flatMap((group) =>
         group.items.map((item) => [preferenceId(group.title, item), initialChannels(defaultOn)]),
       ),
-    ) as Record<string, Channels>;
+    ) as Record<string, NotificationChannels>;
   }, [defaultOn, groups]);
 
-  const [preferences, setPreferences] = useState<Record<string, Channels>>(() => {
-    if (typeof window === "undefined") return defaults;
-
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      return stored ? { ...defaults, ...(JSON.parse(stored) as Record<string, Channels>) } : defaults;
-    } catch {
-      return defaults;
-    }
-  });
+  const [preferences, setPreferences] = useState<Record<string, NotificationChannels>>(() => ({ ...defaults, ...initialState.preferences }));
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Channels | null>(null);
-  const [unsubscribed, setUnsubscribed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(`${storageKey}:unsubscribed`) === "true";
-  });
+  const [draft, setDraft] = useState<NotificationChannels | null>(null);
+  const [unsubscribed, setUnsubscribed] = useState(initialState.unsubscribed);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  function savePreferences(next: Record<string, Channels>) {
+  function savePreferences(next: Record<string, NotificationChannels>, nextUnsubscribed = unsubscribed) {
     setPreferences(next);
-    if (typeof window !== "undefined") window.localStorage.setItem(storageKey, JSON.stringify(next));
+    setUnsubscribed(nextUnsubscribed);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveNotificationSettingsAction(scope, { preferences: next, unsubscribed: nextUnsubscribed });
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setPreferences({ ...defaults, ...result.data.preferences });
+      setUnsubscribed(result.data.unsubscribed);
+      setMessage("Saved.");
+    });
   }
 
   function startEditing(id: string) {
@@ -93,18 +92,20 @@ export function NotificationPreferences({
 
   function toggleUnsubscribe() {
     const nextUnsubscribed = !unsubscribed;
-    setUnsubscribed(nextUnsubscribed);
-    if (typeof window !== "undefined") window.localStorage.setItem(`${storageKey}:unsubscribed`, String(nextUnsubscribed));
-    if (!nextUnsubscribed) return;
+    if (!nextUnsubscribed) {
+      savePreferences(preferences, false);
+      return;
+    }
 
     const next = Object.fromEntries(
       Object.keys(preferences).map((id) => [id, initialChannels(false)]),
-    ) as Record<string, Channels>;
-    savePreferences(next);
+    ) as Record<string, NotificationChannels>;
+    savePreferences(next, true);
   }
 
   return (
     <div>
+      {message ? <p className="mb-2 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
       {groups.map((group) => (
         <section key={group.title} className="border-b border-black/10 py-7">
           <h3 className="text-2xl font-semibold">{group.title}</h3>
@@ -147,8 +148,8 @@ export function NotificationPreferences({
                           </label>
                         ))}
                         <div className="flex gap-3 pt-2">
-                          <button type="button" onClick={() => saveDraft(id)} className="rounded-full bg-[#222] px-5 py-2 text-sm font-semibold text-white">
-                            Save
+                          <button type="button" onClick={() => saveDraft(id)} disabled={isPending} className="rounded-full bg-[#222] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+                            {isPending ? "Saving..." : "Save"}
                           </button>
                           <button type="button" onClick={cancelEditing} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold">
                             Cancel
@@ -165,7 +166,7 @@ export function NotificationPreferences({
 
       {showMarketingUnsubscribe ? (
         <label className="mt-7 flex cursor-pointer items-center gap-4 font-semibold">
-          <input type="checkbox" checked={unsubscribed} onChange={toggleUnsubscribe} className="size-6 accent-[#222]" />
+          <input type="checkbox" checked={unsubscribed} onChange={toggleUnsubscribe} disabled={isPending} className="size-6 accent-[#222]" />
           Unsubscribe from all marketing emails
         </label>
       ) : null}

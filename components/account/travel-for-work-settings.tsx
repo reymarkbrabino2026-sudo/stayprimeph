@@ -1,32 +1,9 @@
 "use client";
 
 import { Building2, Check, Download, Mail, X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
-
-type WorkTravelProfile = {
-  email: string;
-  companyName: string;
-  department: string;
-  employeeId: string;
-  includeBusinessReceipts: boolean;
-  verified: boolean;
-};
-
-const storageKey = "stayprimeph:travel-for-work:v1";
-
-const defaults: WorkTravelProfile = {
-  email: "",
-  companyName: "",
-  department: "",
-  employeeId: "",
-  includeBusinessReceipts: true,
-  verified: false,
-};
-
-function deserializeProfile(value: string) {
-  return { ...defaults, ...(JSON.parse(value) as Partial<WorkTravelProfile>) };
-}
+import { useMemo, useState, useTransition } from "react";
+import { saveWorkTravelProfileAction } from "@/app/account-settings/actions";
+import { defaultWorkTravelProfile, type WorkTravelProfile } from "@/lib/account-settings-types";
 
 function companyFromEmail(email: string) {
   const domain = email.split("@")[1]?.split(".")[0] ?? "";
@@ -34,10 +11,12 @@ function companyFromEmail(email: string) {
   return domain.charAt(0).toUpperCase() + domain.slice(1);
 }
 
-export function TravelForWorkSettings() {
-  const [profile, setProfile, removeStoredProfile] = useLocalStorageState(storageKey, defaults, { deserialize: deserializeProfile });
-  const [draft, setDraft] = useState(defaults);
+export function TravelForWorkSettings({ initialProfile }: { initialProfile: WorkTravelProfile }) {
+  const [profile, setProfile] = useState(initialProfile);
+  const [draft, setDraft] = useState(defaultWorkTravelProfile);
   const [editing, setEditing] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const hasWorkEmail = profile.email.trim().length > 0;
   const receiptPreview = useMemo(() => {
@@ -64,21 +43,37 @@ export function TravelForWorkSettings() {
       employeeId: draft.employeeId.trim(),
       verified: true,
     };
-    setProfile(next);
-    setDraft(next);
-    setEditing(false);
+    save(next, () => {
+      setDraft(next);
+      setEditing(false);
+    });
   }
 
   function removeProfile() {
-    removeStoredProfile();
-    setDraft(defaults);
-    setEditing(false);
+    save(defaultWorkTravelProfile, () => {
+      setDraft(defaultWorkTravelProfile);
+      setEditing(false);
+    });
   }
 
   function toggleReceipts() {
     const next = { ...profile, includeBusinessReceipts: !profile.includeBusinessReceipts };
+    save(next, () => setDraft(next));
+  }
+
+  function save(next: WorkTravelProfile, onSaved?: () => void) {
     setProfile(next);
-    setDraft(next);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveWorkTravelProfileAction(next);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setProfile(result.data);
+      setMessage("Saved.");
+      onSaved?.();
+    });
   }
 
   function downloadReceiptSample() {
@@ -102,6 +97,7 @@ export function TravelForWorkSettings() {
   return (
     <>
       <section className="mt-10 border-b border-black/10 pb-8">
+        {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <div className="flex gap-5">
           <Building2 size={34} strokeWidth={1.7} />
           <div className="flex-1">
@@ -111,7 +107,7 @@ export function TravelForWorkSettings() {
                 <p className="mt-2 text-black/65">Use a company email to unlock work trip tools and separate business travel from personal stays.</p>
               </div>
               {hasWorkEmail ? (
-                <button type="button" onClick={openForm} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold transition hover:border-black">
+                <button type="button" onClick={openForm} disabled={isPending} className="rounded-full border border-black/15 px-5 py-2 text-sm font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-60">
                   Edit
                 </button>
               ) : null}
@@ -128,7 +124,7 @@ export function TravelForWorkSettings() {
                       Verified for work travel
                     </p>
                   </div>
-                  <button type="button" onClick={removeProfile} className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.06]" aria-label="Remove work email">
+                  <button type="button" onClick={removeProfile} disabled={isPending} className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.06] disabled:cursor-not-allowed disabled:opacity-60" aria-label="Remove work email">
                     <X size={18} />
                   </button>
                 </div>
@@ -148,8 +144,8 @@ export function TravelForWorkSettings() {
                 <TextField label="Department" value={draft.department} onChange={(value) => setDraft({ ...draft, department: value })} />
                 <TextField label="Employee ID" value={draft.employeeId} onChange={(value) => setDraft({ ...draft, employeeId: value })} />
                 <div className="flex flex-wrap gap-3 pt-1">
-                  <button type="button" onClick={saveProfile} disabled={!draft.email.includes("@") || draft.email.endsWith("@")} className="min-h-11 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
-                    Save
+                  <button type="button" onClick={saveProfile} disabled={isPending || !draft.email.includes("@") || draft.email.endsWith("@")} className="min-h-11 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+                    {isPending ? "Saving..." : "Save"}
                   </button>
                   <button type="button" onClick={() => setEditing(false)} className="min-h-11 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black">
                     Cancel
@@ -174,7 +170,7 @@ export function TravelForWorkSettings() {
                     : "Once a work email is added, eligible trip receipts can include business details for expense reports."}
                 </p>
               </div>
-              <button type="button" role="switch" aria-checked={profile.includeBusinessReceipts && hasWorkEmail} disabled={!hasWorkEmail} onClick={toggleReceipts} className={`relative inline-flex h-8 w-12 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${profile.includeBusinessReceipts && hasWorkEmail ? "bg-[#222]" : "bg-black/45"}`}>
+              <button type="button" role="switch" aria-checked={profile.includeBusinessReceipts && hasWorkEmail} disabled={isPending || !hasWorkEmail} onClick={toggleReceipts} className={`relative inline-flex h-8 w-12 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${profile.includeBusinessReceipts && hasWorkEmail ? "bg-[#222]" : "bg-black/45"}`}>
                 <span className={`grid size-7 place-items-center rounded-full bg-white shadow transition ${profile.includeBusinessReceipts && hasWorkEmail ? "translate-x-4" : "translate-x-0.5"}`}>
                   {profile.includeBusinessReceipts && hasWorkEmail ? <Check size={15} strokeWidth={2.4} /> : null}
                 </span>

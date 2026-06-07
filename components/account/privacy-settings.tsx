@@ -1,30 +1,18 @@
 "use client";
 
 import { Check, ChevronRight, LockKeyhole, X } from "lucide-react";
-import { useEffect, useState } from "react";
-
-type SettingId =
-  | "readReceipts"
-  | "searchEngines"
-  | "homeCity"
-  | "tripType"
-  | "lengthOfStay"
-  | "bookedServices"
-  | "aiFeatures";
+import { useState, useTransition } from "react";
+import { savePrivacySettingsAction } from "@/app/account-settings/actions";
+import type { PrivacySettingId, PrivacySettingsState } from "@/lib/account-settings-types";
 
 type PanelId = "blocked" | "data" | "delete";
 
 type Setting = {
-  id: SettingId;
+  id: PrivacySettingId;
   title: string;
   body?: string;
   defaultChecked?: boolean;
 };
-
-const storageKey = "stayprimeph:privacy-settings:v1";
-const blockedStorageKey = "stayprimeph:privacy-blocked-people:v1";
-const dataRequestStorageKey = "stayprimeph:privacy-data-requested-at:v1";
-const deleteRequestStorageKey = "stayprimeph:privacy-delete-requested-at:v1";
 
 const sections: Array<{ title: string; intro?: string; settings?: Setting[]; actions?: Array<{ id: PanelId; title: string; boxed?: boolean }> }> = [
   {
@@ -69,97 +57,80 @@ const sections: Array<{ title: string; intro?: string; settings?: Setting[]; act
   },
 ];
 
-function defaultSettings() {
-  return Object.fromEntries(
-    sections.flatMap((section) =>
-      (section.settings ?? []).map((setting) => [setting.id, Boolean(setting.defaultChecked)]),
-    ),
-  ) as Record<SettingId, boolean>;
-}
-
-function readJson<T>(key: string, fallback: T) {
-  if (typeof window === "undefined") return fallback;
-
-  try {
-    const stored = window.localStorage.getItem(key);
-    return stored ? (JSON.parse(stored) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function readStorageValue(key: string) {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(key);
-}
-
-export function PrivacySettings() {
-  const [settings, setSettings] = useState<Record<SettingId, boolean>>(() => ({
-    ...defaultSettings(),
-    ...readJson<Partial<Record<SettingId, boolean>>>(storageKey, {}),
-  }));
+export function PrivacySettings({ initialState }: { initialState: PrivacySettingsState }) {
+  const [privacy, setPrivacy] = useState(initialState);
   const [openPanel, setOpenPanel] = useState<PanelId | null>(null);
-  const [blockedPeople, setBlockedPeople] = useState<string[]>(() => readJson<string[]>(blockedStorageKey, []));
   const [blockedInput, setBlockedInput] = useState("");
-  const [dataRequestedAt, setDataRequestedAt] = useState<string | null>(() => readStorageValue(dataRequestStorageKey));
-  const [deleteRequestedAt, setDeleteRequestedAt] = useState<string | null>(() => readStorageValue(deleteRequestStorageKey));
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(settings));
-  }, [settings]);
+  function save(next: PrivacySettingsState, onSaved?: (saved: PrivacySettingsState) => void) {
+    setPrivacy(next);
+    setMessage("");
+    startTransition(async () => {
+      const result = await savePrivacySettingsAction(next);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setPrivacy(result.data);
+      setMessage("Saved.");
+      onSaved?.(result.data);
+    });
+  }
 
-  useEffect(() => {
-    window.localStorage.setItem(blockedStorageKey, JSON.stringify(blockedPeople));
-  }, [blockedPeople]);
-
-  function toggleSetting(id: SettingId) {
-    setSettings((current) => ({ ...current, [id]: !current[id] }));
+  function toggleSetting(id: PrivacySettingId) {
+    save({ ...privacy, settings: { ...privacy.settings, [id]: !privacy.settings[id] } });
   }
 
   function addBlockedPerson() {
     const value = blockedInput.trim();
-    if (!value || blockedPeople.some((person) => person.toLowerCase() === value.toLowerCase())) return;
-    setBlockedPeople((current) => [...current, value]);
+    if (!value || privacy.blockedPeople.some((person) => person.toLowerCase() === value.toLowerCase())) return;
+    save({ ...privacy, blockedPeople: [...privacy.blockedPeople, value] });
     setBlockedInput("");
+  }
+
+  function removeBlockedPerson(person: string) {
+    save({ ...privacy, blockedPeople: privacy.blockedPeople.filter((item) => item !== person) });
   }
 
   function requestDataExport() {
     const requestedAt = new Date().toISOString();
-    const payload = {
-      requestedAt,
-      privacySettings: settings,
-      blockedPeople,
-      message: "Your StayPrimePH personal data request has been recorded.",
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "stayprimeph-personal-data-request.json";
-    link.click();
-    URL.revokeObjectURL(url);
-    window.localStorage.setItem(dataRequestStorageKey, requestedAt);
-    setDataRequestedAt(requestedAt);
+    const next = { ...privacy, dataRequestedAt: requestedAt };
+    save(next, (saved) => {
+      const payload = {
+        requestedAt: saved.dataRequestedAt,
+        privacySettings: saved.settings,
+        blockedPeople: saved.blockedPeople,
+        message: "Your StayPrimePH personal data request has been recorded.",
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "stayprimeph-personal-data-request.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   function requestAccountDeletion() {
     if (deleteConfirmation !== "DELETE") return;
     const requestedAt = new Date().toISOString();
-    window.localStorage.setItem(deleteRequestStorageKey, requestedAt);
-    setDeleteRequestedAt(requestedAt);
-    setDeleteConfirmation("");
+    save({ ...privacy, deletionRequestedAt: requestedAt }, () => setDeleteConfirmation(""));
   }
 
   return (
     <div>
+      {message ? <p className="mb-2 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
       {sections.map((section) => (
         <section key={section.title} className="mt-10 border-b border-black/10 pb-6">
           <h3 className="text-2xl font-semibold">{section.title}</h3>
           {section.intro ? <p className="mt-2 text-sm text-black/65">{section.intro}</p> : null}
           <div className="mt-5 space-y-5">
             {section.settings?.map((setting) => (
-              <ToggleRow key={setting.id} setting={setting} checked={settings[setting.id]} onToggle={() => toggleSetting(setting.id)} />
+              <ToggleRow key={setting.id} setting={setting} checked={privacy.settings[setting.id]} disabled={isPending} onToggle={() => toggleSetting(setting.id)} />
             ))}
             {section.actions?.map((action) => (
               <ActionRow
@@ -171,19 +142,20 @@ export function PrivacySettings() {
               >
                 {action.id === "blocked" ? (
                   <BlockedPeoplePanel
-                    people={blockedPeople}
+                    people={privacy.blockedPeople}
                     input={blockedInput}
                     onInput={setBlockedInput}
                     onAdd={addBlockedPerson}
-                    onRemove={(person) => setBlockedPeople((current) => current.filter((item) => item !== person))}
+                    onRemove={removeBlockedPerson}
                   />
                 ) : null}
-                {action.id === "data" ? <DataRequestPanel requestedAt={dataRequestedAt} onRequest={requestDataExport} /> : null}
+                {action.id === "data" ? <DataRequestPanel requestedAt={privacy.dataRequestedAt} disabled={isPending} onRequest={requestDataExport} /> : null}
                 {action.id === "delete" ? (
                   <DeleteAccountPanel
-                    requestedAt={deleteRequestedAt}
+                    requestedAt={privacy.deletionRequestedAt}
                     confirmation={deleteConfirmation}
                     onConfirmation={setDeleteConfirmation}
+                    disabled={isPending}
                     onRequest={requestAccountDeletion}
                   />
                 ) : null}
@@ -208,9 +180,9 @@ export function PrivacySettings() {
   );
 }
 
-function ToggleRow({ setting, checked, onToggle }: { setting: Setting; checked: boolean; onToggle: () => void }) {
+function ToggleRow({ setting, checked, disabled, onToggle }: { setting: Setting; checked: boolean; disabled: boolean; onToggle: () => void }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} onClick={onToggle} className="flex min-h-16 w-full items-center justify-between gap-8 text-left">
+    <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={onToggle} className="flex min-h-16 w-full items-center justify-between gap-8 text-left disabled:cursor-not-allowed disabled:opacity-60">
       <span>
         <span className="block font-semibold">{setting.title}</span>
         {setting.body ? <span className="mt-1 block text-sm text-black/65">{setting.body}</span> : null}
@@ -304,13 +276,13 @@ function BlockedPeoplePanel({
   );
 }
 
-function DataRequestPanel({ requestedAt, onRequest }: { requestedAt: string | null; onRequest: () => void }) {
+function DataRequestPanel({ requestedAt, disabled, onRequest }: { requestedAt: string | null; disabled: boolean; onRequest: () => void }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-black/65">Download a record of this browser&apos;s privacy preferences and submit a personal data export request.</p>
       {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">Last requested {new Date(requestedAt).toLocaleString()}</p> : null}
-      <button type="button" onClick={onRequest} className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white">
-        Request data export
+      <button type="button" onClick={onRequest} disabled={disabled} className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+        {disabled ? "Saving..." : "Request data export"}
       </button>
     </div>
   );
@@ -320,11 +292,13 @@ function DeleteAccountPanel({
   requestedAt,
   confirmation,
   onConfirmation,
+  disabled,
   onRequest,
 }: {
   requestedAt: string | null;
   confirmation: string;
   onConfirmation: (value: string) => void;
+  disabled: boolean;
   onRequest: () => void;
 }) {
   return (
@@ -341,10 +315,10 @@ function DeleteAccountPanel({
         <button
           type="button"
           onClick={onRequest}
-          disabled={confirmation !== "DELETE"}
+          disabled={disabled || confirmation !== "DELETE"}
           className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25"
         >
-          Request deletion
+          {disabled ? "Saving..." : "Request deletion"}
         </button>
       </div>
     </div>

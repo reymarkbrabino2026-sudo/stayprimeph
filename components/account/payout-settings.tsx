@@ -1,17 +1,9 @@
 "use client";
 
 import { Banknote, ChevronRight, Download, Landmark, WalletCards, X } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
-
-type PayoutMethod = {
-  id: string;
-  type: "Bank account" | "PayPal" | "GCash";
-  accountName: string;
-  bankName: string;
-  accountLast4: string;
-  currency: string;
-};
+import { useMemo, useState, useTransition } from "react";
+import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import type { FinancialSettingsState, PayoutMethod } from "@/lib/account-settings-types";
 
 type PayoutRecord = {
   id: string;
@@ -20,9 +12,6 @@ type PayoutRecord = {
   amount: number;
   status: "Scheduled" | "Sent" | "Processing";
 };
-
-const methodsKey = "stayprimeph:payout-methods:v1";
-const emptyMethods: PayoutMethod[] = [];
 
 const payoutRecords: PayoutRecord[] = [
   { id: "PO-2041", date: "2026-05-27", description: "May hosting payout", amount: 12850, status: "Scheduled" },
@@ -38,19 +27,18 @@ const emptyMethod: Omit<PayoutMethod, "id"> = {
   currency: "PHP",
 };
 
-function deserializeMethods(value: string) {
-  return JSON.parse(value) as PayoutMethod[];
-}
-
 function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-export function PayoutSettings() {
-  const [methods, setMethods] = useLocalStorageState(methodsKey, emptyMethods, { deserialize: deserializeMethods });
+export function PayoutSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+  const [financial, setFinancial] = useState(initialFinancial);
   const [draft, setDraft] = useState(emptyMethod);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<"method" | "timing" | "how" | "history" | null>(null);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const methods = financial.payoutMethods;
 
   const totals = useMemo(() => {
     const sent = payoutRecords.filter((item) => item.status === "Sent").reduce((sum, item) => sum + item.amount, 0);
@@ -59,7 +47,18 @@ export function PayoutSettings() {
   }, []);
 
   function saveMethods(next: PayoutMethod[]) {
-    setMethods(next);
+    const nextFinancial = { ...financial, payoutMethods: next };
+    setFinancial(nextFinancial);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveFinancialSettingsAction(nextFinancial);
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setFinancial(result.data);
+      setMessage("Saved.");
+    });
   }
 
   function openMethodForm(method?: PayoutMethod) {
@@ -97,6 +96,7 @@ export function PayoutSettings() {
   return (
     <>
       <section className="mt-9">
+        {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-3xl font-semibold">How you&apos;ll get paid</h3>
         <p className="mt-2">Add at least one payout method so we know where to send your money.</p>
         {methods.length > 0 ? (
@@ -130,7 +130,7 @@ export function PayoutSettings() {
             <TextField label={draft.type === "Bank account" ? "Bank name" : "Provider email or mobile"} value={draft.bankName} onChange={(value) => setDraft({ ...draft, bankName: value })} />
             <TextField label="Last 4 digits" value={draft.accountLast4} onChange={(value) => setDraft({ ...draft, accountLast4: value.replace(/\D/g, "").slice(0, 4) })} />
             <TextField label="Currency" value={draft.currency} onChange={(value) => setDraft({ ...draft, currency: value })} />
-            <FormActions onCancel={() => setOpenPanel(null)} onSave={saveMethod} disabled={!draft.accountName.trim() || !draft.bankName.trim() || draft.accountLast4.replace(/\D/g, "").length !== 4} />
+            <FormActions onCancel={() => setOpenPanel(null)} onSave={saveMethod} disabled={isPending || !draft.accountName.trim() || !draft.bankName.trim() || draft.accountLast4.replace(/\D/g, "").length !== 4} />
           </Panel>
         ) : null}
       </section>

@@ -1,24 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useLocalStorageState } from "@/lib/use-local-storage-state";
-
-type TaxpayerInfo = {
-  legalName: string;
-  country: string;
-  taxId: string;
-  address: string;
-};
-
-type VatInfo = {
-  businessName: string;
-  country: string;
-  vatId: string;
-};
-
-const taxpayerStorageKey = "stayprimeph:taxpayer-info:v1";
-const vatStorageKey = "stayprimeph:vat-info:v1";
+import { useState, useTransition } from "react";
+import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import type { FinancialSettingsState, TaxpayerInfo, VatInfo } from "@/lib/account-settings-types";
 
 const emptyTaxpayer: TaxpayerInfo = {
   legalName: "",
@@ -33,46 +18,53 @@ const emptyVat: VatInfo = {
   vatId: "",
 };
 
-function deserializeStoredObject<T extends object>(value: string, fallback: T): T {
-  return { ...fallback, ...(JSON.parse(value) as Partial<T>) };
-}
-
-function deserializeTaxpayer(value: string) {
-  return deserializeStoredObject(value, emptyTaxpayer);
-}
-
-function deserializeVat(value: string) {
-  return deserializeStoredObject(value, emptyVat);
-}
-
-export function TaxpayerSettings() {
-  const [taxpayer, setTaxpayer] = useLocalStorageState<TaxpayerInfo | null>(taxpayerStorageKey, null, { deserialize: deserializeTaxpayer });
-  const [vat, setVat] = useLocalStorageState<VatInfo | null>(vatStorageKey, null, { deserialize: deserializeVat });
+export function TaxpayerSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+  const [financial, setFinancial] = useState(initialFinancial);
   const [taxpayerDraft, setTaxpayerDraft] = useState(emptyTaxpayer);
   const [vatDraft, setVatDraft] = useState(emptyVat);
   const [editing, setEditing] = useState<"taxpayer" | "vat" | null>(null);
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const taxpayer = financial.taxpayer;
+  const vat = financial.vat;
+
+  function saveFinancial(next: FinancialSettingsState, onSaved: () => void) {
+    const previous = financial;
+    setFinancial(next);
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveFinancialSettingsAction(next);
+      if (!result.ok) {
+        setFinancial(previous);
+        setMessage(result.error);
+        return;
+      }
+
+      setFinancial(result.data);
+      setMessage("Saved.");
+      onSaved();
+    });
+  }
 
   function saveTaxpayer() {
-    const next = {
+    const next: TaxpayerInfo = {
       ...taxpayerDraft,
       legalName: taxpayerDraft.legalName.trim(),
       taxId: taxpayerDraft.taxId.trim(),
       address: taxpayerDraft.address.trim(),
       country: taxpayerDraft.country.trim() || "Philippines",
     };
-    setTaxpayer(next);
-    setEditing(null);
+    saveFinancial({ ...financial, taxpayer: next }, () => setEditing(null));
   }
 
   function saveVat() {
-    const next = {
+    const next: VatInfo = {
       ...vatDraft,
       businessName: vatDraft.businessName.trim(),
       country: vatDraft.country.trim() || "Philippines",
       vatId: vatDraft.vatId.trim(),
     };
-    setVat(next);
-    setEditing(null);
+    saveFinancial({ ...financial, vat: next }, () => setEditing(null));
   }
 
   function openTaxpayerForm() {
@@ -88,6 +80,7 @@ export function TaxpayerSettings() {
   return (
     <>
       <section className="mt-12">
+        {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-2xl font-semibold">Taxpayer information</h3>
         <p className="mt-2">
           Tax info is required for most countries/regions.{" "}
@@ -106,7 +99,7 @@ export function TaxpayerSettings() {
             <TextField label="Country/region" value={taxpayerDraft.country} onChange={(value) => setTaxpayerDraft({ ...taxpayerDraft, country: value })} />
             <TextField label="Tax ID number" value={taxpayerDraft.taxId} onChange={(value) => setTaxpayerDraft({ ...taxpayerDraft, taxId: value })} />
             <TextField label="Registered address" value={taxpayerDraft.address} onChange={(value) => setTaxpayerDraft({ ...taxpayerDraft, address: value })} />
-            <FormActions onCancel={() => setEditing(null)} onSave={saveTaxpayer} disabled={!taxpayerDraft.legalName.trim() || !taxpayerDraft.taxId.trim()} />
+            <FormActions onCancel={() => setEditing(null)} onSave={saveTaxpayer} disabled={isPending || !taxpayerDraft.legalName.trim() || !taxpayerDraft.taxId.trim()} />
           </FormPanel>
         ) : null}
       </section>
@@ -129,7 +122,7 @@ export function TaxpayerSettings() {
             <TextField label="Business name" value={vatDraft.businessName} onChange={(value) => setVatDraft({ ...vatDraft, businessName: value })} />
             <TextField label="Country/region" value={vatDraft.country} onChange={(value) => setVatDraft({ ...vatDraft, country: value })} />
             <TextField label="VAT ID number" value={vatDraft.vatId} onChange={(value) => setVatDraft({ ...vatDraft, vatId: value })} />
-            <FormActions onCancel={() => setEditing(null)} onSave={saveVat} disabled={!vatDraft.businessName.trim() || !vatDraft.vatId.trim()} />
+            <FormActions onCancel={() => setEditing(null)} onSave={saveVat} disabled={isPending || !vatDraft.businessName.trim() || !vatDraft.vatId.trim()} />
           </FormPanel>
         ) : null}
       </section>
