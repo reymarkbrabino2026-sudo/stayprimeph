@@ -34,7 +34,7 @@ export function AuthForm({
 }) {
   return (
     <main className="min-h-dvh bg-[#faf7f4] px-4 py-4 sm:px-6">
-      <header className="mx-auto flex w-full max-w-5xl items-center py-2 sm:py-4">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-center py-2 sm:py-4">
         <Link href="/" aria-label="Go to StayPrimePH homepage" className="inline-flex items-center">
           <BrandLogo className="h-8 w-auto" />
         </Link>
