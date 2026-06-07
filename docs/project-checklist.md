@@ -98,6 +98,8 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Convert browser/local-storage account settings into full backend-backed account management where needed
 - [x] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
 - [x] Fix above-the-fold image priority/eager-loading warnings from E2E/performance checks
+- [x] Internal legal/privacy readiness pass completed and documented in `docs/legal-privacy-review.md`
+- [x] Public Terms, Privacy Policy, and Data Deletion pages strengthened for launch readiness
 
 ## User/account setup still needed
 
@@ -108,7 +110,9 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [x] Resend sender/domain ready
 - [x] Upstash Redis account/database ready
 - [x] Sentry project ready
-- [ ] Legal/privacy review completed
+- [ ] Business/legal operator contact details confirmed and added to public policies
+- [ ] Qualified legal/privacy counsel review completed
+- [ ] Data privacy officer or responsible privacy contact confirmed
 - [ ] Real device QA completed on iPhone
 - [ ] Real device QA completed on Android
 - [ ] Real device QA completed on desktop
@@ -139,4 +143,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, map polish, nav cleanup, image-loading polish, and backend-backed account settings are now active. The remaining blockers are live Stripe mode, Meta app icon upload/publishing, legal review, real device QA, and final confirmation-email telemetry.
+The app is live and healthy. Database persistence, production listing photo uploads, Resend email configuration, Stripe sandbox checkout, core email QA, Sentry monitoring, Vercel Analytics, Upstash Redis rate limiting, Google/Facebook provider setup, Facebook redirect cleanup, host/admin booking checks, protected-route hardening, legal-page cleanup, legal/privacy readiness copy, map polish, nav cleanup, image-loading polish, and backend-backed account settings are now active. The remaining blockers are live Stripe mode, Meta app icon upload/publishing, business/legal contact details, qualified legal/privacy review, real device QA, and final confirmation-email telemetry.

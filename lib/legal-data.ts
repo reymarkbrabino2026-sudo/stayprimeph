@@ -22,6 +22,14 @@ export const legalPages: LegalPage[] = [
         ],
       },
       {
+        title: "Marketplace role",
+        body: [
+          "StayPrimePH helps connect guests and hosts, provides booking tools, keeps platform records, and may support payment, messaging, moderation, and dispute workflows.",
+          "Hosts remain responsible for the stays, listings, property details, availability, pricing, local requirements, permits, taxes, safety disclosures, and guest-facing promises they publish.",
+          "Guests and hosts should keep important communication, payment steps, support requests, and dispute evidence inside StayPrimePH whenever possible so the platform record is complete.",
+        ],
+      },
+      {
         title: "Bookings and listings",
         body: [
           "Hosts are responsible for truthful listing information, accurate availability, house rules, and safe guest experiences.",
@@ -37,6 +45,14 @@ export const legalPages: LegalPage[] = [
           "Guests and hosts should avoid off-platform payment requests because they reduce the protections available through StayPrimePH.",
         ],
       },
+      {
+        title: "Platform standards",
+        body: [
+          "Users may not use StayPrimePH to post false listings, impersonate another person, move protected transactions off platform, upload unlawful content, harass others, bypass safety checks, or misuse personal data obtained through the service.",
+          "Listings should clearly show the stay being offered, price, location area, house rules, material limitations, and any safety, accessibility, camera, amenity, or guest-limit details that would affect a booking decision.",
+          "StayPrimePH may preserve records, cooperate with lawful requests, remove content, pause listings, or restrict accounts when needed for fraud prevention, safety review, dispute resolution, or legal compliance.",
+        ],
+      },
     ],
   },
   {
@@ -48,7 +64,8 @@ export const legalPages: LegalPage[] = [
       {
         title: "Information we collect",
         body: [
-          "The platform may collect account details, profile information, listing content, booking records, messages, payment references, and support reports.",
+          "The platform may collect account details, profile information, listing content, booking records, messages, payment references, account settings, uploaded photos, support reports, and admin review records.",
+          "If users sign in with Google or Facebook, StayPrimePH may receive basic profile information made available by that provider, such as name, email address, provider account identifier, and profile image, depending on the permissions approved by the user.",
           "Sensitive payment details should be handled by payment providers such as Stripe rather than stored directly in the application database.",
           "Technical data such as device, browser, IP address, analytics events, security logs, and error reports may be collected to keep the service reliable and secure.",
         ],
@@ -62,11 +79,35 @@ export const legalPages: LegalPage[] = [
         ],
       },
       {
-        title: "Sharing, retention, and choices",
+        title: "Service providers and data sharing",
         body: [
-          "StayPrimePH shares personal data only when needed to operate the marketplace, process payments, deliver emails, store listing media, detect abuse, comply with legal duties, or protect users.",
+          "StayPrimePH shares personal data only when needed to operate the marketplace, process payments, deliver emails, store listing media, authenticate users, detect abuse, comply with legal duties, or protect users.",
+          "Current operational providers may include hosting, database, storage, payment, email, authentication, analytics, error monitoring, and rate-limiting vendors such as Vercel, Supabase, Stripe, Resend, Upstash, Sentry, Google, Facebook/Meta, and related infrastructure providers.",
+          "Some providers may process data outside the Philippines. StayPrimePH remains responsible for using reasonable contractual, security, and operational safeguards for personal data handled by service providers.",
+        ],
+      },
+      {
+        title: "Retention and deletion",
+        body: [
           "Booking and payment records may be retained for operational, tax, accounting, legal, fraud-prevention, and dispute-resolution purposes.",
-          "Users may request account support, correction of inaccurate information, or deletion review by contacting StayPrimePH support.",
+          "Optional profile details, saved preferences, social-login links, unpublished listing drafts, support records, and non-essential account data may be deleted or anonymized when they are no longer needed or when a valid deletion request is approved.",
+          "Backups, logs, accounting records, safety records, fraud-prevention records, and legal hold materials may remain for a limited period when retention is reasonably needed for security, dispute, tax, accounting, or legal reasons.",
+        ],
+      },
+      {
+        title: "Your privacy choices",
+        body: [
+          "Users may request help accessing, correcting, exporting, blocking, objecting to, or deleting personal data by using account privacy tools or contacting StayPrimePH support.",
+          "Marketing preferences can be changed in account notification settings. Essential account, security, booking, payment, and legal notices may still be sent when needed to operate the service.",
+          "Users can remove a social-login connection through their Google or Facebook account settings, but should also contact StayPrimePH if they want platform account data reviewed for deletion.",
+        ],
+      },
+      {
+        title: "Security and incidents",
+        body: [
+          "StayPrimePH uses administrative, technical, and operational safeguards intended to protect account, booking, listing, message, payment-reference, and support data from unauthorized access or misuse.",
+          "No internet service can guarantee perfect security, so users should protect their login credentials, avoid sharing one-time links or reset emails, and report suspicious activity promptly.",
+          "If StayPrimePH identifies a personal data breach that requires notice, it will assess the incident, preserve relevant records, reduce harm where practical, and notify affected users and regulators when required by applicable law.",
         ],
       },
     ],
@@ -80,7 +121,7 @@ export const legalPages: LegalPage[] = [
       {
         title: "How to request deletion",
         body: [
-          "Users can request account or personal data deletion by contacting StayPrimePH support from the email address linked to their account.",
+          "Users can request account or personal data deletion from account privacy settings or by contacting StayPrimePH support from the email address linked to their account.",
           "The request should include the account email address, the login provider used when known, and a short note that the user wants their StayPrimePH account data reviewed for deletion.",
           "For Facebook Login users, this page serves as the public data deletion instructions URL required by Meta.",
         ],
@@ -99,6 +140,14 @@ export const legalPages: LegalPage[] = [
           "StayPrimePH will review deletion requests after verifying that the requester controls the relevant account email or login identity.",
           "Users should receive a response confirming the request status, any records that must be retained, and whether additional verification is needed.",
           "For urgent privacy concerns, users should contact StayPrimePH support and include any relevant booking, listing, or account details so the team can locate the records.",
+        ],
+      },
+      {
+        title: "Social login data",
+        body: [
+          "If the account was created or accessed through Facebook or Google, StayPrimePH will review and remove or anonymize the social-login identifier and optional profile data when deletion is approved, unless retention is required for security, legal, accounting, or dispute reasons.",
+          "Removing StayPrimePH from Facebook, Google, or another identity provider may stop future sign-in access, but it does not automatically delete platform records that StayPrimePH must review separately.",
+          "Users should also remove StayPrimePH from their social provider account settings if they want to stop future provider access.",
         ],
       },
     ],
