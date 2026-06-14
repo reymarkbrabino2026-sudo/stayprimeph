@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export function MessageAutoRefresh({ intervalMs = 5000 }: { intervalMs?: number }) {
+export function MessageAutoRefresh({ intervalMs = 3000 }: { intervalMs?: number }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -13,10 +13,12 @@ export function MessageAutoRefresh({ intervalMs = 5000 }: { intervalMs?: number 
 
     const timer = window.setInterval(refreshWhenVisible, intervalMs);
     document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
 
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
     };
   }, [intervalMs, router]);
 

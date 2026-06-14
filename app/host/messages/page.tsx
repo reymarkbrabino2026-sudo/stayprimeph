@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { unstable_noStore as noStore } from "next/cache";
 import { sendGuestMessage } from "@/app/host/messages/actions";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,11 +19,15 @@ type HostMessagesSearchParams = {
   error?: string;
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function HostMessagesPage({
   searchParams,
 }: {
   searchParams: Promise<HostMessagesSearchParams>;
 }) {
+  noStore();
   const query = await searchParams;
   const user = await getCurrentUser();
   const [messages, bookings, properties, users] = await Promise.all([
