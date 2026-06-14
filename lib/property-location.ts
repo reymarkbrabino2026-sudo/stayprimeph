@@ -8,10 +8,7 @@ function cleanPart(value?: string) {
 
 export function formatPropertyLocation(property: LocationFields) {
   const city = cleanPart(property.city);
-  const province = cleanPart(property.province);
 
-  if (city && province) return `${city}, ${province}`;
-  if (city.toLowerCase() === "sta maria") return "Sta Maria, Davao Occidental";
   return city || cleanPart(property.country);
 }
 
@@ -29,9 +26,9 @@ export function formatSearchLocationLabel(value?: string) {
   const normalized = normalizePropertyLocationSearchQuery(location);
 
   if (!location || normalized === "search destinations") return "";
-  if (normalized === "sta maria") return "Sta Maria, Davao Occidental";
 
-  return location.replace(/\s*,?\s*philippines\s*$/i, "").trim();
+  const withoutCountry = location.replace(/\s*,?\s*philippines\s*$/i, "").trim();
+  return withoutCountry.split(",").map(cleanPart).find(Boolean) ?? "";
 }
 
 export function getPropertyLocationSearchText(property: LocationFields) {
