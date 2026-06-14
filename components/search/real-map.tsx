@@ -71,8 +71,10 @@ export function RealMap({ properties, location }: { properties: Property[]; loca
 
       markers.forEach((marker) => {
         const icon = L.divIcon({
-          className: "",
-          html: `<div class="map-price-pill">${marker.label}</div>`,
+          className: "stayprimeph-price-marker",
+          html: `<div class="map-price-pill" style="display:inline-flex;align-items:center;justify-content:center;min-width:64px;border-radius:9999px;background:#fff;padding:0.6rem 0.9rem;color:#1f1b16;text-align:center;font-size:0.875rem;font-weight:600;line-height:1;white-space:nowrap;box-shadow:0 10px 25px rgb(0 0 0 / 0.18);transform:translate(-50%, -50%);">${marker.label}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
         });
 
         L.marker(marker.coords, { icon })
