@@ -5,7 +5,6 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MessageAutoRefresh } from "@/components/ui/message-auto-refresh";
 import { MessageThread } from "@/components/ui/message-thread";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getMessagesForUser } from "@/lib/messages";
@@ -106,12 +105,9 @@ export default async function HostMessagesPage({
                   placeholder={`Reply to ${guest.name}`}
                 />
                 <div className="mt-3 flex justify-end">
-                  <SubmitButton
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-wait disabled:opacity-70"
-                    pendingText="Sending..."
-                  >
+                  <button className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28]">
                     <Send size={16} /> Send reply
-                  </SubmitButton>
+                  </button>
                 </div>
               </form>
             ) : null}
