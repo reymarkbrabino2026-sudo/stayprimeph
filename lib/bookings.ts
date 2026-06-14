@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
+import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
-import { listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
-import type { Payment } from "@/lib/types";
-import type { Booking } from "@/lib/types";
+import { cancelBookingInDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import type { Booking, Cancellation, Payment } from "@/lib/types";
 
 export async function getBookings() {
   if (usesPrismaPersistence()) return listBookingsFromDatabase();
@@ -53,4 +54,35 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
   await writeStoredPayments(existingPayment
     ? payments.map((item) => (item.id === existingPayment.id ? payment : item))
     : [payment, ...payments]);
+}
+
+function getCancellationStatus(booking: Booking) {
+  return booking.paymentStatus === "paid" || booking.paymentStatus === "submitted" ? "review" : "closed";
+}
+
+export async function cancelBookingByGuest(booking: Booking, reason?: string): Promise<Cancellation> {
+  const cancellation: Cancellation = {
+    id: randomUUID(),
+    bookingId: booking.id,
+    propertyId: booking.propertyId,
+    reason,
+    status: getCancellationStatus(booking),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (usesPrismaPersistence()) {
+    await cancelBookingInDatabase(cancellation);
+    return cancellation;
+  }
+
+  const [bookings, cancellations] = await Promise.all([readStoredBookings(), readStoredCancellations()]);
+
+  await writeStoredBookings(bookings.map((item) => (item.id === booking.id ? { ...item, status: "cancelled" } : item)));
+  await writeStoredCancellations(
+    cancellations.some((item) => item.bookingId === booking.id)
+      ? cancellations.map((item) => (item.bookingId === booking.id ? { ...item, ...cancellation, id: item.id, createdAt: item.createdAt } : item))
+      : [cancellation, ...cancellations],
+  );
+
+  return cancellation;
 }

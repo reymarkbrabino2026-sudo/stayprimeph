@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { BookingCancellationForm } from "@/components/bookings/booking-cancellation-form";
 import { PayNowButton } from "@/components/bookings/pay-now-button";
 import { StayReviewForm } from "@/components/reviews/stay-review-form";
 import { ReviewCard } from "@/components/ui/review-card";
@@ -21,7 +22,7 @@ export default async function BookingDetailsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ payment?: string; review?: string }>;
+  searchParams: Promise<{ cancel?: string; payment?: string; review?: string }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
@@ -35,6 +36,13 @@ export default async function BookingDetailsPage({
   const stripeReady = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
   const existingReview = await getReviewForBooking(booking);
   const reviewEligible = canReviewBooking(booking);
+  const checkInDate = new Date(`${booking.checkIn}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const canCancelBooking =
+    (booking.status === "pending" || booking.status === "confirmed") &&
+    checkInDate.getTime() > today.getTime();
+  const cancellationRequiresReview = booking.paymentStatus === "paid" || booking.paymentStatus === "submitted";
 
   const messageHostHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(booking.hostId)}`;
 
@@ -50,6 +58,11 @@ export default async function BookingDetailsPage({
         {query.review === "posted" ? (
           <p className="mb-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
             Thanks for reviewing your stay. Your note is now shown on the listing and host reviews.
+          </p>
+        ) : null}
+        {query.cancel === "success" ? (
+          <p className="mb-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+            Booking cancelled. The host can see the update, and support will review any submitted or paid payment.
           </p>
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -82,7 +95,11 @@ export default async function BookingDetailsPage({
             <p>{formatCurrency(booking.totalPrice)}</p>
           </div>
         </div>
-        {booking.paymentStatus === "paid" ? (
+        {booking.status === "cancelled" ? (
+          <p className="mt-6 rounded-2xl bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+            This booking is cancelled. These dates are no longer reserved for your stay.
+          </p>
+        ) : booking.paymentStatus === "paid" ? (
           <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             Payment confirmed. Your booking is approved.
           </p>
@@ -96,6 +113,16 @@ export default async function BookingDetailsPage({
             stripeReady={stripeReady}
           />
         )}
+        {canCancelBooking ? (
+          <BookingCancellationForm
+            bookingId={booking.id}
+            propertyTitle={property.title}
+            checkIn={booking.checkIn}
+            checkOut={booking.checkOut}
+            totalPrice={booking.totalPrice}
+            requiresReview={cancellationRequiresReview}
+          />
+        ) : null}
       </div>
       {existingReview ? (
         <section className="mt-6">
@@ -104,6 +131,10 @@ export default async function BookingDetailsPage({
         </section>
       ) : reviewEligible ? (
         <StayReviewForm bookingId={booking.id} />
+      ) : booking.status === "cancelled" ? (
+        <section className="mt-6 rounded-[1.5rem] border border-dashed bg-white p-5 text-sm leading-6 text-black/60">
+          Cancelled bookings cannot be reviewed.
+        </section>
       ) : (
         <section className="mt-6 rounded-[1.5rem] border border-dashed bg-white p-5 text-sm leading-6 text-black/60">
           Reviews open after a paid stay is completed. Once checkout has passed, you can share your real experience

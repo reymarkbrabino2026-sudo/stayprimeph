@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookingById } from "@/lib/bookings";
+import { cancelBookingByGuest, getBookingById } from "@/lib/bookings";
 import { readManualPaymentInput, submitManualPayment } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { canReviewBooking, createStayReview, getReviewForBooking } from "@/lib/reviews";
@@ -16,6 +16,59 @@ export type ManualPaymentActionState = {
 export type ReviewActionState = {
   error?: string;
 };
+
+export type CancellationActionState = {
+  error?: string;
+};
+
+function isBeforeCheckIn(checkIn: string) {
+  const checkInDate = new Date(`${checkIn}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return checkInDate.getTime() > today.getTime();
+}
+
+export async function cancelGuestBooking(
+  _previousState: CancellationActionState,
+  formData: FormData,
+): Promise<CancellationActionState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "guest") return { error: "Please sign in as the guest for this booking." };
+
+  const bookingId = String(formData.get("bookingId") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
+  let propertyId = "";
+
+  try {
+    if (!bookingId) throw new Error("Booking is required.");
+    if (reason.length > 500) throw new Error("Please keep the cancellation reason under 500 characters.");
+
+    const booking = await getBookingById(bookingId);
+    if (!booking || booking.guestId !== user.id) throw new Error("Booking not found.");
+    propertyId = booking.propertyId;
+    if (booking.status === "cancelled") throw new Error("This booking is already cancelled.");
+    if (booking.status === "completed") throw new Error("Completed stays cannot be cancelled.");
+    if (!isBeforeCheckIn(booking.checkIn)) throw new Error("Bookings can only be cancelled before check-in.");
+
+    await cancelBookingByGuest(booking, reason || undefined);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Booking could not be cancelled." };
+  }
+
+  revalidatePath(`/guest/bookings/${bookingId}`);
+  revalidatePath("/guest/bookings");
+  revalidatePath("/guest/dashboard");
+  revalidatePath("/host/bookings");
+  revalidatePath("/host/calendar");
+  revalidatePath("/host/dashboard");
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/disputes");
+  if (propertyId) {
+    revalidatePath(`/rooms/${propertyId}`);
+    revalidatePath(`/properties/${propertyId}`);
+  }
+  redirect(`/guest/bookings/${bookingId}?cancel=success`);
+}
 
 export async function submitManualPaymentDetails(
   _previousState: ManualPaymentActionState,

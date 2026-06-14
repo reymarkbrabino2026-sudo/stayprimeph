@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
+import { readStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments } from "@/lib/payment-store";
 import { listPaymentsFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredReviews } from "@/lib/review-store";
@@ -32,7 +33,17 @@ export async function getAdminReports(): Promise<Report[]> {
 }
 
 export async function getAdminDisputes(): Promise<Dispute[]> {
-  if (!usesPrismaPersistence()) return [];
+  if (!usesPrismaPersistence()) {
+    const cancellations = await readStoredCancellations();
+    return cancellations.map((item) => ({
+      id: item.id,
+      bookingId: item.bookingId,
+      propertyId: item.propertyId,
+      reason: item.reason ?? "Booking cancellation or dispute requires review.",
+      status: item.status,
+      createdAt: item.createdAt,
+    }));
+  }
 
   const cancellations = await prisma.cancellation.findMany({ orderBy: { createdAt: "desc" } });
   return cancellations.map((item) => ({

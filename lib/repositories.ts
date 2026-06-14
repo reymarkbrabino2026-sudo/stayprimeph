@@ -239,6 +239,35 @@ export async function updateBookingStatusInDatabase(bookingId: string, status: B
   await prisma.booking.update({ where: { id: bookingId }, data: { status } });
 }
 
+export async function cancelBookingInDatabase({
+  id,
+  bookingId,
+  propertyId,
+  reason,
+  status,
+}: {
+  id: string;
+  bookingId: string;
+  propertyId: string;
+  reason?: string;
+  status: string;
+}) {
+  await prisma.$transaction([
+    prisma.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } }),
+    prisma.cancellation.upsert({
+      where: { bookingId },
+      update: { reason: reason || null, status },
+      create: {
+        id,
+        bookingId,
+        propertyId,
+        reason: reason || null,
+        status,
+      },
+    }),
+  ]);
+}
+
 export async function listReviewsFromDatabase(): Promise<Review[]> {
   const reviews = await prisma.review.findMany({ orderBy: { createdAt: "desc" } });
   return reviews.map((review) => ({

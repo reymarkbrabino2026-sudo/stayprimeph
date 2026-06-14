@@ -31,5 +31,6 @@ export interface Payment {
   updatedAt?: string;
 }
 export interface AuthToken { id: string; userId: string; tokenHash: string; type: "email_verification" | "password_reset"; expiresAt: string; createdAt: string; }
+export interface Cancellation { id: string; bookingId: string; propertyId: string; reason?: string; status: string; createdAt: string; }
 export interface Report { id: string; propertyId?: string; reporterId?: string; type: string; status: string; details: string; createdAt: string; }
 export interface Dispute { id: string; bookingId?: string; propertyId?: string; reason: string; status: string; createdAt: string; }
