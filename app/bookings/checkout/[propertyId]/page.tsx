@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, ShieldCheck, Star } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
+import { getCurrentUser } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { getBestDiscount } from "@/lib/pricing";
@@ -47,7 +48,7 @@ export default async function BookingCheckoutPage({
   searchParams,
 }: {
   params: Promise<{ propertyId: string }>;
-  searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string }>;
+  searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string; error?: string }>;
 }) {
   const { propertyId } = await params;
   const query = await searchParams;
@@ -64,6 +65,7 @@ export default async function BookingCheckoutPage({
   const nights = Math.min(90, nightsBetween(checkIn, checkOut));
   const subtotal = property.pricePerNight * nights;
   const bookings = await getBookings();
+  const currentUser = await getCurrentUser();
   const discount = getBestDiscount({ property, bookings, checkIn, nights, subtotal });
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
   const serviceFee = Math.round(discountedSubtotal * 0.12);
@@ -72,6 +74,8 @@ export default async function BookingCheckoutPage({
   const image = property.images[0]?.imageUrl;
   const buttonLabel = property.rules.includes("Instant book enabled") ? "Confirm and pay" : "Request to book";
   const locationLabel = formatPropertyLocation(property);
+  const guestOnly = currentUser?.role && currentUser.role !== "guest";
+  const roleError = guestOnly || query.error === "guest-only";
 
   return (
     <div className="min-h-screen bg-white">
@@ -145,15 +149,18 @@ export default async function BookingCheckoutPage({
               </div>
             </section>
 
-            <div className={`rounded-2xl p-4 text-sm ${unavailable ? "bg-rose-50 text-rose-700" : "bg-black/[0.04] text-black/65"}`}>
-              {unavailable ? "These dates are already booked. Choose another stay window." : "Dates are available. Your booking will be sent to the host unless instant booking is enabled."}
+            <div className={`rounded-2xl p-4 text-sm ${unavailable || roleError ? "bg-rose-50 text-rose-700" : "bg-black/[0.04] text-black/65"}`}>
+              {roleError
+                ? "Use a guest account to request this stay. Admin and host accounts cannot create guest bookings."
+                : unavailable
+                  ? "These dates are already booked. Choose another stay window."
+                  : "Dates are available. Your booking will be sent to the host unless instant booking is enabled."}
             </div>
-
             <p className="text-xs leading-6 text-black/55">
               By selecting the button below, you agree to the house rules, cancellation policy, and guest refund policy.
             </p>
 
-            <button disabled={unavailable} className="min-h-14 w-full rounded-xl bg-[#083f35] px-6 text-base font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20 sm:w-auto sm:min-w-56">
+            <button disabled={unavailable || Boolean(guestOnly)} className="min-h-14 w-full rounded-xl bg-[#083f35] px-6 text-base font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20 sm:w-auto sm:min-w-56">
               {buttonLabel}
             </button>
           </form>

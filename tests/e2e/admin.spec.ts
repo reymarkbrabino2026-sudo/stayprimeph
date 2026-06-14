@@ -25,6 +25,15 @@ test("admin can open the approval queue", async ({ page }) => {
   await expect(page.getByText("Listings waiting for review")).toBeVisible();
 });
 
+test("admin sees guest-account warning on checkout instead of app error", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/bookings/checkout/42b8ae68-c9df-45f6-80c4-93a31e935c66?checkIn=2026-06-14&checkOut=2026-06-18&guests=1", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByText("Use a guest account to request this stay.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Request to book" })).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "Something went sideways" })).toHaveCount(0);
+});
+
 const adminScreens = [
   ["/admin/dashboard", "Admin Overview"],
   ["/admin/users", "Users"],

@@ -30,6 +30,12 @@ function dateTime(value: string) {
   return new Date(`${value}T00:00:00.000Z`).getTime();
 }
 
+function checkoutPath(propertyId: string, checkIn: string, checkOut: string, guests: number, error?: string) {
+  const params = new URLSearchParams({ checkIn, checkOut, guests: String(guests) });
+  if (error) params.set("error", error);
+  return `/bookings/checkout/${propertyId}?${params.toString()}`;
+}
+
 const bookingFormSchema = z.object({
   propertyId: z.string().trim().min(1).max(120),
   checkIn: z.string().trim().refine(isIsoDate, "Use a valid check-in date."),
@@ -53,8 +59,8 @@ export async function createBooking(formData: FormData) {
   const bookings = await getBookings();
   const user = await getCurrentUser();
 
-  if (!user) redirect("/login");
-  if (user.role !== "guest") throw new Error("Only guests can create bookings.");
+  if (!user) redirect(`/login?role=guest&next=${encodeURIComponent(checkoutPath(propertyId, checkIn, checkOut, guests))}`);
+  if (user.role !== "guest") redirect(checkoutPath(propertyId, checkIn, checkOut, guests, "guest-only"));
   if (!property) throw new Error("Please complete your booking details.");
   if (property.status !== "approved") throw new Error("This listing is not available for booking.");
   if (!Number.isFinite(property.pricePerNight) || property.pricePerNight <= 0) throw new Error("This listing is missing valid pricing.");

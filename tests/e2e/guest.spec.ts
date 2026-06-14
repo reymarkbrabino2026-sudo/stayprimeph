@@ -67,10 +67,10 @@ test("room booking calendar shows unavailable dates privately", async ({ page })
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/rooms/42b8ae68-c9df-45f6-80c4-93a31e935c66", { waitUntil: "domcontentloaded" });
 
-  await expect(page.getByRole("button", { name: "Check-in Jun 10, 2026" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Checkout Jun 15, 2026" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Check-in Jun 14, 2026" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Checkout Jun 19, 2026" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Jun 4, 2026 unavailable" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Jun 8, 2026 unavailable" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Jun 10, 2026 available" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Jun 13, 2026 unavailable" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Jun 14, 2026 available" })).toBeEnabled();
   await expect(page.getByText("Personal Guest Name")).toHaveCount(0);
 });
