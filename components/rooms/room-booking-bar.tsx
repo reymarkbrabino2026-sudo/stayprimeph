@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { AvailabilityBlock } from "@/lib/availability";
-import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability";
+import type { UnavailableStay } from "@/lib/availability-calendar";
+import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
 import type { Property } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { TODAY, buildReserveHref, computePrice, useReservationStore } from "@/stores/reservation-store";
@@ -22,7 +22,7 @@ function formatShortDate(value: string) {
   return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
-export function RoomBookingBar({ property, unavailableStays = [] }: { property: Property; unavailableStays?: AvailabilityBlock[] }) {
+export function RoomBookingBar({ property, unavailableStays = [] }: { property: Property; unavailableStays?: UnavailableStay[] }) {
   const { checkIn, checkOut, guests } = useReservationStore();
   const [activeSection, setActiveSection] = useState(navItems[0].href);
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);

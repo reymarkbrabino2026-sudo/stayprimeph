@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star, Users } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { AvailabilityBlock } from "@/lib/availability";
-import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability";
+import type { UnavailableStay } from "@/lib/availability-calendar";
+import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
 import type { Property } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -24,7 +24,7 @@ export function RoomReservationCard({
 }: {
   property: Property;
   rating: string;
-  unavailableStays?: AvailabilityBlock[];
+  unavailableStays?: UnavailableStay[];
 }) {
   const { checkIn, checkOut, guests, setCheckIn, setCheckOut, setGuests } = useReservationStore();
   const instantBook = property.rules.includes("Instant book enabled");

@@ -233,6 +233,9 @@ model AvailabilityBlock {
   date       DateTime
   available  Boolean  @default(true)
   minNights  Int?
+  reason     String?
+  note       String?
+  createdAt  DateTime @default(now())
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@unique([propertyId, date])

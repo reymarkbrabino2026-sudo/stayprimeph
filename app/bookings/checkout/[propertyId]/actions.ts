@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getAvailabilityBlocks } from "@/lib/availability";
+import { hasAvailabilityBlockConflict } from "@/lib/availability-calendar";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
@@ -56,7 +58,7 @@ export async function createBooking(formData: FormData) {
   const checkInTime = dateTime(checkIn);
   const checkOutTime = dateTime(checkOut);
   const property = await getPropertyById(propertyId);
-  const bookings = await getBookings();
+  const [bookings, availabilityBlocks] = await Promise.all([getBookings(), getAvailabilityBlocks()]);
   const user = await getCurrentUser();
 
   if (!user) redirect(`/login?role=guest&next=${encodeURIComponent(checkoutPath(propertyId, checkIn, checkOut, guests))}`);
@@ -70,6 +72,7 @@ export async function createBooking(formData: FormData) {
   if (checkInTime < today.getTime()) throw new Error("Check-in must be today or later.");
   if (checkOutTime <= checkInTime) throw new Error("Check-out must be after check-in.");
   if (hasDateConflict(bookings, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
+  if (hasAvailabilityBlockConflict(availabilityBlocks, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
 
   const nights = nightsBetween(checkIn, checkOut);
   if (nights > 90) throw new Error("Stays longer than 90 nights need host approval.");
@@ -96,8 +99,9 @@ export async function createBooking(formData: FormData) {
   if (usesPrismaPersistence()) {
     await createBookingInDatabase(booking);
   } else {
-    const latestBookings = await readStoredBookings();
+    const [latestBookings, latestAvailabilityBlocks] = await Promise.all([readStoredBookings(), getAvailabilityBlocks()]);
     if (hasDateConflict(latestBookings, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
+    if (hasAvailabilityBlockConflict(latestAvailabilityBlocks, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
     await writeStoredBookings([booking, ...latestBookings]);
   }
   const guest = await getUserById(user.id);

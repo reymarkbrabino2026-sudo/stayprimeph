@@ -33,6 +33,8 @@ import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
+import { getAvailabilityBlocks } from "@/lib/availability";
+import { addDays } from "@/lib/availability-calendar";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getPropertyById } from "@/lib/properties";
@@ -99,12 +101,17 @@ export default async function RoomPage({
   const canPreviewListing = currentUser?.role === "admin" || currentUser?.id === property.hostId;
   if (property.status !== "approved" && !canPreviewListing) notFound();
 
-  const [users, reviews, bookings] = await Promise.all([getUsers(), getReviews(), getBookings()]);
+  const [users, reviews, bookings, availabilityBlocks] = await Promise.all([getUsers(), getReviews(), getBookings(), getAvailabilityBlocks()]);
   const host = users.find((user) => user.id === property.hostId);
   const propertyReviews = reviews.filter((review) => review.propertyId === property.id);
   const unavailableStays = bookings
     .filter((booking) => booking.propertyId === property.id && booking.status !== "cancelled")
-    .map((booking) => ({ checkIn: booking.checkIn, checkOut: booking.checkOut }));
+    .map((booking) => ({ checkIn: booking.checkIn, checkOut: booking.checkOut }))
+    .concat(
+      availabilityBlocks
+        .filter((block) => block.propertyId === property.id)
+        .map((block) => ({ checkIn: block.date, checkOut: addDays(block.date, 1) })),
+    );
   const hostInitials =
     host?.avatar ?? host?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) ?? "H";
   const averageRating = propertyReviews.length

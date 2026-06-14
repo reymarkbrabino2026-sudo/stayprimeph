@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
-import type { AuthToken, Booking, Message, Payment, Property, PropertyImage, Review, User } from "@/lib/types";
+import type { AuthToken, AvailabilityBlock, Booking, Message, Payment, Property, PropertyImage, Review, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -173,6 +173,50 @@ export async function listBookingsFromDatabase(): Promise<Booking[]> {
   }));
 }
 
+export async function listAvailabilityBlocksFromDatabase(): Promise<AvailabilityBlock[]> {
+  const blocks = await prisma.availabilityBlock.findMany({
+    where: { available: false },
+    orderBy: { date: "asc" },
+  });
+
+  return blocks.map((block) => ({
+    id: block.id,
+    propertyId: block.propertyId,
+    date: block.date.toISOString().slice(0, 10),
+    reason: (block.reason ?? "other") as AvailabilityBlock["reason"],
+    note: block.note ?? undefined,
+    createdAt: block.createdAt.toISOString(),
+  }));
+}
+
+export async function createAvailabilityBlocksInDatabase(blocks: AvailabilityBlock[]) {
+  await prisma.$transaction(
+    blocks.map((block) =>
+      prisma.availabilityBlock.upsert({
+        where: { propertyId_date: { propertyId: block.propertyId, date: new Date(block.date) } },
+        update: {
+          available: false,
+          reason: block.reason,
+          note: block.note ?? null,
+        },
+        create: {
+          id: block.id,
+          propertyId: block.propertyId,
+          date: new Date(block.date),
+          available: false,
+          reason: block.reason,
+          note: block.note ?? null,
+          createdAt: new Date(block.createdAt),
+        },
+      }),
+    ),
+  );
+}
+
+export async function deleteAvailabilityBlockInDatabase(blockId: string) {
+  await prisma.availabilityBlock.delete({ where: { id: blockId } });
+}
+
 export async function createBookingInDatabase(booking: Booking) {
   const checkIn = new Date(booking.checkIn);
   const checkOut = new Date(booking.checkOut);
@@ -187,6 +231,16 @@ export async function createBookingInDatabase(booking: Booking) {
       select: { id: true },
     });
     if (conflictingBooking) throw new Error("Those dates are no longer available.");
+
+    const blockedDate = await tx.availabilityBlock.findFirst({
+      where: {
+        propertyId: booking.propertyId,
+        available: false,
+        date: { gte: checkIn, lt: checkOut },
+      },
+      select: { id: true },
+    });
+    if (blockedDate) throw new Error("Those dates are no longer available.");
 
     await tx.booking.create({
       data: {

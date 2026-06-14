@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Users } from "lucide-react";
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Trash2, Users } from "lucide-react";
+import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useFormStatus } from "react-dom";
 import { formatCurrency } from "@/lib/utils";
-import type { BookingStatus, ListingStatus, PaymentStatus } from "@/lib/types";
+import type { AvailabilityBlockReason, BookingStatus, ListingStatus, PaymentStatus } from "@/lib/types";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -33,18 +34,38 @@ type HostCalendarBooking = {
   totalPrice: number;
 };
 
+type HostAvailabilityBlock = {
+  id: string;
+  propertyId: string;
+  propertyTitle: string;
+  date: string;
+  reason: AvailabilityBlockReason;
+  note?: string;
+};
+
+type AvailabilityFormState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
 type HostCalendarProps = {
   listings: HostCalendarListing[];
   bookings: HostCalendarBooking[];
+  availabilityBlocks: HostAvailabilityBlock[];
+  blockAvailabilityAction: (state: AvailabilityFormState, formData: FormData) => Promise<AvailabilityFormState>;
+  removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
 };
 
-export function HostCalendar({ listings, bookings }: HostCalendarProps) {
+const initialAvailabilityState: AvailabilityFormState = { status: "idle", message: "" };
+
+export function HostCalendar({ listings, bookings, availabilityBlocks, blockAvailabilityAction, removeAvailabilityBlockAction }: HostCalendarProps) {
   const scrollerRef = useRef<HTMLElement>(null);
   const monthRefs = useRef<Array<HTMLElement | null>>([]);
   const [activeMonthIndex, setActiveMonthIndex] = useState(0);
   const [selectedListingId, setSelectedListingId] = useState("all");
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [availabilityState, availabilityFormAction] = useActionState(blockAvailabilityAction, initialAvailabilityState);
 
   const activeBookings = useMemo(() => bookings.filter((booking) => booking.status !== "cancelled"), [bookings]);
   const initialSelectedDate = useMemo(() => getInitialSelectedDate(activeBookings), [activeBookings]);
@@ -61,12 +82,20 @@ export function HostCalendar({ listings, bookings }: HostCalendarProps) {
     () => activeBookings.filter((booking) => selectedListingId === "all" || booking.propertyId === selectedListingId),
     [activeBookings, selectedListingId],
   );
+  const filteredBlocks = useMemo(
+    () => availabilityBlocks.filter((block) => selectedListingId === "all" || block.propertyId === selectedListingId),
+    [availabilityBlocks, selectedListingId],
+  );
   const selectedDayBookings = useMemo(
     () => filteredBookings.filter((booking) => isDateWithinBooking(selectedDate, booking)),
     [filteredBookings, selectedDate],
   );
+  const selectedDayBlocks = useMemo(
+    () => filteredBlocks.filter((block) => block.date === selectedDate),
+    [filteredBlocks, selectedDate],
+  );
   const visibleListingCount = selectedListing ? 1 : listings.length;
-  const stats = useMemo(() => buildAvailabilityStats(months, filteredBookings, visibleListingCount), [months, filteredBookings, visibleListingCount]);
+  const stats = useMemo(() => buildAvailabilityStats(months, filteredBookings, filteredBlocks, visibleListingCount), [months, filteredBookings, filteredBlocks, visibleListingCount]);
   const weekdayNightlyPrice = getAverageNightlyPrice(selectedListing ? [selectedListing] : listings);
   const weekendNightlyPrice = getWeekendNightlyPrice(weekdayNightlyPrice);
   const todayKey = toDateKey(new Date());
@@ -206,6 +235,7 @@ export function HostCalendar({ listings, bookings }: HostCalendarProps) {
                     key={`${month.id}-${cellIndex}`}
                     cell={cell}
                     bookings={filteredBookings}
+                    availabilityBlocks={filteredBlocks}
                     weekdayPrice={weekdayNightlyPrice}
                     weekendPrice={weekendNightlyPrice}
                     isSelected={Boolean(cell && cell.dateKey === selectedDate)}
@@ -229,7 +259,15 @@ export function HostCalendar({ listings, bookings }: HostCalendarProps) {
 
       <aside className="fixed inset-x-0 bottom-0 z-30 max-h-44 overflow-y-auto rounded-t-lg border-t border-black/10 bg-white px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgb(0_0_0_/_0.10)] sm:max-h-44 sm:px-6 lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-l lg:border-t-0 lg:px-10 lg:py-14 lg:shadow-none">
         <div className="lg:sticky lg:top-8">
-          <SelectedDatePanel dateKey={selectedDate} bookings={selectedDayBookings} />
+          <SelectedDatePanel dateKey={selectedDate} bookings={selectedDayBookings} availabilityBlocks={selectedDayBlocks} removeAvailabilityBlockAction={removeAvailabilityBlockAction} />
+          <AvailabilityBlockForm
+            key={`${selectedDate}-${selectedListingId}`}
+            dateKey={selectedDate}
+            listings={listings}
+            selectedListingId={selectedListingId}
+            action={availabilityFormAction}
+            state={availabilityState}
+          />
           <div className="hidden lg:block">
             <SideRow
               icon={<Home size={18} />}
@@ -245,7 +283,7 @@ export function HostCalendar({ listings, bookings }: HostCalendarProps) {
               title="Availability settings"
               lines={[
                 `${stats.openNights} open nights in view`,
-                `${stats.reservedDays} reserved nights`,
+                `${stats.reservedDays} reserved or blocked nights`,
                 `${stats.pendingReservations} pending requests`,
               ]}
             />
@@ -254,8 +292,8 @@ export function HostCalendar({ listings, bookings }: HostCalendarProps) {
               title="Calendar sync"
               lines={[
                 `${filteredBookings.length} reservations loaded`,
+                `${filteredBlocks.length} host-blocked nights`,
                 `${stats.confirmedReservations} confirmed bookings`,
-                "Updated from booking requests",
               ]}
             />
           </div>
@@ -342,6 +380,7 @@ function CalendarViewMenu({
 function CalendarCell({
   cell,
   bookings,
+  availabilityBlocks,
   weekdayPrice,
   weekendPrice,
   isSelected,
@@ -349,6 +388,7 @@ function CalendarCell({
 }: {
   cell: CalendarDay | null;
   bookings: HostCalendarBooking[];
+  availabilityBlocks: HostAvailabilityBlock[];
   weekdayPrice: number;
   weekendPrice: number;
   isSelected: boolean;
@@ -357,11 +397,19 @@ function CalendarCell({
   if (!cell) return <div className="min-h-20 rounded-lg border border-transparent bg-transparent sm:min-h-32" />;
 
   const dayBookings = bookings.filter((booking) => isDateWithinBooking(cell.dateKey, booking));
+  const dayBlocks = availabilityBlocks.filter((block) => block.date === cell.dateKey);
   const confirmed = dayBookings.some((booking) => booking.status === "confirmed");
   const pending = dayBookings.some((booking) => booking.status === "pending" || booking.paymentStatus === "submitted");
   const completed = dayBookings.some((booking) => booking.status === "completed");
+  const blocked = dayBlocks.length > 0;
   const rate = cell.price || (cell.isWeekend ? weekendPrice : weekdayPrice);
-  const label = `${formatDisplayDate(cell.dateKey)} ${dayBookings.length === 0 ? "available" : `${dayBookings.length} reservation${dayBookings.length === 1 ? "" : "s"}`}`;
+  const label = `${formatDisplayDate(cell.dateKey)} ${
+    dayBookings.length > 0
+      ? `${dayBookings.length} reservation${dayBookings.length === 1 ? "" : "s"}`
+      : blocked
+        ? `${dayBlocks.length} unavailable block${dayBlocks.length === 1 ? "" : "s"}`
+        : "available"
+  }`;
 
   return (
     <button
@@ -372,7 +420,8 @@ function CalendarCell({
       className={cx(
         "min-h-20 min-w-0 overflow-hidden rounded-lg border p-1.5 text-left transition hover:border-black/30 hover:shadow-[0_8px_24px_rgb(0_0_0_/_0.08)] sm:min-h-32 sm:p-3",
         cell.isWeekend ? "border-black/10 bg-[#f2f2f2]" : "border-black/10 bg-[#f7f7f7]",
-        !confirmed && !pending && !completed && "hover:bg-white",
+        !confirmed && !pending && !completed && !blocked && "hover:bg-white",
+        blocked && !confirmed && !pending && !completed && "border-zinc-300 bg-zinc-200 text-black hover:border-zinc-400 hover:bg-zinc-300",
         confirmed && "border-emerald-700 bg-emerald-700 text-white hover:border-emerald-800 hover:bg-emerald-800",
         pending && !confirmed && "border-amber-300 bg-amber-50 text-black hover:border-amber-400 hover:bg-amber-100",
         completed && !confirmed && !pending && "border-black/20 bg-black/[0.08] text-black hover:bg-black/[0.08]",
@@ -398,6 +447,11 @@ function CalendarCell({
         {dayBookings.length > 2 ? (
           <span className={cx("text-xs font-semibold", confirmed ? "text-white/80" : "text-black/45")}>+{dayBookings.length - 2} more</span>
         ) : null}
+        {dayBookings.length === 0 && dayBlocks.slice(0, 1).map((block) => (
+          <span key={block.id} className="block max-w-full truncate rounded-md bg-white px-2 py-1 text-xs font-semibold text-black/75">
+            {formatBlockReason(block.reason)}
+          </span>
+        ))}
       </span>
     </button>
   );
@@ -436,33 +490,143 @@ function MobileBookingAvatars({ bookings, confirmed }: { bookings: HostCalendarB
   );
 }
 
-function SelectedDatePanel({ dateKey, bookings }: { dateKey: string; bookings: HostCalendarBooking[] }) {
+function SelectedDatePanel({
+  dateKey,
+  bookings,
+  availabilityBlocks,
+  removeAvailabilityBlockAction,
+}: {
+  dateKey: string;
+  bookings: HostCalendarBooking[];
+  availabilityBlocks: HostAvailabilityBlock[];
+  removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
+}) {
+  const hasBlocks = availabilityBlocks.length > 0;
+  const hasReservations = bookings.length > 0;
+
   return (
     <section className="pb-0 lg:border-b lg:border-black/10 lg:pb-7">
       <p className="text-xs font-semibold text-black/45 sm:text-sm">{formatDisplayDate(dateKey)}</p>
-      <h2 className="mt-1 text-lg font-semibold sm:text-xl lg:mt-2 lg:text-2xl">{bookings.length ? "Reserved" : "Available"}</h2>
+      <h2 className="mt-1 text-lg font-semibold sm:text-xl lg:mt-2 lg:text-2xl">{hasReservations ? "Reserved" : hasBlocks ? "Unavailable" : "Available"}</h2>
       <div className="mt-2 space-y-2 lg:mt-4 lg:space-y-3">
-        {bookings.length === 0 ? (
+        {!hasReservations && !hasBlocks ? (
           <p className="rounded-lg bg-[#f7f7f7] p-2 text-sm text-black/60 lg:p-3">No host reservations are blocking this date.</p>
         ) : (
-          bookings.map((booking) => (
-            <article key={booking.id} className="rounded-lg border border-black/10 p-2 lg:p-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0 truncate font-semibold">{booking.guestName}</p>
-                <StatusDot status={booking.status} />
-              </div>
-              <p className="mt-1 hidden truncate text-sm text-black/55 sm:block">{booking.propertyTitle}</p>
-              <p className="mt-2 hidden items-center gap-2 text-sm text-black/55 sm:flex">
-                <Users size={14} /> {booking.guests} guests
-              </p>
-              <p className="mt-1 text-xs text-black/55 sm:text-sm">
-                {formatDisplayDate(booking.checkIn)} to {formatDisplayDate(booking.checkOut)}
-              </p>
-            </article>
-          ))
+          <>
+            {bookings.map((booking) => (
+              <article key={booking.id} className="rounded-lg border border-black/10 p-2 lg:p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 truncate font-semibold">{booking.guestName}</p>
+                  <StatusDot status={booking.status} />
+                </div>
+                <p className="mt-1 hidden truncate text-sm text-black/55 sm:block">{booking.propertyTitle}</p>
+                <p className="mt-2 hidden items-center gap-2 text-sm text-black/55 sm:flex">
+                  <Users size={14} /> {booking.guests} guests
+                </p>
+                <p className="mt-1 text-xs text-black/55 sm:text-sm">
+                  {formatDisplayDate(booking.checkIn)} to {formatDisplayDate(booking.checkOut)}
+                </p>
+              </article>
+            ))}
+            {availabilityBlocks.map((block) => (
+              <article key={block.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 lg:p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{formatBlockReason(block.reason)}</p>
+                    <p className="mt-1 truncate text-sm text-black/55">{block.propertyTitle}</p>
+                    {block.note ? <p className="mt-1 text-sm text-black/65">{block.note}</p> : null}
+                  </div>
+                  <form action={removeAvailabilityBlockAction}>
+                    <input type="hidden" name="blockId" value={block.id} />
+                    <button type="submit" className="grid size-9 place-items-center rounded-full text-black/45 transition hover:bg-black/[0.06] hover:text-black" aria-label="Remove availability block">
+                      <Trash2 size={16} />
+                    </button>
+                  </form>
+                </div>
+              </article>
+            ))}
+          </>
         )}
       </div>
     </section>
+  );
+}
+
+function AvailabilityBlockForm({
+  dateKey,
+  listings,
+  selectedListingId,
+  action,
+  state,
+}: {
+  dateKey: string;
+  listings: HostCalendarListing[];
+  selectedListingId: string;
+  action: (formData: FormData) => void;
+  state: AvailabilityFormState;
+}) {
+  const selectedListing = listings.find((listing) => listing.id === selectedListingId);
+  const endDate = addDays(dateKey, 1);
+
+  return (
+    <section className="mt-4 rounded-lg border border-black/10 bg-white p-3 lg:mt-7 lg:p-4">
+      <div className="flex items-center gap-2">
+        <span className="grid size-8 place-items-center rounded-full bg-black/[0.05]"><Ban size={16} /></span>
+        <div>
+          <h2 className="font-semibold">Mark unavailable</h2>
+          <p className="text-sm text-black/55">Block dates booked elsewhere, owner use, or maintenance.</p>
+        </div>
+      </div>
+      <form action={action} className="mt-4 space-y-3">
+        {selectedListing ? (
+          <>
+            <input type="hidden" name="propertyId" value={selectedListing.id} />
+            <p className="rounded-lg bg-black/[0.04] px-3 py-2 text-sm font-semibold text-black/70">{selectedListing.title}</p>
+          </>
+        ) : (
+          <select name="propertyId" required className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
+            <option value="">Choose listing</option>
+            {listings.map((listing) => (
+              <option key={listing.id} value={listing.id}>{listing.title}</option>
+            ))}
+          </select>
+        )}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          <label className="text-sm font-semibold text-black/65">
+            Start
+            <input name="checkIn" type="date" defaultValue={dateKey} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+          </label>
+          <label className="text-sm font-semibold text-black/65">
+            End
+            <input name="checkOut" type="date" defaultValue={endDate} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+          </label>
+        </div>
+        <select name="reason" defaultValue="booked_elsewhere" className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
+          <option value="booked_elsewhere">Booked on another platform</option>
+          <option value="owner_use">Owner use</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea name="note" rows={2} maxLength={240} placeholder="Optional note" className="w-full resize-none rounded-lg border border-black/10 p-3 text-sm" />
+        {state.message ? (
+          <p className={cx("rounded-lg p-2 text-sm", state.status === "success" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>{state.message}</p>
+        ) : null}
+        <AvailabilitySubmitButton />
+      </form>
+    </section>
+  );
+}
+
+function AvailabilitySubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-black px-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-wait disabled:bg-black/70"
+    >
+      {pending ? "Saving..." : "Block dates"}
+    </button>
   );
 }
 
@@ -540,19 +704,20 @@ function buildMonth(year: number, zeroBasedMonth: number) {
   };
 }
 
-function buildAvailabilityStats(months: ReturnType<typeof buildMonth>[], bookings: HostCalendarBooking[], listingCount: number) {
+function buildAvailabilityStats(months: ReturnType<typeof buildMonth>[], bookings: HostCalendarBooking[], availabilityBlocks: HostAvailabilityBlock[], listingCount: number) {
   const dateKeys = months.flatMap((month) => month.cells.flatMap((cell) => (cell ? [cell.dateKey] : [])));
   const datesInView = new Set(dateKeys);
   const reservedDays = bookings.reduce(
     (total, booking) => total + getBookedDateKeys(booking).filter((dateKey) => datesInView.has(dateKey)).length,
     0,
   );
+  const blockedDays = availabilityBlocks.filter((block) => datesInView.has(block.date)).length;
 
   const totalBookableNights = dateKeys.length * listingCount;
 
   return {
-    openNights: Math.max(totalBookableNights - reservedDays, 0),
-    reservedDays,
+    openNights: Math.max(totalBookableNights - reservedDays - blockedDays, 0),
+    reservedDays: reservedDays + blockedDays,
     pendingReservations: bookings.filter((booking) => booking.status === "pending" || booking.paymentStatus === "submitted").length,
     confirmedReservations: bookings.filter((booking) => booking.status === "confirmed").length,
   };
@@ -636,12 +801,31 @@ function toDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function addDays(dateKey: string, days: number) {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() + days);
+  return toDateKey(date);
+}
+
 function formatDisplayDate(dateKey: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(parseDateKey(dateKey));
 }
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatBlockReason(reason: AvailabilityBlockReason) {
+  switch (reason) {
+    case "booked_elsewhere":
+      return "Booked on another platform";
+    case "owner_use":
+      return "Owner use";
+    case "maintenance":
+      return "Maintenance";
+    case "other":
+      return "Unavailable";
+  }
 }
 
 function cx(...classes: Array<string | false | undefined>) {
