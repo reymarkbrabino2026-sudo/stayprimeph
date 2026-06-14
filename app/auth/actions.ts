@@ -31,7 +31,7 @@ function safeNextPath(value: FormDataEntryValue | null) {
   return path;
 }
 
-function authErrorTarget(path: "/login" | "/register", message: string, formData: FormData, role?: FormDataEntryValue | null) {
+function authErrorTarget(path: "/login" | "/register" | "/admin/login", message: string, formData: FormData, role?: FormDataEntryValue | null) {
   const params = new URLSearchParams({ error: message });
   if (role === "host" || role === "guest" || role === "admin") params.set("role", role);
   const nextPath = safeNextPath(formData.get("next"));
@@ -40,28 +40,29 @@ function authErrorTarget(path: "/login" | "/register", message: string, formData
 }
 
 export async function signIn(formData: FormData) {
+  const requestedRole = formData.get("requestedRole");
   const headerStore = await headers();
   const rateLimit = await checkDistributedRateLimit(`signin:${headerStore.get("x-forwarded-for") ?? "local"}`, 10);
   if (rateLimit.limited) {
     logger.warn("signin_rate_limited");
-    redirect(authErrorTarget("/login", "Too many login attempts. Please try again later.", formData));
+    redirect(authErrorTarget(requestedRole === "admin" ? "/admin/login" : "/login", "Too many login attempts. Please try again later.", formData, requestedRole));
   }
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const requestedRole = formData.get("requestedRole");
   const users = await getUsers();
   const user = users.find((item) => item.email.toLowerCase() === email);
+  const errorPath = requestedRole === "admin" ? "/admin/login" : "/login";
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
     logger.warn("signin_failed", { email });
-    redirect(authErrorTarget("/login", "Incorrect email or password.", formData, requestedRole));
+    redirect(authErrorTarget(errorPath, "Incorrect email or password.", formData, requestedRole));
   }
 
   if (
     (requestedRole === "host" || requestedRole === "guest" || requestedRole === "admin") &&
     user.role !== requestedRole
   ) {
-    redirect(authErrorTarget("/login", `Use a ${requestedRole} account to continue.`, formData, requestedRole));
+    redirect(authErrorTarget(errorPath, `Use a ${requestedRole} account to continue.`, formData, requestedRole));
   }
 
   await createSession(user.id);

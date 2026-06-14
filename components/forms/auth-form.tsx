@@ -62,22 +62,26 @@ export function AuthForm({
               {submitLabel}
             </button>
           </form>
-          <form action={googleAction} className="mt-3">
-            <input type="hidden" name="authMode" value={showName ? "register" : "login"} />
-            {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
-            {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-            <button className="min-h-12 w-full rounded-2xl border py-4 font-semibold disabled:cursor-not-allowed disabled:opacity-60" disabled={!googleAction}>
-              Continue with Google
-            </button>
-          </form>
-          <form action={facebookAction} className="mt-3">
-            <input type="hidden" name="authMode" value={showName ? "register" : "login"} />
-            {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
-            {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-            <button className="min-h-12 w-full rounded-2xl border py-4 font-semibold text-[#0f5fc4] disabled:cursor-not-allowed disabled:opacity-60" disabled={!facebookAction}>
-              Continue with Facebook
-            </button>
-          </form>
+          {googleAction ? (
+            <form action={googleAction} className="mt-3">
+              <input type="hidden" name="authMode" value={showName ? "register" : "login"} />
+              {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
+              {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+              <button className="min-h-12 w-full rounded-2xl border py-4 font-semibold">
+                Continue with Google
+              </button>
+            </form>
+          ) : null}
+          {facebookAction ? (
+            <form action={facebookAction} className="mt-3">
+              <input type="hidden" name="authMode" value={showName ? "register" : "login"} />
+              {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
+              {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+              <button className="min-h-12 w-full rounded-2xl border py-4 font-semibold text-[#0f5fc4]">
+                Continue with Facebook
+              </button>
+            </form>
+          ) : null}
           <p className="mt-5 text-sm text-black/55">
             {prompt}{" "}
             <Link className="font-semibold text-[#a8431f]" href={href}>

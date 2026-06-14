@@ -14,6 +14,7 @@ function matchesPrefix(pathname: string, prefix: string) {
 }
 
 function getProtectedRoute(pathname: string) {
+  if (pathname === "/admin/login") return undefined;
   return protectedRoutes.find((route) => matchesPrefix(pathname, route.prefix));
 }
 
@@ -71,9 +72,9 @@ async function hasValidSession(value?: string) {
 
 function buildLoginUrl(request: NextRequest, role?: "admin" | "host" | "guest") {
   const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = "/login";
+  loginUrl.pathname = role === "admin" ? "/admin/login" : "/login";
   loginUrl.search = "";
-  if (role) loginUrl.searchParams.set("role", role);
+  if (role && role !== "admin") loginUrl.searchParams.set("role", role);
   loginUrl.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
   return loginUrl;
 }

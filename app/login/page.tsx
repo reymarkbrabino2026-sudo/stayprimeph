@@ -10,10 +10,18 @@ export default async function LoginPage({
 }) {
   const { role, error, next } = await searchParams;
   const nextPath = next?.startsWith("/") && !next.startsWith("//") ? next : undefined;
+  if (role === "admin") {
+    const params = new URLSearchParams();
+    if (error) params.set("error", error);
+    if (nextPath) params.set("next", nextPath);
+    const query = params.toString();
+    redirect(`/admin/login${query ? `?${query}` : ""}`);
+  }
+
   const currentUser = await getCurrentUser();
   if (currentUser) redirect(nextPath ?? roleHome(currentUser.role));
 
-  const requestedRole = role === "host" || role === "guest" || role === "admin" ? role : undefined;
+  const requestedRole = role === "host" || role === "guest" ? role : undefined;
   const registerHref = (() => {
     const params = new URLSearchParams();
     if (requestedRole === "host") params.set("role", "host");
@@ -24,17 +32,13 @@ export default async function LoginPage({
   const heading =
     requestedRole === "host"
       ? "Log in to start hosting"
-      : requestedRole === "admin"
-        ? "Admin sign in"
-        : requestedRole === "guest"
+      : requestedRole === "guest"
           ? "Guest sign in"
           : "Welcome back";
   const helperText =
     requestedRole === "host"
       ? "Use your account to manage listings, availability, and bookings."
-      : requestedRole === "admin"
-        ? "Use your admin account to review listings, users, and platform activity."
-        : requestedRole === "guest"
+      : requestedRole === "guest"
           ? "Use your guest account to book stays, save wishlists, and manage trips."
           : undefined;
 
