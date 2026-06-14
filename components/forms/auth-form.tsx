@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { AuthSubmitButton } from "@/components/forms/auth-submit-button";
 import { PasswordInput } from "@/components/forms/password-input";
 
 export function AuthForm({
@@ -59,9 +60,7 @@ export function AuthForm({
             )}
             <PasswordInput name="password" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Password" minLength={8} required />
             {!showName ? <Link href="/forgot-password" className="block text-sm font-semibold text-[#a8431f]">Forgot password?</Link> : null}
-            <button className="mt-2 min-h-12 w-full rounded-2xl bg-[#21170f] py-4 font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#352417] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#21170f] focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm">
-              {submitLabel}
-            </button>
+            <AuthSubmitButton label={submitLabel} />
           </form>
           {googleAction ? (
             <form action={googleAction} className="mt-3">
