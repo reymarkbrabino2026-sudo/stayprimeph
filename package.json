@@ -7,6 +7,7 @@
     "dev:check": "node scripts/check-env.mjs development",
     "prod:check": "node scripts/check-env.mjs production",
     "build": "next build",
+    "build:vercel": "node scripts/vercel-build.mjs",
     "build:prod": "node scripts/check-env.mjs production && next build",
     "start": "next start",
     "start:prod": "node scripts/check-env.mjs production && next start",
