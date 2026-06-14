@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { PasswordInput } from "@/components/forms/password-input";
 
 export function AuthForm({
   mode,
@@ -56,9 +57,9 @@ export function AuthForm({
                 <option value="host">Host</option>
               </select>
             )}
-            <input name="password" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Password" type="password" minLength={8} required />
+            <PasswordInput name="password" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Password" minLength={8} required />
             {!showName ? <Link href="/forgot-password" className="block text-sm font-semibold text-[#a8431f]">Forgot password?</Link> : null}
-            <button className="mt-2 min-h-12 w-full rounded-2xl bg-[#21170f] py-4 font-semibold text-white">
+            <button className="mt-2 min-h-12 w-full rounded-2xl bg-[#21170f] py-4 font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#352417] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#21170f] focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm">
               {submitLabel}
             </button>
           </form>
@@ -67,7 +68,7 @@ export function AuthForm({
               <input type="hidden" name="authMode" value={showName ? "register" : "login"} />
               {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
               {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-              <button className="min-h-12 w-full rounded-2xl border py-4 font-semibold">
+              <button className="min-h-12 w-full rounded-2xl border bg-white py-4 font-semibold transition duration-200 ease-out hover:-translate-y-0.5 hover:border-[#21170f]/20 hover:bg-[#faf7f4] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#21170f] focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm">
                 Continue with Google
               </button>
             </form>
@@ -77,7 +78,7 @@ export function AuthForm({
               <input type="hidden" name="authMode" value={showName ? "register" : "login"} />
               {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
               {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-              <button className="min-h-12 w-full rounded-2xl border py-4 font-semibold text-[#0f5fc4]">
+              <button className="min-h-12 w-full rounded-2xl border bg-white py-4 font-semibold text-[#0f5fc4] transition duration-200 ease-out hover:-translate-y-0.5 hover:border-[#0f5fc4]/25 hover:bg-[#f4f8ff] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f5fc4] focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm">
                 Continue with Facebook
               </button>
             </form>

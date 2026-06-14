@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { SiteFooter } from "@/components/home/site-footer";
 import { signUpHost } from "@/app/auth/actions";
+import { PasswordInput } from "@/components/forms/password-input";
 
 const posterCards = [
   ["SIARGAO", "from-emerald-300 to-teal-700"],
@@ -78,10 +79,10 @@ export function HostSignupFlow({ error }: { error?: string }) {
                   <span className="mt-2 block text-sm text-black/55">We&apos;ll email you trip confirmations and receipts.</span>
                 </label>
 
-                <label className="block">
-                  <span className="mb-3 block font-semibold">Password</span>
-                  <input value={details.password} onChange={(event) => setDetails((current) => ({ ...current, password: event.target.value }))} type="password" className="min-h-14 w-full rounded-2xl border px-4 outline-none" placeholder="Create a password" />
-                </label>
+                <div>
+                  <label htmlFor="host-signup-password" className="mb-3 block font-semibold">Password</label>
+                  <PasswordInput id="host-signup-password" value={details.password} onChange={(event) => setDetails((current) => ({ ...current, password: event.target.value }))} className="min-h-14 w-full rounded-2xl border px-4 outline-none" placeholder="Create a password" />
+                </div>
               </div>
 
               <button

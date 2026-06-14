@@ -1,4 +1,5 @@
 import { resetPassword } from "@/app/auth/actions";
+import { PasswordInput } from "@/components/forms/password-input";
 
 export default async function ResetPasswordPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ error?: string }> }) {
   const { token } = await params;
@@ -10,10 +11,8 @@ export default async function ResetPasswordPage({ params, searchParams }: { para
         <h1 className="text-3xl font-bold">Choose a new password</h1>
         {query.error ? <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{query.error}</p> : null}
         <form action={action} className="mt-5 space-y-3">
-          <label className="block">
-            <span className="sr-only">New password</span>
-            <input name="password" type="password" minLength={8} required placeholder="New password" className="min-h-12 w-full rounded-2xl border p-4" />
-          </label>
+          <label htmlFor="new-password" className="sr-only">New password</label>
+          <PasswordInput id="new-password" name="password" minLength={8} required placeholder="New password" className="min-h-12 w-full rounded-2xl border p-4" />
           <button className="min-h-12 w-full rounded-2xl bg-[#21170f] font-semibold text-white">Save password</button>
         </form>
       </section>
