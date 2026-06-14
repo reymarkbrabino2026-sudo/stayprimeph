@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { getBestDiscount } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
@@ -160,9 +161,13 @@ export default async function BookingCheckoutPage({
               By selecting the button below, you agree to the house rules, cancellation policy, and guest refund policy.
             </p>
 
-            <button disabled={unavailable || Boolean(guestOnly)} className="min-h-14 w-full rounded-xl bg-[#083f35] px-6 text-base font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20 sm:w-auto sm:min-w-56">
+            <SubmitButton
+              disabled={unavailable || Boolean(guestOnly)}
+              className="min-h-14 w-full rounded-xl bg-[#083f35] px-6 text-base font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20 sm:w-auto sm:min-w-56"
+              pendingText="Submitting request..."
+            >
               {buttonLabel}
-            </button>
+            </SubmitButton>
           </form>
         </section>
 
