@@ -3,9 +3,23 @@
 import { create } from "zustand";
 
 export const SERVICE_FEE_RATE = 0.12;
-export const DEFAULT_CHECK_IN = "2026-06-08";
-export const DEFAULT_CHECK_OUT = "2026-06-13";
-export const TODAY = "2026-05-27";
+export const TODAY = toDateKey(new Date());
+export const DEFAULT_CHECK_IN = TODAY;
+export const DEFAULT_CHECK_OUT = addDaysToDateKey(DEFAULT_CHECK_IN, 5);
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDateKey(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return toDateKey(date);
+}
 
 export function nightsBetween(checkIn: string, checkOut: string) {
   return Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);

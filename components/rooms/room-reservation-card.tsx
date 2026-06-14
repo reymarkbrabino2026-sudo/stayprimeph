@@ -274,8 +274,9 @@ function CalendarDateButton({
   bookedNightSet: Set<string>;
   onSelect: (dateKey: string) => void;
 }) {
-  const bookedNight = bookedNightSet.has(cell.dateKey);
   const isPast = cell.dateKey < TODAY;
+  const bookedNight = bookedNightSet.has(cell.dateKey);
+  const unavailable = bookedNight || isPast;
   const canSelectCheckout =
     activeField === "checkOut" &&
     cell.dateKey > checkIn &&
@@ -284,13 +285,13 @@ function CalendarDateButton({
   const isEnd = cell.dateKey === checkOut;
   const inRange = cell.dateKey > checkIn && cell.dateKey < checkOut;
   const selected = isStart || isEnd;
-  const disabled = !selected && (isPast || (activeField === "checkIn" ? bookedNight : !canSelectCheckout));
-  const statusLabel = isStart ? "Check-in" : isEnd ? "Checkout" : bookedNight ? "Booked" : "Open";
+  const disabled = !selected && (activeField === "checkIn" ? unavailable : !canSelectCheckout);
+  const statusLabel = isStart ? "Check-in" : isEnd ? "Checkout" : unavailable ? "Booked" : "Open";
   const toneClass = selected
     ? "border-[#083f35] bg-[#083f35] text-white"
-    : inRange && !bookedNight
+    : inRange && !unavailable
       ? "border-[#91d5c4] bg-[#e1f4ee] text-[#083f35]"
-      : bookedNight
+      : unavailable
         ? "border-black/10 bg-black/[0.08] text-black/35"
         : "border-black/10 bg-white text-black/70 hover:border-[#083f35]";
 
@@ -299,7 +300,7 @@ function CalendarDateButton({
       type="button"
       disabled={disabled}
       onClick={() => onSelect(cell.dateKey)}
-      aria-label={`${formatDisplayDate(cell.dateKey)} ${bookedNight ? "unavailable" : "available"}`}
+      aria-label={`${formatDisplayDate(cell.dateKey)} ${unavailable ? "unavailable" : "available"}`}
       className={cx(
         "min-h-12 rounded-lg border p-1 text-left text-xs transition",
         toneClass,
@@ -308,7 +309,7 @@ function CalendarDateButton({
       )}
     >
       <span className="block font-semibold">{cell.day}</span>
-      <span className={cx("mt-1 block truncate text-[0.6rem] font-semibold", bookedNight && !selected && "line-through")}>
+      <span className={cx("mt-1 block truncate text-[0.6rem] font-semibold", unavailable && !selected && "line-through")}>
         {statusLabel}
       </span>
     </button>

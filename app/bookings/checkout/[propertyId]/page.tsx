@@ -26,6 +26,14 @@ function addDays(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function todayDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatStayDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
@@ -46,7 +54,9 @@ export default async function BookingCheckoutPage({
   const property = await getPropertyById(propertyId);
   if (!property || property.status !== "approved") notFound();
 
-  const checkIn = validDateParam(query.checkIn) ?? "2026-06-08";
+  const today = todayDateKey();
+  const requestedCheckIn = validDateParam(query.checkIn);
+  const checkIn = requestedCheckIn && requestedCheckIn >= today ? requestedCheckIn : today;
   const requestedCheckOut = validDateParam(query.checkOut);
   const checkOut = requestedCheckOut && new Date(requestedCheckOut) > new Date(checkIn) ? requestedCheckOut : addDays(checkIn, 5);
   const requestedGuests = Number(query.guests ?? 1);

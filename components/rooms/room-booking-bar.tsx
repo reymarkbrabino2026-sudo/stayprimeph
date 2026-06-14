@@ -96,8 +96,8 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
 
         <div className="hidden flex-1 items-center justify-between gap-8 md:flex">
           <div className="flex items-center gap-7 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-black/45">
-            <Meta label="Check-in" value={formatShortDate(checkIn)} />
-            <Meta label="Checkout" value={formatShortDate(checkOut)} />
+            <Meta label="Check-in" value={formatShortDate(effectiveStay.checkIn)} />
+            <Meta label="Checkout" value={formatShortDate(effectiveStay.checkOut)} />
             <Meta label="Guests" value={`${guests} guest${guests === 1 ? "" : "s"}`} />
           </div>
           <nav className="hidden items-center gap-6 text-sm font-medium text-[#083f35]/70 lg:flex">
