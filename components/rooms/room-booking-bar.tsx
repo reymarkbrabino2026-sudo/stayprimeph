@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
 import type { Property } from "@/lib/types";
@@ -24,7 +24,9 @@ function formatShortDate(value: string) {
 
 export function RoomBookingBar({ property, unavailableStays = [] }: { property: Property; unavailableStays?: UnavailableStay[] }) {
   const { checkIn, checkOut, guests } = useReservationStore();
+  const barRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState(navItems[0].href);
+  const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const storedStay = computePrice(property.pricePerNight, checkIn, checkOut);
@@ -84,8 +86,51 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
     };
   }, []);
 
+  useEffect(() => {
+    const footer = document.querySelector("footer");
+    if (!footer) return;
+    const pageFooter = footer;
+
+    let frame = 0;
+
+    function updateStopPosition() {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const bar = barRef.current;
+        if (!bar) return;
+
+        const mobileOffset = window.matchMedia("(min-width: 768px)").matches ? 0 : 88;
+        const footerRect = pageFooter.getBoundingClientRect();
+        const barHeight = bar.getBoundingClientRect().height;
+        const fixedBarBottom = window.innerHeight - mobileOffset;
+        const footerDocumentTop = window.scrollY + footerRect.top;
+
+        setStopPosition({
+          stopped: footerRect.top <= fixedBarBottom,
+          top: footerDocumentTop - barHeight,
+        });
+      });
+    }
+
+    updateStopPosition();
+    window.addEventListener("scroll", updateStopPosition, { passive: true });
+    window.addEventListener("resize", updateStopPosition);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updateStopPosition);
+      window.removeEventListener("resize", updateStopPosition);
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-x-0 bottom-[5.5rem] z-40 px-3 sm:px-5 md:bottom-0">
+    <div
+      ref={barRef}
+      className={`inset-x-0 z-40 px-3 sm:px-5 ${
+        stopPosition?.stopped ? "absolute" : "fixed bottom-[5.5rem] md:bottom-0"
+      }`}
+      style={stopPosition?.stopped ? { top: `${stopPosition.top}px` } : undefined}
+    >
       <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-[#083f35] shadow-[0_-14px_45px_rgb(0_0_0_/_0.16)] ring-1 ring-black/10 sm:px-8 md:rounded-t-2xl md:rounded-b-none">
         <div className="flex items-end gap-2">
           <p className="text-xl font-bold sm:text-2xl md:text-3xl">{formatCurrency(validStay ? total : property.pricePerNight)}</p>
