@@ -146,7 +146,7 @@ export default async function RoomPage({
   ];
 
   return (
-    <div className="bg-[#fbfaf7] pb-28 text-[#1f1f1f]">
+    <div className="bg-[#fbfaf7] text-[#1f1f1f]">
       <Navbar transparentOnTop />
 
       <main>

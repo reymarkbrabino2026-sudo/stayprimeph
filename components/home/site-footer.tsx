@@ -36,6 +36,14 @@ export function SiteFooter() {
           </section>
         ))}
       </div>
+
+      <div className="mt-12 border-t border-white/15 pt-6 text-sm text-white/70">
+        <Link className="font-medium text-white transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" href="/legal/privacy">
+          Privacy Policy
+        </Link>
+        <span className="mx-2">|</span>
+        <span>StayPrimePH 2026</span>
+      </div>
     </footer>
   );
 }
