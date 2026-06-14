@@ -2,6 +2,7 @@ import { Send } from "lucide-react";
 import { sendHostMessage } from "@/app/guest/messages/actions";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MessageAutoRefresh } from "@/components/ui/message-auto-refresh";
 import { MessageThread } from "@/components/ui/message-thread";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
@@ -63,6 +64,7 @@ export default async function GuestMessagesPage({
 
   return (
     <DashboardShell title="Messages" subtitle="Guest dashboard" description="Conversations with hosts about your stays." links={guestLinks}>
+      <MessageAutoRefresh />
       {messages.length === 0 && !canCompose ? (
         <EmptyState title="No messages yet" body="Host conversations will appear here once you ask a question or make a booking." />
       ) : (
