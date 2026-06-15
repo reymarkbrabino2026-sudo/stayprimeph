@@ -49,3 +49,11 @@ export function getBestDiscount(input: Parameters<typeof getApplicableDiscounts>
 export function calculateStayprimeMarkup(subtotal: number) {
   return Math.round(subtotal * STAYPRIME_MARKUP_RATE);
 }
+
+export function calculateStayprimeMarkupFromTotal(total: number) {
+  return Math.round(total * (STAYPRIME_MARKUP_RATE / (1 + STAYPRIME_MARKUP_RATE)));
+}
+
+export function calculateHostPayoutFromTotal(total: number) {
+  return total - calculateStayprimeMarkupFromTotal(total);
+}

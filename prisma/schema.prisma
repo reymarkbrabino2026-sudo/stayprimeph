@@ -175,6 +175,19 @@ model Payment {
   booking         Booking   @relation(fields: [bookingId], references: [id])
 }
 
+model PlatformLedgerEntry {
+  id          String   @id
+  bookingId   String   @unique
+  paymentId   String?
+  amount      Int
+  source      String
+  destination String
+  status      String
+  createdAt   DateTime @default(now())
+
+  @@index([status, createdAt])
+}
+
 model AuthToken {
   id        String   @id
   userId    String

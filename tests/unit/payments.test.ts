@@ -14,6 +14,10 @@ vi.mock("@/lib/payment-store", () => ({
   readStoredPayments: vi.fn(async () => []),
   writeStoredPayments: vi.fn(),
 }));
+vi.mock("@/lib/platform-ledger-store", () => ({
+  readStoredPlatformLedger: vi.fn(async () => []),
+  writeStoredPlatformLedger: vi.fn(),
+}));
 vi.mock("@/lib/booking-store", () => ({
   readStoredBookings: vi.fn(async () => []),
   writeStoredBookings: vi.fn(),
@@ -21,7 +25,8 @@ vi.mock("@/lib/booking-store", () => ({
 
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
-import { submitManualPayment } from "@/lib/payments";
+import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
+import { confirmManualPayment, submitManualPayment } from "@/lib/payments";
 
 const booking = {
   id: "booking-1",
@@ -61,5 +66,40 @@ describe("submitManualPayment", () => {
     expect(writeStoredPayments).not.toHaveBeenCalled();
     expect(readStoredBookings).not.toHaveBeenCalled();
     expect(writeStoredBookings).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirmManualPayment", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("adds the 20% markup to the StayPrimePH bank ledger", async () => {
+    vi.mocked(readStoredPayments).mockResolvedValueOnce([
+      {
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: booking.totalPrice,
+        paymentMethod: "gcash",
+        paymentStatus: "submitted",
+        transactionId: "gcash-reference",
+        createdAt: "2026-06-01",
+      },
+    ]);
+    vi.mocked(readStoredBookings).mockResolvedValueOnce([booking]);
+
+    await confirmManualPayment({ booking, hostId: booking.hostId });
+
+    expect(writeStoredPlatformLedger).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        amount: 833,
+        source: "manual_payment",
+        destination: "stayprime_bank",
+        status: "banked",
+      }),
+    ]);
   });
 });

@@ -3,7 +3,8 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
-import type { AuthToken, AvailabilityBlock, Booking, Message, Payment, Property, PropertyImage, Review, User } from "@/lib/types";
+import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
+import type { AuthToken, AvailabilityBlock, Booking, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, Review, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -24,6 +25,58 @@ function parseRules(rules: string) {
 
 export function usesPrismaPersistence() {
   return env.PERSISTENCE_DRIVER === "prisma";
+}
+
+async function ensurePlatformLedgerTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  await db.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "PlatformLedgerEntry" (
+      "id" TEXT NOT NULL,
+      "bookingId" TEXT NOT NULL,
+      "paymentId" TEXT,
+      "amount" INTEGER NOT NULL,
+      "source" TEXT NOT NULL,
+      "destination" TEXT NOT NULL,
+      "status" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "PlatformLedgerEntry_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PlatformLedgerEntry_bookingId_key" ON "PlatformLedgerEntry"("bookingId")`);
+  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "PlatformLedgerEntry_status_createdAt_idx" ON "PlatformLedgerEntry"("status", "createdAt")`);
+}
+
+async function recordPlatformLedgerEntry(
+  db: Pick<typeof prisma, "$executeRaw" | "$executeRawUnsafe">,
+  {
+    bookingId,
+    paymentId,
+    totalPrice,
+    source,
+    createdAt,
+  }: {
+    bookingId: string;
+    paymentId: string;
+    totalPrice: number;
+    source: PlatformLedgerEntry["source"];
+    createdAt: Date;
+  },
+) {
+  await ensurePlatformLedgerTable(db);
+  await db.$executeRaw`
+    INSERT INTO "PlatformLedgerEntry" (
+      "id", "bookingId", "paymentId", "amount", "source", "destination", "status", "createdAt"
+    )
+    VALUES (
+      ${`platform-${bookingId}`}, ${bookingId}, ${paymentId},
+      ${calculateStayprimeMarkupFromTotal(totalPrice)}, ${source}, ${"stayprime_bank"}, ${"banked"}, ${createdAt}
+    )
+    ON CONFLICT ("bookingId") DO UPDATE SET
+      "paymentId" = EXCLUDED."paymentId",
+      "amount" = EXCLUDED."amount",
+      "source" = EXCLUDED."source",
+      "destination" = EXCLUDED."destination",
+      "status" = EXCLUDED."status"
+  `;
 }
 
 export async function listUsersFromDatabase(): Promise<User[]> {
@@ -286,6 +339,16 @@ export async function updateBookingPaymentInDatabase(bookingId: string, paymentS
         "confirmedAt" = EXCLUDED."confirmedAt",
         "updatedAt" = EXCLUDED."updatedAt"
     `;
+
+    if (paymentStatus === "paid") {
+      await recordPlatformLedgerEntry(tx, {
+        bookingId,
+        paymentId: `payment-${bookingId}`,
+        totalPrice: booking.totalPrice,
+        source: "stripe",
+        createdAt: now,
+      });
+    }
   });
 }
 
@@ -407,6 +470,37 @@ export async function listPaymentsFromDatabase(): Promise<Payment[]> {
   }));
 }
 
+type DatabasePlatformLedgerEntry = {
+  id: string;
+  bookingId: string;
+  paymentId: string | null;
+  amount: number;
+  source: string;
+  destination: string;
+  status: string;
+  createdAt: Date;
+};
+
+export async function listPlatformLedgerFromDatabase(): Promise<PlatformLedgerEntry[]> {
+  await ensurePlatformLedgerTable();
+  const entries = await prisma.$queryRaw<DatabasePlatformLedgerEntry[]>`
+    SELECT "id", "bookingId", "paymentId", "amount", "source", "destination", "status", "createdAt"
+    FROM "PlatformLedgerEntry"
+    ORDER BY "createdAt" DESC
+  `;
+
+  return entries.map((entry) => ({
+    id: entry.id,
+    bookingId: entry.bookingId,
+    paymentId: entry.paymentId ?? undefined,
+    amount: entry.amount,
+    source: entry.source as PlatformLedgerEntry["source"],
+    destination: entry.destination as PlatformLedgerEntry["destination"],
+    status: entry.status as PlatformLedgerEntry["status"],
+    createdAt: entry.createdAt.toISOString(),
+  }));
+}
+
 export async function recordManualPaymentInDatabase(
   booking: Booking,
   payment: Pick<Payment, "amount" | "paymentMethod" | "transactionId" | "notes">,
@@ -446,12 +540,12 @@ export async function recordManualPaymentInDatabase(
 
 export async function confirmManualPaymentInDatabase(bookingId: string, confirmedBy: string) {
   const now = new Date();
-  await prisma.$transaction([
-    prisma.booking.update({
+  await prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.update({
       where: { id: bookingId },
       data: { status: "confirmed", paymentStatus: "paid" },
-    }),
-    prisma.$executeRaw`
+    });
+    await tx.$executeRaw`
       UPDATE "Payment"
       SET
         "paymentStatus" = ${"paid"},
@@ -461,8 +555,15 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
         "rejectedAt" = NULL,
         "updatedAt" = ${now}
       WHERE "bookingId" = ${bookingId}
-    `,
-  ]);
+    `;
+    await recordPlatformLedgerEntry(tx, {
+      bookingId,
+      paymentId: `payment-${bookingId}`,
+      totalPrice: booking.totalPrice,
+      source: "manual_payment",
+      createdAt: now,
+    });
+  });
 }
 
 export async function rejectManualPaymentInDatabase(bookingId: string, rejectionReason: string) {

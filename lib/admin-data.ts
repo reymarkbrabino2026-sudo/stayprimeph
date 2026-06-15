@@ -3,13 +3,19 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { readStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments } from "@/lib/payment-store";
-import { listPaymentsFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { readStoredPlatformLedger } from "@/lib/platform-ledger-store";
+import { listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredReviews } from "@/lib/review-store";
-import type { Dispute, Payment, Report, Review } from "@/lib/types";
+import type { Dispute, Payment, PlatformLedgerEntry, Report, Review } from "@/lib/types";
 
 export async function getAdminPayments(): Promise<Payment[]> {
   if (!usesPrismaPersistence()) return readStoredPayments();
   return listPaymentsFromDatabase();
+}
+
+export async function getPlatformLedger(): Promise<PlatformLedgerEntry[]> {
+  if (!usesPrismaPersistence()) return readStoredPlatformLedger();
+  return listPlatformLedgerFromDatabase();
 }
 
 export async function getAdminReviews(): Promise<Review[]> {

@@ -5,6 +5,8 @@ import Stripe from "stripe";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { env } from "@/lib/env";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
+import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import {
   confirmManualPaymentInDatabase,
   listPaymentsFromDatabase,
@@ -138,6 +140,7 @@ export async function confirmManualPayment({ booking, hostId }: { booking: Booki
 
   const now = new Date().toISOString();
   const [payments, bookings] = await Promise.all([readStoredPayments(), readStoredBookings()]);
+  const platformAmount = calculateStayprimeMarkupFromTotal(booking.totalPrice);
   await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
     ...item,
     paymentStatus: "paid",
@@ -151,6 +154,23 @@ export async function confirmManualPayment({ booking, hostId }: { booking: Booki
     status: "confirmed",
     paymentStatus: "paid",
   }));
+
+  const ledger = await readStoredPlatformLedger();
+  const entry = {
+    id: `platform-${booking.id}`,
+    bookingId: booking.id,
+    paymentId: payment.id,
+    amount: platformAmount,
+    source: "manual_payment" as const,
+    destination: "stayprime_bank" as const,
+    status: "banked" as const,
+    createdAt: now,
+  };
+  await writeStoredPlatformLedger(
+    ledger.some((item) => item.bookingId === booking.id)
+      ? ledger.map((item) => (item.bookingId === booking.id ? entry : item))
+      : [entry, ...ledger],
+  );
 }
 
 export async function rejectManualPayment({

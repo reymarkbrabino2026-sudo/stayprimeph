@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
+import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { cancelBookingInDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import type { Booking, Cancellation, Payment } from "@/lib/types";
 
@@ -54,6 +56,23 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
   await writeStoredPayments(existingPayment
     ? payments.map((item) => (item.id === existingPayment.id ? payment : item))
     : [payment, ...payments]);
+
+  const ledger = await readStoredPlatformLedger();
+  const entry = {
+    id: `platform-${bookingId}`,
+    bookingId,
+    paymentId: payment.id,
+    amount: calculateStayprimeMarkupFromTotal(booking.totalPrice),
+    source: "stripe" as const,
+    destination: "stayprime_bank" as const,
+    status: "banked" as const,
+    createdAt: now,
+  };
+  await writeStoredPlatformLedger(
+    ledger.some((item) => item.bookingId === bookingId)
+      ? ledger.map((item) => (item.bookingId === bookingId ? entry : item))
+      : [entry, ...ledger],
+  );
 }
 
 function getCancellationStatus(booking: Booking) {

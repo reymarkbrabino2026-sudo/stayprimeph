@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { hostLinks } from "@/lib/navigation";
+import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getProperties } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -18,7 +19,7 @@ export default async function HostDashboardPage() {
   const upcomingBookings = hostBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
   const paidTotal = hostBookings
     .filter((booking) => booking.paymentStatus === "paid")
-    .reduce((sum, booking) => sum + booking.totalPrice, 0);
+    .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
 
   return (
     <DashboardShell
