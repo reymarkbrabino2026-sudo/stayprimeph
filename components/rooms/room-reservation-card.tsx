@@ -30,7 +30,6 @@ export function RoomReservationCard({
   const instantBook = property.rules.includes("Instant book enabled");
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
-  const storedStay = computePrice(property.pricePerNight, checkIn, checkOut);
   const effectiveStay = useMemo(() => {
     const selectedStayNeedsRepair =
       checkIn < TODAY ||
@@ -41,19 +40,20 @@ export function RoomReservationCard({
     if (!selectedStayNeedsRepair) return { checkIn, checkOut };
 
     return getNextAvailableStay({
-      fromDate: checkIn,
+      fromDate: checkIn || TODAY,
       minDate: TODAY,
       bookedNightKeys: bookedNightSet,
-      preferredNights: Math.max(storedStay.nights, 1),
+      preferredNights: 1,
     }) ?? { checkIn, checkOut };
-  }, [bookedNightSet, checkIn, checkOut, storedStay.nights]);
+  }, [bookedNightSet, checkIn, checkOut]);
   const { nights, validStay, subtotal, serviceFee, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
-  const canReserve = validStay && !selectedHasUnavailableNight;
-  const reserveHref = buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests);
+  const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
+  const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
+  const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests) : "#";
   const changeGuests = (next: number) => setGuests(Math.min(property.maxGuests, Math.max(1, next)));
   const [activeField, setActiveField] = useState<"checkIn" | "checkOut">("checkIn");
-  const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn));
+  const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn || TODAY));
   const calendarMonth = useMemo(() => buildCalendarMonth(visibleMonth.year, visibleMonth.month), [visibleMonth]);
 
   function moveMonth(offset: number) {
@@ -64,7 +64,7 @@ export function RoomReservationCard({
   function selectDate(dateKey: string) {
     if (dateKey < TODAY) return;
 
-    if (activeField === "checkOut" && dateKey > effectiveStay.checkIn) {
+    if (activeField === "checkOut" && effectiveStay.checkIn && dateKey > effectiveStay.checkIn) {
       if (hasBookedNightInRange(effectiveStay.checkIn, dateKey, bookedNightSet)) return;
       setCheckOut(dateKey);
       setActiveField("checkIn");
@@ -74,9 +74,12 @@ export function RoomReservationCard({
     if (bookedNightSet.has(dateKey)) return;
 
     setCheckIn(dateKey);
-    if (effectiveStay.checkOut <= dateKey || hasBookedNightInRange(dateKey, effectiveStay.checkOut, bookedNightSet)) {
-      setCheckOut(addDays(dateKey, 1));
-    }
+    const defaultCheckout = addDays(dateKey, 1);
+    setCheckOut(
+      hasBookedNightInRange(dateKey, defaultCheckout, bookedNightSet)
+        ? ""
+        : defaultCheckout,
+    );
     setActiveField("checkOut");
   }
 
@@ -208,9 +211,11 @@ export function RoomReservationCard({
       <p className="mt-3 text-center text-xs text-black/50">
         {selectedHasUnavailableNight
           ? "Some selected nights are already booked. Choose only available dates."
+          : selectedStartsUnavailable
+            ? "Choose an available check-in date."
           : validStay
             ? "You won't be charged yet"
-            : "Select a checkout date after your check-in"}
+            : "Select your check-in and checkout dates."}
       </p>
 
       {validStay && !selectedHasUnavailableNight ? (
@@ -254,7 +259,7 @@ function DateField({ active, label, value, onClick }: { active: boolean; label: 
       <span className="flex items-center gap-1.5 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-black/50">
         <CalendarDays size={12} /> {label}
       </span>
-      <span className="mt-1 block text-sm font-semibold text-[#1f1f1f]">{formatDisplayDate(value)}</span>
+      <span className="mt-1 block text-sm font-semibold text-[#1f1f1f]">{value ? formatDisplayDate(value) : "Add date"}</span>
     </button>
   );
 }
@@ -279,13 +284,14 @@ function CalendarDateButton({
   const unavailable = bookedNight || isPast;
   const canSelectCheckout =
     activeField === "checkOut" &&
+    Boolean(checkIn) &&
     cell.dateKey > checkIn &&
     !hasBookedNightInRange(checkIn, cell.dateKey, bookedNightSet);
-  const isStart = cell.dateKey === checkIn;
-  const isEnd = cell.dateKey === checkOut;
-  const inRange = cell.dateKey > checkIn && cell.dateKey < checkOut;
+  const isStart = Boolean(checkIn) && cell.dateKey === checkIn;
+  const isEnd = Boolean(checkOut) && cell.dateKey === checkOut;
+  const inRange = Boolean(checkIn && checkOut) && cell.dateKey > checkIn && cell.dateKey < checkOut;
   const selected = isStart || isEnd;
-  const disabled = !selected && (activeField === "checkIn" ? unavailable : !canSelectCheckout);
+  const disabled = !selected && (activeField === "checkIn" || !checkIn ? unavailable : !canSelectCheckout);
   const statusLabel = isStart ? "Check-in" : isEnd ? "Checkout" : unavailable ? "Booked" : "Open";
   const toneClass = selected
     ? "border-[#083f35] bg-[#083f35] text-white"

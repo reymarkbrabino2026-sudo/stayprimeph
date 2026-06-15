@@ -6,7 +6,7 @@ import { calculateStayprimeMarkup, STAYPRIME_MARKUP_RATE } from "@/lib/pricing";
 export const SERVICE_FEE_RATE = STAYPRIME_MARKUP_RATE;
 export const TODAY = toDateKey(new Date());
 export const DEFAULT_CHECK_IN = TODAY;
-export const DEFAULT_CHECK_OUT = addDaysToDateKey(DEFAULT_CHECK_IN, 5);
+export const DEFAULT_CHECK_OUT = addDaysToDateKey(DEFAULT_CHECK_IN, 1);
 
 function toDateKey(date: Date) {
   const year = date.getFullYear();
@@ -23,7 +23,10 @@ function addDaysToDateKey(value: string, days: number) {
 }
 
 export function nightsBetween(checkIn: string, checkOut: string) {
-  return Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
+  const checkInTime = new Date(checkIn).getTime();
+  const checkOutTime = new Date(checkOut).getTime();
+  if (!Number.isFinite(checkInTime) || !Number.isFinite(checkOutTime)) return 0;
+  return Math.round((checkOutTime - checkInTime) / 86400000);
 }
 
 export interface PriceBreakdown {

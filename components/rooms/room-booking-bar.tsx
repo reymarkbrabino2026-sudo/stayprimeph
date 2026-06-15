@@ -29,7 +29,6 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
   const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
-  const storedStay = computePrice(property.pricePerNight, checkIn, checkOut);
   const effectiveStay = useMemo(() => {
     const selectedStayNeedsRepair =
       checkIn < TODAY ||
@@ -40,16 +39,17 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
     if (!selectedStayNeedsRepair) return { checkIn, checkOut };
 
     return getNextAvailableStay({
-      fromDate: checkIn,
+      fromDate: checkIn || TODAY,
       minDate: TODAY,
       bookedNightKeys: bookedNightSet,
-      preferredNights: Math.max(storedStay.nights, 1),
+      preferredNights: 1,
     }) ?? { checkIn, checkOut };
-  }, [bookedNightSet, checkIn, checkOut, storedStay.nights]);
+  }, [bookedNightSet, checkIn, checkOut]);
   const { nights, validStay, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
-  const reserveHref = buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests);
+  const reserveHref = validStay ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests) : "#";
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
-  const canReserve = validStay && !selectedHasUnavailableNight;
+  const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
+  const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
 
   useEffect(() => {
     const sectionIds = navItems.map((item) => item.href.slice(1));
@@ -141,8 +141,8 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
 
         <div className="hidden flex-1 items-center justify-between gap-8 md:flex">
           <div className="flex items-center gap-7 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-black/45">
-            <Meta label="Check-in" value={formatShortDate(effectiveStay.checkIn)} />
-            <Meta label="Checkout" value={formatShortDate(effectiveStay.checkOut)} />
+            <Meta label="Check-in" value={effectiveStay.checkIn ? formatShortDate(effectiveStay.checkIn) : "Add date"} />
+            <Meta label="Checkout" value={effectiveStay.checkOut ? formatShortDate(effectiveStay.checkOut) : "Add date"} />
             <Meta label="Guests" value={`${guests} guest${guests === 1 ? "" : "s"}`} />
           </div>
           <nav className="hidden items-center gap-6 text-sm font-medium text-[#083f35]/70 lg:flex">
