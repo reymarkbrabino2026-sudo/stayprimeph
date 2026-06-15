@@ -1,8 +1,9 @@
 "use client";
 
 import { create } from "zustand";
+import { calculateStayprimeMarkup, STAYPRIME_MARKUP_RATE } from "@/lib/pricing";
 
-export const SERVICE_FEE_RATE = 0.12;
+export const SERVICE_FEE_RATE = STAYPRIME_MARKUP_RATE;
 export const TODAY = toDateKey(new Date());
 export const DEFAULT_CHECK_IN = TODAY;
 export const DEFAULT_CHECK_OUT = addDaysToDateKey(DEFAULT_CHECK_IN, 5);
@@ -37,7 +38,7 @@ export function computePrice(pricePerNight: number, checkIn: string, checkOut: s
   const nights = nightsBetween(checkIn, checkOut);
   const validStay = nights >= 1;
   const subtotal = pricePerNight * Math.max(nights, 0);
-  const serviceFee = validStay ? Math.round(subtotal * SERVICE_FEE_RATE) : 0;
+  const serviceFee = validStay ? calculateStayprimeMarkup(subtotal) : 0;
   return { nights, validStay, subtotal, serviceFee, total: subtotal + serviceFee };
 }
 

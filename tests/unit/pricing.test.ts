@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getBestDiscount } from "@/lib/pricing";
+import { calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
 import type { Booking, Property } from "@/lib/types";
 
 const property: Property = {
@@ -16,7 +16,13 @@ describe("getBestDiscount", () => {
     const discount = getBestDiscount({ property, bookings: [], checkIn: "2026-05-20", nights: 30, subtotal: 30000 });
     expect(discount?.key).toBe("newListing");
     expect(discount?.amount).toBe(6000);
+});
+
+describe("calculateStayprimeMarkup", () => {
+  it("adds a 20% StayPrimePH markup", () => {
+    expect(calculateStayprimeMarkup(10000)).toBe(2000);
   });
+});
 
   it("disables new listing promo after three bookings", () => {
     const bookings = ["b1", "b2", "b3"].map((id) => ({

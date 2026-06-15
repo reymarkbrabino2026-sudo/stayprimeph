@@ -6,7 +6,7 @@ import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
-import { getBestDiscount } from "@/lib/pricing";
+import { calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
@@ -68,7 +68,7 @@ export default async function BookingCheckoutPage({
   const currentUser = await getCurrentUser();
   const discount = getBestDiscount({ property, bookings, checkIn, nights, subtotal });
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
-  const serviceFee = Math.round(discountedSubtotal * 0.12);
+  const serviceFee = calculateStayprimeMarkup(discountedSubtotal);
   const total = discountedSubtotal + serviceFee;
   const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut);
   const image = property.images[0]?.imageUrl;
@@ -197,7 +197,7 @@ export default async function BookingCheckoutPage({
                   </div>
                 ) : null}
                 <div className="flex justify-between gap-4">
-                  <span className="underline decoration-black/25 underline-offset-4">Service fee</span>
+                  <span className="underline decoration-black/25 underline-offset-4">StayPrimePH markup (20%)</span>
                   <span>{formatCurrency(serviceFee)}</span>
                 </div>
               </div>

@@ -222,7 +222,7 @@ export function RoomReservationCard({
             <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between text-black/70">
-            <span className="underline decoration-black/20 underline-offset-4">Service fee</span>
+            <span className="underline decoration-black/20 underline-offset-4">StayPrimePH markup (20%)</span>
             <span>{formatCurrency(serviceFee)}</span>
           </div>
           <div className="flex justify-between border-t border-black/10 pt-3 text-base font-semibold text-[#083f35]">

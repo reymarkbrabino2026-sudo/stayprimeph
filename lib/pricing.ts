@@ -1,5 +1,7 @@
 import type { Booking, ListingDiscounts, Property } from "@/lib/types";
 
+export const STAYPRIME_MARKUP_RATE = 0.2;
+
 export interface AppliedDiscount {
   key: keyof ListingDiscounts;
   label: string;
@@ -42,4 +44,8 @@ export function getApplicableDiscounts({
 
 export function getBestDiscount(input: Parameters<typeof getApplicableDiscounts>[0]) {
   return getApplicableDiscounts(input)[0] ?? null;
+}
+
+export function calculateStayprimeMarkup(subtotal: number) {
+  return Math.round(subtotal * STAYPRIME_MARKUP_RATE);
 }

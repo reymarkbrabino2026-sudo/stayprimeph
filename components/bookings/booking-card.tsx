@@ -2,11 +2,12 @@
 
 import type { Property } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import { calculateStayprimeMarkup } from "@/lib/pricing";
 
 export function BookingCard({ property }: { property: Property }) {
   const nights = 4;
   const stayTotal = property.pricePerNight * nights;
-  const fee = Math.round(stayTotal * 0.1);
+  const fee = calculateStayprimeMarkup(stayTotal);
 
   return (
     <aside className="sticky top-6 h-fit rounded-[1.75rem] bg-white p-5 soft-card">
@@ -41,7 +42,7 @@ export function BookingCard({ property }: { property: Property }) {
           <span>{formatCurrency(stayTotal)}</span>
         </div>
         <div className="flex justify-between">
-          <span>Service fee</span>
+          <span>StayPrimePH markup (20%)</span>
           <span>{formatCurrency(fee)}</span>
         </div>
         <div className="flex justify-between border-t pt-3 font-bold">

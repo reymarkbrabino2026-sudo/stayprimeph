@@ -12,7 +12,7 @@ import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { createBookingInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { sendBookingCreatedEmail } from "@/lib/email";
 import { getUserById } from "@/lib/users";
-import { getBestDiscount } from "@/lib/pricing";
+import { calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import type { Booking } from "@/lib/types";
 
@@ -79,7 +79,7 @@ export async function createBooking(formData: FormData) {
   const subtotal = property.pricePerNight * nights;
   const discount = getBestDiscount({ property, bookings, checkIn, nights, subtotal });
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
-  const serviceFee = Math.round(discountedSubtotal * 0.12);
+  const serviceFee = calculateStayprimeMarkup(discountedSubtotal);
   const totalPrice = discountedSubtotal + serviceFee;
   if (!Number.isSafeInteger(totalPrice) || totalPrice <= 0) throw new Error("This booking total could not be calculated.");
   const booking: Booking = {
