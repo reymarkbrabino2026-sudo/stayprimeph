@@ -99,7 +99,7 @@ export const footerColumns = [
       { label: "Company information", href: "/company/investors" },
       { label: "Travel credit", href: "/company/gift-cards" },
       { label: "Community stay relief", href: "/company/emergency-stays" },
-      { label: "Privacy notice", href: "/legal/privacy" },
+      { label: "Privacy Policy", href: "/legal/privacy" },
       { label: "Service status", href: "/status" },
     ],
   },

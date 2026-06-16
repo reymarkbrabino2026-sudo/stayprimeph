@@ -1,19 +1,21 @@
 'use client';
 
 import type { Property } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
-import { calculateStayprimeMarkup } from "@/lib/pricing";
+import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
+import { calculateGuestPriceWithMarkup, calculateStayprimeMarkup } from "@/lib/pricing";
 
 export function BookingCard({ property }: { property: Property }) {
   const nights = 4;
   const stayTotal = property.pricePerNight * nights;
   const fee = calculateStayprimeMarkup(stayTotal);
+  const guestNightlyPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
+  const guestTotal = stayTotal + fee;
 
   return (
     <aside className="sticky top-6 h-fit rounded-[1.75rem] bg-white p-5 soft-card">
       <div className="flex items-end justify-between">
         <p>
-          <span className="text-2xl font-bold">{formatCurrency(property.pricePerNight)}</span> / night
+          <span className="text-2xl font-bold">{formatCurrency(guestNightlyPrice)}</span> / night
         </p>
         <p className="text-sm">★ {property.rating}</p>
       </div>
@@ -21,10 +23,12 @@ export function BookingCard({ property }: { property: Property }) {
         <div className="p-4">
           <p className="text-xs">Check-in</p>
           <p className="font-semibold">Jun 12</p>
+          <p className="mt-1 text-xs text-black/50">{STANDARD_CHECK_IN_TIME}</p>
         </div>
         <div className="border-l p-4">
           <p className="text-xs">Check-out</p>
           <p className="font-semibold">Jun 16</p>
+          <p className="mt-1 text-xs text-black/50">{STANDARD_CHECK_OUT_TIME}</p>
         </div>
       </div>
       <div className="mt-3 rounded-2xl border p-4">
@@ -37,17 +41,13 @@ export function BookingCard({ property }: { property: Property }) {
       <div className="mt-5 space-y-3 text-sm">
         <div className="flex justify-between">
           <span>
-            {formatCurrency(property.pricePerNight)} × {nights} nights
+            {formatCurrency(guestNightlyPrice)} × {nights} nights
           </span>
-          <span>{formatCurrency(stayTotal)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>StayPrimePH markup (20%)</span>
-          <span>{formatCurrency(fee)}</span>
+          <span>{formatCurrency(guestTotal)}</span>
         </div>
         <div className="flex justify-between border-t pt-3 font-bold">
           <span>Total</span>
-          <span>{formatCurrency(stayTotal + fee)}</span>
+          <span>{formatCurrency(guestTotal)}</span>
         </div>
       </div>
     </aside>

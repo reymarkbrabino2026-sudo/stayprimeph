@@ -17,6 +17,8 @@ The Supabase-specific security migration lives here:
 
 ```text
 supabase/migrations/0001_stayprimeph_rls.sql
+supabase/migrations/0002_close_rls_gaps.sql
+supabase/migrations/0003_harden_app_security_functions.sql
 ```
 
 Run the normal Prisma migrations first, then apply the Supabase RLS migration:
@@ -30,7 +32,17 @@ If you do not use the Supabase CLI, open the Supabase SQL Editor and run the con
 
 ```text
 supabase/migrations/0001_stayprimeph_rls.sql
+supabase/migrations/0002_close_rls_gaps.sql
+supabase/migrations/0003_harden_app_security_functions.sql
 ```
+
+Run them in that order. The first file creates the shared policy helpers and
+protects the main app tables. The second file protects tables that were added
+after the initial baseline, including `AccountSettings`, and enables RLS on
+Prisma's `_prisma_migrations` metadata table so Supabase Security Advisor stops
+flagging it as public. The third file pins the helper function search paths so
+the functions cannot accidentally resolve objects from an attacker-controlled
+schema.
 
 ## What the policy protects
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Bell,
   CalendarCheck2,
+  ChartNoAxesCombined,
   Heart,
   Home,
   LayoutDashboard,
@@ -17,6 +18,8 @@ import { usePathname } from "next/navigation";
 const iconByLabel = {
   dashboard: LayoutDashboard,
   overview: LayoutDashboard,
+  erp: ChartNoAxesCombined,
+  "host erp": ChartNoAxesCombined,
   home: Home,
   search: Search,
   trips: CalendarCheck2,

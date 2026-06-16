@@ -9,7 +9,7 @@ import { hostLinks } from "@/lib/navigation";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getProperties } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function HostDashboardPage() {
   const user = await getCurrentUser();
@@ -56,7 +56,8 @@ export default async function HostDashboardPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="font-semibold">{property?.title ?? "Property"}</h3>
-                        <p className="mt-1 text-sm text-black/55">{formatDate(booking.checkIn)} – {formatDate(booking.checkOut)} · {booking.guests} guests</p>
+                        <p className="mt-1 text-sm text-black/55">{formatStayDateRange(booking.checkIn, booking.checkOut)} - {booking.guests} guests</p>
+                        <p className="mt-1 text-xs text-black/45">{formatStayTimeRange()}</p>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
                         <StatusBadge status={booking.status} />

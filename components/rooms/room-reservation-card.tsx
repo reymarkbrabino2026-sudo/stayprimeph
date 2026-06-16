@@ -7,7 +7,7 @@ import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
 import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import {
   TODAY,
   buildReserveHref,
@@ -107,12 +107,14 @@ export function RoomReservationCard({
           <DateField
             active={activeField === "checkIn"}
             label="Check-in"
+            time={STANDARD_CHECK_IN_TIME}
             value={effectiveStay.checkIn}
             onClick={() => setActiveField("checkIn")}
           />
           <DateField
             active={activeField === "checkOut"}
-            label="Checkout"
+            label="Check-out"
+            time={STANDARD_CHECK_OUT_TIME}
             value={effectiveStay.checkOut}
             onClick={() => setActiveField("checkOut")}
           />
@@ -249,7 +251,7 @@ export function RoomReservationCard({
   );
 }
 
-function DateField({ active, label, value, onClick }: { active: boolean; label: string; value: string; onClick: () => void }) {
+function DateField({ active, label, time, value, onClick }: { active: boolean; label: string; time: string; value: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -260,6 +262,7 @@ function DateField({ active, label, value, onClick }: { active: boolean; label: 
         <CalendarDays size={12} /> {label}
       </span>
       <span className="mt-1 block text-sm font-semibold text-[#1f1f1f]">{value ? formatDisplayDate(value) : "Add date"}</span>
+      <span className="mt-1 block text-xs text-black/50">{time}</span>
     </button>
   );
 }
@@ -292,7 +295,7 @@ function CalendarDateButton({
   const inRange = Boolean(checkIn && checkOut) && cell.dateKey > checkIn && cell.dateKey < checkOut;
   const selected = isStart || isEnd;
   const disabled = !selected && (activeField === "checkIn" || !checkIn ? unavailable : !canSelectCheckout);
-  const statusLabel = isStart ? "Check-in" : isEnd ? "Checkout" : unavailable ? "Booked" : "Open";
+  const statusLabel = isStart ? "Check-in" : isEnd ? "Check-out" : unavailable ? "Booked" : "Open";
   const toneClass = selected
     ? "border-[#083f35] bg-[#083f35] text-white"
     : inRange && !unavailable

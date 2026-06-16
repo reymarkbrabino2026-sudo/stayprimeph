@@ -41,6 +41,7 @@ export default async function HostCalendarPage() {
           city: property.city,
           country: property.country,
           pricePerNight: property.pricePerNight,
+          weekendPrice: property.weekendPrice,
           status: property.status,
         }))}
         bookings={hostBookings}

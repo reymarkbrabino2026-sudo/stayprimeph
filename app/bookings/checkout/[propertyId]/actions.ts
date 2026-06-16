@@ -10,11 +10,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { createBookingInDatabase, usesPrismaPersistence } from "@/lib/repositories";
-import { sendBookingCreatedEmail } from "@/lib/email";
+import { env } from "@/lib/env";
+import { sendBookingConfirmedEmail, sendBookingReceivedEmail, sendBookingRequestEmail } from "@/lib/email";
 import { getUserById } from "@/lib/users";
 import { calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
-import type { Booking } from "@/lib/types";
+import type { Booking, Property, User } from "@/lib/types";
 
 function nightsBetween(checkIn: string, checkOut: string) {
   return Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
@@ -36,6 +37,39 @@ function checkoutPath(propertyId: string, checkIn: string, checkOut: string, gue
   const params = new URLSearchParams({ checkIn, checkOut, guests: String(guests) });
   if (error) params.set("error", error);
   return `/bookings/checkout/${propertyId}?${params.toString()}`;
+}
+
+function bookingEmailDetails({
+  booking,
+  property,
+  guest,
+  host,
+  to,
+  actionPath,
+}: {
+  booking: Booking;
+  property: Property;
+  guest: User;
+  host?: User | null;
+  to: string;
+  actionPath: string;
+}) {
+  return {
+    to,
+    recipientName: guest.name,
+    propertyTitle: property.title,
+    propertyImageUrl: property.images[0]?.imageUrl,
+    propertyLocation: [property.city, property.country].filter(Boolean).join(", "),
+    propertyAddress: property.address,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    guests: booking.guests,
+    totalPrice: booking.totalPrice,
+    bookingId: booking.id,
+    actionUrl: `${env.NEXT_PUBLIC_APP_URL}${actionPath}`,
+    hostName: host?.name,
+    guestName: guest.name,
+  };
 }
 
 const bookingFormSchema = z.object({
@@ -105,22 +139,36 @@ export async function createBooking(formData: FormData) {
     await writeStoredBookings([booking, ...latestBookings]);
   }
   const guest = await getUserById(user.id);
-  if (guest) {
-    await sendBookingCreatedEmail({
-      to: guest.email,
-      propertyTitle: property.title,
-      checkIn,
-      checkOut,
-    });
-  }
   const host = await getUserById(property.hostId);
-  if (host) {
-    await sendBookingCreatedEmail({
-      to: host.email,
-      propertyTitle: property.title,
-      checkIn,
-      checkOut,
+  if (guest) {
+    const guestEmail = bookingEmailDetails({
+      booking,
+      property,
+      guest,
+      host,
+      to: guest.email,
+      actionPath: `/guest/bookings/${booking.id}`,
     });
+    if (booking.status === "confirmed") {
+      await sendBookingConfirmedEmail({ ...guestEmail, recipientRole: "guest" });
+    } else {
+      await sendBookingReceivedEmail({ ...guestEmail, propertyAddress: undefined });
+    }
+  }
+  if (host) {
+    const hostEmail = bookingEmailDetails({
+      booking,
+      property,
+      guest: guest ?? user,
+      host,
+      to: host.email,
+      actionPath: "/host/bookings",
+    });
+    if (booking.status === "confirmed") {
+      await sendBookingConfirmedEmail({ ...hostEmail, recipientRole: "host" });
+    } else {
+      await sendBookingRequestEmail(hostEmail);
+    }
   }
   revalidatePath("/guest/bookings");
   revalidatePath("/host/bookings");

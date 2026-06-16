@@ -116,6 +116,7 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
       images: true,
       amenities: { include: { amenity: true } },
       location: true,
+      pricing: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -130,6 +131,10 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     city: property.city,
     country: property.country,
     pricePerNight: property.pricePerNight,
+    weekendPrice: property.pricing?.weekendPrice,
+    cleaningFee: property.pricing?.cleaningFee,
+    securityDeposit: property.pricing?.securityDeposit,
+    currency: property.pricing?.currency,
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
@@ -181,6 +186,17 @@ export async function createPropertyInDatabase(property: Property) {
             province: property.province,
             zipCode: property.zipCode,
             preciseLocation: property.preciseLocation ?? false,
+          },
+        },
+      } : {}),
+      ...(Number.isFinite(property.weekendPrice) ? {
+        pricing: {
+          create: {
+            id: `pricing-${property.id}`,
+            weekendPrice: property.weekendPrice!,
+            cleaningFee: property.cleaningFee ?? 0,
+            securityDeposit: property.securityDeposit ?? 0,
+            currency: property.currency ?? "PHP",
           },
         },
       } : {}),

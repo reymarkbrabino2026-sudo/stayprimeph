@@ -15,7 +15,7 @@ import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { canReviewBooking, getReviewForBooking } from "@/lib/reviews";
 import { getUserById } from "@/lib/users";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function BookingDetailsPage({
   params,
@@ -33,7 +33,7 @@ export default async function BookingDetailsPage({
   const host = booking ? await getUserById(booking.hostId) : null;
 
   if (!booking || !property || booking.guestId !== user?.id) notFound();
-  const stripeReady = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+  const stripeReady = false;
   const existingReview = await getReviewForBooking(booking);
   const reviewEligible = canReviewBooking(booking);
   const checkInDate = new Date(`${booking.checkIn}T00:00:00`);
@@ -84,7 +84,8 @@ export default async function BookingDetailsPage({
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div>
             <p className="text-sm text-black/45">Dates</p>
-            <p>{formatDate(booking.checkIn)} – {formatDate(booking.checkOut)}</p>
+            <p>{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
+            <p className="mt-1 text-sm text-black/55">{formatStayTimeRange()}</p>
           </div>
           <div>
             <p className="text-sm text-black/45">Guests</p>

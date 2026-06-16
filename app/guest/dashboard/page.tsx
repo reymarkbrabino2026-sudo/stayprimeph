@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { guestLinks } from "@/lib/navigation";
 import { getProperties } from "@/lib/properties";
+import { formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function GuestDashboardPage() {
   const user = await getCurrentUser();
@@ -28,7 +29,14 @@ export default async function GuestDashboardPage() {
       <div className="mt-6 rounded-[1.75rem] bg-white p-6 soft-card">
         <h2 className="text-xl font-bold">Upcoming stay</h2>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-black/60">{property ? `${property.title} · ${upcoming?.checkIn} – ${upcoming?.checkOut}` : "No upcoming stay yet."}</p>
+          {property && upcoming ? (
+            <div className="text-black/60">
+              <p>{property.title} - {formatStayDateRange(upcoming.checkIn, upcoming.checkOut)}</p>
+              <p className="mt-1 text-sm text-black/45">{formatStayTimeRange()}</p>
+            </div>
+          ) : (
+            <p className="text-black/60">No upcoming stay yet.</p>
+          )}
           {upcoming ? <StatusBadge status={upcoming.status} /> : null}
         </div>
       </div>

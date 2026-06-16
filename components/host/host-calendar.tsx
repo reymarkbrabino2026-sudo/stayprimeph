@@ -3,13 +3,12 @@
 import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Trash2, Users } from "lucide-react";
 import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatStayTimeRange } from "@/lib/utils";
 import type { AvailabilityBlockReason, BookingStatus, ListingStatus, PaymentStatus } from "@/lib/types";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const monthWindow = 24;
-const weekendRateMultiplier = 1.08;
 
 type HostCalendarListing = {
   id: string;
@@ -17,6 +16,7 @@ type HostCalendarListing = {
   city: string;
   country: string;
   pricePerNight: number;
+  weekendPrice?: number;
   status: ListingStatus;
 };
 
@@ -97,7 +97,7 @@ export function HostCalendar({ listings, bookings, availabilityBlocks, blockAvai
   const visibleListingCount = selectedListing ? 1 : listings.length;
   const stats = useMemo(() => buildAvailabilityStats(months, filteredBookings, filteredBlocks, visibleListingCount), [months, filteredBookings, filteredBlocks, visibleListingCount]);
   const weekdayNightlyPrice = getAverageNightlyPrice(selectedListing ? [selectedListing] : listings);
-  const weekendNightlyPrice = getWeekendNightlyPrice(weekdayNightlyPrice);
+  const weekendNightlyPrice = getAverageWeekendNightlyPrice(selectedListing ? [selectedListing] : listings);
   const todayKey = toDateKey(new Date());
 
   const updateActiveMonth = useCallback(() => {
@@ -526,6 +526,7 @@ function SelectedDatePanel({
                 <p className="mt-1 text-xs text-black/55 sm:text-sm">
                   {formatDisplayDate(booking.checkIn)} to {formatDisplayDate(booking.checkOut)}
                 </p>
+                <p className="mt-1 text-xs text-black/45">{formatStayTimeRange()}</p>
               </article>
             ))}
             {availabilityBlocks.map((block) => (
@@ -765,8 +766,9 @@ function getAverageNightlyPrice(listings: HostCalendarListing[]) {
   return Math.round(listings.reduce((sum, listing) => sum + listing.pricePerNight, 0) / listings.length);
 }
 
-function getWeekendNightlyPrice(weekdayNightlyPrice: number) {
-  return Math.round(weekdayNightlyPrice * weekendRateMultiplier);
+function getAverageWeekendNightlyPrice(listings: HostCalendarListing[]) {
+  if (listings.length === 0) return 0;
+  return Math.round(listings.reduce((sum, listing) => sum + (listing.weekendPrice ?? listing.pricePerNight), 0) / listings.length);
 }
 
 function formatCompactPrice(value: number) {

@@ -5,6 +5,6 @@ export default async function HostLayout({ children }: { children: React.ReactNo
   const user = await getCurrentUser();
   if (!user) redirect("/login?role=host");
   if (user.role === "guest") redirect("/become-a-host/upgrade");
-  if (user.role !== "host") redirect("/");
+  if (user.role !== "host" && user.role !== "admin") redirect("/");
   return children;
 }

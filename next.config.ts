@@ -3,6 +3,9 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  turbopack: {
+    root: process.cwd(),
+  },
   allowedDevOrigins: ["localhost", "127.0.0.1", "192.168.0.100", "192.168.0.102", "192.168.3.103"],
   images: {
     remotePatterns: [

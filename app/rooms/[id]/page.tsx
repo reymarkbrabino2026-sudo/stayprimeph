@@ -8,13 +8,11 @@ import {
   Car,
   Coffee,
   Dumbbell,
-  Heart,
   MapPin,
   MessageCircle,
   Mountain,
   ParkingCircle,
   Quote,
-  Share2,
   ShieldCheck,
   Snowflake,
   Sparkles,
@@ -32,6 +30,7 @@ import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
+import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { addDays } from "@/lib/availability-calendar";
@@ -125,6 +124,7 @@ export default async function RoomPage({
     ? property.images
     : [{ id: "placeholder", propertyId: property.id, imageUrl: "", tone: "" }];
   const instantBook = property.rules.includes("Instant book enabled");
+  const hostMessageHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(property.hostId)}`;
 
   const stats = [
     { icon: Users, label: `${property.maxGuests} guests` },
@@ -198,14 +198,7 @@ export default async function RoomPage({
                   through to the comforts waiting when you settle in. Reserve in a few taps and keep the full
                   protection of the StayPrimePH booking experience.
                 </p>
-                <div className="mt-7 flex gap-3 text-sm font-semibold">
-                  <button className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-3 transition hover:bg-black/[0.04]">
-                    <Share2 size={16} /> Share
-                  </button>
-                  <button className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-3 transition hover:bg-black/[0.04]">
-                    <Heart size={16} /> Save
-                  </button>
-                </div>
+                <RoomActions propertyId={property.id} propertyTitle={property.title} isAuthenticated={Boolean(currentUser)} />
               </div>
 
               <div className="grid gap-5 sm:grid-cols-3">
@@ -378,12 +371,12 @@ export default async function RoomPage({
                   inside StayPrimePH from request through checkout.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <Link href={`/guest/messages?propertyId=${property.id}&hostId=${property.hostId}`} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
+                  <Link href={hostMessageHref} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
                     <MessageCircle size={18} /> Message host
                   </Link>
-                  <span className="inline-flex min-h-12 items-center rounded-full bg-black/[0.05] px-5 font-medium text-black/70">
+                  <Link href={hostMessageHref} className="inline-flex min-h-12 items-center rounded-full bg-black/[0.05] px-5 font-medium text-black/70 transition hover:bg-black/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]">
                     Contact through StayPrimePH
-                  </span>
+                  </Link>
                 </div>
               </div>
             </div>

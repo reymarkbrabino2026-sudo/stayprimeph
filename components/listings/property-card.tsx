@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
@@ -11,6 +12,7 @@ function isRenderableImage(src?: string) {
 
 export function PropertyCard({ property }: { property: Property }) {
   const image = property.images[0]?.imageUrl;
+  const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
 
   return (
     <Link href={`/properties/${property.id}`} className="group block">
@@ -30,7 +32,7 @@ export function PropertyCard({ property }: { property: Property }) {
           </p>
         </div>
         <p className="text-sm">
-          <span className="font-semibold">{formatCurrency(property.pricePerNight)}</span>/night
+          <span className="font-semibold">{formatCurrency(guestPrice)}</span>/night
         </p>
       </div>
     </Link>

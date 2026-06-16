@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import { formatPropertyLocation } from "@/lib/property-location";
 import type { Property } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -20,6 +21,7 @@ export function SearchResultCard({
   priority?: boolean;
 }) {
   const image = property.images[0]?.imageUrl;
+  const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
 
   return (
     <Link href={`/rooms/${property.id}`} className="group block transition active:scale-[0.985]">
@@ -47,7 +49,7 @@ export function SearchResultCard({
         </div>
         <p className="text-sm text-black/55">{property.propertyType} / {property.bedrooms} beds</p>
         <p className="mt-1 text-sm">
-          <span className="font-semibold">{formatCurrency(property.pricePerNight)}</span> night
+          <span className="font-semibold">{formatCurrency(guestPrice)}</span> night
         </p>
       </div>
     </Link>

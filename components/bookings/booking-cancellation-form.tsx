@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { X } from "lucide-react";
 import { cancelGuestBooking, type CancellationActionState } from "@/app/guest/bookings/actions";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 const initialState: CancellationActionState = {};
 
@@ -67,7 +67,8 @@ export function BookingCancellationForm({
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                 <div>
                   <p className="text-black/45">Dates</p>
-                  <p className="font-semibold">{formatDate(checkIn)} - {formatDate(checkOut)}</p>
+                  <p className="font-semibold">{formatStayDateRange(checkIn, checkOut)}</p>
+                  <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
                 </div>
                 <div>
                   <p className="text-black/45">Total</p>

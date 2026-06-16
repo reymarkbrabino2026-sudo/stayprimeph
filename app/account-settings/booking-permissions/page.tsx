@@ -6,14 +6,31 @@ import { getCurrentUser } from "@/lib/auth";
 
 export default async function BookingPermissionsPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+
+  if (!user?.id) {
+    redirect("/login");
+  }
+
   const accountSettings = await getAccountSettings(user);
+
+  if (!accountSettings?.bookingPermissions) {
+    redirect("/account/settings");
+  }
 
   return (
     <AccountSettingsShell active="Booking permissions">
-      <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Booking permissions</h2>
-      <p className="mt-3 text-black/65">Choose which requirements guests need to meet before they can book or request your listing.</p>
-      <BookingPermissionSettings initialSettings={accountSettings.bookingPermissions} />
+      <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">
+        Booking permissions
+      </h2>
+
+      <p className="mt-3 text-black/65">
+        Choose which requirements guests need to meet before they can book or
+        request your listing.
+      </p>
+
+      <BookingPermissionSettings
+        initialSettings={accountSettings.bookingPermissions}
+      />
     </AccountSettingsShell>
   );
 }

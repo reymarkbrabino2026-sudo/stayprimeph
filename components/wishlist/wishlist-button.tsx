@@ -28,7 +28,7 @@ function readStoredIds(key: string) {
   }
 }
 
-function writePendingWishlistId(propertyId: string) {
+export function writePendingWishlistId(propertyId: string) {
   const ids = readStoredIds(pendingWishlistStorageKey);
   ids.add(propertyId);
   window.localStorage.setItem(pendingWishlistStorageKey, JSON.stringify([...ids]));
@@ -36,6 +36,13 @@ function writePendingWishlistId(propertyId: string) {
 
 export function getWishlistIds() {
   return readWishlistIds();
+}
+
+export function setWishlistSaved(propertyId: string, saved: boolean) {
+  const ids = readWishlistIds();
+  if (saved) ids.add(propertyId);
+  else ids.delete(propertyId);
+  writeWishlistIds(ids);
 }
 
 export function subscribeToWishlistChanges(callback: () => void) {
@@ -91,15 +98,7 @@ export function WishlistButton({
       return;
     }
 
-    const ids = readWishlistIds();
-    if (ids.has(propertyId)) {
-      ids.delete(propertyId);
-      setSaved(false);
-    } else {
-      ids.add(propertyId);
-      setSaved(true);
-    }
-    writeWishlistIds(ids);
+    setWishlistSaved(propertyId, !saved);
   }
 
   return (

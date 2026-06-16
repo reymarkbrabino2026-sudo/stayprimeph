@@ -8,7 +8,7 @@ import { getBookings } from "@/lib/bookings";
 import { guestLinks } from "@/lib/navigation";
 import { getProperties } from "@/lib/properties";
 import { canReviewBooking, getReviews } from "@/lib/reviews";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function GuestBookingsPage() {
   const guest = await getCurrentUser();
@@ -30,7 +30,10 @@ export default async function GuestBookingsPage() {
             );
             return [
               property?.title ?? "Property",
-              `${formatDate(booking.checkIn)} – ${formatDate(booking.checkOut)}`,
+              <div key={`${booking.id}-dates`} className="min-w-48">
+                <p>{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
+                <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
+              </div>,
               booking.guests,
               formatCurrency(booking.totalPrice),
               <div key={`${booking.id}-status`} className="flex flex-wrap gap-2">

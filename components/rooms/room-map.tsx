@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { MapPin } from "lucide-react";
 import { defaultMapCenter, resolvePropertyCoordinates } from "@/lib/property-map";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
@@ -15,7 +16,7 @@ export function RoomMap({ property }: { property: Property }) {
     () => resolvePropertyCoordinates(property) ?? defaultMapCenter,
     [property],
   );
-  const priceLabel = useMemo(() => formatCurrency(property.pricePerNight), [property.pricePerNight]);
+  const priceLabel = useMemo(() => formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight)), [property.pricePerNight]);
   const locationLabel = formatPropertyLocation(property);
 
   useEffect(() => {

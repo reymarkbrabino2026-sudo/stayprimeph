@@ -14,7 +14,6 @@ export default function StatusPage() {
   const hasVercelBlob = Boolean(process.env.PHOTO_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN);
   const hasPhotoStorage = hasCloudinary || hasVercelBlob;
   const hasResendEmail = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
-  const hasStripePayments = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
   const hasRedisRateLimiting = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
   const hasSentry = Boolean(process.env.SENTRY_DSN && process.env.NEXT_PUBLIC_SENTRY_DSN);
   const hasAnalytics = process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled";
@@ -23,7 +22,7 @@ export default function StatusPage() {
     ["Web app", "Operational", "Core browsing, search, dashboards, and listing pages."],
     ["Authentication", "Operational", "Login, registration, password reset, and email verification paths are implemented."],
     ["Photo uploads", hasPhotoStorage ? "Operational" : "Configuration needed", "Cloudinary or Vercel Blob is required for hosted production uploads."],
-    ["Payments", hasStripePayments ? "Operational" : "Configuration needed", "Stripe test keys and webhook are required for online checkout testing."],
+    ["Payments", "Configuration needed", "Online checkout is disabled while StayPrimePH migrates from Stripe to PayMongo."],
     ["Email", hasResendEmail ? "Operational" : "Configuration needed", "Resend sender/domain must be configured for real delivery."],
     ["Rate limiting", hasRedisRateLimiting ? "Operational" : "Configuration needed", "Upstash Redis is required for distributed abuse protection across deployments."],
     ["Monitoring", hasMonitoring ? "Operational" : "Configuration needed", "Sentry, analytics, and provider alerts must be connected in deployment."],

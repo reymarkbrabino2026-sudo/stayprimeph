@@ -14,7 +14,7 @@ const cards = [
   ["Verified flows", "Email verification, password reset, role-aware sessions, and admin review keep the marketplace accountable."],
   ["Listing approval", "New host listings can stay pending until admins approve them for guest discovery."],
   ["Reports and disputes", "Guests and hosts can escalate issues so admins can review evidence and respond fairly."],
-  ["Safer payments", "Payments are designed to go through Stripe checkout rather than storing card details locally."],
+  ["Safer payments", "Payments are designed to use a hosted checkout provider rather than storing card details locally."],
 ];
 
 export default function TrustAndSafetyPage() {

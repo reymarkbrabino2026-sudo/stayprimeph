@@ -8,7 +8,7 @@ import { hostLinks } from "@/lib/navigation";
 import { formatPaymentMethod, getPayments } from "@/lib/payments";
 import { getProperties } from "@/lib/properties";
 import { getUsers } from "@/lib/users";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function HostBookingsPage() {
   const user = await getCurrentUser();
@@ -26,7 +26,10 @@ export default async function HostBookingsPage() {
           return [
             users.find((item) => item.id === booking.guestId)?.name ?? "Guest",
             properties.find((property) => property.id === booking.propertyId)?.title ?? "Property",
-            `${formatDate(booking.checkIn)} - ${formatDate(booking.checkOut)}`,
+            <div key={`${booking.id}-dates`} className="min-w-48">
+              <p>{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
+              <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
+            </div>,
             payment ? (
               <div key={`${booking.id}-payment`} className="min-w-48 space-y-1 text-sm">
                 <p className="font-semibold">{formatCurrency(payment.amount)} via {formatPaymentMethod(payment.paymentMethod)}</p>

@@ -9,9 +9,21 @@ export default async function AdminLoginPage({
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const { error, next } = await searchParams;
-  const nextPath = next?.startsWith("/") && !next.startsWith("//") ? next : "/admin/dashboard";
+
+  const nextPath =
+    next?.startsWith("/admin") && !next.startsWith("//")
+      ? next
+      : "/admin/dashboard";
+
   const currentUser = await getCurrentUser();
-  if (currentUser) redirect(currentUser.role === "admin" ? nextPath : roleHome(currentUser.role));
+
+  if (currentUser) {
+    redirect(
+      currentUser.role === "admin"
+        ? nextPath
+        : roleHome(currentUser.role)
+    );
+  }
 
   return (
     <AuthForm

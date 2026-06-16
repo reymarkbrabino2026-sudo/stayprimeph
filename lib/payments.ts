@@ -1,9 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
-import { env } from "@/lib/env";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
@@ -16,8 +15,8 @@ import {
 } from "@/lib/repositories";
 import type { Booking, Payment, PaymentMethod } from "@/lib/types";
 
-export function getStripe() {
-  return env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null;
+export function getStripe(): Stripe | null {
+  return null;
 }
 
 export function formatPaymentMethod(method: string) {

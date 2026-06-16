@@ -9,7 +9,7 @@ import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { calculateGuestPriceWithMarkup, calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
-import { formatCurrency } from "@/lib/utils";
+import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency, formatDate } from "@/lib/utils";
 
 function nightsBetween(checkIn: string, checkOut: string) {
   return Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
@@ -33,10 +33,6 @@ function todayDateKey() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function formatStayDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
 function isRenderableImage(src?: string) {
@@ -107,14 +103,16 @@ export default async function BookingCheckoutPage({
               </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="block rounded-2xl border p-4">
-                  <span className="block text-sm font-semibold">Dates</span>
-                  <span className="mt-1 block text-sm text-black/65">{formatStayDate(checkIn)} - {formatStayDate(checkOut)}</span>
+                  <span className="block text-sm font-semibold">Check-in</span>
+                  <span className="mt-1 block text-sm text-black/65">{formatDate(checkIn)}</span>
+                  <span className="mt-1 block text-xs text-black/50">Check-in {STANDARD_CHECK_IN_TIME}</span>
                   <span className="sr-only">Check-in</span>
                   <input name="checkIn" type="date" defaultValue={checkIn} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
                 </label>
                 <label className="block rounded-2xl border p-4">
-                  <span className="block text-sm font-semibold">Checkout</span>
-                  <span className="mt-1 block text-sm text-black/65">{formatStayDate(checkOut)}</span>
+                  <span className="block text-sm font-semibold">Check-out</span>
+                  <span className="mt-1 block text-sm text-black/65">{formatDate(checkOut)}</span>
+                  <span className="mt-1 block text-xs text-black/50">Check-out {STANDARD_CHECK_OUT_TIME}</span>
                   <span className="sr-only">Check-out</span>
                   <input name="checkOut" type="date" defaultValue={checkOut} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
                 </label>

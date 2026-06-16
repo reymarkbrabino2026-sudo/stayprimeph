@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { CreditCard, Landmark, Loader2, ReceiptText, Smartphone, X } from "lucide-react";
 import { submitManualPaymentDetails, type ManualPaymentActionState } from "@/app/guest/bookings/actions";
 import type { Booking, Payment } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 const initialState: ManualPaymentActionState = {};
 
@@ -160,7 +160,8 @@ export function PayNowButton({
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                 <div>
                   <p className="text-black/45">Dates</p>
-                  <p className="font-semibold">{formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}</p>
+                  <p className="font-semibold">{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
+                  <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
                 </div>
                 <div>
                   <p className="text-black/45">Guests</p>

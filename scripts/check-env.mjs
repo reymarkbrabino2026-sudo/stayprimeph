@@ -47,7 +47,6 @@ if (environment === "production") {
     ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
     ["SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"],
     ["RESEND_API_KEY", "EMAIL_FROM"],
-    ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
     ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY"],
   ];
   for (const [first, second] of integrationPairs) {
@@ -56,8 +55,8 @@ if (environment === "production") {
       process.exit(1);
     }
   }
-  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    console.error("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY and CLOUDINARY_API_SECRET are required in production.");
+  if (!process.env.CLOUDINARY_API_SECRET) {
+    console.error("CLOUDINARY_API_SECRET is required in production.");
     process.exit(1);
   }
 }

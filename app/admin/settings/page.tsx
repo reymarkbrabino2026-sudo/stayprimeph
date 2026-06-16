@@ -8,7 +8,7 @@ export default function AdminSettingsPage() {
     ["App URL", Boolean(process.env.NEXT_PUBLIC_APP_URL), "Public canonical URL for links and auth callbacks."],
     ["Database", Boolean(process.env.DATABASE_URL), "PostgreSQL connection for production persistence."],
     ["Prisma persistence", process.env.PERSISTENCE_DRIVER === "prisma", "Production must use Prisma instead of local JSON files."],
-    ["Stripe", Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY), "Checkout, webhook, and public key are configured together."],
+    ["Online payments", false, "Stripe checkout is disabled while StayPrimePH migrates to PayMongo."],
     ["Photo storage", hasCloudinary || hasVercelBlob, "Cloudinary or Vercel Blob is configured for durable listing photo uploads."],
     ["Resend email", Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM), "Transactional email sender is configured."],
     ["Upstash Redis", Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN), "Distributed rate limiting is configured."],

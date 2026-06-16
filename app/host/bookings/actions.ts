@@ -4,9 +4,73 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { getBookingById } from "@/lib/bookings";
+import { env } from "@/lib/env";
+import { sendBookingConfirmedEmail } from "@/lib/email";
 import { confirmManualPayment, rejectManualPayment } from "@/lib/payments";
+import { getPropertyById } from "@/lib/properties";
 import { updateBookingStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
-import type { BookingStatus } from "@/lib/types";
+import { getUserById } from "@/lib/users";
+import type { Booking, BookingStatus, Property, User } from "@/lib/types";
+
+function confirmationEmailDetails({
+  booking,
+  property,
+  guest,
+  host,
+  to,
+  actionPath,
+}: {
+  booking: Booking;
+  property: Property;
+  guest: User;
+  host: User;
+  to: string;
+  actionPath: string;
+}) {
+  return {
+    to,
+    propertyTitle: property.title,
+    propertyImageUrl: property.images[0]?.imageUrl,
+    propertyLocation: [property.city, property.country].filter(Boolean).join(", "),
+    propertyAddress: property.address,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    guests: booking.guests,
+    totalPrice: booking.totalPrice,
+    bookingId: booking.id,
+    actionUrl: `${env.NEXT_PUBLIC_APP_URL}${actionPath}`,
+    hostName: host.name,
+    guestName: guest.name,
+  };
+}
+
+async function sendBookingConfirmationPair(booking: Booking, host: User) {
+  const [property, guest] = await Promise.all([getPropertyById(booking.propertyId), getUserById(booking.guestId)]);
+  if (!property || !guest) return;
+
+  await sendBookingConfirmedEmail({
+    ...confirmationEmailDetails({
+      booking: { ...booking, status: "confirmed" },
+      property,
+      guest,
+      host,
+      to: guest.email,
+      actionPath: `/guest/bookings/${booking.id}`,
+    }),
+    recipientRole: "guest",
+  });
+  await sendBookingConfirmedEmail({
+    ...confirmationEmailDetails({
+      booking: { ...booking, status: "confirmed" },
+      property,
+      guest,
+      host,
+      to: host.email,
+      actionPath: "/host/bookings",
+    }),
+    recipientRole: "host",
+  });
+}
 
 async function updateHostBookingStatus(formData: FormData, status: BookingStatus) {
   const user = await getCurrentUser();
@@ -32,10 +96,13 @@ async function updateHostBookingStatus(formData: FormData, status: BookingStatus
   revalidatePath(`/guest/bookings/${id}`);
   revalidatePath("/guest/bookings");
   revalidatePath("/admin/bookings");
+
+  return { booking: { ...booking, status }, user };
 }
 
 export async function acceptBooking(formData: FormData) {
-  await updateHostBookingStatus(formData, "confirmed");
+  const { booking, user } = await updateHostBookingStatus(formData, "confirmed");
+  await sendBookingConfirmationPair(booking, user);
 }
 
 export async function rejectBooking(formData: FormData) {
@@ -56,6 +123,7 @@ async function getHostBookingFromForm(formData: FormData) {
 export async function confirmPaymentAndApproveBooking(formData: FormData) {
   const { booking, user } = await getHostBookingFromForm(formData);
   await confirmManualPayment({ booking, hostId: user.id });
+  await sendBookingConfirmationPair({ ...booking, status: "confirmed", paymentStatus: "paid" }, user);
 
   revalidatePath("/host/dashboard");
   revalidatePath("/host/bookings");

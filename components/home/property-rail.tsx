@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -82,6 +83,7 @@ export function PropertyRail({ title, items, isAuthenticated }: { title: string;
       <div ref={railRef} className="no-scrollbar touch-scroll flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pt-2">
         {items.map((property) => {
           const image = property.images[0]?.imageUrl;
+          const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
           return (
             <Link href={`/properties/${property.id}`} key={property.id} className="min-w-0 shrink-0 basis-[72vw] snap-start transition active:scale-[0.985] sm:basis-[calc((100%_-_1rem)/2)] md:basis-[calc((100%_-_3rem)/4)] xl:basis-[calc((100%_-_5rem)/6)] 2xl:basis-[calc((100%_-_6rem)/7)]">
               <div className={`relative aspect-[1.08/1] overflow-hidden rounded-[1.25rem] bg-gradient-to-br transition duration-300 md:hover:-translate-y-1 ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
@@ -91,7 +93,7 @@ export function PropertyRail({ title, items, isAuthenticated }: { title: string;
               </div>
               <h3 className="mt-2 truncate text-sm font-semibold">{property.title}</h3>
               <p className="truncate text-sm text-black/55">
-                {property.city} / {formatCurrency(property.pricePerNight)} night / <Star className="inline-block" size={12} fill="currentColor" /> {property.rating || "New"}
+                {property.city} / {formatCurrency(guestPrice)} night / <Star className="inline-block" size={12} fill="currentColor" /> {property.rating || "New"}
               </p>
             </Link>
           );

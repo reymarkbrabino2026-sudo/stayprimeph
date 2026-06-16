@@ -1,4 +1,5 @@
 import { defaultMapCenter, hasPropertyCoordinates, resolvePropertyCoordinates } from "@/lib/property-map";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 import type { Property } from "@/lib/types";
@@ -34,7 +35,7 @@ export function getListingMarkers(properties: Property[]): SearchMapMarker[] {
       id: property.id,
       title: property.title,
       location: formatPropertyLocation(property),
-      label: formatCurrency(property.pricePerNight),
+      label: formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight)),
       coords: [base[0] + latOffset, base[1] + lngOffset],
       exact,
     };
