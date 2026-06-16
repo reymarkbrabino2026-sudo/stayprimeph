@@ -28,6 +28,7 @@ const iconByLabel = {
   messages: MessageCircle,
   notifications: Bell,
   reviews: Star,
+  reports: ChartNoAxesCombined,
   profile: UserCircle,
   settings: UserCircle,
 };

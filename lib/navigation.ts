@@ -10,6 +10,7 @@ export const guestLinks = [
 export const hostLinks = [
   { label: "Overview", href: "/host/dashboard" },
   { label: "ERP", href: "/host/erp" },
+  { label: "Reports", href: "/host/reports" },
   { label: "My Listings", href: "/host/listings" },
   { label: "Create Listing", href: "/host/listings/create" },
   { label: "Calendar Availability", href: "/host/calendar" },

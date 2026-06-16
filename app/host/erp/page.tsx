@@ -112,6 +112,9 @@ export default async function HostErpPage() {
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#174c39]/80">
           Hosts should enter their sales and expenses at the end of each month so the monthly sales and expenses report is complete.
         </p>
+        <Link href="/host/reports" className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[#0b8d65] px-5 text-sm font-semibold text-white transition hover:bg-[#076c4d]">
+          Go to host report
+        </Link>
       </section>
     </DashboardShell>
   );
