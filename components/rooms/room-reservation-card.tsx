@@ -49,6 +49,8 @@ export function RoomReservationCard({
   }, [bookedNightSet, checkIn, checkOut]);
   const { nights, validStay, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
+  const headlinePrice = validStay ? total : guestNightlyPrice;
+  const headlinePriceLabel = validStay ? ` for ${nights} night${nights === 1 ? "" : "s"}` : " / night";
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
@@ -90,8 +92,8 @@ export function RoomReservationCard({
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-3xl font-semibold tracking-[-0.03em] text-[#083f35]">
-            {formatCurrency(guestNightlyPrice)}
-            <span className="text-base font-medium text-black/50"> / night</span>
+            {formatCurrency(headlinePrice)}
+            <span className="text-base font-medium text-black/50">{headlinePriceLabel}</span>
           </p>
           <p className="mt-1 text-sm text-black/55">Up to {property.maxGuests} guests &middot; {property.bedrooms} bedrooms</p>
         </div>
