@@ -50,6 +50,10 @@ export function calculateStayprimeMarkup(subtotal: number) {
   return Math.round(subtotal * STAYPRIME_MARKUP_RATE);
 }
 
+export function calculateGuestPriceWithMarkup(hostAmount: number) {
+  return hostAmount + calculateStayprimeMarkup(hostAmount);
+}
+
 export function calculateStayprimeMarkupFromTotal(total: number) {
   return Math.round(total * (STAYPRIME_MARKUP_RATE / (1 + STAYPRIME_MARKUP_RATE)));
 }

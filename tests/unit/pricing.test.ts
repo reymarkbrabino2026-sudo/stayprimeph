@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { calculateHostPayoutFromTotal, calculateStayprimeMarkup, calculateStayprimeMarkupFromTotal, getBestDiscount } from "@/lib/pricing";
+import {
+  calculateGuestPriceWithMarkup,
+  calculateHostPayoutFromTotal,
+  calculateStayprimeMarkup,
+  calculateStayprimeMarkupFromTotal,
+  getBestDiscount,
+} from "@/lib/pricing";
 import type { Booking, Property } from "@/lib/types";
 
 const property: Property = {
@@ -21,6 +27,10 @@ describe("getBestDiscount", () => {
 describe("calculateStayprimeMarkup", () => {
   it("adds a 20% StayPrimePH markup", () => {
     expect(calculateStayprimeMarkup(10000)).toBe(2000);
+  });
+
+  it("adds the markup to guest-facing prices", () => {
+    expect(calculateGuestPriceWithMarkup(10000)).toBe(12000);
   });
 
   it("splits a guest-paid total back into markup and host payout", () => {

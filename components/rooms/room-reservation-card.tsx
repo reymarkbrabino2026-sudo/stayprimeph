@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star
 import { useMemo, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -46,7 +47,8 @@ export function RoomReservationCard({
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
   }, [bookedNightSet, checkIn, checkOut]);
-  const { nights, validStay, subtotal, serviceFee, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
+  const { nights, validStay, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
+  const guestNightlyPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
@@ -88,7 +90,7 @@ export function RoomReservationCard({
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-3xl font-semibold tracking-[-0.03em] text-[#083f35]">
-            {formatCurrency(property.pricePerNight)}
+            {formatCurrency(guestNightlyPrice)}
             <span className="text-base font-medium text-black/50"> / night</span>
           </p>
           <p className="mt-1 text-sm text-black/55">Up to {property.maxGuests} guests &middot; {property.bedrooms} bedrooms</p>
@@ -222,13 +224,9 @@ export function RoomReservationCard({
         <div className="mt-5 space-y-3 border-t border-black/10 pt-5 text-sm">
           <div className="flex justify-between text-black/70">
             <span className="underline decoration-black/20 underline-offset-4">
-              {formatCurrency(property.pricePerNight)} x {nights} night{nights === 1 ? "" : "s"}
+              {formatCurrency(guestNightlyPrice)} x {nights} night{nights === 1 ? "" : "s"}
             </span>
-            <span>{formatCurrency(subtotal)}</span>
-          </div>
-          <div className="flex justify-between text-black/70">
-            <span className="underline decoration-black/20 underline-offset-4">StayPrimePH markup (20%)</span>
-            <span>{formatCurrency(serviceFee)}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
           <div className="flex justify-between border-t border-black/10 pt-3 text-base font-semibold text-[#083f35]">
             <span>Total before taxes</span>

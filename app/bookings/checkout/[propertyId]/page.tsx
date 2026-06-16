@@ -6,7 +6,7 @@ import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
 import { getCurrentUser } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
-import { calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
+import { calculateGuestPriceWithMarkup, calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
@@ -70,6 +70,8 @@ export default async function BookingCheckoutPage({
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
   const serviceFee = calculateStayprimeMarkup(discountedSubtotal);
   const total = discountedSubtotal + serviceFee;
+  const guestSubtotal = calculateGuestPriceWithMarkup(subtotal);
+  const guestSavings = guestSubtotal - total;
   const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut);
   const image = property.images[0]?.imageUrl;
   const buttonLabel = property.rules.includes("Instant book enabled") ? "Confirm and pay" : "Request to book";
@@ -187,19 +189,15 @@ export default async function BookingCheckoutPage({
               <h2 className="text-xl font-semibold">Price details</h2>
               <div className="mt-5 space-y-4 text-sm">
                 <div className="flex justify-between gap-4">
-                  <span className="underline decoration-black/25 underline-offset-4">{formatCurrency(property.pricePerNight)} x {nights} nights</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span className="underline decoration-black/25 underline-offset-4">Accommodation</span>
+                  <span>{formatCurrency(guestSubtotal)}</span>
                 </div>
-                {discount ? (
+                {discount && guestSavings > 0 ? (
                   <div className="flex justify-between gap-4 text-emerald-700">
                     <span>{discount.label}</span>
-                    <span>-{formatCurrency(discount.amount)}</span>
+                    <span>-{formatCurrency(guestSavings)}</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between gap-4">
-                  <span className="underline decoration-black/25 underline-offset-4">StayPrimePH markup (20%)</span>
-                  <span>{formatCurrency(serviceFee)}</span>
-                </div>
               </div>
             </div>
 
