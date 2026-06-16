@@ -105,6 +105,14 @@ export default async function HostErpPage() {
           );
         })}
       </section>
+
+      <section className="mt-6 rounded-[1.5rem] border border-[#0b8d65]/20 bg-[#f1fbf6] p-5 text-[#174c39] soft-card">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#0b8d65]">Month-end reminder</p>
+        <h2 className="mt-2 text-xl font-bold text-[#123528]">Input sales and expenses before month end</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#174c39]/80">
+          Hosts should enter their sales and expenses at the end of each month so the monthly sales and expenses report is complete.
+        </p>
+      </section>
     </DashboardShell>
   );
 }
