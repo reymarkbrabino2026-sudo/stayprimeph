@@ -25,6 +25,13 @@ test("admin can open the approval queue", async ({ page }) => {
   await expect(page.getByText("Listings waiting for review")).toBeVisible();
 });
 
+test("admin can open host ERP", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/host/erp", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "ERP Hospitality Management", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Reservation management" })).toBeVisible();
+});
+
 test("admin sees guest-account warning on checkout instead of app error", async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto("/bookings/checkout/42b8ae68-c9df-45f6-80c4-93a31e935c66?checkIn=2026-06-14&checkOut=2026-06-18&guests=1", { waitUntil: "domcontentloaded" });

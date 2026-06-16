@@ -28,6 +28,7 @@ async function signInAsHost(page: import("@playwright/test").Page) {
 
 const hostScreens = [
   ["/host/dashboard", "Host Overview"],
+  ["/host/erp", "ERP Hospitality Management"],
   ["/host/listings", "My Listings"],
   ["/host/bookings", "Booking Requests"],
   ["/host/earnings", "Earnings"],

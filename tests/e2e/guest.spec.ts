@@ -28,6 +28,13 @@ test("guest can render every traveler dashboard screen", async ({ page }) => {
   }
 });
 
+test("guest cannot access host ERP", async ({ page }) => {
+  await signInAsGuest(page);
+  await page.goto("/host/erp", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/become-a-host\/upgrade$/);
+  await expect(page.getByRole("heading", { name: "ERP Hospitality Management", exact: true })).toHaveCount(0);
+});
+
 test("guest can open booking details, messages, and wishlist", async ({ page }) => {
   await signInAsGuest(page);
 
