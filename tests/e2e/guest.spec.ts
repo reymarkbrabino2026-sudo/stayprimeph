@@ -33,6 +33,10 @@ test("guest cannot access host ERP", async ({ page }) => {
   await page.goto("/host/erp", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/become-a-host\/upgrade$/);
   await expect(page.getByRole("heading", { name: "ERP Hospitality Management", exact: true })).toHaveCount(0);
+
+  await page.goto("/host/reports", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/become-a-host\/upgrade$/);
+  await expect(page.getByRole("heading", { name: "Host Reports", exact: true })).toHaveCount(0);
 });
 
 test("guest can open booking details, messages, and wishlist", async ({ page }) => {

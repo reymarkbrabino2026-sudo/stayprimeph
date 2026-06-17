@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, Database, UsersRound } from "lucide-react";
+import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, Database, ReceiptText, UsersRound } from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { readHostExpenses } from "@/lib/host-expense-store";
 import { hostLinks } from "@/lib/navigation";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getProperties } from "@/lib/properties";
@@ -24,6 +25,12 @@ const hostTools = [
     adminHref: "/admin/payments",
   },
   {
+    label: "Expense upload",
+    href: "/host/reports",
+    icon: ReceiptText,
+    adminHref: "/host/reports",
+  },
+  {
     label: "Operations tracking",
     href: "/host/calendar",
     icon: ClipboardList,
@@ -39,20 +46,26 @@ const hostTools = [
 
 export default async function HostErpPage() {
   const user = await getCurrentUser();
-  const [bookings, properties, users] = await Promise.all([getBookings(), getProperties(), getUsers()]);
+  const [bookings, properties, expenses, users] = await Promise.all([getBookings(), getProperties(), readHostExpenses(), getUsers()]);
   const isAdmin = user?.role === "admin";
   const scopedProperties = isAdmin ? properties : properties.filter((property) => property.hostId === user?.id);
   const scopedBookings = isAdmin ? bookings : bookings.filter((booking) => booking.hostId === user?.id);
+  const scopedExpenses = isAdmin ? expenses : expenses.filter((expense) => expense.hostId === user?.id);
   const guestIds = new Set(scopedBookings.map((booking) => booking.guestId));
+  const currentMonth = new Date().toISOString().slice(0, 7);
   const paidRevenue = scopedBookings
     .filter((booking) => booking.paymentStatus === "paid")
     .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
+  const currentMonthExpenses = scopedExpenses
+    .filter((expense) => expense.month === currentMonth)
+    .reduce((sum, expense) => sum + expense.amount, 0);
   const openReservations = scopedBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed").length;
   const activeListings = scopedProperties.filter((property) => property.status === "approved").length;
 
   const metrics = [
     { label: "Open reservations", value: String(openReservations), icon: BedDouble },
     { label: "Host revenue", value: formatCurrency(paidRevenue), icon: ChartNoAxesCombined },
+    { label: "Monthly expenses", value: formatCurrency(currentMonthExpenses), icon: ReceiptText },
     { label: "Active listings", value: String(activeListings), icon: ClipboardList },
     { label: "Guest records", value: String(users.filter((guest) => guestIds.has(guest.id)).length), icon: UsersRound },
   ];
@@ -70,7 +83,7 @@ export default async function HostErpPage() {
         </div>
         <div className="mx-auto max-w-3xl rounded-[1.5rem] border-2 border-[#11a878] px-4 pb-5 pt-10 sm:px-6 sm:pb-6">
           <p className="text-center text-sm font-bold uppercase tracking-[0.35em] text-[#1fc48e]">Phase 2</p>
-          <h2 className="mt-8 text-center text-2xl font-extrabold sm:text-3xl">ERP Hospitality Management</h2>
+          <h2 className="mt-8 text-center text-2xl font-extrabold sm:text-3xl">Operations command center</h2>
           <div className="mt-8 grid gap-3">
             {hostTools.map((tool) => {
               const Icon = tool.icon;
@@ -89,7 +102,7 @@ export default async function HostErpPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {metrics.map((metric) => {
           const Icon = metric.icon;
           return (
