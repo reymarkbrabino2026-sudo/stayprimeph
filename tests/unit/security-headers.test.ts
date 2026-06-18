@@ -23,4 +23,18 @@ describe("security headers", () => {
     expect(config).not.toContain("https://*.vercel-insights.com");
     expect(config).not.toContain("blob: https://res.cloudinary.com");
   });
+
+  test("keeps HSTS enabled for static and dynamic responses", async () => {
+    const [config, proxy] = await Promise.all([
+      fs.readFile(path.join(process.cwd(), "next.config.ts"), "utf8"),
+      fs.readFile(path.join(process.cwd(), "proxy.ts"), "utf8"),
+    ]);
+    const hstsHeader = '"Strict-Transport-Security"';
+    const hstsPolicy = '"max-age=31536000; includeSubDomains"';
+
+    expect(config).toContain(hstsHeader);
+    expect(config).toContain(hstsPolicy);
+    expect(proxy).toContain(hstsHeader);
+    expect(proxy).toContain(hstsPolicy);
+  });
 });
