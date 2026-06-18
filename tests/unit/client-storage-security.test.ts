@@ -4,7 +4,7 @@ import path from "node:path";
 import { isSensitiveClientStorageKey } from "@/lib/use-local-storage-state";
 
 const repoRoot = process.cwd();
-const sourceRoots = ["app", "components", "lib"];
+const sourceRoots = ["app", "components", "lib", "stores"];
 const allowedLocalStorageKeys = new Set([
   "stayprimeph-host-wizard",
   "stayprimeph-wishlist-property-ids",

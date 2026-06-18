@@ -4,7 +4,7 @@ import { create } from "zustand";
 import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-wizard-types";
 
 const legacyStorageKey = "stayprimeph-host-wizard";
-const storageVersion = 1;
+const storageVersion = 2;
 const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
 
 const defaultBookingPackages = [
@@ -60,7 +60,6 @@ type WizardOwner = { id: string; email: string };
 type StoredHostWizardDraft = {
   version: number;
   ownerUserId: string;
-  ownerEmail: string;
   currentStep: WizardStepId;
   draft: Partial<HostListingDraft>;
   updatedAt?: string;
@@ -110,6 +109,39 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
   };
 }
 
+export function sanitizeHostWizardDraftForStorage(draft: HostListingDraft): Partial<HostListingDraft> {
+  return {
+    uploadScopeId: draft.uploadScopeId,
+    country: draft.country,
+    city: draft.city,
+    province: draft.province,
+    propertyType: draft.propertyType,
+    privacyType: draft.privacyType,
+    guests: draft.guests,
+    bedrooms: draft.bedrooms,
+    beds: draft.beds,
+    bathrooms: draft.bathrooms,
+    amenityIds: [...draft.amenityIds],
+    photos: draft.photos.map((photo) => ({ ...photo })),
+    title: draft.title,
+    highlights: [...draft.highlights],
+    description: draft.description,
+    bookingMode: draft.bookingMode,
+    pricingMode: draft.pricingMode,
+    basePrice: draft.basePrice,
+    weekendPrice: draft.weekendPrice,
+    weekendPremium: draft.weekendPremium,
+    cleaningFee: draft.cleaningFee,
+    securityDeposit: draft.securityDeposit,
+    currency: draft.currency,
+    cancellationPolicy: draft.cancellationPolicy,
+    discounts: { ...draft.discounts },
+    safetyDisclosures: { ...draft.safetyDisclosures },
+    status: draft.status,
+    bookingPackages: draft.bookingPackages.map((item) => ({ ...item })),
+  };
+}
+
 function userStorageKey(userId: string) {
   return `stayprimeph-host-wizard:${encodeURIComponent(userId)}`;
 }
@@ -136,13 +168,18 @@ function readStoredDraft(user: WizardOwner): Pick<HostWizardState, "currentStep"
       return { currentStep: "address", draft: createInitialDraft() };
     }
 
-    if (!stored.updatedAt) {
-      window.localStorage.setItem(storageKey, JSON.stringify({ ...stored, updatedAt: new Date().toISOString() }));
-    }
+    const draft = mergeDraft(sanitizeHostWizardDraftForStorage(mergeDraft(stored.draft)));
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      version: storageVersion,
+      ownerUserId: user.id,
+      currentStep: stored.currentStep ?? "address",
+      draft: sanitizeHostWizardDraftForStorage(draft),
+      updatedAt: new Date().toISOString(),
+    } satisfies StoredHostWizardDraft));
 
     return {
       currentStep: stored.currentStep ?? "address",
-      draft: mergeDraft(stored.draft),
+      draft,
     };
   } catch {
     window.localStorage.removeItem(storageKey);
@@ -156,9 +193,8 @@ function persistState(state: HostWizardState) {
   const stored: StoredHostWizardDraft = {
     version: storageVersion,
     ownerUserId: state.ownerUserId,
-    ownerEmail: state.ownerEmail,
     currentStep: state.currentStep,
-    draft: state.draft,
+    draft: sanitizeHostWizardDraftForStorage(state.draft),
     updatedAt: new Date().toISOString(),
   };
 
