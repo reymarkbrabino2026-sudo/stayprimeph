@@ -59,6 +59,10 @@ if (isProductionRuntime && !isPostgresUrl(directUrl)) {
   throw new Error("DIRECT_URL must be a PostgreSQL connection string in production runtime.");
 }
 
+if (isProductionRuntime && (!optionalEnv(process.env.UPSTASH_REDIS_REST_URL) || !optionalEnv(process.env.UPSTASH_REDIS_REST_TOKEN))) {
+  throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required for production rate limiting.");
+}
+
 if (isProductionRuntime && paymentLaunchMode === "stripe") {
   if (!stripeSecretKey?.startsWith("sk_live_") && !stripeSecretKey?.startsWith("rk_live_")) {
     throw new Error("STRIPE_SECRET_KEY must be a live Stripe key when PAYMENT_LAUNCH_MODE=stripe in production runtime.");

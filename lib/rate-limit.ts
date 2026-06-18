@@ -1,8 +1,10 @@
+import type { Duration } from "@upstash/ratelimit";
+
 type Entry = { count: number; resetAt: number };
 type LoginAttemptEntry = { count: number; firstFailedAt: number; lockedUntil: number };
 const buckets = new Map<string, Entry>();
 const loginAttempts = new Map<string, LoginAttemptEntry>();
-let distributedLimiterPromise: Promise<import("@upstash/ratelimit").Ratelimit | null> | null = null;
+const distributedLimiterPromises = new Map<string, Promise<import("@upstash/ratelimit").Ratelimit | null>>();
 let redisPromise: Promise<import("@upstash/redis").Redis | null> | null = null;
 
 const loginFailureWindowMs = 15 * 60_000;
@@ -25,12 +27,30 @@ export function checkRateLimit(key: string, limit = 20, windowMs = 60_000) {
 export function resetRateLimits() {
   buckets.clear();
   loginAttempts.clear();
+  distributedLimiterPromises.clear();
+  redisPromise = null;
+}
+
+function isProductionRuntime() {
+  return process.env.NODE_ENV === "production" && process.env.STAYPRIMEPH_BUILD_PHASE !== "1" && process.env.STAYPRIMEPH_E2E !== "1";
+}
+
+function hasUpstashRedisConfig() {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+function requireUpstashRedisConfig() {
+  if (hasUpstashRedisConfig()) return;
+  if (isProductionRuntime()) {
+    throw new Error("Upstash Redis must be configured for production rate limiting.");
+  }
 }
 
 async function getRedis() {
   if (!redisPromise) {
     redisPromise = (async () => {
-      if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null;
+      requireUpstashRedisConfig();
+      if (!hasUpstashRedisConfig()) return null;
       const { Redis } = await import("@upstash/redis");
       return Redis.fromEnv();
     })();
@@ -38,23 +58,29 @@ async function getRedis() {
   return redisPromise;
 }
 
-async function getDistributedLimiter() {
-  if (!distributedLimiterPromise) {
-    distributedLimiterPromise = (async () => {
-      if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return null;
+function upstashWindow(windowMs: number): Duration {
+  return `${Math.max(1, Math.ceil(windowMs / 1000))} s` as Duration;
+}
+
+async function getDistributedLimiter(limit: number, windowMs: number) {
+  const limiterKey = `${limit}:${windowMs}`;
+  if (!distributedLimiterPromises.has(limiterKey)) {
+    distributedLimiterPromises.set(limiterKey, (async () => {
+      requireUpstashRedisConfig();
+      if (!hasUpstashRedisConfig()) return null;
       const [{ Redis }, { Ratelimit }] = await Promise.all([
         import("@upstash/redis"),
         import("@upstash/ratelimit"),
       ]);
       return new Ratelimit({
         redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(30, "1 m"),
+        limiter: Ratelimit.slidingWindow(limit, upstashWindow(windowMs)),
         analytics: true,
-        prefix: "stayprimeph",
+        prefix: `stayprimeph:${limit}:${windowMs}`,
       });
-    })();
+    })());
   }
-  return distributedLimiterPromise;
+  return distributedLimiterPromises.get(limiterKey)!;
 }
 
 function loginAttemptKey(key: string) {
@@ -180,7 +206,15 @@ export async function checkDistributedRateLimit(key: string, fallbackLimit = 20,
     return { limited: false, remaining: fallbackLimit, resetAt: Date.now() + fallbackWindowMs };
   }
 
-  const limiter = await getDistributedLimiter();
+  let limiter: import("@upstash/ratelimit").Ratelimit | null;
+  try {
+    limiter = await getDistributedLimiter(fallbackLimit, fallbackWindowMs);
+  } catch (error) {
+    if (isProductionRuntime()) {
+      return { limited: true, remaining: 0, resetAt: Date.now() + fallbackWindowMs };
+    }
+    throw error;
+  }
   if (!limiter) return checkRateLimit(key, fallbackLimit, fallbackWindowMs);
   const result = await limiter.limit(key);
   return {

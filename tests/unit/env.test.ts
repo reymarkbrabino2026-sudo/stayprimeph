@@ -18,6 +18,8 @@ async function loadEnv({
   stripeSecretKey,
   stripeWebhookSecret,
   stripePublishableKey,
+  upstashRedisRestToken = "ci-upstash-token",
+  upstashRedisRestUrl = "https://ci-upstash.example.com",
 }: {
   blobReadWriteToken?: string;
   buildPhase?: string;
@@ -29,6 +31,8 @@ async function loadEnv({
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   stripePublishableKey?: string;
+  upstashRedisRestToken?: string;
+  upstashRedisRestUrl?: string;
 }) {
   vi.resetModules();
   process.env = {
@@ -41,6 +45,8 @@ async function loadEnv({
     BLOB_READ_WRITE_TOKEN: blobReadWriteToken,
     PERSISTENCE_DRIVER: persistenceDriver,
     PAYMENT_LAUNCH_MODE: paymentLaunchMode,
+    UPSTASH_REDIS_REST_TOKEN: upstashRedisRestToken,
+    UPSTASH_REDIS_REST_URL: upstashRedisRestUrl,
     STRIPE_SECRET_KEY: stripeSecretKey,
     STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKey,
@@ -71,6 +77,14 @@ describe("environment defaults", () => {
   test("rejects missing PostgreSQL runtime database URLs in production", async () => {
     await expect(loadEnv({ nodeEnv: "production", databaseUrl: "", directUrl: "" })).rejects.toThrow("DATABASE_URL must be a PostgreSQL connection string in production runtime.");
     await expect(loadEnv({ nodeEnv: "production", directUrl: "" })).rejects.toThrow("DIRECT_URL must be a PostgreSQL connection string in production runtime.");
+  });
+
+  test("requires Upstash Redis in production runtime", async () => {
+    await expect(loadEnv({
+      nodeEnv: "production",
+      upstashRedisRestToken: "",
+      upstashRedisRestUrl: "",
+    })).rejects.toThrow("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required for production rate limiting.");
   });
 
   test("allows JSON persistence during sanitized production builds", async () => {
