@@ -67,7 +67,7 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
   }
 
   function openMethodForm(method?: PayoutMethod) {
-    setDraft(method ? { type: method.type, accountName: method.accountName, bankName: method.bankName, accountLast4: method.accountLast4, currency: method.currency } : emptyMethod);
+    setDraft(method ? { type: method.type, accountName: method.accountName, bankName: method.bankName, accountLast4: method.accountLast4.replace(/\D/g, "").slice(-4), currency: method.currency } : emptyMethod);
     setEditingId(method?.id ?? null);
     setOpenPanel("method");
   }
@@ -198,6 +198,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdit: () => void; onRemove: () => void }) {
   const Icon = method.type === "Bank account" ? Landmark : method.type === "PayPal" ? WalletCards : Banknote;
+  const last4 = method.accountLast4.replace(/\D/g, "").slice(-4);
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-black/15 p-4">
@@ -206,7 +207,7 @@ function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdi
           <Icon size={21} />
         </span>
         <div className="min-w-0">
-          <p className="font-semibold">{method.type} ending in {method.accountLast4}</p>
+          <p className="font-semibold">{method.type} ending in {last4}</p>
           <p className="mt-1 truncate text-sm text-black/60">{method.accountName} - {method.bankName} - {method.currency}</p>
         </div>
       </div>
@@ -214,7 +215,7 @@ function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdi
         <button type="button" onClick={onEdit} className="rounded-full border border-black/15 px-4 py-2 text-sm font-semibold transition hover:border-black">
           Edit
         </button>
-        <button type="button" onClick={onRemove} className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.06]" aria-label={`Remove ${method.type} ending in ${method.accountLast4}`}>
+        <button type="button" onClick={onRemove} className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.06]" aria-label={`Remove ${method.type} ending in ${last4}`}>
           <X size={18} />
         </button>
       </div>

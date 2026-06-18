@@ -28,6 +28,14 @@ import { prisma } from "@/lib/db";
 import { sendEmailChangeVerificationEmail } from "@/lib/email";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { usesPrismaPersistence } from "@/lib/repositories";
+import {
+  payoutIdentifierNeedsProtection,
+  protectPayoutIdentifierForStorage,
+  protectTaxIdentifierForStorage,
+  publicPayoutIdentifier,
+  publicTaxIdentifier,
+  taxIdentifierNeedsProtection,
+} from "@/lib/tax-id-protection";
 import type { User } from "@/lib/types";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 
@@ -65,6 +73,10 @@ const workTravelTextFields = ["email", "companyName", "department", "employeeId"
 const serviceFeeModes = ["single", "split"] as const;
 const donationApplyToValues = ["Bookings", "Payouts", "Both"] as const;
 const payoutTypes = ["Bank account", "PayPal", "GCash"] as const;
+const providedMarker = "Provided";
+const minimizedIdentityStatuses = new Set(["Verification started", "Verified", "Declined", "Expired"]);
+const personalInfoStorageFields = ["preferredName", "identity", "residentialAddress", "mailingAddress", "emergencyContact"] as const;
+const minimizedPersonalInfoFields = ["identity", "residentialAddress", "mailingAddress", "emergencyContact"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -82,6 +94,16 @@ function normalizeBoolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
 }
 
+function providedState(value: unknown) {
+  return normalizeText(value).trim() ? providedMarker : "";
+}
+
+function normalizeIdentityStatus(value: unknown) {
+  const status = normalizeText(value).trim();
+  if (!status) return "";
+  return minimizedIdentityStatuses.has(status) ? status : providedMarker;
+}
+
 function normalizePersonalInfo(user: User, value: unknown): PersonalInfoState {
   const defaults = defaultPersonalInfo(user);
   if (!isRecord(value)) return defaults;
@@ -91,6 +113,41 @@ function normalizePersonalInfo(user: User, value: unknown): PersonalInfoState {
     if (typeof value[field] === "string") next[field] = value[field];
   }
   return next;
+}
+
+function minimizePersonalInfoForStorage(personalInfo: PersonalInfoState) {
+  return {
+    preferredName: personalInfo.preferredName.trim(),
+    identity: normalizeIdentityStatus(personalInfo.identity),
+    residentialAddress: providedState(personalInfo.residentialAddress),
+    mailingAddress: providedState(personalInfo.mailingAddress),
+    emergencyContact: providedState(personalInfo.emergencyContact),
+  };
+}
+
+function minimizeStoredPersonalInfoForStorage(personalInfo: unknown) {
+  const value = isRecord(personalInfo) ? personalInfo : {};
+  return minimizePersonalInfoForStorage({
+    legalName: "",
+    preferredName: normalizeText(value.preferredName),
+    email: "",
+    phone: "",
+    identity: normalizeText(value.identity),
+    residentialAddress: normalizeText(value.residentialAddress),
+    mailingAddress: normalizeText(value.mailingAddress),
+    emergencyContact: normalizeText(value.emergencyContact),
+  });
+}
+
+function personalInfoNeedsMinimization(personalInfo: unknown) {
+  if (!isRecord(personalInfo)) return false;
+  const duplicatesProfileFields = ["legalName", "email", "phone"].some((field) => typeof personalInfo[field] === "string" && personalInfo[field].trim());
+  const hasUnexpectedField = Object.keys(personalInfo).some((field) => !personalInfoStorageFields.includes(field as typeof personalInfoStorageFields[number]));
+  const hasRawSensitiveText = minimizedPersonalInfoFields.some((field) => {
+    const value = normalizeText(personalInfo[field]).trim();
+    return value && value !== providedMarker && !minimizedIdentityStatuses.has(value);
+  });
+  return duplicatesProfileFields || hasUnexpectedField || hasRawSensitiveText;
 }
 
 function normalizeNotificationChannels(value: unknown, fallback: { email: boolean; push: boolean; sms: boolean }) {
@@ -194,7 +251,7 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
         brand: normalizeText(method.brand) || "Card",
         last4: normalizeText(method.last4).replace(/\D/g, "").slice(-4),
         expiry: normalizeText(method.expiry),
-        billingZip: normalizeText(method.billingZip),
+        billingZip: "",
       })).filter((method) => method.id && method.last4)
       : defaults.paymentMethods,
     giftCredits: Array.isArray(value.giftCredits)
@@ -215,24 +272,107 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
         type: typeof method.type === "string" && payoutTypes.includes(method.type as FinancialSettingsState["payoutMethods"][number]["type"]) ? method.type as FinancialSettingsState["payoutMethods"][number]["type"] : "Bank account",
         accountName: normalizeText(method.accountName),
         bankName: normalizeText(method.bankName),
-        accountLast4: normalizeText(method.accountLast4).replace(/\D/g, "").slice(-4),
+        accountLast4: publicPayoutIdentifier(method, "accountLast4"),
         currency: normalizeText(method.currency).toUpperCase() || "PHP",
       })).filter((method) => method.id && method.accountLast4)
       : defaults.payoutMethods,
     taxpayer: isRecord(value.taxpayer) ? {
       legalName: normalizeText(value.taxpayer.legalName),
       country: normalizeText(value.taxpayer.country) || "Philippines",
-      taxId: normalizeText(value.taxpayer.taxId),
-      address: normalizeText(value.taxpayer.address),
+      taxId: publicTaxIdentifier(value.taxpayer, "taxId"),
+      address: providedState(value.taxpayer.address) || (value.taxpayer.addressProvided === true ? providedMarker : ""),
     } : null,
     vat: isRecord(value.vat) ? {
       businessName: normalizeText(value.vat.businessName),
       country: normalizeText(value.vat.country) || "Philippines",
-      vatId: normalizeText(value.vat.vatId),
+      vatId: publicTaxIdentifier(value.vat, "vatId"),
     } : null,
     donationPreference: normalizeDonationPreference(value.donationPreference),
     serviceFeeMode: typeof value.serviceFeeMode === "string" && serviceFeeModes.includes(value.serviceFeeMode as FinancialSettingsState["serviceFeeMode"]) ? value.serviceFeeMode as FinancialSettingsState["serviceFeeMode"] : defaults.serviceFeeMode,
   };
+}
+
+function protectedIdentifierFields(input: string, existingRecord: unknown, field: string) {
+  const protectedId = protectTaxIdentifierForStorage(input, existingRecord, field);
+  if (!protectedId) {
+    return { [field]: "" };
+  }
+
+  return {
+    [field]: protectedId.display,
+    [`${field}Token`]: protectedId.token,
+    [`${field}Last4`]: protectedId.last4,
+    [`${field}ProtectedAt`]: protectedId.protectedAt,
+  };
+}
+
+function protectedPayoutIdentifierFields(input: string, existingRecord: unknown, field: string) {
+  const protectedId = protectPayoutIdentifierForStorage(input, existingRecord, field);
+  if (!protectedId) {
+    return { [field]: "" };
+  }
+
+  return {
+    [field]: protectedId.display,
+    [`${field}Token`]: protectedId.token,
+    [`${field}Last4`]: protectedId.last4,
+    [`${field}ProtectedAt`]: protectedId.protectedAt,
+  };
+}
+
+function protectFinancialSettingsForStorage(financial: FinancialSettingsState, existingFinancial: unknown) {
+  const existing = isRecord(existingFinancial) ? existingFinancial : {};
+  const existingPayoutMethods = Array.isArray(existing.payoutMethods) ? existing.payoutMethods : [];
+  const paymentMethods = financial.paymentMethods.map((method) => ({
+    ...method,
+    billingZip: "",
+    billingZipProvided: Boolean(method.billingZip.trim()),
+  }));
+  const payoutMethods = financial.payoutMethods.map((method) => {
+    const existingMethod = existingPayoutMethods.find((item) => isRecord(item) && item.id === method.id);
+    return {
+      ...method,
+      ...protectedPayoutIdentifierFields(method.accountLast4, existingMethod, "accountLast4"),
+    };
+  });
+  const taxpayer = financial.taxpayer
+    ? {
+      ...financial.taxpayer,
+      address: providedState(financial.taxpayer.address),
+      addressProvided: Boolean(financial.taxpayer.address.trim()),
+      ...protectedIdentifierFields(financial.taxpayer.taxId, existing.taxpayer, "taxId"),
+    }
+    : null;
+  const vat = financial.vat
+    ? {
+      ...financial.vat,
+      ...protectedIdentifierFields(financial.vat.vatId, existing.vat, "vatId"),
+    }
+    : null;
+
+  return {
+    ...financial,
+    paymentMethods,
+    payoutMethods,
+    taxpayer,
+    vat,
+  };
+}
+
+function financialSettingsNeedProtection(financial: unknown) {
+  if (!isRecord(financial)) return false;
+  const paymentAddressNeedsMinimization = Array.isArray(financial.paymentMethods)
+    && financial.paymentMethods.some((method) => isRecord(method) && normalizeText(method.billingZip).trim());
+  const taxpayerAddressNeedsMinimization = isRecord(financial.taxpayer)
+    && normalizeText(financial.taxpayer.address).trim()
+    && financial.taxpayer.address !== providedMarker;
+  const payoutNeedsProtection = Array.isArray(financial.payoutMethods)
+    && financial.payoutMethods.some((method) => payoutIdentifierNeedsProtection(method, "accountLast4"));
+  return paymentAddressNeedsMinimization
+    || taxpayerAddressNeedsMinimization
+    || payoutNeedsProtection
+    || taxIdentifierNeedsProtection(financial.taxpayer, "taxId")
+    || taxIdentifierNeedsProtection(financial.vat, "vatId");
 }
 
 function normalizeAccountSettings(user: User, stored?: Partial<StoredAccountSettings>): AccountSettingsData {
@@ -274,23 +414,51 @@ async function readStoredAccountSettings(userId: string) {
         financial: true,
       },
     });
+    const minimizePersonalInfo = record ? personalInfoNeedsMinimization(record.personalInfo) : false;
+    if (record && (minimizePersonalInfo || financialSettingsNeedProtection(record.financial))) {
+      const personalInfo = minimizePersonalInfo ? minimizeStoredPersonalInfoForStorage(record.personalInfo) : record.personalInfo;
+      const protectedFinancial = protectFinancialSettingsForStorage(normalizeFinancialSettings(record.financial), record.financial);
+      await prisma.accountSettings.update({
+        where: { userId },
+        data: {
+          personalInfo: personalInfo as Prisma.InputJsonValue,
+          financial: protectedFinancial as Prisma.InputJsonValue,
+        },
+      });
+      return fromDatabase({ ...record, personalInfo: personalInfo as Prisma.JsonValue, financial: protectedFinancial as Prisma.JsonValue });
+    }
     return fromDatabase(record);
   }
 
   const records = await readJsonStore<StoredAccountSettings>(storeFileName);
-  return records.find((record) => record.userId === userId);
+  const record = records.find((item) => item.userId === userId);
+  const minimizePersonalInfo = record ? personalInfoNeedsMinimization(record.personalInfo) : false;
+  if (record && (minimizePersonalInfo || financialSettingsNeedProtection(record.financial))) {
+    const personalInfo = minimizePersonalInfo ? minimizeStoredPersonalInfoForStorage(record.personalInfo) : record.personalInfo;
+    const protectedFinancial = protectFinancialSettingsForStorage(normalizeFinancialSettings(record.financial), record.financial);
+    const nextRecord = { ...record, personalInfo, financial: protectedFinancial };
+    await writeJsonStore(storeFileName, records.map((item) => (item.userId === userId ? nextRecord : item)));
+    return nextRecord;
+  }
+  return record;
 }
 
 async function writeStoredAccountSettings(userId: string, next: AccountSettingsData) {
   if (usesPrismaPersistence()) {
+    const existing = await prisma.accountSettings.findUnique({
+      where: { userId },
+      select: { financial: true },
+    });
+    const personalInfo = minimizePersonalInfoForStorage(next.personalInfo);
+    const financial = protectFinancialSettingsForStorage(next.financial, existing?.financial);
     const data = {
-      personalInfo: next.personalInfo as Prisma.InputJsonValue,
+      personalInfo: personalInfo as Prisma.InputJsonValue,
       notificationPreferences: next.notifications as Prisma.InputJsonValue,
       privacy: next.privacy as Prisma.InputJsonValue,
       bookingPermissions: next.bookingPermissions as Prisma.InputJsonValue,
       workTravel: next.workTravel as Prisma.InputJsonValue,
       professionalHostingTools: next.professionalHostingTools as Prisma.InputJsonValue,
-      financial: next.financial as Prisma.InputJsonValue,
+      financial: financial as Prisma.InputJsonValue,
     };
     await prisma.accountSettings.upsert({
       where: { userId },
@@ -301,15 +469,18 @@ async function writeStoredAccountSettings(userId: string, next: AccountSettingsD
   }
 
   const records = await readJsonStore<StoredAccountSettings>(storeFileName);
+  const existingRecord = records.find((record) => record.userId === userId);
+  const personalInfo = minimizePersonalInfoForStorage(next.personalInfo);
+  const financial = protectFinancialSettingsForStorage(next.financial, existingRecord?.financial);
   const replacement: StoredAccountSettings = {
     userId,
-    personalInfo: next.personalInfo,
+    personalInfo,
     notifications: next.notifications,
     privacy: next.privacy,
     bookingPermissions: next.bookingPermissions,
     workTravel: next.workTravel,
     professionalHostingTools: next.professionalHostingTools,
-    financial: next.financial,
+    financial,
   };
   const existing = records.some((record) => record.userId === userId);
   await writeJsonStore(storeFileName, existing ? records.map((record) => (record.userId === userId ? replacement : record)) : [replacement, ...records]);

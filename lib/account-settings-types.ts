@@ -77,7 +77,7 @@ export function defaultPersonalInfo(user: Pick<User, "name" | "email" | "phone">
     email: user.email,
     phone: user.phone,
     identity: "",
-    residentialAddress: "Provided",
+    residentialAddress: "",
     mailingAddress: "",
     emergencyContact: "",
   };
