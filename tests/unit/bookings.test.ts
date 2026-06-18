@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
 vi.mock("@/lib/env", () => ({ env: { PERSISTENCE_DRIVER: "json" } }));
 vi.mock("@/lib/repositories", () => ({
   usesPrismaPersistence: () => false,
@@ -31,6 +34,7 @@ import { cancelBookingByGuest, markBookingPaid } from "@/lib/bookings";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
+import { appendAuditLog } from "@/lib/audit-logs";
 
 const booking = {
   id: "booking-1",
@@ -71,6 +75,13 @@ describe("cancelBookingByGuest", () => {
         status: "closed",
       }),
     ]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: booking.guestId,
+      actorRole: "guest",
+      action: "booking.cancelled",
+      entityType: "booking",
+      entityId: booking.id,
+    }));
   });
 });
 
@@ -106,5 +117,34 @@ describe("markBookingPaid", () => {
         status: "banked",
       }),
     ]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "system",
+      actorRole: "system",
+      action: "payment.approved",
+      entityType: "payment",
+    }));
+  });
+
+  it("rejects a provider payment reference already used by another booking", async () => {
+    vi.mocked(readStoredPayments).mockResolvedValue([
+      {
+        id: "payment-other-booking",
+        bookingId: "booking-2",
+        guestId: "guest-2",
+        hostId: booking.hostId,
+        amount: 7000,
+        paymentMethod: "stripe",
+        paymentStatus: "paid",
+        transactionId: "pi_stripe_123",
+        createdAt: "2026-06-01",
+      },
+    ]);
+
+    await expect(markBookingPaid(booking.id, "pi_stripe_123")).rejects.toThrow("Payment reference has already been used.");
+
+    expect(writeStoredBookings).not.toHaveBeenCalled();
+    expect(writeStoredPayments).not.toHaveBeenCalled();
+    expect(writeStoredPlatformLedger).not.toHaveBeenCalled();
+    expect(appendAuditLog).not.toHaveBeenCalled();
   });
 });

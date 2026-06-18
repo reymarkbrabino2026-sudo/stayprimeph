@@ -1,9 +1,11 @@
 import "server-only";
 
 import Stripe from "stripe";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { env } from "@/lib/env";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { assertUniquePaymentReference } from "@/lib/payment-references";
 import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import {
@@ -12,7 +14,7 @@ import {
   rejectManualPaymentInDatabase,
   usesPrismaPersistence,
 } from "@/lib/repositories";
-import type { Booking, Payment, PaymentMethod } from "@/lib/types";
+import type { Booking, PaymentMethod } from "@/lib/types";
 
 const paidBookingsDisabledMessage = "Paid bookings are disabled until StayPrimePH launches a verified payment provider.";
 
@@ -129,6 +131,11 @@ export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { book
 
   const now = new Date().toISOString();
   const [payments, bookings] = await Promise.all([readStoredPayments(), readStoredBookings()]);
+  assertUniquePaymentReference(payments, {
+    bookingId: booking.id,
+    paymentMethod: payment.paymentMethod,
+    transactionId: payment.transactionId,
+  });
   const platformAmount = calculateStayprimeMarkupFromTotal(booking.totalPrice);
   await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
     ...item,
@@ -160,10 +167,24 @@ export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { book
       ? ledger.map((item) => (item.bookingId === booking.id ? entry : item))
       : [entry, ...ledger],
   );
+  await appendAuditLog({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "payment.approved",
+    entityType: "payment",
+    entityId: payment.id,
+    metadata: {
+      bookingId: booking.id,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      transactionId: payment.transactionId,
+    },
+  });
 }
 
 export async function rejectSubmittedPaymentByAdmin({
   booking,
+  adminId,
   rejectionReason,
 }: {
   booking: Booking;
@@ -178,12 +199,13 @@ export async function rejectSubmittedPaymentByAdmin({
   }
 
   if (usesPrismaPersistence()) {
-    await rejectManualPaymentInDatabase(booking.id, rejectionReason.trim());
+    await rejectManualPaymentInDatabase(booking.id, rejectionReason.trim(), adminId);
     return;
   }
 
   const now = new Date().toISOString();
   const [payments, bookings] = await Promise.all([readStoredPayments(), readStoredBookings()]);
+  const rejectedPayment = payments.find((item) => item.bookingId === booking.id);
   await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
     ...item,
     paymentStatus: "rejected",
@@ -197,6 +219,20 @@ export async function rejectSubmittedPaymentByAdmin({
     status: "pending",
     paymentStatus: "rejected",
   }));
+  await appendAuditLog({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "payment.rejected",
+    entityType: "payment",
+    entityId: rejectedPayment?.id ?? booking.id,
+    metadata: {
+      bookingId: booking.id,
+      amount: rejectedPayment?.amount ?? booking.totalPrice,
+      paymentMethod: rejectedPayment?.paymentMethod ?? null,
+      transactionId: rejectedPayment?.transactionId ?? null,
+      reason: rejectionReason.trim(),
+    },
+  });
 }
 
 export async function rejectManualPayment({

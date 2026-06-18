@@ -179,6 +179,8 @@ model Payment {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   booking         Booking   @relation(fields: [bookingId], references: [id])
+
+  @@unique([paymentMethod, transactionId])
 }
 
 model ListingBookingPackage {
@@ -379,6 +381,21 @@ model AdminLog {
   admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([adminId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id
+  actorId    String
+  actorRole  String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model AccountSettings {

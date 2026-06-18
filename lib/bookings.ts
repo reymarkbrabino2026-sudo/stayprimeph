@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { assertUniquePaymentReference } from "@/lib/payment-references";
 import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { cancelBookingInDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
@@ -33,13 +35,16 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
   const providerTransactionId = transactionId.trim();
   if (!providerTransactionId) throw new Error("Provider transaction ID is required.");
   if (usesPrismaPersistence()) return updateBookingPaymentInDatabase(bookingId, "paid", providerTransactionId);
-  const bookings = await readStoredBookings();
+  const [bookings, payments] = await Promise.all([readStoredBookings(), readStoredPayments()]);
   const booking = bookings.find((item) => item.id === bookingId);
-  await writeStoredBookings(bookings.map((item) => item.id === bookingId ? { ...item, status: "confirmed", paymentStatus: "paid" } : item));
   if (!booking) return;
+  assertUniquePaymentReference(payments, {
+    bookingId,
+    paymentMethod: "stripe",
+    transactionId: providerTransactionId,
+  });
 
   const now = new Date().toISOString();
-  const payments = await readStoredPayments();
   const existingPayment = payments.find((payment) => payment.bookingId === bookingId);
   const payment: Payment = {
     id: existingPayment?.id ?? `payment-${bookingId}`,
@@ -55,6 +60,7 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
     createdAt: existingPayment?.createdAt ?? now,
     updatedAt: now,
   };
+  await writeStoredBookings(bookings.map((item) => item.id === bookingId ? { ...item, status: "confirmed", paymentStatus: "paid" } : item));
   await writeStoredPayments(existingPayment
     ? payments.map((item) => (item.id === existingPayment.id ? payment : item))
     : [payment, ...payments]);
@@ -75,6 +81,20 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
       ? ledger.map((item) => (item.bookingId === bookingId ? entry : item))
       : [entry, ...ledger],
   );
+  await appendAuditLog({
+    actorId: "system",
+    actorRole: "system",
+    action: "payment.approved",
+    entityType: "payment",
+    entityId: payment.id,
+    metadata: {
+      bookingId,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      transactionId: payment.transactionId,
+      source: "provider_webhook",
+    },
+  });
 }
 
 function getCancellationStatus(booking: Booking) {
@@ -92,7 +112,7 @@ export async function cancelBookingByGuest(booking: Booking, reason?: string): P
   };
 
   if (usesPrismaPersistence()) {
-    await cancelBookingInDatabase(cancellation);
+    await cancelBookingInDatabase({ ...cancellation, actorId: booking.guestId, actorRole: "guest" });
     return cancellation;
   }
 
@@ -104,6 +124,20 @@ export async function cancelBookingByGuest(booking: Booking, reason?: string): P
       ? cancellations.map((item) => (item.bookingId === booking.id ? { ...item, ...cancellation, id: item.id, createdAt: item.createdAt } : item))
       : [cancellation, ...cancellations],
   );
+  await appendAuditLog({
+    actorId: booking.guestId,
+    actorRole: "guest",
+    action: "booking.cancelled",
+    entityType: "booking",
+    entityId: booking.id,
+    metadata: {
+      propertyId: booking.propertyId,
+      cancellationId: cancellation.id,
+      cancellationStatus: cancellation.status,
+      paymentStatus: booking.paymentStatus,
+      reason: reason ?? null,
+    },
+  });
 
   return cancellation;
 }

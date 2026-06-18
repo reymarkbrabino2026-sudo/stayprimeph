@@ -11,11 +11,12 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { assertUniquePaymentReference } from "@/lib/payment-references";
 import { getProperties } from "@/lib/properties";
 import {
-  confirmManualPaymentInDatabase,
   createBookingInDatabase,
   createUserInDatabase,
+  listPaymentsFromDatabase,
   recordManualPaymentInDatabase,
   usesPrismaPersistence,
 } from "@/lib/repositories";
@@ -140,7 +141,6 @@ export async function createExternalReservation(formData: FormData) {
     phone: data.guestPhone,
   });
   const now = new Date().toISOString();
-  const shouldFinalizePayment = user.role === "admin";
   const booking: Booking = {
     id: randomUUID(),
     propertyId: property.id,
@@ -150,8 +150,8 @@ export async function createExternalReservation(formData: FormData) {
     checkOut: data.checkOut,
     guests: data.guests,
     totalPrice: Math.round(data.totalPrice),
-    status: shouldFinalizePayment ? "confirmed" : "pending",
-    paymentStatus: shouldFinalizePayment ? "paid" : "submitted",
+    status: "pending",
+    paymentStatus: "submitted",
     createdAt: now.slice(0, 10),
     bookingPackageId: bookingPackage?.id,
     bookingPackageName: bookingPackage?.name,
@@ -164,17 +164,21 @@ export async function createExternalReservation(formData: FormData) {
     hostId: property.hostId,
     amount: booking.totalPrice,
     paymentMethod: data.paymentMethod as PaymentMethod,
-    paymentStatus: shouldFinalizePayment ? "paid" : "submitted",
+    paymentStatus: "submitted",
     transactionId: data.transactionId,
     notes: data.notes ? `External reservation: ${data.notes}` : "External reservation recorded by host.",
     submittedAt: now,
-    confirmedAt: shouldFinalizePayment ? now : undefined,
-    confirmedBy: shouldFinalizePayment ? user.id : undefined,
     createdAt: now,
     updatedAt: now,
   };
 
   if (usesPrismaPersistence()) {
+    const latestPayments = await listPaymentsFromDatabase();
+    assertUniquePaymentReference(latestPayments, {
+      bookingId: booking.id,
+      paymentMethod: payment.paymentMethod,
+      transactionId: payment.transactionId,
+    });
     await createBookingInDatabase(booking);
     await recordManualPaymentInDatabase(booking, {
       amount: payment.amount,
@@ -182,11 +186,15 @@ export async function createExternalReservation(formData: FormData) {
       transactionId: payment.transactionId,
       notes: payment.notes,
     });
-    if (shouldFinalizePayment) await confirmManualPaymentInDatabase(booking.id, user.id);
   } else {
     const [latestBookings, latestBlocks, latestPayments] = await Promise.all([readStoredBookings(), getAvailabilityBlocks(), readStoredPayments()]);
     if (hasDateConflict(latestBookings, data.propertyId, data.checkIn, data.checkOut)) throw new Error("Those dates are already booked.");
     if (hasAvailabilityBlockConflict(latestBlocks, data.propertyId, data.checkIn, data.checkOut)) throw new Error("Those dates are blocked on the calendar.");
+    assertUniquePaymentReference(latestPayments, {
+      bookingId: booking.id,
+      paymentMethod: payment.paymentMethod,
+      transactionId: payment.transactionId,
+    });
     await writeStoredBookings([booking, ...latestBookings]);
     await writeStoredPayments([payment, ...latestPayments.filter((item) => item.bookingId !== booking.id)]);
   }
@@ -201,5 +209,5 @@ export async function createExternalReservation(formData: FormData) {
   revalidatePath(`/properties/${property.id}`);
   revalidatePath(`/property/${property.slug}`);
   revalidatePath("/search");
-  redirect(`/host/erp/reservations?month=${data.checkIn.slice(0, 7)}&status=${shouldFinalizePayment ? "confirmed" : "pending"}`);
+  redirect(`/host/erp/reservations?month=${data.checkIn.slice(0, 7)}&status=pending`);
 }

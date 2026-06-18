@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking, Property, User } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
 
 const authState = vi.hoisted(() => ({
   currentUser: null as User | null,
@@ -70,8 +73,15 @@ vi.mock("@/lib/booking-store", () => ({
   writeStoredBookings: vi.fn(),
 }));
 
+vi.mock("@/lib/payment-store", () => ({
+  readStoredPayments: vi.fn(async () => []),
+  writeStoredPayments: vi.fn(),
+}));
+
 vi.mock("@/lib/email", () => ({
   sendBookingConfirmedEmail: vi.fn(),
+  sendBookingReceivedEmail: vi.fn(),
+  sendBookingRequestEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -139,6 +149,7 @@ vi.mock("@/lib/pricing", () => ({
 
 vi.mock("@/lib/properties", () => ({
   getPropertyById: vi.fn(),
+  getProperties: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/property-store", () => ({
@@ -165,8 +176,14 @@ vi.mock("@/lib/csrf", () => ({
 }));
 
 vi.mock("@/lib/repositories", () => ({
+  beginStripeCheckoutAttemptInDatabase: vi.fn(),
+  clearStripeCheckoutAttemptInDatabase: vi.fn(),
+  confirmManualPaymentInDatabase: vi.fn(),
   createBookingInDatabase: vi.fn(),
   createPropertyInDatabase: vi.fn(),
+  listPaymentsFromDatabase: vi.fn(async () => []),
+  recordStripeCheckoutSessionInDatabase: vi.fn(),
+  recordManualPaymentInDatabase: vi.fn(),
   updateBookingStatusInDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),
 }));
@@ -182,23 +199,32 @@ vi.mock("@/lib/users", () => ({
   getUsers: vi.fn(async () => []),
 }));
 
+vi.mock("@/lib/user-store", () => ({
+  readStoredUsers: vi.fn(async () => []),
+  writeStoredUsers: vi.fn(),
+}));
+
 import { savePersonalInfoAction } from "@/app/account-settings/actions";
 import { cancelGuestBooking } from "@/app/guest/bookings/actions";
 import { sendHostMessage } from "@/app/guest/messages/actions";
+import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
 import { createListing } from "@/app/host/listings/actions";
 import { acceptBooking } from "@/app/host/bookings/actions";
+import { createExternalReservation } from "@/app/host/erp/[section]/actions";
 import { sendGuestMessage } from "@/app/host/messages/actions";
 import { deleteHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
 import { POST as createPaymentCheckout } from "@/app/api/payments/checkout/route";
-import { cancelBookingByGuest, getBookingById, getBookings } from "@/lib/bookings";
+import { cancelBookingByGuest, getBookingById, getBookings, hasDateConflict } from "@/lib/bookings";
 import { savePersonalInfo } from "@/lib/account-settings";
 import { createMessage } from "@/lib/messages";
-import { getPropertyById } from "@/lib/properties";
+import { getProperties, getPropertyById } from "@/lib/properties";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
+import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { sendBookingConfirmedEmail } from "@/lib/email";
 import { readHostExpenses, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport } from "@/lib/host-report-store";
+import { confirmManualPaymentInDatabase } from "@/lib/repositories";
 import { getUserById } from "@/lib/users";
 
 const hostUser = {
@@ -222,6 +248,17 @@ const guestUser = {
   createdAt: "2026-06-18",
   emailVerifiedAt: "2026-06-18T00:00:00.000Z",
   passwordHash: "hash",
+} satisfies User;
+
+const adminUser = {
+  id: "admin-1",
+  name: "Admin One",
+  email: "admin@example.test",
+  role: "admin",
+  avatar: "AO",
+  phone: "",
+  createdAt: "2026-06-18",
+  emailVerifiedAt: "2026-06-18T00:00:00.000Z",
 } satisfies User;
 
 const booking = {
@@ -271,6 +308,7 @@ describe("IDOR protections", () => {
     vi.clearAllMocks();
     authState.currentUser = null;
     authState.stripeCheckoutCreate.mockClear();
+    vi.mocked(hasDateConflict).mockReturnValue(false);
   });
 
   it("blocks a host from accepting another host's booking", async () => {
@@ -293,6 +331,74 @@ describe("IDOR protections", () => {
 
     expect(writeStoredBookings).not.toHaveBeenCalled();
     expect(sendBookingConfirmedEmail).not.toHaveBeenCalled();
+  });
+
+  it("blocks a stale double-booking when dates are taken before the final write", async () => {
+    authState.currentUser = guestUser;
+    vi.mocked(getPropertyById).mockResolvedValueOnce(property);
+    vi.mocked(getBookings).mockResolvedValueOnce([]);
+    vi.mocked(hasDateConflict)
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    vi.mocked(readStoredBookings).mockResolvedValueOnce([
+      {
+        ...booking,
+        id: "existing-booking",
+        status: "confirmed",
+        checkIn: "2026-07-10",
+        checkOut: "2026-07-12",
+      },
+    ]);
+
+    await expect(
+      createBooking(formData({
+        propertyId: property.id,
+        checkIn: "2026-07-10",
+        checkOut: "2026-07-12",
+        guests: "2",
+      })),
+    ).rejects.toThrow("Those dates are no longer available.");
+
+    expect(writeStoredBookings).not.toHaveBeenCalled();
+  });
+
+  it("requires admin review even when an admin records an external manual payment", async () => {
+    authState.currentUser = adminUser;
+    vi.mocked(getProperties).mockResolvedValueOnce([property]);
+    vi.mocked(readStoredBookings).mockResolvedValueOnce([]);
+    vi.mocked(readStoredPayments).mockResolvedValueOnce([]);
+
+    await expect(
+      createExternalReservation(formData({
+        propertyId: property.id,
+        guestName: "Walk-in Guest",
+        guestEmail: "walkin@example.test",
+        checkIn: "2026-07-10",
+        checkOut: "2026-07-12",
+        guests: "2",
+        totalPrice: "5000",
+        paymentMethod: "gcash",
+        transactionId: "manual-ref-1",
+      })),
+    ).rejects.toThrow("NEXT_REDIRECT:/host/erp/reservations?month=2026-07&status=pending");
+
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        status: "pending",
+        paymentStatus: "submitted",
+      }),
+    ]);
+    expect(writeStoredPayments).toHaveBeenCalledWith([
+      expect.objectContaining({
+        paymentMethod: "gcash",
+        paymentStatus: "submitted",
+        transactionId: "manual-ref-1",
+      }),
+    ]);
+    const storedPayment = vi.mocked(writeStoredPayments).mock.calls[0]?.[0][0];
+    expect(storedPayment).not.toHaveProperty("confirmedAt");
+    expect(storedPayment).not.toHaveProperty("confirmedBy");
+    expect(confirmManualPaymentInDatabase).not.toHaveBeenCalled();
   });
 
   it("blocks a guest from cancelling another guest's booking", async () => {
@@ -456,6 +562,74 @@ describe("IDOR protections", () => {
       }),
     );
     expect(writeStoredBookings).not.toHaveBeenCalled();
+  });
+
+  it("does not create a second checkout session while one is pending for the booking", async () => {
+    authState.currentUser = guestUser;
+    vi.mocked(getBookings).mockResolvedValueOnce([booking]);
+    vi.mocked(getPropertyById).mockResolvedValueOnce(property);
+    vi.mocked(readStoredPayments).mockResolvedValueOnce([
+      {
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: booking.totalPrice,
+        paymentMethod: "stripe",
+        paymentStatus: "pending",
+        transactionId: `checkout-pending-${booking.id}`,
+        createdAt: "2026-06-18T00:00:00.000Z",
+      },
+    ]);
+
+    const response = await createPaymentCheckout(
+      new Request("https://example.test/api/payments/checkout", {
+        method: "POST",
+        body: JSON.stringify({ bookingId: booking.id }),
+      }),
+    );
+
+    await expect(response.json()).resolves.toEqual({ error: "A payment checkout is already in progress for this booking." });
+    expect(response.status).toBe(409);
+    expect(authState.stripeCheckoutCreate).not.toHaveBeenCalled();
+    expect(writeStoredPayments).not.toHaveBeenCalled();
+  });
+
+  it("clears a pending checkout attempt if provider session creation fails", async () => {
+    authState.currentUser = guestUser;
+    const pendingPayment = {
+      id: `payment-${booking.id}`,
+      bookingId: booking.id,
+      guestId: booking.guestId,
+      hostId: booking.hostId,
+      amount: booking.totalPrice,
+      paymentMethod: "stripe",
+      paymentStatus: "pending",
+      transactionId: `checkout-pending-${booking.id}`,
+      createdAt: "2026-06-18T00:00:00.000Z",
+    } as const;
+    vi.mocked(getBookings).mockResolvedValueOnce([booking]);
+    vi.mocked(getPropertyById).mockResolvedValueOnce(property);
+    vi.mocked(readStoredPayments)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([pendingPayment]);
+    authState.stripeCheckoutCreate.mockRejectedValueOnce(new Error("Stripe unavailable"));
+
+    await expect(createPaymentCheckout(
+      new Request("https://example.test/api/payments/checkout", {
+        method: "POST",
+        body: JSON.stringify({ bookingId: booking.id }),
+      }),
+    )).rejects.toThrow("Stripe unavailable");
+
+    expect(writeStoredPayments).toHaveBeenNthCalledWith(1, [
+      expect.objectContaining({
+        bookingId: booking.id,
+        paymentMethod: "stripe",
+        paymentStatus: "pending",
+      }),
+    ]);
+    expect(writeStoredPayments).toHaveBeenLastCalledWith([]);
   });
 
   it("saves account settings only for the authenticated account, not a submitted user id", async () => {

@@ -9,6 +9,12 @@ import { getStripe, isStripeCheckoutEnabled } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
+import {
+  beginStripeCheckoutAttempt,
+  checkoutInProgressMessage,
+  clearStripeCheckoutAttempt,
+  recordStripeCheckoutSession,
+} from "@/lib/stripe-checkout-attempts";
 
 const checkoutRequestSchema = z.object({
   bookingId: z.string().trim().min(1).max(120),
@@ -68,21 +74,40 @@ export async function POST(request: Request) {
   const property = await getPropertyById(booking.propertyId);
   const stripe = getStripe();
   if (!property || !stripe) return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    client_reference_id: booking.id,
-    success_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=processing`,
-    cancel_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=cancelled`,
-    metadata: { bookingId: booking.id },
-    payment_intent_data: { metadata: { bookingId: booking.id } },
-    line_items: [{
-      quantity: 1,
-      price_data: {
-        currency: "php",
-        unit_amount: booking.totalPrice * 100,
-        product_data: { name: property.title, description: `${booking.checkIn} to ${booking.checkOut}` },
-      },
-    }],
-  });
+  try {
+    await beginStripeCheckoutAttempt(booking);
+  } catch (error) {
+    if (error instanceof Error && error.message === checkoutInProgressMessage) {
+      return NextResponse.json({ error: checkoutInProgressMessage }, { status: 409 });
+    }
+    throw error;
+  }
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      client_reference_id: booking.id,
+      success_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=processing`,
+      cancel_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=cancelled`,
+      metadata: { bookingId: booking.id },
+      payment_intent_data: { metadata: { bookingId: booking.id } },
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: "php",
+          unit_amount: booking.totalPrice * 100,
+          product_data: { name: property.title, description: `${booking.checkIn} to ${booking.checkOut}` },
+        },
+      }],
+    });
+  } catch (error) {
+    await clearStripeCheckoutAttempt(booking.id);
+    throw error;
+  }
+
+  if (typeof session.id === "string") {
+    await recordStripeCheckoutSession(booking.id, session.id);
+  }
   return NextResponse.json({ url: session.url });
 }

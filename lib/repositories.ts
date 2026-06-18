@@ -1,10 +1,12 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
+import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, HostExpense, HostMonthlyReport, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, Review, User } from "@/lib/types";
+import type { AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostExpense, HostMonthlyReport, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, Review, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -42,6 +44,63 @@ function cacheGlobalEnsure(db: unknown, cached: Promise<void> | null, setCached:
   });
   setCached(promise);
   return promise;
+}
+
+async function insertAuditLog(
+  db: Pick<Prisma.TransactionClient, "$executeRaw">,
+  {
+    id,
+    actorId,
+    actorRole,
+    action,
+    entityType,
+    entityId,
+    metadata,
+    createdAt,
+  }: AuditLog,
+) {
+  const metadataJson = metadata ? JSON.stringify(metadata) : null;
+  await db.$executeRaw`
+    INSERT INTO "AuditLog" (
+      "id", "actorId", "actorRole", "action", "entityType", "entityId", "metadata", "createdAt"
+    )
+    VALUES (
+      ${id}, ${actorId}, ${actorRole}, ${action}, ${entityType}, ${entityId}, ${metadataJson}::jsonb, ${new Date(createdAt)}
+    )
+  `;
+}
+
+export async function appendAuditLogInDatabase(auditLog: AuditLog) {
+  await insertAuditLog(prisma, auditLog);
+}
+
+function auditLogData({
+  actorId,
+  actorRole,
+  action,
+  entityType,
+  entityId,
+  metadata,
+  createdAt = new Date(),
+}: {
+  actorId: string;
+  actorRole: AuditLog["actorRole"];
+  action: AuditLogAction;
+  entityType: string;
+  entityId: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: Date;
+}): AuditLog {
+  return {
+    id: randomUUID(),
+    actorId,
+    actorRole,
+    action,
+    entityType,
+    entityId,
+    metadata,
+    createdAt: createdAt.toISOString(),
+  };
 }
 
 async function ensurePlatformLedgerTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
@@ -496,6 +555,16 @@ export async function updateBookingPaymentInDatabase(bookingId: string, paymentS
   const confirmedAt = paymentStatus === "paid" ? now : null;
 
   await prisma.$transaction(async (tx) => {
+    const duplicatePayment = await tx.payment.findFirst({
+      where: {
+        paymentMethod: "stripe",
+        transactionId,
+        NOT: { bookingId },
+      },
+      select: { id: true },
+    });
+    if (duplicatePayment) throw new Error(duplicatePaymentReferenceMessage);
+
     const booking = await tx.booking.update({
       where: { id: bookingId },
       data: paymentStatus === "paid" ? { paymentStatus, status: "confirmed" } : { paymentStatus },
@@ -529,7 +598,89 @@ export async function updateBookingPaymentInDatabase(bookingId: string, paymentS
         source: "stripe",
         createdAt: now,
       });
+      await insertAuditLog(tx, auditLogData({
+        actorId: "system",
+        actorRole: "system",
+        action: "payment.approved",
+        entityType: "payment",
+        entityId: `payment-${bookingId}`,
+        metadata: {
+          bookingId,
+          amount: booking.totalPrice,
+          paymentMethod: "stripe",
+          transactionId,
+          source: "provider_webhook",
+        },
+        createdAt: now,
+      }));
     }
+  });
+}
+
+export async function beginStripeCheckoutAttemptInDatabase(booking: Booking) {
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    const existingPayment = await tx.payment.findUnique({
+      where: { bookingId: booking.id },
+      select: { id: true, paymentMethod: true, paymentStatus: true, createdAt: true },
+    });
+    if (existingPayment?.paymentMethod === "stripe" && existingPayment.paymentStatus === "pending") {
+      throw new Error("A payment checkout is already in progress for this booking.");
+    }
+
+    await tx.payment.upsert({
+      where: { bookingId: booking.id },
+      update: {
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: booking.totalPrice,
+        paymentMethod: "stripe",
+        paymentStatus: "pending",
+        transactionId: `checkout-pending-${booking.id}`,
+        rejectionReason: null,
+        confirmedBy: null,
+        submittedAt: null,
+        confirmedAt: null,
+        rejectedAt: null,
+        updatedAt: now,
+      },
+      create: {
+        id: `payment-${booking.id}`,
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: booking.totalPrice,
+        paymentMethod: "stripe",
+        paymentStatus: "pending",
+        transactionId: `checkout-pending-${booking.id}`,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  });
+}
+
+export async function recordStripeCheckoutSessionInDatabase(bookingId: string, sessionId: string) {
+  await prisma.payment.updateMany({
+    where: {
+      bookingId,
+      paymentMethod: "stripe",
+      paymentStatus: "pending",
+    },
+    data: {
+      transactionId: sessionId.trim(),
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function clearStripeCheckoutAttemptInDatabase(bookingId: string) {
+  await prisma.payment.deleteMany({
+    where: {
+      bookingId,
+      paymentMethod: "stripe",
+      paymentStatus: "pending",
+    },
   });
 }
 
@@ -543,16 +694,21 @@ export async function cancelBookingInDatabase({
   propertyId,
   reason,
   status,
+  actorId,
+  actorRole,
 }: {
   id: string;
   bookingId: string;
   propertyId: string;
   reason?: string;
   status: string;
+  actorId?: string;
+  actorRole?: AuditLog["actorRole"];
 }) {
-  await prisma.$transaction([
-    prisma.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } }),
-    prisma.cancellation.upsert({
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } });
+    await tx.cancellation.upsert({
       where: { bookingId },
       update: { reason: reason || null, status },
       create: {
@@ -562,8 +718,124 @@ export async function cancelBookingInDatabase({
         reason: reason || null,
         status,
       },
-    }),
-  ]);
+    });
+    await insertAuditLog(tx, auditLogData({
+      actorId: actorId ?? "system",
+      actorRole: actorRole ?? "system",
+      action: "booking.cancelled",
+      entityType: "booking",
+      entityId: bookingId,
+      metadata: { propertyId, cancellationId: id, cancellationStatus: status, reason: reason ?? null },
+      createdAt: now,
+    }));
+  });
+}
+
+export async function listCancellationsFromDatabase(): Promise<Cancellation[]> {
+  const cancellations = await prisma.cancellation.findMany({ orderBy: { createdAt: "desc" } });
+  return cancellations.map((cancellation) => ({
+    id: cancellation.id,
+    bookingId: cancellation.bookingId,
+    propertyId: cancellation.propertyId,
+    reason: cancellation.reason ?? undefined,
+    status: cancellation.status,
+    createdAt: cancellation.createdAt.toISOString(),
+  }));
+}
+
+export async function resolveCancellationReviewInDatabase({
+  bookingId,
+  resolution,
+  adminId,
+}: {
+  bookingId: string;
+  resolution: "refund" | "no_refund";
+  adminId: string;
+}) {
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    const cancellation = await tx.cancellation.findUnique({
+      where: { bookingId },
+      select: { status: true },
+    });
+    if (!cancellation || cancellation.status !== "review") {
+      throw new Error("No cancellation is waiting for admin review.");
+    }
+
+    const booking = await tx.booking.findUnique({
+      where: { id: bookingId },
+      select: { paymentStatus: true },
+    });
+    if (!booking) throw new Error("No cancellation is waiting for admin review.");
+
+    const payment = await tx.payment.findUnique({
+      where: { bookingId },
+      select: { paymentStatus: true },
+    });
+
+    const nextBookingPaymentStatus = resolution === "refund"
+      ? "refunded"
+      : booking.paymentStatus === "submitted" ? "rejected" : booking.paymentStatus;
+
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: { status: "cancelled", paymentStatus: nextBookingPaymentStatus },
+    });
+
+    if (payment) {
+      if (resolution === "refund") {
+        await tx.payment.update({
+          where: { bookingId },
+          data: {
+            paymentStatus: "refunded",
+            rejectionReason: null,
+            rejectedAt: null,
+            updatedAt: now,
+          },
+        });
+        await insertAuditLog(tx, auditLogData({
+          actorId: adminId,
+          actorRole: "admin",
+          action: "payment.refunded",
+          entityType: "payment",
+          entityId: bookingId,
+          metadata: { bookingId, previousPaymentStatus: payment.paymentStatus, cancellationResolution: resolution },
+          createdAt: now,
+        }));
+      } else if (payment.paymentStatus === "submitted") {
+        await tx.payment.update({
+          where: { bookingId },
+          data: {
+            paymentStatus: "rejected",
+            rejectionReason: "Cancellation closed without refund.",
+            rejectedAt: now,
+            confirmedAt: null,
+            confirmedBy: null,
+            updatedAt: now,
+          },
+        });
+        await insertAuditLog(tx, auditLogData({
+          actorId: adminId,
+          actorRole: "admin",
+          action: "payment.rejected",
+          entityType: "payment",
+          entityId: bookingId,
+          metadata: {
+            bookingId,
+            previousPaymentStatus: payment.paymentStatus,
+            reason: "Cancellation closed without refund.",
+            cancellationResolution: resolution,
+          },
+          createdAt: now,
+        }));
+      }
+    }
+
+    await tx.cancellation.update({
+      where: { bookingId },
+      data: { status: resolution === "refund" ? "refunded" : "closed" },
+    });
+  });
 }
 
 export async function listReviewsFromDatabase(): Promise<Review[]> {
@@ -867,12 +1139,22 @@ export async function recordManualPaymentInDatabase(
   payment: Pick<Payment, "amount" | "paymentMethod" | "transactionId" | "notes">,
 ) {
   const now = new Date();
-  await prisma.$transaction([
-    prisma.booking.update({
+  await prisma.$transaction(async (tx) => {
+    const duplicatePayment = await tx.payment.findFirst({
+      where: {
+        paymentMethod: payment.paymentMethod,
+        transactionId: payment.transactionId,
+        NOT: { bookingId: booking.id },
+      },
+      select: { id: true },
+    });
+    if (duplicatePayment) throw new Error(duplicatePaymentReferenceMessage);
+
+    await tx.booking.update({
       where: { id: booking.id },
       data: { status: "pending", paymentStatus: "submitted" },
-    }),
-    prisma.$executeRaw`
+    });
+    await tx.$executeRaw`
       INSERT INTO "Payment" (
         "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
         "transactionId", "notes", "submittedAt", "createdAt", "updatedAt"
@@ -895,13 +1177,29 @@ export async function recordManualPaymentInDatabase(
         "confirmedAt" = NULL,
         "rejectedAt" = NULL,
         "updatedAt" = EXCLUDED."updatedAt"
-    `,
-  ]);
+    `;
+  });
 }
 
 export async function confirmManualPaymentInDatabase(bookingId: string, confirmedBy: string) {
   const now = new Date();
   await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findUnique({
+      where: { bookingId },
+      select: { paymentMethod: true, transactionId: true },
+    });
+    if (!payment) throw new Error("No submitted payment is waiting for platform verification.");
+
+    const duplicatePayment = await tx.payment.findFirst({
+      where: {
+        paymentMethod: payment.paymentMethod,
+        transactionId: payment.transactionId,
+        NOT: { bookingId },
+      },
+      select: { id: true },
+    });
+    if (duplicatePayment) throw new Error(duplicatePaymentReferenceMessage);
+
     const booking = await tx.booking.update({
       where: { id: bookingId },
       data: { status: "confirmed", paymentStatus: "paid" },
@@ -924,17 +1222,30 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
       source: "manual_payment",
       createdAt: now,
     });
+    await insertAuditLog(tx, auditLogData({
+      actorId: confirmedBy,
+      actorRole: "admin",
+      action: "payment.approved",
+      entityType: "payment",
+      entityId: bookingId,
+      metadata: { bookingId, paymentMethod: payment.paymentMethod, transactionId: payment.transactionId },
+      createdAt: now,
+    }));
   });
 }
 
-export async function rejectManualPaymentInDatabase(bookingId: string, rejectionReason: string) {
+export async function rejectManualPaymentInDatabase(bookingId: string, rejectionReason: string, rejectedBy = "system") {
   const now = new Date();
-  await prisma.$transaction([
-    prisma.booking.update({
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findUnique({
+      where: { bookingId },
+      select: { paymentMethod: true, transactionId: true },
+    });
+    await tx.booking.update({
       where: { id: bookingId },
       data: { status: "pending", paymentStatus: "rejected" },
-    }),
-    prisma.$executeRaw`
+    });
+    await tx.$executeRaw`
       UPDATE "Payment"
       SET
         "paymentStatus" = ${"rejected"},
@@ -944,8 +1255,22 @@ export async function rejectManualPaymentInDatabase(bookingId: string, rejection
         "confirmedAt" = NULL,
         "updatedAt" = ${now}
       WHERE "bookingId" = ${bookingId}
-    `,
-  ]);
+    `;
+    await insertAuditLog(tx, auditLogData({
+      actorId: rejectedBy,
+      actorRole: rejectedBy === "system" ? "system" : "admin",
+      action: "payment.rejected",
+      entityType: "payment",
+      entityId: bookingId,
+      metadata: {
+        bookingId,
+        reason: rejectionReason,
+        paymentMethod: payment?.paymentMethod ?? null,
+        transactionId: payment?.transactionId ?? null,
+      },
+      createdAt: now,
+    }));
+  });
 }
 
 type DatabaseMessage = {

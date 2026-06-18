@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { getBookingById } from "@/lib/bookings";
@@ -97,6 +98,22 @@ async function updateHostBookingStatus(formData: FormData, status: BookingStatus
       ? storedBookings.map((item) => item.id === id ? { ...item, status } : item)
       : [{ ...booking, status }, ...storedBookings];
     await writeStoredBookings(nextBookings);
+  }
+
+  if (status === "cancelled") {
+    await appendAuditLog({
+      actorId: user.id,
+      actorRole: "host",
+      action: "booking.cancelled",
+      entityType: "booking",
+      entityId: booking.id,
+      metadata: {
+        propertyId: booking.propertyId,
+        paymentStatus: booking.paymentStatus,
+        previousStatus: booking.status,
+        reason: "Host rejected booking request.",
+      },
+    });
   }
 
   revalidatePath("/host/dashboard");

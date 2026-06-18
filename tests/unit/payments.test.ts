@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
 const { envState } = vi.hoisted(() => ({
   envState: {
     env: {
@@ -34,6 +37,7 @@ vi.mock("@/lib/booking-store", () => ({
 }));
 
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { arePaidBookingsEnabled, confirmManualPayment, isStripeCheckoutEnabled, submitManualPayment, verifySubmittedPaymentByAdmin } from "@/lib/payments";
@@ -184,5 +188,74 @@ describe("verifySubmittedPaymentByAdmin", () => {
         status: "banked",
       }),
     ]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "admin-1",
+      actorRole: "admin",
+      action: "payment.approved",
+      entityType: "payment",
+    }));
+  });
+
+  it("logs submitted payment rejections", async () => {
+    vi.mocked(readStoredPayments).mockResolvedValue([
+      {
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: booking.totalPrice,
+        paymentMethod: "gcash",
+        paymentStatus: "submitted",
+        transactionId: "gcash-reference",
+        createdAt: "2026-06-01",
+      },
+    ]);
+    vi.mocked(readStoredBookings).mockResolvedValue([booking]);
+
+    const { rejectSubmittedPaymentByAdmin } = await import("@/lib/payments");
+    await rejectSubmittedPaymentByAdmin({ booking, adminId: "admin-1", rejectionReason: "Reference not found" });
+
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "admin-1",
+      actorRole: "admin",
+      action: "payment.rejected",
+      entityType: "payment",
+      entityId: "payment-booking-1",
+      metadata: expect.objectContaining({ reason: "Reference not found" }),
+    }));
+  });
+
+  it("rejects admin verification when another booking already uses the same payment reference", async () => {
+    vi.mocked(readStoredPayments).mockResolvedValue([
+      {
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: booking.totalPrice,
+        paymentMethod: "gcash",
+        paymentStatus: "submitted",
+        transactionId: "gcash-reference",
+        createdAt: "2026-06-01",
+      },
+      {
+        id: "payment-booking-2",
+        bookingId: "booking-2",
+        guestId: "guest-2",
+        hostId: booking.hostId,
+        amount: 4500,
+        paymentMethod: "gcash",
+        paymentStatus: "paid",
+        transactionId: "gcash-reference",
+        createdAt: "2026-06-01",
+      },
+    ]);
+    vi.mocked(readStoredBookings).mockResolvedValue([booking]);
+
+    await expect(verifySubmittedPaymentByAdmin({ booking, adminId: "admin-1" })).rejects.toThrow("Payment reference has already been used.");
+
+    expect(writeStoredPayments).not.toHaveBeenCalled();
+    expect(writeStoredBookings).not.toHaveBeenCalled();
+    expect(writeStoredPlatformLedger).not.toHaveBeenCalled();
   });
 });
