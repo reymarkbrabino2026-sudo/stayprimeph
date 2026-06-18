@@ -10,6 +10,17 @@ type LocalStorageStateOptions<T> = {
 };
 
 const localStorageStateEvent = "stayprimeph:local-storage-state";
+const sensitiveClientStorageKeyPattern = /(^|[-_:])(auth|authorization|bearer|cookie|csrf|jwt|session|token)([-_:]|$)/i;
+
+export function isSensitiveClientStorageKey(key: string) {
+  return sensitiveClientStorageKeyPattern.test(key);
+}
+
+function assertSafeClientStorageKey(key: string) {
+  if (isSensitiveClientStorageKey(key)) {
+    throw new Error("Auth and session tokens must not be stored in localStorage.");
+  }
+}
 
 function parseStoredValue<T>(raw: string, fallback: T, deserialize?: (value: string) => T) {
   try {
@@ -28,6 +39,7 @@ export function useLocalStorageState<T>(
   defaultValue: T,
   options: LocalStorageStateOptions<T> = {},
 ): [T, (action: SetLocalStorageStateAction<T>) => void, () => void] {
+  assertSafeClientStorageKey(key);
   const { serialize = JSON.stringify, deserialize } = options;
   const snapshotRef = useRef<{ raw: string | null; value: T } | null>(null);
 
