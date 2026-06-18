@@ -61,4 +61,20 @@ describe("infrastructure security controls", () => {
     expect(dockerfile).not.toContain("ARG AUTH_SECRET");
     expect(dockerfile).not.toContain("sk_live_");
   });
+
+  test("configures API CORS through an explicit allowlist", async () => {
+    const [cors, proxy, productionEnv] = await Promise.all([
+      readRepoFile("lib/cors.ts"),
+      readRepoFile("proxy.ts"),
+      readRepoFile(".env.production.example"),
+    ]);
+
+    expect(cors).toContain("API_CORS_ALLOWED_ORIGINS");
+    expect(cors).toContain('origin !== "*"');
+    expect(cors).toContain('process.env.NODE_ENV === "production" && url.protocol !== "https:"');
+    expect(cors).not.toContain("Access-Control-Allow-Credentials");
+    expect(proxy).toContain('request.method === "OPTIONS"');
+    expect(proxy).toContain("corsHeaders(request.headers.get(\"origin\"))");
+    expect(productionEnv).toContain('API_CORS_ALLOWED_ORIGINS=""');
+  });
 });

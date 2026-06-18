@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCanonicalPathname } from "@/lib/canonical-paths";
+import { corsHeaders } from "@/lib/cors";
 
 const sessionCookieName = "stayprimeph_session";
 
@@ -22,7 +23,19 @@ function getProtectedRoute(pathname: string) {
   return protectedRoutes.find((route) => matchesPrefix(pathname, route.prefix));
 }
 
-function withSecurityHeaders(response: NextResponse) {
+function withCorsHeaders(request: NextRequest, response: NextResponse) {
+  if (!request.nextUrl.pathname.startsWith("/api/")) return response;
+
+  const headers = corsHeaders(request.headers.get("origin"));
+  if (!headers) return response;
+
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
+function withSecurityHeaders(request: NextRequest, response: NextResponse) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -31,7 +44,7 @@ function withSecurityHeaders(response: NextResponse) {
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   response.headers.set("X-Request-Id", crypto.randomUUID());
-  return response;
+  return withCorsHeaders(request, response);
 }
 
 function toHex(buffer: ArrayBuffer) {
@@ -99,11 +112,16 @@ function buildLoginUrl(request: NextRequest, role?: "admin" | "host" | "guest") 
 }
 
 export async function proxy(request: NextRequest) {
+  if (request.method === "OPTIONS" && request.nextUrl.pathname.startsWith("/api/")) {
+    const cors = corsHeaders(request.headers.get("origin"));
+    return withSecurityHeaders(request, new NextResponse(null, { status: cors ? 204 : 403 }));
+  }
+
   const canonicalPathname = getCanonicalPathname(request.nextUrl.pathname);
   if (canonicalPathname && canonicalPathname !== request.nextUrl.pathname) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = canonicalPathname;
-    return withSecurityHeaders(NextResponse.redirect(redirectUrl));
+    return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
   }
 
   const protectedRoute = getProtectedRoute(request.nextUrl.pathname);
@@ -111,11 +129,11 @@ export async function proxy(request: NextRequest) {
     const sessionValue = request.cookies.get(sessionCookieName)?.value;
     const validSession = await hasValidSession(sessionValue);
     if (!validSession) {
-      return withSecurityHeaders(NextResponse.redirect(buildLoginUrl(request, protectedRoute.role)));
+      return withSecurityHeaders(request, NextResponse.redirect(buildLoginUrl(request, protectedRoute.role)));
     }
   }
 
-  return withSecurityHeaders(NextResponse.next());
+  return withSecurityHeaders(request, NextResponse.next());
 }
 
 export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
