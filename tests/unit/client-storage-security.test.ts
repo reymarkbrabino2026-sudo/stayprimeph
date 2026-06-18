@@ -47,4 +47,13 @@ describe("client storage security", () => {
 
     expect(offenders).toEqual([]);
   });
+
+  test("does not bypass React escaping with raw HTML injection", async () => {
+    const files = (await Promise.all(sourceRoots.map(readSourceFiles))).flat();
+    const offenders = files
+      .filter(({ text }) => text.includes("dangerouslySetInnerHTML"))
+      .map(({ file }) => file);
+
+    expect(offenders).toEqual([]);
+  });
 });
