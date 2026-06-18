@@ -6,6 +6,7 @@ function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
   const address = "123 Prime Street, Mamacao, Santa Maria, Davao Occidental, Philippines, 8011";
 
   return {
+    uploadScopeId: "draft-test",
     country: "Philippines",
     street: "123 Prime Street",
     barangay: "Mamacao",

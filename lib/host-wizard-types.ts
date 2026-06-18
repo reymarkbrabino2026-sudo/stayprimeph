@@ -47,6 +47,7 @@ export interface HostBookingPackageDraft {
 }
 
 export interface HostListingDraft {
+  uploadScopeId: string;
   country: string;
   street: string;
   barangay: string;

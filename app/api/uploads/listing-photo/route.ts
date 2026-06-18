@@ -8,8 +8,10 @@ import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhotoStorage } from "@/lib/photo-storage";
+import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
+import { cloudinaryListingUploadFolder, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
 
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -35,6 +37,18 @@ function hasExpectedImageSignature(bytes: Buffer, type: string) {
     return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
   }
   return false;
+}
+
+async function requireListingUploadScope(userId: string, value: FormDataEntryValue | null) {
+  const listingId = normalizeUploadScopeId(String(value ?? ""), "");
+  if (!listingId) throw new Error("Missing upload scope.");
+
+  if (!listingId.startsWith("draft-")) {
+    const property = await getPropertyById(listingId);
+    if (!property || property.hostId !== userId) throw new Error("Invalid upload scope.");
+  }
+
+  return listingId;
 }
 
 export async function POST(request: Request) {
@@ -65,6 +79,13 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
+  let listingId: string;
+  try {
+    listingId = await requireListingUploadScope(user.id, formData.get("listingId"));
+  } catch {
+    return NextResponse.json({ error: "Upload photos from a valid listing draft or listing." }, { status: 400 });
+  }
+
   const file = formData.get("file");
   if (!(file instanceof File) || !acceptedTypes.has(file.type) || !hasAcceptedFileExtension(file.name, file.type)) {
     return NextResponse.json({ error: "Upload a JPG, PNG, or WebP image." }, { status: 400 });
@@ -79,6 +100,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The uploaded file does not match its image type." }, { status: 400 });
   }
 
+  const uploadPath = serverGeneratedListingUploadPath({
+    userId: user.id,
+    listingId,
+    requestedPathname: file.name,
+  });
+
   if (hasCloudinaryConfig()) {
     try {
       cloudinary.config({
@@ -89,7 +116,12 @@ export async function POST(request: Request) {
       });
       const uploaded = await new Promise<{ secure_url: string; public_id: string; bytes: number }>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: "stayprimeph/listings", resource_type: "image" },
+          {
+            folder: cloudinaryListingUploadFolder(user.id, listingId),
+            public_id: path.basename(uploadPath, path.extname(uploadPath)),
+            overwrite: false,
+            resource_type: "image",
+          },
           (error, result) => {
             if (error || !result) reject(error ?? new Error("Upload failed."));
             else resolve({ secure_url: result.secure_url, public_id: result.public_id, bytes: result.bytes });
@@ -107,9 +139,7 @@ export async function POST(request: Request) {
   if (hasVercelBlobConfig()) {
     try {
       const token = getPhotoBlobReadWriteToken();
-      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const fileName = `${crypto.randomUUID()}.${extension}`;
-      const blob = await put(`uploads/listings/${fileName}`, bytes, {
+      const blob = await put(uploadPath, bytes, {
         access: "public",
         contentType: file.type,
         token,
@@ -131,14 +161,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Photo storage is not configured. Add Cloudinary or Vercel Blob environment variables in Vercel." }, { status: 503 });
   }
 
-  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const fileName = `${crypto.randomUUID()}.${extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "listings");
+  const uploadDir = path.join(process.cwd(), "public", path.dirname(uploadPath));
   await fs.mkdir(uploadDir, { recursive: true });
-  await fs.writeFile(path.join(uploadDir, fileName), bytes);
+  await fs.writeFile(path.join(process.cwd(), "public", uploadPath), bytes);
   return NextResponse.json({
-    id: fileName,
-    url: `/uploads/listings/${fileName}`,
+    id: uploadPath,
+    url: `/${uploadPath}`,
     bytes: bytes.length,
     storage: "local-dev",
   });

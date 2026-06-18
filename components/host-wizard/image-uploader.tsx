@@ -14,7 +14,7 @@ interface UploadResponse {
   bytes: number;
 }
 
-function uploadOne(file: File, onProgress: (percent: number) => void): Promise<UploadResponse> {
+function uploadOne(file: File, listingId: string, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/uploads/listing-photo");
@@ -46,6 +46,7 @@ function uploadOne(file: File, onProgress: (percent: number) => void): Promise<U
     xhr.ontimeout = () => reject(new Error("Upload timed out. Try a smaller image."));
     const body = new FormData();
     body.append("file", file);
+    body.append("listingId", listingId);
     xhr.send(body);
   });
 }
@@ -80,7 +81,7 @@ export function ImageUploader() {
       };
 
       const uploaded = await Promise.all(accepted.map(async (file, index) => {
-        const result = await uploadOne(file, (percent) => updateFileProgress(index, percent));
+        const result = await uploadOne(file, draft.uploadScopeId, (percent) => updateFileProgress(index, percent));
         updateFileProgress(index, 100);
         return { id: result.id, url: result.url, name: file.name, size: result.bytes, isCover: false };
       }));

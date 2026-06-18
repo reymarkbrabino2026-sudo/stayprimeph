@@ -4,7 +4,7 @@ import path from "node:path";
 const acceptedListingPhotoExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 function safePathSegment(value: string) {
-  return value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80) || "host";
+  return value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
 }
 
 export function extensionFromRequestedPath(pathname: string) {
@@ -13,12 +13,20 @@ export function extensionFromRequestedPath(pathname: string) {
   return extension === ".jpeg" ? ".jpg" : extension;
 }
 
-export function serverGeneratedListingUploadPath(input: { hostId: string; requestedPathname: string; uploadId?: string }) {
-  const extension = extensionFromRequestedPath(input.requestedPathname);
-  const uploadId = input.uploadId ?? randomUUID();
-  return `uploads/listings/${safePathSegment(input.hostId)}/${uploadId}${extension}`;
+export function normalizeUploadScopeId(value: string, fallback = "draft") {
+  return safePathSegment(value) || fallback;
 }
 
-export function listingUploadHostPrefix(hostId: string) {
-  return `uploads/listings/${safePathSegment(hostId)}/`;
+export function serverGeneratedListingUploadPath(input: { userId: string; listingId: string; requestedPathname: string; uploadId?: string }) {
+  const extension = extensionFromRequestedPath(input.requestedPathname);
+  const uploadId = input.uploadId ?? randomUUID();
+  return `${listingUploadScopePrefix(input.userId, input.listingId)}${uploadId}${extension}`;
+}
+
+export function listingUploadScopePrefix(userId: string, listingId: string) {
+  return `uploads/listings/${normalizeUploadScopeId(userId, "user")}/${normalizeUploadScopeId(listingId)}/`;
+}
+
+export function cloudinaryListingUploadFolder(userId: string, listingId: string) {
+  return `stayprimeph/${listingUploadScopePrefix(userId, listingId).replace(/\/$/, "")}`;
 }

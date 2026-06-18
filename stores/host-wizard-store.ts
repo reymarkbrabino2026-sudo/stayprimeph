@@ -42,7 +42,13 @@ const defaultBookingPackages = [
   },
 ];
 
+function newUploadScopeId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return `draft-${crypto.randomUUID()}`;
+  return `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 const initialDraft: HostListingDraft = {
+  uploadScopeId: "",
   country: "Philippines", street: "", barangay: "", city: "", province: "", zipCode: "", latitude: 14.5995, longitude: 120.9842, locationPinned: false, locationConfirmed: false, locationConfirmedAddress: "", lastAutoGeocodeAddress: "",
   propertyType: "", privacyType: "", preciseLocation: false, guests: 4, bedrooms: 1, beds: 1, bathrooms: 1, amenityIds: [], photos: [], title: "", highlights: [], description: "",
   bookingMode: "request", pricingMode: "simple", basePrice: 2528, weekendPrice: 2579, weekendPremium: 2, cleaningFee: 500, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
@@ -81,6 +87,7 @@ interface HostWizardState {
 function createInitialDraft(): HostListingDraft {
   return {
     ...initialDraft,
+    uploadScopeId: newUploadScopeId(),
     amenityIds: [...initialDraft.amenityIds],
     photos: [...initialDraft.photos],
     highlights: [...initialDraft.highlights],
@@ -95,6 +102,7 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
   return {
     ...createInitialDraft(),
     ...draft,
+    uploadScopeId: draft?.uploadScopeId || newUploadScopeId(),
     discounts: { ...initialDraft.discounts, ...draft?.discounts },
     safetyDisclosures: { ...initialDraft.safetyDisclosures, ...draft?.safetyDisclosures },
     residentialAddress: { ...initialDraft.residentialAddress, ...draft?.residentialAddress },
