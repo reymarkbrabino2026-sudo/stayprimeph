@@ -1335,7 +1335,7 @@ function decodeStoredAuthTokenType(value: string): Pick<AuthToken, "type" | "met
     }
   }
 
-  if (value === "email_verification" || value === "password_reset" || value === "admin_mfa") return { type: value };
+  if (value === "email_verification" || value === "password_reset" || value === "admin_mfa" || value === "account_deletion") return { type: value };
   return null;
 }
 

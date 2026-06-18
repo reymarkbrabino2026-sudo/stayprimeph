@@ -23,6 +23,7 @@ const tokenTtlMs: Record<AuthToken["type"], number> = {
   email_change: 1000 * 60 * 60,
   password_reset: 1000 * 60 * 20,
   admin_mfa: 1000 * 60 * 10,
+  account_deletion: 1000 * 60 * 60 * 24,
 };
 
 type StoredAccountSettings = {
@@ -62,11 +63,11 @@ export async function issueAuthToken(userId: string, type: AuthToken["type"], me
     createdAt: new Date().toISOString(),
   };
   if (usesPrismaPersistence()) {
-    if (type === "email_change" || type === "admin_mfa") await deleteAuthTokensForUserInDatabase(userId, type);
+    if (type === "email_change" || type === "admin_mfa" || type === "account_deletion") await deleteAuthTokensForUserInDatabase(userId, type);
     await createAuthTokenInDatabase(token);
   } else {
     const tokens = (await readStoredAuthTokens()).filter((item) => item.expiresAt > new Date().toISOString());
-    const activeTokens = type === "email_change" || type === "admin_mfa" ? tokens.filter((item) => item.userId !== userId || item.type !== type) : tokens;
+    const activeTokens = type === "email_change" || type === "admin_mfa" || type === "account_deletion" ? tokens.filter((item) => item.userId !== userId || item.type !== type) : tokens;
     await writeStoredAuthTokens([token, ...activeTokens]);
   }
   return rawToken;

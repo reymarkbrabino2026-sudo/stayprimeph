@@ -16,6 +16,10 @@ vi.mock("@/lib/account-settings", () => ({
   saveWorkTravelProfile: vi.fn(),
 }));
 
+vi.mock("@/lib/account-deletion", () => ({
+  requestAccountDeletion: vi.fn(),
+}));
+
 vi.mock("@/lib/user-data-export", () => ({
   requestUserDataExport: vi.fn(),
 }));
@@ -33,9 +37,10 @@ vi.mock("@/lib/request-safety", () => ({
   assertTrustedRequestOrigin: vi.fn(),
 }));
 
-import { requestUserDataExportAction, saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { requestAccountDeletionAction, requestUserDataExportAction, saveFinancialSettingsAction } from "@/app/account-settings/actions";
 import { defaultFinancialSettings } from "@/lib/account-settings-types";
 import { saveFinancialSettings } from "@/lib/account-settings";
+import { requestAccountDeletion } from "@/lib/account-deletion";
 import { requireUser, verifyPassword } from "@/lib/auth";
 import { requestUserDataExport } from "@/lib/user-data-export";
 import type { User } from "@/lib/types";
@@ -131,5 +136,31 @@ describe("account data export action", () => {
 
     expect(result).toEqual({ ok: true, data: exportResult });
     expect(requestUserDataExport).toHaveBeenCalledWith(guestUser);
+  });
+});
+
+describe("account deletion request action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("requires a verified email before requesting account deletion", async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce({ ...guestUser, emailVerifiedAt: undefined });
+
+    const result = await requestAccountDeletionAction();
+
+    expect(result).toEqual({ ok: false, error: "Verify your email address before using this feature." });
+    expect(requestAccountDeletion).not.toHaveBeenCalled();
+  });
+
+  it("sends a deletion verification request for verified users", async () => {
+    const deletionRequest = { requestedAt: "2026-06-18T00:00:00.000Z" };
+    vi.mocked(requireUser).mockResolvedValueOnce(guestUser);
+    vi.mocked(requestAccountDeletion).mockResolvedValueOnce(deletionRequest);
+
+    const result = await requestAccountDeletionAction();
+
+    expect(result).toEqual({ ok: true, data: deletionRequest });
+    expect(requestAccountDeletion).toHaveBeenCalledWith(guestUser);
   });
 });

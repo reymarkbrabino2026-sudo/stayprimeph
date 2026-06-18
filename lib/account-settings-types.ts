@@ -39,6 +39,7 @@ export type PrivacySettingsState = {
   blockedPeople: string[];
   dataRequestedAt: string | null;
   deletionRequestedAt: string | null;
+  deletionVerifiedAt: string | null;
 };
 
 export type BookingPermissionId = "profilePhoto" | "verifiedPhone" | "instantBooking" | "newGuests";
@@ -105,6 +106,7 @@ export function defaultPrivacySettings(): PrivacySettingsState {
     blockedPeople: [],
     dataRequestedAt: null,
     deletionRequestedAt: null,
+    deletionVerifiedAt: null,
   };
 }
 

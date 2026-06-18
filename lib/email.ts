@@ -332,6 +332,20 @@ export async function sendPasswordChangedEmail(input: { to: string; name: string
   });
 }
 
+export async function sendAccountDeletionVerificationEmail(input: { to: string; name: string; token: string }) {
+  const url = `${env.NEXT_PUBLIC_APP_URL}/account-deletion/verify/${encodeURIComponent(input.token)}`;
+  await sendEmail({
+    to: input.to,
+    subject: "Verify your StayPrimePH account deletion request",
+    html: simpleEmail({
+      headline: "Verify account deletion",
+      body: `Hi ${input.name}, confirm that you requested deletion or anonymization for this StayPrimePH account. This link expires in 24 hours. If this was not you, ignore this email and change your password.`,
+      buttonText: "Verify Deletion Request",
+      buttonUrl: url,
+    }),
+  });
+}
+
 export async function sendBookingReceivedEmail(input: BookingEmailDetails) {
   await sendEmail({
     to: input.to,

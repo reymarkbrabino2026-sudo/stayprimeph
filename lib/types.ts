@@ -83,7 +83,7 @@ export interface HostExpense {
   createdAt: string;
   updatedAt: string;
 }
-export interface AuthToken { id: string; userId: string; tokenHash: string; type: "email_verification" | "email_change" | "password_reset" | "admin_mfa"; expiresAt: string; createdAt: string; metadata?: Record<string, unknown>; }
+export interface AuthToken { id: string; userId: string; tokenHash: string; type: "email_verification" | "email_change" | "password_reset" | "admin_mfa" | "account_deletion"; expiresAt: string; createdAt: string; metadata?: Record<string, unknown>; }
 export interface AuthSession { id: string; userId: string; sessionHash: string; expiresAt: string; createdAt: string; }
 export interface Cancellation { id: string; bookingId: string; propertyId: string; reason?: string; status: string; createdAt: string; }
 export type AuditLogAction = "payment.approved" | "payment.rejected" | "payment.refunded" | "booking.cancelled";

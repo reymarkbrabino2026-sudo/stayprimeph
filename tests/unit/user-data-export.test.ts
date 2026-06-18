@@ -86,6 +86,7 @@ const privacy = {
   blockedPeople: [],
   dataRequestedAt: null,
   deletionRequestedAt: null,
+  deletionVerifiedAt: null,
 };
 
 function mockExportSources() {

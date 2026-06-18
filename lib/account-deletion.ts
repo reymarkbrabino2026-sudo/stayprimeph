@@ -1,7 +1,10 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { getAccountSettings, savePrivacySettings } from "@/lib/account-settings";
+import { consumeAuthToken, issueAuthToken } from "@/lib/auth-tokens";
 import { prisma } from "@/lib/db";
+import { sendAccountDeletionVerificationEmail } from "@/lib/email";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-store";
 import { readStoredBookings } from "@/lib/booking-store";
@@ -15,6 +18,11 @@ import type { Booking, User, WishlistItem } from "@/lib/types";
 type StoredAccountSettings = {
   userId: string;
   privacy?: unknown;
+};
+
+export type DeletionRequest = {
+  requestedAt: string;
+  verifiedAt: string | null;
 };
 
 function anonymizedEmail(userId: string) {
@@ -33,26 +41,112 @@ function deletionRequestedAtFromPrivacy(value: unknown) {
   return typeof requestedAt === "string" ? requestedAt : null;
 }
 
+function deletionVerifiedAtFromPrivacy(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const verifiedAt = (value as { deletionVerifiedAt?: unknown }).deletionVerifiedAt;
+  return typeof verifiedAt === "string" ? verifiedAt : null;
+}
+
+function deletionRequestFromPrivacy(value: unknown): DeletionRequest | null {
+  const requestedAt = deletionRequestedAtFromPrivacy(value);
+  if (!requestedAt) return null;
+  return {
+    requestedAt,
+    verifiedAt: deletionVerifiedAtFromPrivacy(value),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 export async function getDeletionRequestMap() {
-  const requests = new Map<string, string>();
+  const requests = new Map<string, DeletionRequest>();
 
   if (usesPrismaPersistence()) {
     const records = await prisma.accountSettings.findMany({
       select: { userId: true, privacy: true },
     });
     for (const record of records) {
-      const requestedAt = deletionRequestedAtFromPrivacy(record.privacy);
-      if (requestedAt) requests.set(record.userId, requestedAt);
+      const request = deletionRequestFromPrivacy(record.privacy);
+      if (request) requests.set(record.userId, request);
     }
     return requests;
   }
 
   const records = await readJsonStore<StoredAccountSettings>("account-settings.json");
   for (const record of records) {
-    const requestedAt = deletionRequestedAtFromPrivacy(record.privacy);
-    if (requestedAt) requests.set(record.userId, requestedAt);
+    const request = deletionRequestFromPrivacy(record.privacy);
+    if (request) requests.set(record.userId, request);
   }
   return requests;
+}
+
+async function writeDeletionPrivacyState(userId: string, patch: { requestedAt?: string; verifiedAt?: string | null }) {
+  if (usesPrismaPersistence()) {
+    const record = await prisma.accountSettings.findUnique({
+      where: { userId },
+      select: { privacy: true },
+    });
+    const currentPrivacy = isRecord(record?.privacy) ? record.privacy : {};
+    const privacy = {
+      ...currentPrivacy,
+      ...(patch.requestedAt ? { deletionRequestedAt: patch.requestedAt } : {}),
+      deletionVerifiedAt: patch.verifiedAt ?? null,
+    };
+    await prisma.accountSettings.update({
+      where: { userId },
+      data: { privacy },
+    });
+    return privacy;
+  }
+
+  const records = await readJsonStore<StoredAccountSettings>("account-settings.json");
+  await writeJsonStore("account-settings.json", records.map((record) => {
+    if (record.userId !== userId) return record;
+    const currentPrivacy = isRecord(record.privacy) ? record.privacy : {};
+    return {
+      ...record,
+      privacy: {
+        ...currentPrivacy,
+        ...(patch.requestedAt ? { deletionRequestedAt: patch.requestedAt } : {}),
+        deletionVerifiedAt: patch.verifiedAt ?? null,
+      },
+    };
+  }));
+}
+
+async function requireVerifiedDeletionRequest(userId: string) {
+  const requests = await getDeletionRequestMap();
+  const request = requests.get(userId);
+  if (!request?.requestedAt) throw new Error("This account has not requested deletion.");
+  if (!request.verifiedAt) throw new Error("The account owner must verify the deletion request by email before anonymization.");
+}
+
+export async function requestAccountDeletion(user: User) {
+  if (user.role === "admin") throw new Error("Admin accounts cannot request deletion from this screen.");
+  if (user.email.endsWith("@deleted.stayprimeph.local")) throw new Error("This account has already been anonymized.");
+  const requestedAt = new Date().toISOString();
+  const settings = await getAccountSettings(user);
+  await savePrivacySettings(user, {
+    ...settings.privacy,
+    deletionRequestedAt: requestedAt,
+    deletionVerifiedAt: null,
+  });
+  const token = await issueAuthToken(user.id, "account_deletion", { requestedAt });
+  await sendAccountDeletionVerificationEmail({ to: user.email, name: user.name, token });
+  return { requestedAt };
+}
+
+export async function verifyAccountDeletionRequest(rawToken: string) {
+  const token = await consumeAuthToken(rawToken, "account_deletion");
+  if (!token) return false;
+  const verifiedAt = new Date().toISOString();
+  await writeDeletionPrivacyState(token.userId, {
+    requestedAt: typeof token.metadata?.requestedAt === "string" ? token.metadata.requestedAt : verifiedAt,
+    verifiedAt,
+  });
+  return true;
 }
 
 async function anonymizeUserInJsonStore(target: User) {
@@ -144,6 +238,7 @@ export async function processAccountDeletion({ adminId, targetUserId }: { adminI
   if (!target) throw new Error("Account not found.");
   if (target.role === "admin") throw new Error("Admin accounts cannot be deleted from this screen.");
   if (target.email.endsWith("@deleted.stayprimeph.local")) throw new Error("This account has already been anonymized.");
+  await requireVerifiedDeletionRequest(target.id);
 
   if (usesPrismaPersistence()) {
     await anonymizeUserInDatabase(target, adminId);

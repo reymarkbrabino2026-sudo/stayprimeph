@@ -89,6 +89,39 @@ describe("email change auth tokens", () => {
     expect(storedTokens).toContainEqual(passwordResetToken);
   });
 
+  it("replaces earlier pending account-deletion tokens for the same user", async () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const oldDeletionToken: AuthToken = {
+      id: "old-delete-token",
+      userId: user.id,
+      tokenHash: "old-delete-hash",
+      type: "account_deletion",
+      expiresAt: future,
+      createdAt: new Date().toISOString(),
+      metadata: { requestedAt: "2026-06-18T00:00:00.000Z" },
+    };
+    const passwordResetToken: AuthToken = {
+      ...oldDeletionToken,
+      id: "reset-token",
+      tokenHash: "reset-hash",
+      type: "password_reset",
+    };
+
+    vi.mocked(readStoredAuthTokens).mockResolvedValue([oldDeletionToken, passwordResetToken]);
+
+    await issueAuthToken(user.id, "account_deletion", { requestedAt: "2026-06-18T01:00:00.000Z" });
+
+    const [storedTokens] = vi.mocked(writeStoredAuthTokens).mock.calls[0];
+    expect(storedTokens).toHaveLength(2);
+    expect(storedTokens[0]).toMatchObject({
+      userId: user.id,
+      type: "account_deletion",
+      metadata: { requestedAt: "2026-06-18T01:00:00.000Z" },
+    });
+    expect(storedTokens).not.toContainEqual(expect.objectContaining({ id: "old-delete-token" }));
+    expect(storedTokens).toContainEqual(passwordResetToken);
+  });
+
   it("updates the login email only after a valid new-email token is consumed", async () => {
     vi.mocked(readStoredUsers).mockResolvedValue([user]);
     vi.mocked(readJsonStore).mockResolvedValue([

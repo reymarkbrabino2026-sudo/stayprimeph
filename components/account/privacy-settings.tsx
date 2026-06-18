@@ -2,7 +2,7 @@
 
 import { Check, ChevronRight, LockKeyhole, X } from "lucide-react";
 import { useState, useTransition } from "react";
-import { requestUserDataExportAction, savePrivacySettingsAction } from "@/app/account-settings/actions";
+import { requestAccountDeletionAction, requestUserDataExportAction, savePrivacySettingsAction } from "@/app/account-settings/actions";
 import type { PrivacySettingId, PrivacySettingsState } from "@/lib/account-settings-types";
 
 type PanelId = "blocked" | "data" | "delete";
@@ -118,8 +118,17 @@ export function PrivacySettings({ initialState }: { initialState: PrivacySetting
 
   function requestAccountDeletion() {
     if (deleteConfirmation !== "DELETE") return;
-    const requestedAt = new Date().toISOString();
-    save({ ...privacy, deletionRequestedAt: requestedAt }, () => setDeleteConfirmation(""));
+    setMessage("");
+    startTransition(async () => {
+      const result = await requestAccountDeletionAction();
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+      setPrivacy((current) => ({ ...current, deletionRequestedAt: result.data.requestedAt, deletionVerifiedAt: null }));
+      setDeleteConfirmation("");
+      setMessage("Check your email to verify this deletion request.");
+    });
   }
 
   return (
@@ -154,6 +163,7 @@ export function PrivacySettings({ initialState }: { initialState: PrivacySetting
                 {action.id === "delete" ? (
                   <DeleteAccountPanel
                     requestedAt={privacy.deletionRequestedAt}
+                    verifiedAt={privacy.deletionVerifiedAt}
                     confirmation={deleteConfirmation}
                     onConfirmation={setDeleteConfirmation}
                     disabled={isPending}
@@ -291,12 +301,14 @@ function DataRequestPanel({ requestedAt, disabled, onRequest }: { requestedAt: s
 
 function DeleteAccountPanel({
   requestedAt,
+  verifiedAt,
   confirmation,
   onConfirmation,
   disabled,
   onRequest,
 }: {
   requestedAt: string | null;
+  verifiedAt: string | null;
   confirmation: string;
   onConfirmation: (value: string) => void;
   disabled: boolean;
@@ -304,8 +316,8 @@ function DeleteAccountPanel({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-black/65">Type DELETE to request account deletion. This records the request here without immediately removing your account.</p>
-      {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">Deletion request saved {new Date(requestedAt).toLocaleString()}</p> : null}
+      <p className="text-sm text-black/65">Type DELETE to request account deletion or anonymization. We will email you a verification link before an admin can process the request.</p>
+      {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">{verifiedAt ? `Deletion request verified ${new Date(verifiedAt).toLocaleString()}` : `Verification email sent ${new Date(requestedAt).toLocaleString()}`}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
           value={confirmation}
@@ -319,7 +331,7 @@ function DeleteAccountPanel({
           disabled={disabled || confirmation !== "DELETE"}
           className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25"
         >
-          {disabled ? "Saving..." : "Request deletion"}
+          {disabled ? "Saving..." : "Email verification link"}
         </button>
       </div>
     </div>

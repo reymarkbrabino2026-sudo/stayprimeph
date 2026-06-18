@@ -202,6 +202,7 @@ function normalizePrivacySettings(value: unknown): PrivacySettingsState {
     blockedPeople: Array.isArray(value.blockedPeople) ? value.blockedPeople.filter((item): item is string => typeof item === "string") : [],
     dataRequestedAt: typeof value.dataRequestedAt === "string" ? value.dataRequestedAt : null,
     deletionRequestedAt: typeof value.deletionRequestedAt === "string" ? value.deletionRequestedAt : null,
+    deletionVerifiedAt: typeof value.deletionVerifiedAt === "string" ? value.deletionVerifiedAt : null,
   };
 }
 

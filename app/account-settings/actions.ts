@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requestAccountDeletion } from "@/lib/account-deletion";
 import {
   saveBookingPermissions,
   saveNotificationSettings,
@@ -80,6 +81,17 @@ export async function requestUserDataExportAction() {
     requireVerifiedEmail(user);
     const result = await requestUserDataExport(user);
     revalidatePath("/account-settings/privacy");
+    return result;
+  });
+}
+
+export async function requestAccountDeletionAction() {
+  return withAccountAction(async () => {
+    const user = await requireUser({ message: "Please sign in again before requesting account deletion." });
+    requireVerifiedEmail(user);
+    const result = await requestAccountDeletion(user);
+    revalidatePath("/account-settings/privacy");
+    revalidatePath("/admin/users");
     return result;
   });
 }
