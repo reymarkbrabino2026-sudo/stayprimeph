@@ -7,7 +7,7 @@ import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-sto
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
-import { listingUploadScopePrefix, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
+import { listingUploadScopePrefix, normalizeUploadScopeId, serverGeneratedListingBlobPath } from "@/lib/upload-paths";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxClientUploadBytes = 10 * 1024 * 1024;
@@ -40,10 +40,9 @@ function withServerGeneratedUploadPath(body: HandleUploadBody, userId: string, l
     ...body,
     payload: {
       ...body.payload,
-      pathname: serverGeneratedListingUploadPath({
+      pathname: serverGeneratedListingBlobPath({
         userId,
         listingId,
-        requestedPathname: body.payload.pathname,
       }),
     },
   };

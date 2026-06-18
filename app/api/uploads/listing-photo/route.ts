@@ -11,7 +11,7 @@ import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhot
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
-import { cloudinaryListingUploadFolder, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
+import { cloudinaryListingUploadFolder, extensionFromContentType, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
 
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
   const uploadPath = serverGeneratedListingUploadPath({
     userId: user.id,
     listingId,
-    requestedPathname: file.name,
+    extension: extensionFromContentType(file.type),
   });
 
   if (hasCloudinaryConfig()) {
