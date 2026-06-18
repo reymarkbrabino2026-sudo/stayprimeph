@@ -1,6 +1,32 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+const isProduction = process.env.NODE_ENV === "production";
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  isProduction ? "" : "'unsafe-eval'",
+  "https://va.vercel-scripts.com",
+].filter(Boolean).join(" ");
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "manifest-src 'self'",
+  `script-src ${scriptSrc}`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https://res.cloudinary.com https://*.public.blob.vercel-storage.com https://*.tile.openstreetmap.org",
+  "connect-src 'self' https://*.ingest.sentry.io https://*.vercel-insights.com https://va.vercel-scripts.com",
+  "frame-src https://checkout.stripe.com",
+  "media-src 'self' blob: data:",
+  "worker-src 'self' blob:",
+  isProduction ? "upgrade-insecure-requests" : "",
+].filter(Boolean).join("; ");
+
 const nextConfig: NextConfig = {
   output: "standalone",
   turbopack: {
@@ -20,6 +46,7 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
+          { key: "Content-Security-Policy", value: contentSecurityPolicy },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
