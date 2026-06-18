@@ -43,6 +43,13 @@ Production secrets should live in your hosting provider's encrypted secret store
 8. Keep `PAYMENT_LAUNCH_MODE=disabled` unless production is approved to collect real money.
 9. For Stripe live mode, set `PAYMENT_LAUNCH_MODE=stripe` and keep the publishable, server, and webhook keys from the same Stripe mode. Do not mix `pk_live_` with `sk_test_`, or a live API key with a test webhook secret.
 
+## Storage exposure controls
+
+- Keep Vercel Blob read-write tokens server-only. The app must not import or expose Blob list APIs from public routes.
+- Keep listing photo uploads on `/api/uploads/listing-photo`; direct browser-to-Blob and direct browser-to-Cloudinary uploads are disabled.
+- In Cloudinary, keep resource/list delivery disabled and do not enable public folder/listing endpoints.
+- Public listing photo URLs may be viewable by URL, but storage buckets/folders must not be enumerable.
+
 ## Generate a secret
 
 ```powershell
