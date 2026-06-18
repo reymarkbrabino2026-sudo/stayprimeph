@@ -19,6 +19,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import type { UserRole } from "@/lib/types";
+import { clearStoredHostWizardDraft } from "@/stores/host-wizard-store";
 
 type SessionUser = {
   id: string;
@@ -62,7 +63,7 @@ const signedInSecondaryLinks = [
 ];
 
 function clearClientSessionState() {
-  window.localStorage.removeItem("stayprimeph-host-wizard");
+  clearStoredHostWizardDraft();
   window.sessionStorage.clear();
 }
 

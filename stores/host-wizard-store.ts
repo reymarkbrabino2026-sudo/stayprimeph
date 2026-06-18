@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-wizard-types";
 
 const legacyStorageKey = "stayprimeph-host-wizard";
+const userStorageKeyPrefix = "stayprimeph-host-wizard:";
 const storageVersion = 2;
 const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
 
@@ -142,8 +143,23 @@ export function sanitizeHostWizardDraftForStorage(draft: HostListingDraft): Part
   };
 }
 
-function userStorageKey(userId: string) {
-  return `stayprimeph-host-wizard:${encodeURIComponent(userId)}`;
+export function hostWizardStorageKey(userId: string) {
+  return `${userStorageKeyPrefix}${encodeURIComponent(userId)}`;
+}
+
+export function clearStoredHostWizardDraft(userId?: string) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(legacyStorageKey);
+  if (userId) {
+    window.localStorage.removeItem(hostWizardStorageKey(userId));
+    return;
+  }
+
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith(userStorageKeyPrefix)) window.localStorage.removeItem(key);
+  }
 }
 
 function expiredDraft(updatedAt: string | undefined) {
@@ -157,7 +173,7 @@ function readStoredDraft(user: WizardOwner): Pick<HostWizardState, "currentStep"
 
   window.localStorage.removeItem(legacyStorageKey);
 
-  const storageKey = userStorageKey(user.id);
+  const storageKey = hostWizardStorageKey(user.id);
   const storedValue = window.localStorage.getItem(storageKey);
   if (!storedValue) return { currentStep: "address", draft: createInitialDraft() };
 
@@ -198,7 +214,7 @@ function persistState(state: HostWizardState) {
     updatedAt: new Date().toISOString(),
   };
 
-  window.localStorage.setItem(userStorageKey(state.ownerUserId), JSON.stringify(stored));
+  window.localStorage.setItem(hostWizardStorageKey(state.ownerUserId), JSON.stringify(stored));
 }
 
 export const useHostWizardStore = create<HostWizardState>()((set) => ({

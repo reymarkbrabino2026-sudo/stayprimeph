@@ -1,6 +1,10 @@
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import type { HostListingDraft } from "@/lib/host-wizard-types";
-import { sanitizeHostWizardDraftForStorage } from "@/stores/host-wizard-store";
+import {
+  clearStoredHostWizardDraft,
+  hostWizardStorageKey,
+  sanitizeHostWizardDraftForStorage,
+} from "@/stores/host-wizard-store";
 
 function draft(): HostListingDraft {
   return {
@@ -56,6 +60,10 @@ function draft(): HostListingDraft {
 }
 
 describe("host wizard local storage minimization", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   test("removes sensitive host draft fields before localStorage persistence", () => {
     const stored = sanitizeHostWizardDraftForStorage(draft());
     const serialized = JSON.stringify(stored);
@@ -79,5 +87,37 @@ describe("host wizard local storage minimization", () => {
     expect(serialized).not.toContain("123 Prime Street");
     expect(serialized).not.toContain("456 Residential Street");
     expect(serialized).not.toContain("Sensitive Barangay");
+  });
+
+  test("scopes stored draft keys by encoded user id", () => {
+    expect(hostWizardStorageKey("host@example.com")).toBe("stayprimeph-host-wizard:host%40example.com");
+  });
+
+  test("clears the selected user's draft and legacy draft", () => {
+    window.localStorage.setItem("stayprimeph-host-wizard", "{}");
+    window.localStorage.setItem(hostWizardStorageKey("host-1"), "{}");
+    window.localStorage.setItem(hostWizardStorageKey("host-2"), "{}");
+    window.localStorage.setItem("stayprimeph-wishlist", "[]");
+
+    clearStoredHostWizardDraft("host-1");
+
+    expect(window.localStorage.getItem("stayprimeph-host-wizard")).toBeNull();
+    expect(window.localStorage.getItem(hostWizardStorageKey("host-1"))).toBeNull();
+    expect(window.localStorage.getItem(hostWizardStorageKey("host-2"))).toBe("{}");
+    expect(window.localStorage.getItem("stayprimeph-wishlist")).toBe("[]");
+  });
+
+  test("clears every host draft on logout without deleting unrelated client state", () => {
+    window.localStorage.setItem("stayprimeph-host-wizard", "{}");
+    window.localStorage.setItem(hostWizardStorageKey("host-1"), "{}");
+    window.localStorage.setItem(hostWizardStorageKey("host-2"), "{}");
+    window.localStorage.setItem("stayprimeph-wishlist", "[]");
+
+    clearStoredHostWizardDraft();
+
+    expect(window.localStorage.getItem("stayprimeph-host-wizard")).toBeNull();
+    expect(window.localStorage.getItem(hostWizardStorageKey("host-1"))).toBeNull();
+    expect(window.localStorage.getItem(hostWizardStorageKey("host-2"))).toBeNull();
+    expect(window.localStorage.getItem("stayprimeph-wishlist")).toBe("[]");
   });
 });

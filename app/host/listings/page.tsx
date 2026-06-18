@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { HostDraftCleaner } from "@/components/host-wizard/host-draft-cleaner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ResilientImage } from "@/components/ui/resilient-image";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -10,12 +11,13 @@ import { getProperties } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
-export default async function HostListingsPage() {
-  const user = await getCurrentUser();
+export default async function HostListingsPage({ searchParams }: { searchParams: Promise<{ published?: string }> }) {
+  const [user, query] = await Promise.all([getCurrentUser(), searchParams]);
   const properties = (await getProperties()).filter((property) => property.hostId === user?.id);
 
   return (
     <DashboardShell title="My Listings" subtitle="Host dashboard" description="Manage listing status, pricing, and edits." links={hostLinks}>
+      <HostDraftCleaner enabled={query.published === "1"} userId={user?.id} />
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid gap-3 sm:grid-cols-3">
           <Summary label="Total" value={properties.length} />

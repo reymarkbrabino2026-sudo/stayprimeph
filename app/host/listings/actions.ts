@@ -197,5 +197,5 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
   }
   revalidatePath("/host/listings");
   revalidatePath("/search");
-  redirect("/host/listings");
+  redirect("/host/listings?published=1");
 }

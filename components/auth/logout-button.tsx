@@ -1,11 +1,12 @@
 "use client";
 
 import { signOut } from "@/app/auth/actions";
+import { clearStoredHostWizardDraft } from "@/stores/host-wizard-store";
 
 export function clearClientSessionState() {
   if (typeof window === "undefined") return;
 
-  window.localStorage.removeItem("stayprimeph-host-wizard");
+  clearStoredHostWizardDraft();
   window.sessionStorage.clear();
 }
 
