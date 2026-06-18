@@ -16,6 +16,10 @@ vi.mock("@/lib/account-settings", () => ({
   saveWorkTravelProfile: vi.fn(),
 }));
 
+vi.mock("@/lib/user-data-export", () => ({
+  requestUserDataExport: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   getCurrentUser: vi.fn(),
   requireUser: vi.fn(),
@@ -29,10 +33,11 @@ vi.mock("@/lib/request-safety", () => ({
   assertTrustedRequestOrigin: vi.fn(),
 }));
 
-import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { requestUserDataExportAction, saveFinancialSettingsAction } from "@/app/account-settings/actions";
 import { defaultFinancialSettings } from "@/lib/account-settings-types";
 import { saveFinancialSettings } from "@/lib/account-settings";
 import { requireUser, verifyPassword } from "@/lib/auth";
+import { requestUserDataExport } from "@/lib/user-data-export";
 import type { User } from "@/lib/types";
 
 const hostUser: User = {
@@ -96,5 +101,35 @@ describe("financial settings step-up auth", () => {
     expect(result).toEqual({ ok: true, data: defaultFinancialSettings });
     expect(verifyPassword).not.toHaveBeenCalled();
     expect(saveFinancialSettings).toHaveBeenCalledWith(guestUser, defaultFinancialSettings);
+  });
+});
+
+describe("account data export action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("requires a verified email before exporting account data", async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce({ ...guestUser, emailVerifiedAt: undefined });
+
+    const result = await requestUserDataExportAction();
+
+    expect(result).toEqual({ ok: false, error: "Verify your email address before using this feature." });
+    expect(requestUserDataExport).not.toHaveBeenCalled();
+  });
+
+  it("returns a generated export for verified users", async () => {
+    const exportResult = {
+      filename: "stayprimeph-data-export-guest-1-2026-06-18.json",
+      contentType: "application/json",
+      data: { generatedAt: "2026-06-18T00:00:00.000Z" },
+    };
+    vi.mocked(requireUser).mockResolvedValueOnce(guestUser);
+    vi.mocked(requestUserDataExport).mockResolvedValueOnce(exportResult as Awaited<ReturnType<typeof requestUserDataExport>>);
+
+    const result = await requestUserDataExportAction();
+
+    expect(result).toEqual({ ok: true, data: exportResult });
+    expect(requestUserDataExport).toHaveBeenCalledWith(guestUser);
   });
 });

@@ -2,7 +2,7 @@
 
 import { Check, ChevronRight, LockKeyhole, X } from "lucide-react";
 import { useState, useTransition } from "react";
-import { savePrivacySettingsAction } from "@/app/account-settings/actions";
+import { requestUserDataExportAction, savePrivacySettingsAction } from "@/app/account-settings/actions";
 import type { PrivacySettingId, PrivacySettingsState } from "@/lib/account-settings-types";
 
 type PanelId = "blocked" | "data" | "delete";
@@ -96,22 +96,23 @@ export function PrivacySettings({ initialState }: { initialState: PrivacySetting
   }
 
   function requestDataExport() {
-    const requestedAt = new Date().toISOString();
-    const next = { ...privacy, dataRequestedAt: requestedAt };
-    save(next, (saved) => {
-      const payload = {
-        requestedAt: saved.dataRequestedAt,
-        privacySettings: saved.settings,
-        blockedPeople: saved.blockedPeople,
-        message: "Your StayPrimePH personal data request has been recorded.",
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    setMessage("");
+    startTransition(async () => {
+      const result = await requestUserDataExportAction();
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(result.data.data, null, 2)], { type: result.data.contentType });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "stayprimeph-personal-data-request.json";
+      link.download = result.data.filename;
       link.click();
       URL.revokeObjectURL(url);
+      setPrivacy((current) => ({ ...current, dataRequestedAt: result.data.data.generatedAt }));
+      setMessage("Your data export is ready.");
     });
   }
 
@@ -279,7 +280,7 @@ function BlockedPeoplePanel({
 function DataRequestPanel({ requestedAt, disabled, onRequest }: { requestedAt: string | null; disabled: boolean; onRequest: () => void }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-black/65">Download a record of this browser&apos;s privacy preferences and submit a personal data export request.</p>
+      <p className="text-sm text-black/65">Download a JSON copy of the account, bookings, messages, listings, payments, support records, and settings associated with your StayPrimePH account.</p>
       {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">Last requested {new Date(requestedAt).toLocaleString()}</p> : null}
       <button type="button" onClick={onRequest} disabled={disabled} className="min-h-12 rounded-xl bg-[#222] px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
         {disabled ? "Saving..." : "Request data export"}

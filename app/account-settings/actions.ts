@@ -24,6 +24,7 @@ import type {
 } from "@/lib/account-settings-types";
 import { requireUser, requireVerifiedEmail, verifyPassword } from "@/lib/auth";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
+import { requestUserDataExport } from "@/lib/user-data-export";
 
 function errorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
@@ -70,6 +71,16 @@ export async function savePrivacySettingsAction(privacy: PrivacySettingsState) {
     const next = await savePrivacySettings(user, privacy);
     revalidatePath("/account-settings/privacy");
     return next;
+  });
+}
+
+export async function requestUserDataExportAction() {
+  return withAccountAction(async () => {
+    const user = await requireUser({ message: "Please sign in again before exporting account data." });
+    requireVerifiedEmail(user);
+    const result = await requestUserDataExport(user);
+    revalidatePath("/account-settings/privacy");
+    return result;
   });
 }
 
