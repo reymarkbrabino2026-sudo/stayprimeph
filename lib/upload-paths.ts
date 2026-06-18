@@ -52,3 +52,56 @@ export function listingUploadScopePrefix(userId: string, listingId: string) {
 export function cloudinaryListingUploadFolder(userId: string, listingId: string) {
   return `stayprimeph/${listingUploadScopePrefix(userId, listingId).replace(/\/$/, "")}`;
 }
+
+function hasAcceptedListingPhotoExtension(pathname: string) {
+  try {
+    extensionFromRequestedPath(pathname);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function cloudinaryListingPathMatches(pathname: string, expectedPrefix: string, cloudName?: string) {
+  if (!cloudName) return false;
+  const uploadPrefix = `/${cloudName}/image/upload/`;
+  if (!pathname.startsWith(uploadPrefix)) return false;
+
+  const expectedPublicIdPrefix = `stayprimeph/${expectedPrefix}`;
+  const uploadPath = pathname.slice(uploadPrefix.length);
+  return uploadPath.split("/").some((_, index, parts) =>
+    parts.slice(index).join("/").startsWith(expectedPublicIdPrefix),
+  );
+}
+
+function listingPhotoUrlMatchesPrefix(value: string, expectedPrefix: string, cloudName?: string) {
+  if (value.startsWith("/")) {
+    return value.startsWith(`/${expectedPrefix}`) && hasAcceptedListingPhotoExtension(value);
+  }
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    if (!hasAcceptedListingPhotoExtension(url.pathname)) return false;
+
+    if (url.hostname.endsWith(".public.blob.vercel-storage.com")) {
+      return url.pathname.startsWith(`/${expectedPrefix}`);
+    }
+
+    if (url.hostname === "res.cloudinary.com") {
+      return cloudinaryListingPathMatches(url.pathname, expectedPrefix, cloudName);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function isIntendedListingPhotoUrl(value: string, input: { userId: string; listingId: string; cloudName?: string }) {
+  return listingPhotoUrlMatchesPrefix(value, listingUploadScopePrefix(input.userId, input.listingId), input.cloudName);
+}
+
+export function isHostScopedListingPhotoUrl(value: string, input: { userId: string; cloudName?: string }) {
+  return listingPhotoUrlMatchesPrefix(value, `uploads/listings/${normalizeUploadScopeId(input.userId, "user")}/`, input.cloudName);
+}

@@ -208,7 +208,7 @@ import { savePersonalInfoAction } from "@/app/account-settings/actions";
 import { cancelGuestBooking } from "@/app/guest/bookings/actions";
 import { sendHostMessage } from "@/app/guest/messages/actions";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
-import { createListing } from "@/app/host/listings/actions";
+import { createListing, publishWizardListing } from "@/app/host/listings/actions";
 import { acceptBooking } from "@/app/host/bookings/actions";
 import { createExternalReservation } from "@/app/host/erp/[section]/actions";
 import { sendGuestMessage } from "@/app/host/messages/actions";
@@ -224,6 +224,7 @@ import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { sendBookingConfirmedEmail } from "@/lib/email";
 import { readHostExpenses, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport } from "@/lib/host-report-store";
+import { hostListingSchema } from "@/lib/host-wizard-schema";
 import { confirmManualPaymentInDatabase } from "@/lib/repositories";
 import { getUserById } from "@/lib/users";
 
@@ -437,6 +438,38 @@ describe("IDOR protections", () => {
     expect(writeStoredProperties).not.toHaveBeenCalledWith([
       expect.objectContaining({ hostId: "host-2" }),
     ]);
+  });
+
+  it("does not publish a wizard listing with another host's uploaded image", async () => {
+    authState.currentUser = hostUser;
+    vi.mocked(hostListingSchema.safeParse).mockReturnValueOnce({
+      success: true,
+      data: {
+        uploadScopeId: "draft-1",
+        locationConfirmedAddress: "123 Street, Barangay, Manila, Metro Manila, Philippines, 1000",
+        street: "123 Street",
+        barangay: "Barangay",
+        city: "Manila",
+        province: "Metro Manila",
+        country: "Philippines",
+        zipCode: "1000",
+        photos: [
+          {
+            id: "photo-1",
+            url: "https://store.public.blob.vercel-storage.com/uploads/listings/host-2/draft-1/photo.jpg",
+            name: "photo.jpg",
+            size: 100,
+            isCover: true,
+          },
+        ],
+      },
+    } as never);
+
+    await expect(publishWizardListing({} as never, "csrf-test-token")).rejects.toThrow(
+      "Listing photos must be uploaded through StayPrimePH before publishing.",
+    );
+
+    expect(writeStoredProperties).not.toHaveBeenCalled();
   });
 
   it("does not attach another guest's booking to a guest-host message", async () => {

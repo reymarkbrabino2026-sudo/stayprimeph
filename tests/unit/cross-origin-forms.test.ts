@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHmac } from "node:crypto";
 
 vi.mock("server-only", () => ({}));
 
-const { headersMock, redirectMock } = vi.hoisted(() => ({
+const { cookiesMock, headersMock, redirectMock } = vi.hoisted(() => ({
+  cookiesMock: vi.fn(),
   headersMock: vi.fn(),
   redirectMock: vi.fn((target: string) => {
     throw new Error(`NEXT_REDIRECT:${target}`);
@@ -10,7 +12,7 @@ const { headersMock, redirectMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("next/headers", () => ({
-  cookies: vi.fn(),
+  cookies: cookiesMock,
   headers: headersMock,
 }));
 
@@ -146,6 +148,7 @@ import { signUp } from "@/app/auth/actions";
 import { createListing } from "@/app/host/listings/actions";
 import { requireRole } from "@/lib/auth";
 import { sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
+import { getPropertyById } from "@/lib/properties";
 import { writeStoredProperties } from "@/lib/property-store";
 import { updatePropertyStatusInDatabase } from "@/lib/repositories";
 import { writeStoredUsers } from "@/lib/user-store";
@@ -155,6 +158,19 @@ function crossOriginHeaders() {
     host: "stayprimeph.com",
     origin: "https://evil.example",
   });
+}
+
+function sameOriginHeaders() {
+  return new Headers({
+    host: "stayprimeph.com",
+    origin: "https://stayprimeph.com",
+  });
+}
+
+function csrfToken(sessionToken = "session-1") {
+  return createHmac("sha256", "test-secret-with-at-least-32-characters")
+    .update(`csrf:${sessionToken}`)
+    .digest("base64url");
 }
 
 function signupForm() {
@@ -185,6 +201,7 @@ describe("cross-origin form submissions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     headersMock.mockResolvedValue(crossOriginHeaders());
+    cookiesMock.mockResolvedValue({ get: () => ({ value: "session-1" }) });
   });
 
   it("rejects cross-origin signup forms before creating an account", async () => {
@@ -210,5 +227,38 @@ describe("cross-origin form submissions", () => {
 
     expect(requireRole).not.toHaveBeenCalled();
     expect(updatePropertyStatusInDatabase).not.toHaveBeenCalled();
+  });
+
+  it("rejects admin approval when listing images are not host-scoped uploads", async () => {
+    headersMock.mockResolvedValue(sameOriginHeaders());
+    vi.mocked(getPropertyById).mockResolvedValueOnce({
+      id: "property-1",
+      hostId: "host-1",
+      slug: "listing",
+      title: "Listing",
+      description: "A listing",
+      address: "123 Street",
+      city: "Manila",
+      country: "Philippines",
+      pricePerNight: 2500,
+      bedrooms: 1,
+      bathrooms: 1,
+      maxGuests: 2,
+      propertyType: "House",
+      status: "pending",
+      rating: 0,
+      amenities: [],
+      rules: [],
+      createdAt: "2026-06-18",
+      images: [{ id: "placeholder", propertyId: "property-1", imageUrl: "pending-upload", tone: "" }],
+    });
+    const formData = new FormData();
+    formData.set("id", "property-1");
+    formData.set("csrfToken", csrfToken());
+
+    await expect(approveListing(formData)).rejects.toThrow("Listing images must be uploaded through StayPrimePH before approval.");
+
+    expect(updatePropertyStatusInDatabase).not.toHaveBeenCalled();
+    expect(writeStoredProperties).not.toHaveBeenCalled();
   });
 });

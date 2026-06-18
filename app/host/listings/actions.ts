@@ -5,12 +5,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
+import { env } from "@/lib/env";
 import { amenityGroups } from "@/lib/host-wizard-data";
 import { createPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
+import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
 import type { Property } from "@/lib/types";
 
 function slugify(value: string) {
@@ -67,19 +69,6 @@ function minimumPackageWeekendRate(input: HostListingInput) {
   const packages = enabledBookingPackages(input);
   if (!packages.length) return input.weekendPrice;
   return Math.min(...packages.map((item) => item.weekendRate > 0 ? item.weekendRate : item.weekdayRate));
-}
-
-function isAllowedListingPhotoUrl(value: string) {
-  if (value.startsWith("/uploads/listings/")) return true;
-
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:") return false;
-    if (url.hostname === "res.cloudinary.com" && url.pathname.includes("/image/upload/")) return true;
-    return url.hostname.endsWith(".public.blob.vercel-storage.com") && url.pathname.startsWith("/uploads/listings/");
-  } catch {
-    return false;
-  }
 }
 
 async function requireHost() {
@@ -157,7 +146,11 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     throw new Error("Please confirm the map pin for the current listing address before publishing.");
   }
 
-  if (!listing.photos.every((photo) => isAllowedListingPhotoUrl(photo.url))) {
+  if (!listing.photos.every((photo) => isIntendedListingPhotoUrl(photo.url, {
+    userId: user.id,
+    listingId: listing.uploadScopeId,
+    cloudName: env.CLOUDINARY_CLOUD_NAME,
+  }))) {
     throw new Error("Listing photos must be uploaded through StayPrimePH before publishing.");
   }
 

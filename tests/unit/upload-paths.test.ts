@@ -1,5 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { cloudinaryListingUploadFolder, extensionFromContentType, extensionFromRequestedPath, listingUploadScopePrefix, serverGeneratedListingBlobPath, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
+import {
+  cloudinaryListingUploadFolder,
+  extensionFromContentType,
+  extensionFromRequestedPath,
+  isHostScopedListingPhotoUrl,
+  isIntendedListingPhotoUrl,
+  listingUploadScopePrefix,
+  serverGeneratedListingBlobPath,
+  serverGeneratedListingUploadPath,
+} from "@/lib/upload-paths";
 
 describe("listing upload paths", () => {
   test("builds host-scoped upload paths with server generated IDs", () => {
@@ -49,5 +58,27 @@ describe("listing upload paths", () => {
 
   test("maps the same user/listing scope into Cloudinary folders", () => {
     expect(cloudinaryListingUploadFolder("host-1", "draft-2")).toBe("stayprimeph/uploads/listings/host-1/draft-2");
+  });
+
+  test("accepts only images from the intended host and listing upload scope", () => {
+    const scope = { userId: "host-1", listingId: "draft-1", cloudName: "stayprime-cloud" };
+
+    expect(isIntendedListingPhotoUrl("/uploads/listings/host-1/draft-1/photo.jpg", scope)).toBe(true);
+    expect(isIntendedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-1/photo.webp", scope)).toBe(true);
+    expect(isIntendedListingPhotoUrl("https://res.cloudinary.com/stayprime-cloud/image/upload/v123/stayprimeph/uploads/listings/host-1/draft-1/photo.png", scope)).toBe(true);
+
+    expect(isIntendedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-2/draft-1/photo.webp", scope)).toBe(false);
+    expect(isIntendedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-2/photo.webp", scope)).toBe(false);
+    expect(isIntendedListingPhotoUrl("https://res.cloudinary.com/other-cloud/image/upload/v123/stayprimeph/uploads/listings/host-1/draft-1/photo.png", scope)).toBe(false);
+    expect(isIntendedListingPhotoUrl("https://example.com/uploads/listings/host-1/draft-1/photo.jpg", scope)).toBe(false);
+  });
+
+  test("approval accepts only host-scoped listing images", () => {
+    expect(isHostScopedListingPhotoUrl("/uploads/listings/host-1/draft-1/photo.jpg", { userId: "host-1" })).toBe(true);
+    expect(isHostScopedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/listing-1/photo.jpg", { userId: "host-1" })).toBe(true);
+
+    expect(isHostScopedListingPhotoUrl("/uploads/listings/host-2/draft-1/photo.jpg", { userId: "host-1" })).toBe(false);
+    expect(isHostScopedListingPhotoUrl("pending-upload", { userId: "host-1" })).toBe(false);
+    expect(isHostScopedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-1/photo.svg", { userId: "host-1" })).toBe(false);
   });
 });
