@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { isNotificationEmailAllowed, type NotificationEmailKind } from "@/lib/notification-consent";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME } from "@/lib/utils";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
@@ -212,7 +213,29 @@ function bookingEmail(input: BookingEmailDetails & {
   `, input.headline);
 }
 
-async function sendEmail(input: { to: string; subject: string; html: string }) {
+type EmailConsent = {
+  kind: NotificationEmailKind;
+  scope?: "offers" | "account";
+  preferenceId?: string;
+};
+
+async function sendEmail(input: { to: string; subject: string; html: string; consent: EmailConsent }) {
+  const allowed = await isNotificationEmailAllowed({
+    to: input.to,
+    kind: input.consent.kind,
+    scope: input.consent.scope,
+    preferenceId: input.consent.preferenceId,
+  });
+  if (!allowed) {
+    logger.info("email_suppressed_by_notification_preferences", {
+      subject: input.subject,
+      to: input.to,
+      scope: input.consent.scope,
+      preferenceId: input.consent.preferenceId,
+    });
+    return;
+  }
+
   if (!resend || !env.EMAIL_FROM) {
     logger.info("email_skipped", { subject: input.subject, to: input.to });
     return;
@@ -236,6 +259,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
   await sendEmail({
     to,
     subject: "Welcome to StayPrimePH",
+    consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Welcome to StayPrimePH",
       body: `Hi ${name}, your StayPrimePH account is ready.`,
@@ -250,6 +274,7 @@ export async function sendVerificationEmail(input: { to: string; name: string; t
   await sendEmail({
     to: input.to,
     subject: "Verify your StayPrimePH email",
+    consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Verify your email",
       body: `Hi ${input.name}, confirm this email address so your StayPrimePH account stays protected.`,
@@ -264,6 +289,7 @@ export async function sendEmailChangeVerificationEmail(input: { to: string; name
   await sendEmail({
     to: input.to,
     subject: "Confirm your new StayPrimePH email",
+    consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Confirm your new email",
       body: `Hi ${input.name}, confirm this address to replace ${input.currentEmail} as your StayPrimePH login email.`,
@@ -277,6 +303,7 @@ export async function sendAdminMfaEmail(input: { to: string; name: string; code:
   await sendEmail({
     to: input.to,
     subject: "Your StayPrimePH admin sign-in code",
+    consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Admin sign-in code",
       body: `Hi ${input.name}, use code ${input.code} to finish signing in to the StayPrimePH admin area. This code expires in 10 minutes. If this was not you, change the admin password immediately.`,
@@ -289,6 +316,7 @@ export async function sendPasswordResetEmail(input: { to: string; name: string; 
   await sendEmail({
     to: input.to,
     subject: "Reset your StayPrimePH password",
+    consent: { kind: "essential" },
     html: emailShell(
       `
         <tr>
@@ -323,6 +351,7 @@ export async function sendPasswordChangedEmail(input: { to: string; name: string
   await sendEmail({
     to: input.to,
     subject: "Your StayPrimePH password was changed",
+    consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Your password was changed",
       body: `Hi ${input.name}, your StayPrimePH password was updated. If this was not you, contact support right away.`,
@@ -337,6 +366,7 @@ export async function sendAccountDeletionVerificationEmail(input: { to: string; 
   await sendEmail({
     to: input.to,
     subject: "Verify your StayPrimePH account deletion request",
+    consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Verify account deletion",
       body: `Hi ${input.name}, confirm that you requested deletion or anonymization for this StayPrimePH account. This link expires in 24 hours. If this was not you, ignore this email and change your password.`,
@@ -350,6 +380,7 @@ export async function sendBookingReceivedEmail(input: BookingEmailDetails) {
   await sendEmail({
     to: input.to,
     subject: `Booking received for ${input.propertyTitle}`,
+    consent: { kind: "account", scope: "account", preferenceId: "Reservations:Booking requests" },
     html: bookingEmail({
       ...input,
       eyebrow: "Booking received",
@@ -365,6 +396,7 @@ export async function sendBookingRequestEmail(input: BookingEmailDetails) {
   await sendEmail({
     to: input.to,
     subject: `New booking request for ${input.propertyTitle}`,
+    consent: { kind: "account", scope: "account", preferenceId: "Reservations:Booking requests" },
     html: bookingEmail({
       ...input,
       eyebrow: "New booking request",
@@ -380,6 +412,7 @@ export async function sendBookingConfirmedEmail(input: BookingEmailDetails & { r
   await sendEmail({
     to: input.to,
     subject: `Booking confirmed for ${input.propertyTitle}`,
+    consent: { kind: "account", scope: "account", preferenceId: "Reservations:Booking requests" },
     html: bookingEmail({
       ...input,
       eyebrow: "Booking confirmed",
@@ -401,6 +434,7 @@ export async function sendListingReviewEmail(input: { to: string; title: string;
   await sendEmail({
     to: input.to,
     subject: `Your listing was ${input.status}`,
+    consent: { kind: "account", scope: "account", preferenceId: "Hosting:Listing status" },
     html: simpleEmail({
       headline: `Your listing was ${input.status}`,
       body: `Your listing ${input.title} was ${input.status}.`,

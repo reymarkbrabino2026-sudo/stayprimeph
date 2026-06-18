@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, requireUser, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
@@ -24,6 +25,19 @@ export async function continueAsHost(formData: FormData) {
     await writeStoredUsers(users.map((item) => (item.id === user.id ? { ...item, role: "host" } : item)));
     await clearAllSessionsForUser(user.id);
   }
+
+  await appendAuditLog({
+    actorId: user.id,
+    actorRole: user.role,
+    action: "account.role_changed",
+    entityType: "user",
+    entityId: user.id,
+    metadata: {
+      previousRole: user.role,
+      nextRole: "host",
+      sessionsRevoked: true,
+    },
+  });
 
   await clearSession();
   redirect(`/login?role=host&message=${encodeURIComponent("Your host access was updated. Please log in again.")}`);

@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole, requireUser, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { createMessage } from "@/lib/messages";
@@ -87,6 +88,16 @@ export async function sendSupportReply(formData: FormData) {
     receiverId: recipient.id,
     message: body,
     createdAt: new Date().toISOString(),
+  });
+  await appendAuditLog({
+    actorId: user.id,
+    actorRole: "admin",
+    action: "support.replied",
+    entityType: "support_thread",
+    entityId: recipient.id,
+    metadata: {
+      recipientRole: recipient.role,
+    },
   });
 
   revalidatePath("/admin/support");

@@ -20,6 +20,10 @@ vi.mock("@/lib/auth", () => ({
   }),
 }));
 
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
+
 vi.mock("@/lib/request-safety", () => ({
   assertTrustedRequestOrigin: vi.fn(),
 }));
@@ -43,6 +47,7 @@ vi.mock("@/lib/user-store", () => ({
 }));
 
 import { continueAsHost } from "@/app/become-a-host/upgrade/actions";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, requireUser } from "@/lib/auth";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 import type { User } from "@/lib/types";
@@ -73,6 +78,18 @@ describe("host role upgrade session revocation", () => {
       expect.objectContaining({ id: guestUser.id, role: "host" }),
     ]);
     expect(clearAllSessionsForUser).toHaveBeenCalledWith(guestUser.id);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: guestUser.id,
+      actorRole: "guest",
+      action: "account.role_changed",
+      entityType: "user",
+      entityId: guestUser.id,
+      metadata: {
+        previousRole: "guest",
+        nextRole: "host",
+        sessionsRevoked: true,
+      },
+    }));
     expect(clearSession).toHaveBeenCalled();
   });
 });

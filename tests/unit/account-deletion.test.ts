@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
 vi.mock("@/lib/account-settings", () => ({
   getAccountSettings: vi.fn(),
   savePrivacySettings: vi.fn(),
@@ -47,10 +50,11 @@ vi.mock("@/lib/users", () => ({
 }));
 
 import { getAccountSettings, savePrivacySettings } from "@/lib/account-settings";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { consumeAuthToken, issueAuthToken } from "@/lib/auth-tokens";
 import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-store";
 import { readStoredBookings } from "@/lib/booking-store";
-import { requestAccountDeletion, verifyAccountDeletionRequest, processAccountDeletion } from "@/lib/account-deletion";
+import { accountDeletionSlaDays, deletionRequestWorkflow, requestAccountDeletion, verifyAccountDeletionRequest, processAccountDeletion } from "@/lib/account-deletion";
 import { sendAccountDeletionVerificationEmail } from "@/lib/email";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
@@ -236,5 +240,56 @@ describe("verified account deletion", () => {
     ]);
     expect(writeStoredAuthTokens).toHaveBeenCalledWith([]);
     expect(writeStoredSessions).toHaveBeenCalledWith([]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "admin-1",
+      actorRole: "admin",
+      action: "account.anonymized",
+      entityType: "user",
+      entityId: user.id,
+      metadata: expect.objectContaining({
+        deletionVerified: true,
+        deletionSlaDays: accountDeletionSlaDays,
+        targetRole: "guest",
+      }),
+    }));
+  });
+});
+
+describe("account deletion SLA workflow", () => {
+  it("waits for verification before starting the admin completion SLA", () => {
+    expect(deletionRequestWorkflow({
+      requestedAt: "2026-06-18T00:00:00.000Z",
+      verifiedAt: null,
+    }, new Date("2026-06-25T00:00:00.000Z"))).toEqual({
+      requestedAt: "2026-06-18T00:00:00.000Z",
+      verifiedAt: null,
+      dueAt: null,
+      daysRemaining: null,
+      status: "awaiting_verification",
+    });
+  });
+
+  it("sets a 30-day admin completion target after email verification", () => {
+    expect(deletionRequestWorkflow({
+      requestedAt: "2026-06-18T00:00:00.000Z",
+      verifiedAt: "2026-06-19T00:00:00.000Z",
+    }, new Date("2026-07-01T00:00:00.000Z"))).toEqual({
+      requestedAt: "2026-06-18T00:00:00.000Z",
+      verifiedAt: "2026-06-19T00:00:00.000Z",
+      dueAt: "2026-07-19T00:00:00.000Z",
+      daysRemaining: 18,
+      status: "due",
+    });
+  });
+
+  it("flags verified deletion requests as overdue after the SLA date", () => {
+    expect(deletionRequestWorkflow({
+      requestedAt: "2026-06-18T00:00:00.000Z",
+      verifiedAt: "2026-06-19T00:00:00.000Z",
+    }, new Date("2026-07-20T00:00:00.000Z"))).toMatchObject({
+      dueAt: "2026-07-19T00:00:00.000Z",
+      daysRemaining: -1,
+      status: "overdue",
+    });
   });
 });

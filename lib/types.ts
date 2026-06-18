@@ -86,7 +86,20 @@ export interface HostExpense {
 export interface AuthToken { id: string; userId: string; tokenHash: string; type: "email_verification" | "email_change" | "password_reset" | "admin_mfa" | "account_deletion"; expiresAt: string; createdAt: string; metadata?: Record<string, unknown>; }
 export interface AuthSession { id: string; userId: string; sessionHash: string; expiresAt: string; createdAt: string; }
 export interface Cancellation { id: string; bookingId: string; propertyId: string; reason?: string; status: string; createdAt: string; }
-export type AuditLogAction = "payment.approved" | "payment.rejected" | "payment.refunded" | "booking.cancelled";
+export type AuditLogAction =
+  | "payment.approved"
+  | "payment.rejected"
+  | "payment.refunded"
+  | "booking.cancelled"
+  | "listing.approved"
+  | "listing.rejected"
+  | "account.anonymized"
+  | "account.email_changed"
+  | "account.password_reset_requested"
+  | "account.password_reset_completed"
+  | "account.role_changed"
+  | "auth.login_failed"
+  | "support.replied";
 export interface AuditLog { id: string; actorId: string; actorRole: UserRole | "system"; action: AuditLogAction; entityType: string; entityId: string; metadata?: Record<string, unknown>; createdAt: string; }
 export interface Report { id: string; propertyId?: string; reporterId?: string; type: string; status: string; details: string; createdAt: string; }
 export interface Dispute { id: string; bookingId?: string; propertyId?: string; reason: string; status: string; createdAt: string; }

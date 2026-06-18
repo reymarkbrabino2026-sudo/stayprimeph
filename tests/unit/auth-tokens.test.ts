@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
+
 vi.mock("@/lib/auth-token-store", () => ({
   readStoredAuthTokens: vi.fn(),
   writeStoredAuthTokens: vi.fn(),
@@ -34,6 +38,11 @@ vi.mock("@/lib/user-store", () => ({
   writeStoredUsers: vi.fn(),
 }));
 
+vi.mock("@/lib/users", () => ({
+  getUserById: vi.fn(),
+}));
+
+import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-store";
 import { completeEmailChange, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
@@ -149,6 +158,20 @@ describe("email change auth tokens", () => {
       personalInfo: { email: "new@example.com", legalName: "Prime User" },
     });
     expect(writeStoredSessions).toHaveBeenCalledWith([]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: user.id,
+      actorRole: "guest",
+      action: "account.email_changed",
+      entityType: "user",
+      entityId: user.id,
+      metadata: expect.objectContaining({
+        oldEmailHash: expect.any(String),
+        newEmailHash: expect.any(String),
+        sessionsRevoked: true,
+      }),
+    }));
+    expect(vi.mocked(appendAuditLog).mock.calls[0][0].metadata).not.toHaveProperty("oldEmail");
+    expect(vi.mocked(appendAuditLog).mock.calls[0][0].metadata).not.toHaveProperty("newEmail");
   });
 
   it("rejects stale email-change tokens if the account email no longer matches", async () => {

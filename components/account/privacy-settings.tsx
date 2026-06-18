@@ -316,7 +316,7 @@ function DeleteAccountPanel({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-black/65">Type DELETE to request account deletion or anonymization. We will email you a verification link before an admin can process the request.</p>
+      <p className="text-sm text-black/65">Type DELETE to request account deletion or anonymization. We will email you a verification link before an admin can process the request. Verified requests are targeted for completion within 30 days unless active bookings, payment review, safety issues, disputes, accounting duties, or legal holds require more time.</p>
       {requestedAt ? <p className="rounded-xl bg-white p-4 text-sm font-medium">{verifiedAt ? `Deletion request verified ${new Date(verifiedAt).toLocaleString()}` : `Verification email sent ${new Date(requestedAt).toLocaleString()}`}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row">
         <input

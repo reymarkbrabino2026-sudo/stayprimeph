@@ -36,6 +36,10 @@ vi.mock("@/lib/admin-mfa", () => ({
   readPendingAdminMfaChallenge: vi.fn(),
 }));
 
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
+
 vi.mock("@/lib/auth-tokens", () => ({
   completeEmailChange: vi.fn(),
   consumeAuthToken: vi.fn(),

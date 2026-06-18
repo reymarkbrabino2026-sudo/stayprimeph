@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
 
 const { cookiesMock, headersMock, redirectMock } = vi.hoisted(() => ({
   cookiesMock: vi.fn(),
@@ -146,10 +149,11 @@ vi.mock("@/lib/users", () => ({
 import { approveListing } from "@/app/admin/listings/actions";
 import { signUp } from "@/app/auth/actions";
 import { createListing } from "@/app/host/listings/actions";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole } from "@/lib/auth";
 import { sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
 import { getPropertyById } from "@/lib/properties";
-import { writeStoredProperties } from "@/lib/property-store";
+import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { updatePropertyStatusInDatabase } from "@/lib/repositories";
 import { writeStoredUsers } from "@/lib/user-store";
 
@@ -260,5 +264,59 @@ describe("cross-origin form submissions", () => {
 
     expect(updatePropertyStatusInDatabase).not.toHaveBeenCalled();
     expect(writeStoredProperties).not.toHaveBeenCalled();
+  });
+
+  it("persists an audit log when an admin approves a listing", async () => {
+    headersMock.mockResolvedValue(sameOriginHeaders());
+    vi.mocked(requireRole).mockResolvedValueOnce({
+      id: "admin-1",
+      role: "admin",
+      emailVerifiedAt: "2026-06-18T00:00:00.000Z",
+    } as Awaited<ReturnType<typeof requireRole>>);
+    vi.mocked(getPropertyById).mockResolvedValueOnce({
+      id: "property-1",
+      hostId: "host-1",
+      slug: "listing",
+      title: "Listing",
+      description: "A listing",
+      address: "123 Street",
+      city: "Manila",
+      country: "Philippines",
+      pricePerNight: 2500,
+      bedrooms: 1,
+      bathrooms: 1,
+      maxGuests: 2,
+      propertyType: "House",
+      status: "pending",
+      rating: 0,
+      amenities: [],
+      rules: [],
+      createdAt: "2026-06-18",
+      images: [{ id: "image-1", propertyId: "property-1", imageUrl: "/uploads/listings/host-1/property-1/cover.jpg", tone: "" }],
+    });
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([
+      { id: "property-1", hostId: "host-1", slug: "listing", title: "Listing", description: "A listing", address: "123 Street", city: "Manila", country: "Philippines", pricePerNight: 2500, bedrooms: 1, bathrooms: 1, maxGuests: 2, propertyType: "House", status: "pending", rating: 0, amenities: [], rules: [], createdAt: "2026-06-18", images: [] },
+    ]);
+    const formData = new FormData();
+    formData.set("id", "property-1");
+    formData.set("csrfToken", csrfToken());
+
+    await approveListing(formData);
+
+    expect(writeStoredProperties).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "property-1", status: "approved" }),
+    ]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "admin-1",
+      actorRole: "admin",
+      action: "listing.approved",
+      entityType: "property",
+      entityId: "property-1",
+      metadata: expect.objectContaining({
+        hostId: "host-1",
+        previousStatus: "pending",
+        nextStatus: "approved",
+      }),
+    }));
   });
 });

@@ -45,7 +45,11 @@ function storeData() {
     ],
     "audit-logs.json": [
       { id: "audit-old", actorId: "admin-1", actorRole: "admin", action: "payment.approved", entityType: "payment", entityId: "payment-1", createdAt: "2018-01-01T00:00:00.000Z" },
-      { id: "audit-fresh", actorId: "admin-1", actorRole: "admin", action: "payment.rejected", entityType: "payment", entityId: "payment-2", createdAt: "2025-01-01T00:00:00.000Z" },
+      { id: "audit-listing-immutable", actorId: "admin-1", actorRole: "admin", action: "listing.approved", entityType: "property", entityId: "property-1", createdAt: "2018-01-01T00:00:00.000Z" },
+      { id: "audit-payment-immutable", actorId: "admin-1", actorRole: "admin", action: "payment.refunded", entityType: "payment", entityId: "payment-2", createdAt: "2018-01-01T00:00:00.000Z" },
+      { id: "audit-account-immutable", actorId: "admin-1", actorRole: "admin", action: "account.anonymized", entityType: "user", entityId: "guest-1", createdAt: "2018-01-01T00:00:00.000Z" },
+      { id: "audit-prunable", actorId: "system", actorRole: "system", action: "auth.login_failed", entityType: "login_identifier", entityId: "email:hash", createdAt: "2018-01-01T00:00:00.000Z" },
+      { id: "audit-fresh", actorId: "admin-1", actorRole: "admin", action: "support.replied", entityType: "support_thread", entityId: "guest-1", createdAt: "2025-01-01T00:00:00.000Z" },
     ],
     "properties.json": [
       { id: "draft-old", hostId: "host-1", slug: "draft-old", title: "Old draft", description: "", address: "", city: "", country: "PH", pricePerNight: 1, bedrooms: 1, bathrooms: 1, maxGuests: 1, propertyType: "house", status: "draft", rating: 0, amenities: [], rules: [], createdAt: "2026-04-01T00:00:00.000Z", images: [] },
@@ -79,7 +83,13 @@ describe("data retention", () => {
     expect(writes.get("messages.json")?.map((item) => item.id)).toEqual(["support-fresh", "message-fresh"]);
     expect(writes.get("reports.json")?.map((item) => item.id)).toEqual(["open-old"]);
     expect(writes.get("admin-logs.json")?.map((item) => item.id)).toEqual(["admin-fresh"]);
-    expect(writes.get("audit-logs.json")?.map((item) => item.id)).toEqual(["audit-fresh"]);
+    expect(writes.get("audit-logs.json")?.map((item) => item.id)).toEqual([
+      "audit-old",
+      "audit-listing-immutable",
+      "audit-payment-immutable",
+      "audit-account-immutable",
+      "audit-fresh",
+    ]);
     expect(writes.get("properties.json")?.map((item) => item.id)).toEqual(["pending-old", "draft-fresh"]);
   });
 });

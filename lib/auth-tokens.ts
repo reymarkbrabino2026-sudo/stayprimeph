@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-store";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/lib/repositories";
 import { readStoredSessions, writeStoredSessions } from "@/lib/session-store";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
+import { getUserById } from "@/lib/users";
 import type { AuthToken } from "@/lib/types";
 
 const tokenTtlMs: Record<AuthToken["type"], number> = {
@@ -35,6 +37,10 @@ const accountSettingsStoreFileName = "account-settings.json";
 
 export function hashAuthTokenValue(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+function auditHash(value: string) {
+  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex").slice(0, 24);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -111,8 +117,23 @@ export async function completeEmailChange(authToken: AuthToken) {
   if (!oldEmail || !isValidEmail(newEmail)) return false;
 
   if (usesPrismaPersistence()) {
+    const user = await getUserById(authToken.userId);
     const changed = await completeUserEmailChangeInDatabase(authToken.userId, oldEmail, newEmail);
-    if (changed) await revokeSessionsForUser(authToken.userId);
+    if (changed) {
+      await revokeSessionsForUser(authToken.userId);
+      await appendAuditLog({
+        actorId: authToken.userId,
+        actorRole: user?.role ?? "system",
+        action: "account.email_changed",
+        entityType: "user",
+        entityId: authToken.userId,
+        metadata: {
+          oldEmailHash: auditHash(oldEmail),
+          newEmailHash: auditHash(newEmail),
+          sessionsRevoked: true,
+        },
+      });
+    }
     return changed;
   }
 
@@ -132,6 +153,18 @@ export async function completeEmailChange(authToken: AuthToken) {
   }));
 
   await revokeSessionsForUser(authToken.userId);
+  await appendAuditLog({
+    actorId: user.id,
+    actorRole: user.role,
+    action: "account.email_changed",
+    entityType: "user",
+    entityId: user.id,
+    metadata: {
+      oldEmailHash: auditHash(oldEmail),
+      newEmailHash: auditHash(newEmail),
+      sessionsRevoked: true,
+    },
+  });
   return true;
 }
 

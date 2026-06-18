@@ -1,9 +1,10 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clearPendingAdminMfaChallenge, createAdminMfaCode, createPendingAdminMfaChallenge, isAdminMfaCodeValid, readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, createSession, hashPassword, requireUser, roleHome, verifyPassword } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
@@ -17,7 +18,7 @@ import { assertTrustedRequestOrigin, isTrustedRequestOrigin } from "@/lib/reques
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 import { getUserById, getUsers } from "@/lib/users";
-import type { UserRole } from "@/lib/types";
+import type { User, UserRole } from "@/lib/types";
 
 type SocialProvider = "google" | "facebook";
 const signupNextStepsMessage = "If we can process that signup, we sent next steps to the email address provided.";
@@ -81,6 +82,36 @@ function loginLockoutMessage(retryAfterSeconds?: number) {
   return `Too many login attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
 }
 
+function auditHash(value: string) {
+  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex").slice(0, 24);
+}
+
+function auditRequestedRole(value: FormDataEntryValue | null) {
+  return value === "admin" || value === "host" || value === "guest" ? value : undefined;
+}
+
+async function appendLoginFailureAudit(input: {
+  email: string;
+  ip: string;
+  reason: string;
+  requestedRole?: UserRole;
+  user?: User | null;
+}) {
+  await appendAuditLog({
+    actorId: input.user?.id ?? "anonymous",
+    actorRole: input.user?.role ?? "system",
+    action: "auth.login_failed",
+    entityType: input.user ? "user" : "login_identifier",
+    entityId: input.user?.id ?? `email:${auditHash(input.email || "missing")}`,
+    metadata: {
+      reason: input.reason,
+      requestedRole: input.requestedRole,
+      emailHash: auditHash(input.email || "missing"),
+      ipHash: auditHash(input.ip || "local"),
+    },
+  });
+}
+
 async function sendPasswordResetForUser(user: { id: string; email: string; name: string }) {
   const token = await issueAuthToken(user.id, "password_reset");
   await sendPasswordResetEmail({ to: user.email, name: user.name, token });
@@ -106,12 +137,24 @@ export async function signIn(formData: FormData) {
   const lockout = await checkLoginLockout(throttleKeys);
   if (lockout.limited) {
     logger.warn("signin_progressive_lockout", { email, ip });
+    await appendLoginFailureAudit({
+      email,
+      ip,
+      reason: "progressive_lockout",
+      requestedRole: auditRequestedRole(requestedRole),
+    });
     redirect(authErrorTarget(errorPath, loginLockoutMessage(lockout.retryAfterSeconds), formData, requestedRole));
   }
 
   const rateLimit = await checkDistributedRateLimit(`signin:${ip}`, 20);
   if (rateLimit.limited) {
     logger.warn("signin_rate_limited");
+    await appendLoginFailureAudit({
+      email,
+      ip,
+      reason: "rate_limited",
+      requestedRole: auditRequestedRole(requestedRole),
+    });
     redirect(authErrorTarget(errorPath, "Too many login attempts. Please try again later.", formData, requestedRole));
   }
 
@@ -120,6 +163,13 @@ export async function signIn(formData: FormData) {
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
     logger.warn("signin_failed", { email });
+    await appendLoginFailureAudit({
+      email,
+      ip,
+      reason: "invalid_credentials",
+      requestedRole: auditRequestedRole(requestedRole),
+      user,
+    });
     const failedAttempt = await recordFailedLoginAttempt(throttleKeys);
     if (failedAttempt.limited) {
       redirect(authErrorTarget(errorPath, loginLockoutMessage(failedAttempt.retryAfterSeconds), formData, requestedRole));
@@ -128,6 +178,13 @@ export async function signIn(formData: FormData) {
   }
 
   if ((requestedRole === "host" || requestedRole === "guest" || requestedRole === "admin") && user.role !== requestedRole) {
+    await appendLoginFailureAudit({
+      email,
+      ip,
+      reason: "role_mismatch",
+      requestedRole,
+      user,
+    });
     await recordFailedLoginAttempt(throttleKeys);
     redirect(authErrorTarget(errorPath, `Use a ${requestedRole} account to continue.`, formData, requestedRole));
   }
@@ -323,7 +380,20 @@ export async function requestPasswordReset(formData: FormData) {
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const user = (await getUsers()).find((item) => item.email.toLowerCase() === email);
-  if (user) await sendPasswordResetForUser(user);
+  if (user) {
+    await sendPasswordResetForUser(user);
+    await appendAuditLog({
+      actorId: "anonymous",
+      actorRole: "system",
+      action: "account.password_reset_requested",
+      entityType: "user",
+      entityId: user.id,
+      metadata: {
+        emailHash: auditHash(email),
+        ipHash: auditHash(headerStore.get("x-forwarded-for") ?? "local"),
+      },
+    });
+  }
   redirect("/forgot-password?sent=1");
 }
 
@@ -370,6 +440,16 @@ export async function resetPassword(token: string, formData: FormData) {
   if (!authToken || authToken.userId !== user.id) redirect(genericResetLinkFailure());
 
   await updateUserPassword(authToken.userId, hashPassword(password));
+  await appendAuditLog({
+    actorId: user.id,
+    actorRole: user.role,
+    action: "account.password_reset_completed",
+    entityType: "user",
+    entityId: user.id,
+    metadata: {
+      sessionsRevoked: true,
+    },
+  });
   await sendPasswordChangedEmail({ to: user.email, name: user.name });
   await clearSession();
   redirect(`/login?message=${encodeURIComponent("Password changed successfully. We sent a confirmation to your email. Please log in again.")}`);

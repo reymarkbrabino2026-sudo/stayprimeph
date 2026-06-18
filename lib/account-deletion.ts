@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { getAccountSettings, savePrivacySettings } from "@/lib/account-settings";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { consumeAuthToken, issueAuthToken } from "@/lib/auth-tokens";
 import { prisma } from "@/lib/db";
 import { sendAccountDeletionVerificationEmail } from "@/lib/email";
@@ -24,6 +25,16 @@ export type DeletionRequest = {
   requestedAt: string;
   verifiedAt: string | null;
 };
+
+export type DeletionRequestSlaStatus = "awaiting_verification" | "due" | "overdue";
+
+export type DeletionRequestWorkflow = DeletionRequest & {
+  dueAt: string | null;
+  daysRemaining: number | null;
+  status: DeletionRequestSlaStatus;
+};
+
+export const accountDeletionSlaDays = 30;
 
 function anonymizedEmail(userId: string) {
   return `deleted-${userId.toLowerCase().replace(/[^a-z0-9-]/g, "-")}@deleted.stayprimeph.local`;
@@ -53,6 +64,43 @@ function deletionRequestFromPrivacy(value: unknown): DeletionRequest | null {
   return {
     requestedAt,
     verifiedAt: deletionVerifiedAtFromPrivacy(value),
+  };
+}
+
+function addDays(value: string, days: number) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString();
+}
+
+export function deletionRequestWorkflow(request: DeletionRequest, now = new Date()): DeletionRequestWorkflow {
+  if (!request.verifiedAt) {
+    return {
+      ...request,
+      dueAt: null,
+      daysRemaining: null,
+      status: "awaiting_verification",
+    };
+  }
+
+  const dueAt = addDays(request.verifiedAt, accountDeletionSlaDays);
+  if (!dueAt) {
+    return {
+      ...request,
+      dueAt: null,
+      daysRemaining: null,
+      status: "due",
+    };
+  }
+
+  const remainingMs = new Date(dueAt).getTime() - now.getTime();
+  const daysRemaining = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+  return {
+    ...request,
+    dueAt,
+    daysRemaining,
+    status: daysRemaining < 0 ? "overdue" : "due",
   };
 }
 
@@ -121,6 +169,11 @@ async function requireVerifiedDeletionRequest(userId: string) {
   const request = requests.get(userId);
   if (!request?.requestedAt) throw new Error("This account has not requested deletion.");
   if (!request.verifiedAt) throw new Error("The account owner must verify the deletion request by email before anonymization.");
+  const workflow = deletionRequestWorkflow(request);
+  if (workflow.status === "overdue") {
+    // Overdue requests still must be processable; the admin UI flags them.
+    return;
+  }
 }
 
 export async function requestAccountDeletion(user: User) {
@@ -245,4 +298,17 @@ export async function processAccountDeletion({ adminId, targetUserId }: { adminI
   } else {
     await anonymizeUserInJsonStore(target);
   }
+  await appendAuditLog({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "account.anonymized",
+    entityType: "user",
+    entityId: target.id,
+    metadata: {
+      targetRole: target.role,
+      deletionVerified: true,
+      deletionSlaDays: accountDeletionSlaDays,
+      hostedListingsRejected: target.role === "host",
+    },
+  });
 }

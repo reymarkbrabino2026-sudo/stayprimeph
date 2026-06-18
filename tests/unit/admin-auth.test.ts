@@ -24,6 +24,10 @@ vi.mock("@/lib/admin-mfa", () => ({
   readPendingAdminMfaChallenge: vi.fn(),
 }));
 
+vi.mock("@/lib/audit-logs", () => ({
+  appendAuditLog: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   clearAllSessionsForUser: vi.fn(),
   clearSession: vi.fn(),
@@ -103,11 +107,12 @@ vi.mock("@/lib/users", () => ({
   getUsers: vi.fn(async () => []),
 }));
 
-import { signIn, signOutAllDevices, verifyAdminMfa } from "@/app/auth/actions";
+import { requestPasswordReset, resetPassword, signIn, signOutAllDevices, verifyAdminMfa } from "@/app/auth/actions";
 import { createPendingAdminMfaChallenge, readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, createSession, requireUser, verifyPassword } from "@/lib/auth";
-import { consumeAuthToken, getAuthToken, issueAuthToken } from "@/lib/auth-tokens";
-import { sendAdminMfaEmail } from "@/lib/email";
+import { consumeAuthToken, getAuthToken, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
+import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail } from "@/lib/email";
 import { checkLoginLockout } from "@/lib/rate-limit";
 import { getUserById, getUsers } from "@/lib/users";
 import type { AuthToken, User } from "@/lib/types";
@@ -130,6 +135,12 @@ const adminMfaToken: AuthToken = {
   type: "admin_mfa",
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
   createdAt: new Date().toISOString(),
+};
+
+const passwordResetToken: AuthToken = {
+  ...adminMfaToken,
+  id: "reset-token-1",
+  type: "password_reset",
 };
 
 function signinForm() {
@@ -160,6 +171,28 @@ describe("admin MFA sign-in", () => {
     });
     expect(createSession).not.toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("next=%2Fadmin%2Fpayments"));
+  });
+
+  it("persists an audit log for failed login attempts", async () => {
+    vi.mocked(getUsers).mockResolvedValueOnce([adminUser]);
+    vi.mocked(verifyPassword).mockReturnValueOnce(false);
+
+    await expect(signIn(signinForm())).rejects.toThrow("NEXT_REDIRECT:/admin/login?");
+
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: adminUser.id,
+      actorRole: "admin",
+      action: "auth.login_failed",
+      entityType: "user",
+      entityId: adminUser.id,
+      metadata: expect.objectContaining({
+        reason: "invalid_credentials",
+        requestedRole: "admin",
+        emailHash: expect.any(String),
+        ipHash: expect.any(String),
+      }),
+    }));
+    expect(vi.mocked(appendAuditLog).mock.calls[0][0].metadata).not.toHaveProperty("email");
   });
 
   it("blocks sign-in during progressive lockout before password verification", async () => {
@@ -202,5 +235,59 @@ describe("admin MFA sign-in", () => {
 
     expect(clearAllSessionsForUser).toHaveBeenCalledWith(adminUser.id);
     expect(clearSession).toHaveBeenCalled();
+  });
+});
+
+describe("password reset audit logging", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("persists an audit log when a password reset is requested for an existing account", async () => {
+    vi.mocked(getUsers).mockResolvedValueOnce([adminUser]);
+    const formData = new FormData();
+    formData.set("email", adminUser.email);
+
+    await expect(requestPasswordReset(formData)).rejects.toThrow("NEXT_REDIRECT:/forgot-password?sent=1");
+
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith({
+      to: adminUser.email,
+      name: adminUser.name,
+      token: "mfa-token",
+    });
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "anonymous",
+      actorRole: "system",
+      action: "account.password_reset_requested",
+      entityType: "user",
+      entityId: adminUser.id,
+      metadata: expect.objectContaining({
+        emailHash: expect.any(String),
+        ipHash: expect.any(String),
+      }),
+    }));
+  });
+
+  it("persists an audit log when a password reset is completed", async () => {
+    vi.mocked(getAuthToken).mockResolvedValueOnce(passwordResetToken);
+    vi.mocked(getUserById).mockResolvedValueOnce(adminUser);
+    vi.mocked(consumeAuthToken).mockResolvedValueOnce(passwordResetToken);
+    const formData = new FormData();
+    formData.set("email", adminUser.email);
+    formData.set("password", "ChangedPassword#2026");
+    formData.set("confirmPassword", "ChangedPassword#2026");
+
+    await expect(resetPassword("raw-reset-token", formData)).rejects.toThrow("NEXT_REDIRECT:/login?message=");
+
+    expect(updateUserPassword).toHaveBeenCalledWith(adminUser.id, "hashed:ChangedPassword#2026");
+    expect(sendPasswordChangedEmail).toHaveBeenCalledWith({ to: adminUser.email, name: adminUser.name });
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: adminUser.id,
+      actorRole: "admin",
+      action: "account.password_reset_completed",
+      entityType: "user",
+      entityId: adminUser.id,
+      metadata: { sessionsRevoked: true },
+    }));
   });
 });

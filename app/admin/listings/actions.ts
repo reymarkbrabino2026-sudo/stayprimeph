@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
+import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { env } from "@/lib/env";
@@ -52,6 +53,20 @@ async function updateListingStatus(formData: FormData, status: ListingStatus) {
   const host = property ? await getUserById(property.hostId) : null;
   if (property && host) {
     await sendListingReviewEmail({ to: host.email, title: property.title, status });
+  }
+  if (property) {
+    await appendAuditLog({
+      actorId: user.id,
+      actorRole: "admin",
+      action: status === "approved" ? "listing.approved" : "listing.rejected",
+      entityType: "property",
+      entityId: property.id,
+      metadata: {
+        hostId: property.hostId,
+        previousStatus: property.status,
+        nextStatus: status,
+      },
+    });
   }
   logger.info("listing_status_updated", { listingId: id, status, adminId: user.id });
   revalidatePath("/");

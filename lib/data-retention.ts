@@ -18,6 +18,14 @@ export const retentionRules = {
 } as const;
 
 const closedSupportReportStatuses = new Set(["closed", "resolved", "dismissed", "rejected"]);
+const immutableAuditLogActions = new Set([
+  "listing.approved",
+  "listing.rejected",
+  "payment.approved",
+  "payment.rejected",
+  "payment.refunded",
+  "account.anonymized",
+]);
 
 export type RetentionPruneResult = {
   messages: number;
@@ -109,6 +117,19 @@ function retainedDatedRecords<T extends { createdAt?: unknown }>(records: T[], c
   return { retained, deleted };
 }
 
+function retainedAuditLogs(auditLogs: AuditLog[], cutoffDate: Date) {
+  let deleted = 0;
+  const retained = auditLogs.filter((auditLog) => {
+    if (immutableAuditLogActions.has(auditLog.action)) return true;
+    if (olderThan(auditLog.createdAt, cutoffDate)) {
+      deleted += 1;
+      return false;
+    }
+    return true;
+  });
+  return { retained, deleted };
+}
+
 function retainedUnpublishedDrafts(properties: Property[], now: Date) {
   const draftCutoff = cutoff(now, retentionRules.unpublishedDraftsDays);
   let unpublishedDrafts = 0;
@@ -147,7 +168,7 @@ async function enforceJsonRetention(now: Date): Promise<RetentionPruneResult> {
   result.adminLogs = prunedAdminLogs.deleted;
   if (result.adminLogs) await writeJsonStore("admin-logs.json", prunedAdminLogs.retained);
 
-  const prunedAuditLogs = retainedDatedRecords(auditLogs, cutoff(now, retentionRules.auditLogsDays));
+  const prunedAuditLogs = retainedAuditLogs(auditLogs, cutoff(now, retentionRules.auditLogsDays));
   result.auditLogs = prunedAuditLogs.deleted;
   if (result.auditLogs) await writeJsonStore("audit-logs.json", prunedAuditLogs.retained);
 
@@ -183,6 +204,14 @@ async function enforcePrismaRetention(now: Date): Promise<RetentionPruneResult> 
   const auditLogs = await prisma.$executeRaw`
     DELETE FROM "AuditLog"
     WHERE "createdAt" < ${cutoff(now, retentionRules.auditLogsDays)}
+      AND "action" NOT IN (
+        'listing.approved',
+        'listing.rejected',
+        'payment.approved',
+        'payment.rejected',
+        'payment.refunded',
+        'account.anonymized'
+      )
   `;
   const unpublishedDrafts = await prisma.property.deleteMany({
     where: {
