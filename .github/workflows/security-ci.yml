@@ -1,0 +1,73 @@
+name: Security CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reject committed local secret files
+        shell: bash
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -vE '(^|/)\.env\.(example|development\.example|production\.example|test)$'; then
+            echo "Tracked local .env file detected."
+            exit 1
+          fi
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Prisma schema validation
+        run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/stayprimeph
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/stayprimeph
+
+      - name: Production environment guard
+        run: npm run prod:check
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://ci:ci@db.example.com:5432/stayprimeph
+          DIRECT_URL: postgresql://ci:ci@db-direct.example.com:5432/stayprimeph
+          NEXT_PUBLIC_APP_URL: https://stayprimeph.com
+          AUTH_SECRET: ci-auth-secret-with-at-least-32-characters
+          PERSISTENCE_DRIVER: prisma
+          UPSTASH_REDIS_REST_URL: https://ci-upstash.example.com
+          UPSTASH_REDIS_REST_TOKEN: ci-token
+          SENTRY_DSN: https://public@example.ingest.sentry.io/1
+          NEXT_PUBLIC_SENTRY_DSN: https://public@example.ingest.sentry.io/1
+          RESEND_API_KEY: re_ci_key
+          EMAIL_FROM: "StayPrimePH <no-reply@stayprimeph.com>"
+          CLOUDINARY_CLOUD_NAME: stayprimeph
+          CLOUDINARY_API_KEY: ci-cloudinary-key
+          CLOUDINARY_API_SECRET: ci-cloudinary-secret
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
