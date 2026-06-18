@@ -5,29 +5,16 @@ import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "System Status",
-  description: "StayPrimePH system readiness and service status overview.",
+  description: "StayPrimePH public service status overview.",
   alternates: { canonical: `${env.NEXT_PUBLIC_APP_URL}/status` },
 };
 
 export default function StatusPage() {
-  const hasCloudinary = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
-  const hasVercelBlob = Boolean(process.env.PHOTO_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN);
-  const hasPhotoStorage = hasCloudinary || hasVercelBlob;
-  const hasResendEmail = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
-  const hasRedisRateLimiting = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-  const hasSentry = Boolean(process.env.SENTRY_DSN && process.env.NEXT_PUBLIC_SENTRY_DSN);
-  const hasAnalytics = process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled";
-  const hasMonitoring = hasSentry && hasAnalytics;
-  const paymentMode = process.env.PAYMENT_LAUNCH_MODE || "disabled";
-  const paymentsOperational = paymentMode === "stripe";
   const services = [
-    ["Web app", "Operational", "Core browsing, search, dashboards, and listing pages."],
-    ["Authentication", "Operational", "Login, registration, password reset, and email verification paths are implemented."],
-    ["Photo uploads", hasPhotoStorage ? "Operational" : "Configuration needed", "Cloudinary or Vercel Blob is required for hosted production uploads."],
-    ["Payments", paymentsOperational ? "Operational" : "Disabled", paymentsOperational ? "Verified provider checkout is enabled." : "Paid bookings are disabled until StayPrimePH launches a verified payment provider."],
-    ["Email", hasResendEmail ? "Operational" : "Configuration needed", "Resend sender/domain must be configured for real delivery."],
-    ["Rate limiting", hasRedisRateLimiting ? "Operational" : "Configuration needed", "Upstash Redis is required for distributed abuse protection across deployments."],
-    ["Monitoring", hasMonitoring ? "Operational" : "Configuration needed", "Sentry, analytics, and provider alerts must be connected in deployment."],
+    ["StayPrimePH platform", "Operational", "Public website, account access, and core booking pages are available."],
+    ["Guest experience", "Operational", "Search, listing pages, wishlists, trips, and guest messaging are available."],
+    ["Host tools", "Operational", "Host dashboard, listings, calendar, bookings, and reports are available."],
+    ["Support", "Operational", "Help and support request pages are available."],
   ];
 
   return (
@@ -37,7 +24,7 @@ export default function StatusPage() {
         <p className="text-sm font-semibold text-rose-600">Status</p>
         <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">System readiness</h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-black/65 sm:text-lg">
-          This screen shows what is working in code and what still needs live provider configuration before launch.
+          This screen shows a public summary of StayPrimePH availability. Internal provider readiness, credentials, and launch configuration are only reviewed by authorized operators.
         </p>
 
         <div className="mt-10 overflow-hidden rounded-[2rem] border bg-white shadow-sm">
@@ -48,9 +35,7 @@ export default function StatusPage() {
                 <p className="mt-1 text-sm leading-6 text-black/60">{detail}</p>
               </div>
               <span
-                className={`h-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                  status === "Operational" ? "bg-emerald-50 text-emerald-700" : status === "Disabled" ? "bg-zinc-100 text-zinc-700" : "bg-amber-50 text-amber-700"
-                }`}
+                className="h-fit rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
               >
                 {status}
               </span>
