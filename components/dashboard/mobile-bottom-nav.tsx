@@ -60,7 +60,7 @@ export function MobileBottomNav({
   const moreActive = moreLinks.some((link) => link.href === activeHref);
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t bg-white/95 px-2 pt-2 backdrop-blur lg:hidden">
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 max-w-full overflow-x-hidden border-t bg-white/95 px-2 pt-2 backdrop-blur lg:hidden">
       {hasMore && moreOpen ? (
         <div className="absolute inset-x-2 bottom-full mb-2 rounded-2xl border border-black/10 bg-white p-2 shadow-[0_16px_40px_rgba(33,23,15,0.16)]">
           <div className="grid max-h-[45vh] gap-1 overflow-y-auto">
@@ -111,7 +111,7 @@ export function MobileBottomNav({
           </div>
         </div>
       ) : null}
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid min-w-0 grid-cols-5 gap-1">
         {visibleLinks.map((link) => {
           const active = link.href === activeHref;
           const pending = pendingHref === link.href && !active;
@@ -138,7 +138,7 @@ export function MobileBottomNav({
                 setPendingHref(link.href);
                 setMoreOpen(false);
               }}
-              className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[11px] font-medium transition active:scale-95 ${
+              className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-2xl px-1 text-[11px] font-medium transition active:scale-95 ${
                 active
                   ? "bg-[#21170f] text-white"
                   : pending
@@ -151,7 +151,7 @@ export function MobileBottomNav({
               ) : (
                 <Icon size={21} strokeWidth={active ? 2.5 : 2} />
               )}
-              <span className="mt-1 truncate">{link.label}</span>
+              <span className="mt-1 max-w-full truncate">{link.label}</span>
             </Link>
           );
         })}
@@ -161,12 +161,12 @@ export function MobileBottomNav({
             aria-expanded={moreOpen}
             aria-label="More dashboard links"
             onClick={() => setMoreOpen((open) => !open)}
-            className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[11px] font-medium transition active:scale-95 ${
+            className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-2xl px-1 text-[11px] font-medium transition active:scale-95 ${
               moreActive || moreOpen ? "bg-[#21170f] text-white" : "text-black/60"
             }`}
           >
             <Ellipsis size={21} strokeWidth={moreActive || moreOpen ? 2.5 : 2} aria-hidden="true" />
-            <span className="mt-1 truncate">More</span>
+            <span className="mt-1 max-w-full truncate">More</span>
           </button>
         ) : null}
       </div>

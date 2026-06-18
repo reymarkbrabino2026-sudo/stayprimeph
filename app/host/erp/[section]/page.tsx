@@ -327,8 +327,8 @@ function revenueColor(index: number) {
 
 function ErpTabs({ active, month }: { active: ErpSection; month: string }) {
   return (
-    <nav aria-label="ERP sections" className="overflow-hidden rounded-[1.25rem] border border-black/10 bg-white shadow-[0_12px_32px_rgba(33,23,15,0.08)]">
-      <div className="grid md:grid-cols-2 xl:grid-cols-5">
+    <nav aria-label="ERP sections" className="sticky top-0 z-20 max-w-full overflow-hidden rounded-[1.25rem] border border-black/10 bg-white shadow-[0_12px_32px_rgba(33,23,15,0.08)] sm:static">
+      <div className="flex max-w-full snap-x overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:grid-cols-2 xl:grid-cols-5 [&::-webkit-scrollbar]:hidden">
       {erpTabs.map((tab) => {
         const Icon = tab.icon;
         const selected = tab.id === active;
@@ -337,11 +337,11 @@ function ErpTabs({ active, month }: { active: ErpSection; month: string }) {
             key={tab.id}
             href={`${tab.href}${buildQuery({ month })}`}
             aria-current={selected ? "page" : undefined}
-            className="relative flex min-h-16 items-center justify-center gap-3 border-b border-black/10 px-4 text-sm font-bold transition hover:bg-black/[0.02] md:border-r xl:border-b-0"
+            className="relative flex min-h-16 min-w-[9.5rem] snap-start flex-col items-center justify-center gap-1.5 border-r border-black/10 px-3 py-3 text-center text-xs font-bold transition active:scale-[0.99] hover:bg-black/[0.02] sm:min-w-[11rem] sm:text-sm md:min-w-0 md:flex-row md:gap-3 md:border-b md:px-4 xl:border-b-0"
             style={{ color: selected ? tab.accent : "rgba(0,0,0,0.62)" }}
           >
             <Icon className="size-5 shrink-0" aria-hidden="true" />
-            <span className="text-center leading-5">{tab.label}</span>
+            <span className="max-w-28 leading-4 md:max-w-none md:leading-5">{tab.label}</span>
             <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full" style={{ backgroundColor: selected ? tab.accent : "transparent" }} aria-hidden="true" />
           </Link>
         );
@@ -367,14 +367,14 @@ function ErpMetricCard({
   value: string;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.06)]">
-      <div className="flex items-start gap-4">
-        <span className="grid size-12 shrink-0 place-items-center rounded-full" style={{ backgroundColor: bg, color: accent }}>
-          <Icon className="size-5" aria-hidden="true" />
+    <div className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.06)] sm:p-5">
+      <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full sm:size-12" style={{ backgroundColor: bg, color: accent }}>
+          <Icon className="size-4 sm:size-5" aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-black/50">{label}</p>
-          <p className="mt-2 text-3xl font-bold text-black">{value}</p>
+          <p className="mt-2 break-words text-2xl font-bold text-black sm:text-3xl">{value}</p>
           <p className="mt-2 text-xs leading-5 text-black/45">{description}</p>
         </div>
       </div>
@@ -398,19 +398,22 @@ function ExternalReservationForm({
   currentMonth: string;
   listings: Property[];
 }) {
+  const labelClass = "grid min-w-0 gap-2 text-sm font-semibold text-black/70";
+  const fieldClass = "min-h-12 w-full min-w-0 rounded-2xl border border-black/10 px-4 text-base font-normal text-black outline-none transition focus:border-[#119b6e] sm:text-sm";
+
   return (
-    <section className="border-b border-black/10 bg-[#fbfaf8] p-5 sm:p-6">
-      <div className="rounded-[1.25rem] border border-[#119b6e]/20 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.06)]">
+    <section className="max-w-full overflow-x-hidden border-b border-black/10 bg-[#fbfaf8] p-3 sm:p-6">
+      <div className="max-w-full rounded-[1.25rem] border border-[#119b6e]/20 bg-white p-3 shadow-[0_10px_28px_rgba(33,23,15,0.06)] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#119b6e]">External reservation</p>
             <h3 className="mt-1 text-xl font-bold">Add custom reservation</h3>
               <p className="mt-2 text-sm leading-6 text-black/55">
                 Use this when a guest booked outside StayPrimePH, such as a corporate or direct reservation.
-                Host-entered payment records require platform review before they are final.
+                Saving records the stay, blocks the booking calendar dates, and sends the payment record for platform review.
               </p>
           </div>
-          <Link href={`/host/erp/reservations${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 px-4 text-sm font-bold text-black/60">
+          <Link href={`/host/erp/reservations${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 px-4 text-sm font-bold text-black/60 sm:self-start">
             Cancel
           </Link>
         </div>
@@ -420,10 +423,10 @@ function ExternalReservationForm({
             No approved listings are available for external reservations yet.
           </div>
         ) : (
-          <form action={createExternalReservation} className="mt-5 grid gap-4 lg:grid-cols-12">
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
+          <form action={createExternalReservation} className="mt-5 grid min-w-0 max-w-full gap-4 sm:grid-cols-2 lg:grid-cols-12">
+            <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
               Listing
-              <select name="propertyId" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required>
+              <select name="propertyId" className={fieldClass} required>
                 <option value="">Choose listing</option>
                 {listings.map((property) => (
                   <option key={property.id} value={property.id}>
@@ -432,9 +435,9 @@ function ExternalReservationForm({
                 ))}
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
+            <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
               Booking package
-              <select name="bookingPackageId" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black">
+              <select name="bookingPackageId" className={fieldClass}>
                 <option value="">Use listing default</option>
                 {listings.flatMap((property) =>
                   (property.bookingPackages ?? []).filter((item) => item.enabled).map((item) => (
@@ -445,56 +448,56 @@ function ExternalReservationForm({
                 )}
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
+            <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
               Guest name
-              <input name="guestName" type="text" maxLength={120} className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required />
+              <input name="guestName" type="text" maxLength={120} className={fieldClass} required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
+            <label className={`${labelClass} lg:col-span-4`}>
               Guest email
-              <input name="guestEmail" type="email" maxLength={160} placeholder="Optional" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" />
+              <input name="guestEmail" type="email" maxLength={160} placeholder="Optional" className={fieldClass} />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
+            <label className={`${labelClass} lg:col-span-4`}>
               Guest phone
-              <input name="guestPhone" type="tel" maxLength={60} placeholder="Optional" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" />
+              <input name="guestPhone" type="tel" maxLength={60} placeholder="Optional" className={fieldClass} />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+            <label className={`${labelClass} lg:col-span-2`}>
               Check-in
-              <input name="checkIn" type="date" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required />
+              <input name="checkIn" type="date" className={fieldClass} required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+            <label className={`${labelClass} lg:col-span-2`}>
               Check-out
-              <input name="checkOut" type="date" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required />
+              <input name="checkOut" type="date" className={fieldClass} required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+            <label className={`${labelClass} lg:col-span-2`}>
               Guests
-              <input name="guests" type="number" min="1" max="50" defaultValue="1" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required />
+              <input name="guests" type="number" min="1" max="50" defaultValue="1" className={fieldClass} required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-3">
+            <label className={`${labelClass} lg:col-span-3`}>
               Outside transaction amount
-              <input name="totalPrice" type="number" min="1" step="1" placeholder="0" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required />
+              <input name="totalPrice" type="number" min="1" step="1" placeholder="0" className={fieldClass} required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-3">
+            <label className={`${labelClass} lg:col-span-3`}>
               Payment method
-              <select name="paymentMethod" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required>
+              <select name="paymentMethod" className={fieldClass} required>
                 <option value="gcash">GCash</option>
                 <option value="bank_transfer">Bank transfer</option>
                 <option value="other">Other / cash</option>
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
+            <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
               Receipt or transaction reference
-              <input name="transactionId" type="text" maxLength={180} placeholder="Reference number, OR number, bank ref" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" required />
+              <input name="transactionId" type="text" maxLength={180} placeholder="Reference number, OR number, bank ref" className={fieldClass} required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-8">
+            <label className={`${labelClass} sm:col-span-2 lg:col-span-8`}>
               Notes
-              <input name="notes" type="text" maxLength={500} placeholder="Optional source, company, or payment note" className="min-h-12 rounded-2xl border border-black/10 px-4 font-normal text-black" />
+              <input name="notes" type="text" maxLength={500} placeholder="Optional source, company, or payment note" className={fieldClass} />
             </label>
-            <div className="flex flex-col gap-3 sm:flex-row lg:col-span-12">
-              <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#119b6e] px-5 font-bold text-white shadow-[0_12px_24px_rgba(17,155,110,0.22)]">
+            <div className="sticky bottom-20 z-10 grid min-w-0 max-w-full gap-3 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-[0_14px_36px_rgba(33,23,15,0.14)] backdrop-blur sm:static sm:col-span-2 sm:flex sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none lg:col-span-12">
+              <button className="inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#119b6e] px-4 text-sm font-bold text-white shadow-[0_12px_24px_rgba(17,155,110,0.22)] sm:w-auto sm:px-5 sm:text-base">
                 <Plus className="size-4" aria-hidden="true" />
-                Save external reservation
+                <span className="truncate">Save external reservation</span>
               </button>
-              <Link href={`/host/erp/reservations${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-black/10 px-5 font-bold text-black/60">
+              <Link href={`/host/erp/reservations${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-black/10 px-5 font-bold text-black/60 sm:w-auto">
                 Cancel
               </Link>
             </div>
@@ -576,17 +579,17 @@ function ReservationDashboard({
 
   return (
     <section className="mt-6 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_16px_42px_rgba(33,23,15,0.08)]">
-      <div className="flex flex-col gap-4 border-b border-black/10 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full text-white" style={{ backgroundColor: activeTab.accent }}>
-            <Icon className="size-7" aria-hidden="true" />
+      <div className="flex flex-col gap-4 border-b border-black/10 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full text-white sm:size-14" style={{ backgroundColor: activeTab.accent }}>
+            <Icon className="size-6 sm:size-7" aria-hidden="true" />
           </span>
-          <div>
-            <h2 className="text-2xl font-bold">Reservation Management</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold sm:text-2xl">Reservation Management</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">View, manage, and update all reservations in one place.</p>
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3">
           <a
             href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}
             download={`stayprimeph-reservations-${currentMonth}.csv`}
@@ -600,7 +603,7 @@ function ReservationDashboard({
               <Filter className="size-4" aria-hidden="true" />
               Filters
             </summary>
-            <form action="/host/erp/reservations" className="absolute right-0 z-20 mt-2 grid w-72 gap-3 rounded-2xl border border-black/10 bg-white p-4 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)]">
+            <form action="/host/erp/reservations" className="fixed inset-x-4 top-24 z-40 grid max-h-[calc(100dvh-8rem)] gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-4 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72">
               <label className="grid gap-2 font-semibold text-black/70">
                 Month
                 <input type="month" name="month" defaultValue={currentMonth} className="min-h-10 rounded-xl border border-black/10 px-3 font-medium" />
@@ -628,7 +631,7 @@ function ReservationDashboard({
 
       <div className="border-b border-black/10 p-4 sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
             {reservationFilters.map((filter) => {
               const active = reservationStatus === filter.id;
               return (
@@ -636,7 +639,7 @@ function ReservationDashboard({
                   key={filter.id}
                   href={`/host/erp/reservations${buildQuery({ ...queryBase, page: 1, status: filter.id === "all" ? undefined : filter.id })}`}
                   aria-current={active ? "page" : undefined}
-                  className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
+                  className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
                     active ? "border-[#119b6e]/30 bg-[#eefbf5] text-[#119b6e]" : "border-black/10 bg-white text-black/65 hover:bg-black/[0.02]"
                   }`}
                 >
@@ -728,16 +731,16 @@ function ReservationDashboard({
             {pageReservations.map((row) => (
               <article key={`${row.id}-mobile`} className="rounded-2xl border border-black/10 bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-bold text-black/45">{row.code}</p>
-                    <h3 className="mt-1 font-bold">{row.guest}</h3>
-                    <p className="mt-1 text-xs text-black/45">{row.email || "No email on file"}</p>
+                    <h3 className="mt-1 break-words font-bold">{row.guest}</h3>
+                    <p className="mt-1 break-all text-xs text-black/45">{row.email || "No email on file"}</p>
                   </div>
                   <ReservationStatusPill status={row.status} />
                 </div>
                 <div className="mt-4 grid gap-3 text-sm">
-                  <div>
-                    <p className="font-bold">{row.property}</p>
+                  <div className="min-w-0">
+                    <p className="break-words font-bold">{row.property}</p>
                     <p className="text-xs text-black/45">{row.roomLabel}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -752,10 +755,10 @@ function ReservationDashboard({
                       <p className="text-xs text-black/45">{row.checkOutTime}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 rounded-xl bg-[#fbf7f2] p-3">
+                  <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#fbf7f2] p-3">
                     <div><p className="text-xs text-black/45">Nights</p><p className="font-bold">{row.nights}</p></div>
                     <div><p className="text-xs text-black/45">Guests</p><p className="font-bold">{row.guests}</p></div>
-                    <div><p className="text-xs text-black/45">Total</p><p className="font-bold">{formatCurrency(row.total)}</p></div>
+                    <div><p className="text-xs text-black/45">Total</p><p className="break-words font-bold">{formatCurrency(row.total)}</p></div>
                   </div>
                 </div>
                 <Link href={`/host/bookings?booking=${encodeURIComponent(row.id)}`} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-black/10 text-sm font-bold text-black/70">
@@ -770,7 +773,7 @@ function ReservationDashboard({
 
       <div className="flex flex-col gap-4 border-t border-black/10 p-4 text-sm text-black/50 sm:flex-row sm:items-center sm:justify-between">
         <p>Showing {firstResult} to {lastResult} of {filteredCount} results{filteredCount !== totalReservations ? ` from ${totalReservations} reservations` : ""}.</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
           <Link
             href={`/host/erp/reservations${buildQuery({ ...queryBase, status: reservationStatus === "all" ? undefined : reservationStatus, page: Math.max(1, page - 1) })}`}
             className={`grid size-9 place-items-center rounded-lg border border-black/10 font-bold ${page <= 1 ? "pointer-events-none opacity-35" : "text-black/65"}`}
@@ -875,20 +878,20 @@ function OperationsDashboard({
   return (
     <section className="mt-6 grid gap-5">
       <section className="overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_16px_42px_rgba(33,23,15,0.08)]">
-        <div className="flex flex-col gap-4 border-b border-black/10 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-4">
-            <span className="grid size-14 shrink-0 place-items-center rounded-full text-white" style={{ backgroundColor: activeTab.accent }}>
-              <Icon className="size-7" aria-hidden="true" />
+        <div className="flex flex-col gap-4 border-b border-black/10 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            <span className="grid size-12 shrink-0 place-items-center rounded-full text-white sm:size-14" style={{ backgroundColor: activeTab.accent }}>
+              <Icon className="size-6 sm:size-7" aria-hidden="true" />
             </span>
-            <div>
-              <h2 className="text-2xl font-bold">Operations Dashboard</h2>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold sm:text-2xl">Operations Dashboard</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">Monitor daily operations, housekeeping, maintenance, and tasks.</p>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <form action="/host/erp/operations" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70">
+          <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(0,1fr)_auto]">
+            <form action="/host/erp/operations" className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70">
               <input type="hidden" name="month" value={currentMonth} />
-              <select name="department" defaultValue={department} className="min-h-9 bg-transparent pr-6 text-sm font-semibold outline-none" aria-label="Filter operations by department">
+              <select name="department" defaultValue={department} className="min-h-9 min-w-0 flex-1 bg-transparent pr-6 text-sm font-semibold outline-none" aria-label="Filter operations by department">
                 {operationDepartments.map((item) => (
                   <option key={item.id} value={item.id}>{item.label}</option>
                 ))}
@@ -902,8 +905,8 @@ function OperationsDashboard({
           </div>
         </div>
 
-        <div className="grid gap-4 p-5 xl:grid-cols-[1.1fr_0.72fr_1.08fr]">
-          <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+        <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[1.1fr_0.72fr_1.08fr]">
+          <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
             <h3 className="font-bold">Room Status Overview</h3>
             <div className="mt-5 grid gap-5 sm:grid-cols-[170px_1fr] sm:items-center">
               <div className="mx-auto grid size-40 place-items-center rounded-full" style={{ background: roomGradientStops ? `conic-gradient(${roomGradientStops})` : "#ece7df" }}>
@@ -916,8 +919,8 @@ function OperationsDashboard({
               </div>
               <div className="grid gap-3 text-sm">
                 {roomStatus.map((item) => (
-                  <div key={item.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-                    <span className="flex items-center gap-2 text-black/65"><span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</span>
+                  <div key={item.label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+                    <span className="flex min-w-0 items-center gap-2 text-black/65"><span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} /><span className="truncate">{item.label}</span></span>
                     <span className="font-bold">{item.count}</span>
                     <span className="w-12 text-right text-xs text-black/45">{totalRooms > 0 ? `${((item.count / totalRooms) * 100).toFixed(1)}%` : "0%"}</span>
                   </div>
@@ -926,7 +929,7 @@ function OperationsDashboard({
             </div>
           </section>
 
-          <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+          <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
             <h3 className="font-bold">Housekeeping Overview</h3>
             <div className="mt-5 grid gap-5 sm:grid-cols-[140px_1fr] xl:grid-cols-1">
               <div className="mx-auto grid size-32 place-items-center rounded-full" style={{ background: housekeepingGradient }}>
@@ -947,16 +950,16 @@ function OperationsDashboard({
             <Link href="/host/calendar" className="mt-5 inline-flex text-sm font-bold text-[#1683bd]">View housekeeping list -&gt;</Link>
           </section>
 
-          <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+          <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
             <h3 className="font-bold">Maintenance Requests</h3>
             <div className="mt-4 grid gap-3">
               {maintenanceRequests.length === 0 ? <p className="rounded-2xl border border-dashed border-black/10 p-4 text-sm text-black/50">No maintenance requests for this period.</p> : null}
               {maintenanceRequests.slice(0, 4).map((request) => (
                 <div key={request.id} className="grid gap-2 rounded-2xl border border-black/10 p-3 text-sm sm:grid-cols-[auto_1fr_auto] sm:items-start">
                   <OperationPill label={request.priority} tone={operationPriorityTone(request.priority)} />
-                  <div>
-                    <p className="font-bold">{request.title}</p>
-                    <p className="mt-1 text-xs text-black/45">{request.property}</p>
+                  <div className="min-w-0">
+                    <p className="break-words font-bold">{request.title}</p>
+                    <p className="mt-1 break-words text-xs text-black/45">{request.property}</p>
                   </div>
                   <div className="text-left sm:text-right">
                     <OperationPill label={request.status} tone={operationStatusTone(request.status)} />
@@ -1018,9 +1021,9 @@ function OperationsDashboard({
                 {filteredTasks.slice(0, 6).map((task) => (
                   <article key={`${task.id}-mobile`} className="rounded-2xl border border-black/10 p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h4 className="font-bold">{task.task}</h4>
-                        <p className="mt-1 text-xs text-black/45">{task.property}</p>
+                      <div className="min-w-0">
+                        <h4 className="break-words font-bold">{task.task}</h4>
+                        <p className="mt-1 break-words text-xs text-black/45">{task.property}</p>
                       </div>
                       <OperationPill label={task.status} tone={operationStatusTone(task.status)} />
                     </div>
@@ -1136,17 +1139,17 @@ function CustomerDashboard({
 
   return (
     <section className="mt-6 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_16px_42px_rgba(33,23,15,0.08)]">
-      <div className="flex flex-col gap-4 border-b border-black/10 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full text-white" style={{ backgroundColor: activeTab.accent }}>
-            <Icon className="size-7" aria-hidden="true" />
+      <div className="flex flex-col gap-4 border-b border-black/10 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full text-white sm:size-14" style={{ backgroundColor: activeTab.accent }}>
+            <Icon className="size-6 sm:size-7" aria-hidden="true" />
           </span>
-          <div>
-            <h2 className="text-2xl font-bold">Customer Database</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold sm:text-2xl">Customer Database</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">View and manage customer profiles and their booking history.</p>
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-4">
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-4">
           <Link href="/host/bookings" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/10 px-4 text-sm font-semibold text-black/70">
             <Upload className="size-4" aria-hidden="true" />
             Import
@@ -1164,7 +1167,7 @@ function CustomerDashboard({
               <Filter className="size-4" aria-hidden="true" />
               Filters
             </summary>
-            <form action="/host/erp/customers" className="absolute right-0 z-20 mt-2 grid w-72 gap-3 rounded-2xl border border-black/10 bg-white p-4 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)]">
+            <form action="/host/erp/customers" className="fixed inset-x-4 top-24 z-40 grid max-h-[calc(100dvh-8rem)] gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-4 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72">
               <label className="grid gap-2 font-semibold text-black/70">
                 Month
                 <input type="month" name="month" defaultValue={currentMonth} className="min-h-10 rounded-xl border border-black/10 px-3 font-medium" />
@@ -1190,7 +1193,7 @@ function CustomerDashboard({
 
       <div className="border-b border-black/10 p-4 sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
             {customerSegments.map((segment) => {
               const SegmentIcon = segment.icon;
               const active = customerSegment === segment.id;
@@ -1199,7 +1202,7 @@ function CustomerDashboard({
                   key={segment.id}
                   href={`/host/erp/customers${buildQuery({ ...queryBase, page: 1, segment: segment.id === "all" ? undefined : segment.id })}`}
                   aria-current={active ? "page" : undefined}
-                  className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
+                  className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition ${
                     active ? "border-[#f97316]/30 bg-orange-50 text-[#f97316]" : "border-black/10 bg-white text-black/65 hover:bg-black/[0.02]"
                   }`}
                 >
@@ -1294,21 +1297,21 @@ function CustomerDashboard({
             {pageCustomers.map((customer, index) => (
               <article key={`${customer.id}-mobile`} className="rounded-2xl border border-black/10 bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex gap-3">
+                  <div className="flex min-w-0 gap-3">
                     <span className="grid size-10 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ backgroundColor: ["#dcfce7", "#dbeafe", "#f3e8ff", "#ffedd5"][index % 4], color: ["#15803d", "#1d4ed8", "#7e22ce", "#c2410c"][index % 4] }}>
                       {customer.initials}
                     </span>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-bold text-black/45">{customer.code}</p>
-                      <h3 className="mt-1 font-bold">{customer.name}</h3>
-                      <p className="mt-1 text-xs text-black/45">{customer.email || "No email on file"}</p>
+                      <h3 className="mt-1 break-words font-bold">{customer.name}</h3>
+                      <p className="mt-1 break-all text-xs text-black/45">{customer.email || "No email on file"}</p>
                     </div>
                   </div>
                   <CustomerStatusPill active={customer.active} />
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-[#fbf7f2] p-3 text-sm">
+                <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-[#fbf7f2] p-3 text-sm">
                   <div><p className="text-xs text-black/45">Bookings</p><p className="font-bold">{customer.bookingCount}</p></div>
-                  <div><p className="text-xs text-black/45">Spent</p><p className="font-bold">{formatCurrency(customer.totalSpent)}</p></div>
+                  <div><p className="text-xs text-black/45">Spent</p><p className="break-words font-bold">{formatCurrency(customer.totalSpent)}</p></div>
                   <div><p className="text-xs text-black/45">Last Stay</p><p className="font-bold">{customer.lastStay ? compactDate(customer.lastStay) : "None"}</p></div>
                 </div>
                 <Link href={`/host/messages?guest=${encodeURIComponent(customer.id)}`} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-black/10 text-sm font-bold text-black/70">
@@ -1323,7 +1326,7 @@ function CustomerDashboard({
 
       <div className="flex flex-col gap-4 border-t border-black/10 p-4 text-sm text-black/50 sm:flex-row sm:items-center sm:justify-between">
         <p>Showing {firstResult} to {lastResult} of {filteredCount} results{filteredCount !== totalCustomers ? ` from ${totalCustomers} customers` : ""}.</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
           <Link
             href={`/host/erp/customers${buildQuery({ ...queryBase, segment: customerSegment === "all" ? undefined : customerSegment, page: Math.max(1, customerPage - 1) })}`}
             className={`grid size-9 place-items-center rounded-lg border border-black/10 font-bold ${customerPage <= 1 ? "pointer-events-none opacity-35" : "text-black/65"}`}
@@ -1450,20 +1453,20 @@ function FinancialDashboard({
 
   return (
     <section className="mt-6 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_16px_42px_rgba(33,23,15,0.08)]">
-      <div className="flex flex-col gap-4 border-b border-black/10 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full text-white" style={{ backgroundColor: activeTab.accent }}>
-            <Icon className="size-7" aria-hidden="true" />
+      <div className="flex flex-col gap-4 border-b border-black/10 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full text-white sm:size-14" style={{ backgroundColor: activeTab.accent }}>
+            <Icon className="size-6 sm:size-7" aria-hidden="true" />
           </span>
-          <div>
-            <h2 className="text-2xl font-bold">Financial Reporting</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold sm:text-2xl">Financial Reporting</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">Analyze financial performance and generate detailed reports.</p>
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <form action="/host/erp/financial" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70">
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3">
+          <form action="/host/erp/financial" className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70">
             <CalendarCheck2 className="size-4 text-black/45" aria-hidden="true" />
-            <input type="month" name="month" defaultValue={currentMonth} className="bg-transparent text-sm font-semibold outline-none" aria-label="Financial report month" />
+            <input type="month" name="month" defaultValue={currentMonth} className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" aria-label="Financial report month" />
             <button className="rounded-lg bg-black/[0.04] px-3 py-1.5 text-xs font-bold text-black/60">Apply</button>
           </form>
           <details className="relative">
@@ -1471,7 +1474,7 @@ function FinancialDashboard({
               <Filter className="size-4" aria-hidden="true" />
               Filters
             </summary>
-            <div className="absolute right-0 z-20 mt-2 grid w-72 gap-3 rounded-2xl border border-black/10 bg-white p-4 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)]">
+            <div className="fixed inset-x-4 top-24 z-40 grid max-h-[calc(100dvh-8rem)] gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-4 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72">
               <p className="font-bold">Report range</p>
               <p className="text-black/55">{dateRangeLabel(currentMonth)}</p>
               <Link href="/host/reports" className="min-h-10 rounded-xl bg-[#ef4444] px-4 py-2 text-center text-sm font-bold text-white">Open detailed reports</Link>
@@ -1488,8 +1491,8 @@ function FinancialDashboard({
         </div>
       </div>
 
-      <div className="border-b border-black/10 px-5">
-        <div className="flex gap-1 overflow-x-auto">
+      <div className="border-b border-black/10 px-4 sm:px-5">
+        <div className="flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {financialReportTabs.map((tab) => (
             <Link
               key={tab.id}
@@ -1506,8 +1509,8 @@ function FinancialDashboard({
         </div>
       </div>
 
-      <div className="grid gap-4 p-5 xl:grid-cols-[1.05fr_0.8fr_0.82fr]">
-        <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+      <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[1.05fr_0.8fr_0.82fr]">
+        <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
           <div className="flex items-center justify-between gap-4">
             <h3 className="font-bold">Revenue Overview</h3>
             <span className="rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-black/60">Daily</span>
@@ -1534,15 +1537,15 @@ function FinancialDashboard({
               return <text key={`financial-x-${day}`} x={x - 12} y="170" className="fill-black/45 text-[10px]">{shortMonth} {day}</text>;
             })}
           </svg>
-          <div className="mt-4 grid gap-3 sm:grid-cols-4">
-            <div><p className="text-xs text-black/45">Total Revenue</p><p className="font-bold">{formatCurrency(totalRevenue)}</p></div>
-            <div><p className="text-xs text-black/45">Total Expenses</p><p className="font-bold">{formatCurrency(totalExpenses)}</p></div>
-            <div><p className="text-xs text-black/45">Net Profit</p><p className="font-bold">{formatCurrency(netProfit)}</p></div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div><p className="text-xs text-black/45">Total Revenue</p><p className="break-words font-bold">{formatCurrency(totalRevenue)}</p></div>
+            <div><p className="text-xs text-black/45">Total Expenses</p><p className="break-words font-bold">{formatCurrency(totalExpenses)}</p></div>
+            <div><p className="text-xs text-black/45">Net Profit</p><p className="break-words font-bold">{formatCurrency(netProfit)}</p></div>
             <div><p className="text-xs text-black/45">Net Margin</p><p className="font-bold">{percent(grossProfitMargin)}</p></div>
           </div>
         </section>
 
-        <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+        <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
           <h3 className="font-bold">Income vs Expenses</h3>
           <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr] xl:grid-cols-1">
             <div className="mx-auto grid size-36 place-items-center rounded-full" style={{ background: revenueGradient ? `conic-gradient(${revenueGradient})` : "#ece7df" }}>
@@ -1555,9 +1558,9 @@ function FinancialDashboard({
             </div>
             <div className="grid gap-3 text-sm">
               {revenueSources.map((source) => (
-                <div key={source.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-                  <span className="flex items-center gap-2 text-black/65"><span className="size-2.5 rounded-full" style={{ backgroundColor: source.color }} />{source.label}</span>
-                  <strong>{formatCurrency(source.amount)}</strong>
+                <div key={source.label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+                  <span className="flex min-w-0 items-center gap-2 text-black/65"><span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: source.color }} /><span className="truncate">{source.label}</span></span>
+                  <strong className="break-words text-right">{formatCurrency(source.amount)}</strong>
                   <span className="w-12 text-right text-xs text-black/45">{source.percent.toFixed(1)}%</span>
                 </div>
               ))}
@@ -1565,7 +1568,7 @@ function FinancialDashboard({
           </div>
         </section>
 
-        <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+        <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
           <div className="flex items-center justify-between gap-4">
             <h3 className="font-bold">Top Expense Categories</h3>
             <span className="rounded-xl border border-black/10 px-3 py-2 text-sm font-semibold text-black/60">MTD</span>
@@ -1573,12 +1576,12 @@ function FinancialDashboard({
           <div className="mt-4 grid gap-3">
             {expenseCategories.length === 0 ? <p className="rounded-2xl border border-dashed border-black/10 p-4 text-sm text-black/50">No expenses recorded for this period.</p> : null}
             {expenseCategories.slice(0, 6).map((category) => (
-              <div key={category.category} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 text-sm">
+              <div key={category.category} className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 text-sm">
                 <span className="grid size-8 place-items-center rounded-full text-white" style={{ backgroundColor: category.color }}>
                   <CreditCard className="size-4" aria-hidden="true" />
                 </span>
-                <span className="font-semibold">{category.category}</span>
-                <strong>{formatCurrency(category.amount)}</strong>
+                <span className="truncate font-semibold">{category.category}</span>
+                <strong className="break-words text-right">{formatCurrency(category.amount)}</strong>
                 <span className="w-12 text-right text-xs text-black/45">{category.percent.toFixed(1)}%</span>
               </div>
             ))}
@@ -1590,7 +1593,7 @@ function FinancialDashboard({
         </section>
       </div>
 
-      <div className="grid gap-4 p-5 pt-0 xl:grid-cols-[1.4fr_0.6fr]">
+      <div className="grid gap-4 p-4 pt-0 sm:p-5 sm:pt-0 xl:grid-cols-[1.4fr_0.6fr]">
         <section className="overflow-hidden rounded-[1.25rem] border border-black/10 bg-white shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
           <div className="border-b border-black/10 p-5">
             <h3 className="font-bold">Monthly Summary</h3>
@@ -1655,9 +1658,9 @@ function FinancialDashboard({
 
 function RevenueMetricCard({ comparisonMonth, label, value }: { comparisonMonth: string; label: string; value: string }) {
   return (
-    <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.06)]">
+    <div className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.06)] sm:p-5">
       <p className="text-sm text-black/45">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-black">{value}</p>
+      <p className="mt-2 break-words text-2xl font-bold text-black sm:text-3xl">{value}</p>
       <p className="mt-3 text-xs text-black/40"><span className="font-semibold text-[#119b6e]">{"\u2014"}</span> vs {comparisonMonth}</p>
     </div>
   );
@@ -1707,18 +1710,18 @@ function RevenueDashboard({
   const totalRevenue = revenueByRoom.reduce((sum, room) => sum + room.payout, 0);
 
   return (
-    <section className="mt-6 rounded-[1.5rem] border border-black/10 bg-white p-5 shadow-[0_16px_42px_rgba(33,23,15,0.08)] sm:p-6">
+    <section className="mt-6 rounded-[1.5rem] border border-black/10 bg-white p-4 shadow-[0_16px_42px_rgba(33,23,15,0.08)] sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full text-white" style={{ backgroundColor: activeTab.accent }}>
-            <Icon className="size-7" aria-hidden="true" />
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full text-white sm:size-14" style={{ backgroundColor: activeTab.accent }}>
+            <Icon className="size-6 sm:size-7" aria-hidden="true" />
           </span>
-          <div>
-            <h2 className="text-2xl font-bold">Revenue Dashboard</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold sm:text-2xl">Revenue Dashboard</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">Monthly sales, occupancy, and revenue per room are separated here for quick review.</p>
           </div>
         </div>
-        <button type="button" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-black/70 shadow-[0_8px_20px_rgba(33,23,15,0.05)]">
+        <button type="button" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-black/70 shadow-[0_8px_20px_rgba(33,23,15,0.05)] sm:w-auto">
           <CalendarCheck2 className="size-4 text-black/45" aria-hidden="true" />
           {monthLabel(currentMonth)}
           <ChevronDown className="size-4 text-black/45" aria-hidden="true" />
@@ -1733,7 +1736,7 @@ function RevenueDashboard({
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.05fr_1fr]">
-        <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.06)]">
+        <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.06)] sm:p-5">
           <div className="flex items-center justify-between gap-4">
             <h3 className="font-bold">Monthly sales overview</h3>
             <button type="button" className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-black/10 px-3 text-sm font-semibold text-black/65">
@@ -1771,7 +1774,7 @@ function RevenueDashboard({
           </div>
         </section>
 
-        <section className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.06)]">
+        <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.06)] sm:p-5">
           <h3 className="font-bold">Revenue by room</h3>
           <div className="mt-4 overflow-hidden rounded-2xl border border-black/10">
             <DataTable
@@ -2346,13 +2349,13 @@ export default async function HostErpSectionPage({
     <DashboardShell
       title="ERP Hospitality Management"
       subtitle="Phase 2"
-      description="Click each ERP tab to manage one hospitality module at a time."
+      description="Use each ERP tab to manage one hospitality module at a time."
       links={links}
     >
-      <div className="mb-4 flex justify-end">
-        <form action={`/host/erp/${activeSection}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70 shadow-[0_8px_20px_rgba(33,23,15,0.05)]">
+      <div className="mb-4 flex justify-stretch sm:justify-end">
+        <form action={`/host/erp/${activeSection}`} className="inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70 shadow-[0_8px_20px_rgba(33,23,15,0.05)] sm:w-auto">
           <CalendarCheck2 className="size-4 text-black/45" aria-hidden="true" />
-          <input type="month" name="month" defaultValue={currentMonth} className="bg-transparent text-sm font-semibold outline-none" aria-label="Report month" />
+          <input type="month" name="month" defaultValue={currentMonth} className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" aria-label="Report month" />
           <button className="rounded-lg bg-black/[0.04] px-3 py-1.5 text-xs font-bold text-black/60">Apply</button>
         </form>
       </div>
@@ -2442,16 +2445,16 @@ export default async function HostErpSectionPage({
         />
       ) : null}
 
-      <section className="mt-6 rounded-[1.25rem] bg-white p-5 soft-card">
+      <section className="mt-6 rounded-[1.25rem] bg-white p-4 soft-card sm:p-5">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#eefbf5] text-[#119b6e]">
               <BriefcaseBusiness className="size-5" aria-hidden="true" />
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-black/35">Management actions</p>
-              <h2 className="mt-1 text-xl font-bold">Ready for client demo</h2>
-              <p className="mt-2 text-sm leading-6 text-black/60">Each tab is now a separate clickable page with focused ERP content.</p>
+              <h2 className="mt-1 text-xl font-bold">Daily operations</h2>
+              <p className="mt-2 text-sm leading-6 text-black/60">Jump to booking, calendar, and report workflows when a task needs deeper action.</p>
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">

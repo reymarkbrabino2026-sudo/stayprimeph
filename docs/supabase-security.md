@@ -19,6 +19,8 @@ The Supabase-specific security migration lives here:
 supabase/migrations/0001_stayprimeph_rls.sql
 supabase/migrations/0002_close_rls_gaps.sql
 supabase/migrations/0003_harden_app_security_functions.sql
+supabase/migrations/0004_platform_ledger_rls.sql
+supabase/migrations/0005_secure_recent_app_tables.sql
 ```
 
 Run the normal Prisma migrations first, then apply the Supabase RLS migration:
@@ -34,6 +36,8 @@ If you do not use the Supabase CLI, open the Supabase SQL Editor and run the con
 supabase/migrations/0001_stayprimeph_rls.sql
 supabase/migrations/0002_close_rls_gaps.sql
 supabase/migrations/0003_harden_app_security_functions.sql
+supabase/migrations/0004_platform_ledger_rls.sql
+supabase/migrations/0005_secure_recent_app_tables.sql
 ```
 
 Run them in that order. The first file creates the shared policy helpers and
@@ -42,7 +46,8 @@ after the initial baseline, including `AccountSettings`, and enables RLS on
 Prisma's `_prisma_migrations` metadata table so Supabase Security Advisor stops
 flagging it as public. The third file pins the helper function search paths so
 the functions cannot accidentally resolve objects from an attacker-controlled
-schema.
+schema. The later files protect the platform ledger, host reports, server-side
+sessions, and listing booking packages added by newer Prisma migrations.
 
 ## What the policy protects
 
@@ -58,6 +63,9 @@ The migration:
 - Allows reports only from the logged-in reporter.
 - Keeps listing, booking, payment, auth, and admin write operations behind the trusted Next.js server.
 - Keeps auth tokens inaccessible from browser clients.
+- Keeps server-side auth sessions inaccessible from browser clients.
+- Allows booking packages to be read only when their listing is visible, and hides disabled packages from public visitors.
+- Allows hosts to read only their own host expenses and monthly reports.
 - Keeps payments read-only for the guest, host, or admin.
 - Keeps admin logs visible only to admins.
 

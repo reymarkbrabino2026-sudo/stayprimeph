@@ -16,12 +16,12 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#f8f3ed]">
-      <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-[#f8f3ed]">
+      <div className="grid min-h-screen min-w-0 max-w-full lg:grid-cols-[260px_minmax(0,1fr)]">
         <DashboardSidebar links={links} />
-        <main className="px-4 pb-24 pt-5 sm:px-6 sm:pb-24 lg:p-10">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-4 pb-24 pt-5 sm:px-6 sm:pb-24 lg:p-10">
           <DashboardHeader eyebrow={subtitle} title={title} description={description} />
-          <div className="mt-6 sm:mt-8">{children}</div>
+          <div className="mt-6 min-w-0 max-w-full sm:mt-8">{children}</div>
         </main>
       </div>
       <MobileBottomNav links={links} />
