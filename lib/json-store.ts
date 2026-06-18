@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { get, put } from "@vercel/blob";
 import { jsonStorePath } from "@/lib/json-store-path";
+import { logger } from "@/lib/logger";
 
 const blobPrefix = "json";
 const blobCacheMs = 15_000;
@@ -75,7 +76,7 @@ export async function readJsonStore<T>(fileName: string): Promise<T[]> {
       return items;
     }
   } catch (error) {
-    console.warn(`Failed to read ${fileName} from blob storage. Falling back to bundled data.`, error);
+    logger.warn("json_store_blob_read_failed", { fileName, error });
     return readBundledStore<T>(fileName);
   }
 
@@ -83,7 +84,7 @@ export async function readJsonStore<T>(fileName: string): Promise<T[]> {
   try {
     await writeJsonStore(fileName, seeded);
   } catch (error) {
-    console.warn(`Failed to seed ${fileName} in blob storage. Continuing with bundled data.`, error);
+    logger.warn("json_store_blob_seed_failed", { fileName, error });
   }
   return seeded;
 }

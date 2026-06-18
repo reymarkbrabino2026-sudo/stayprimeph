@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ id: uploaded.public_id, url: uploaded.secure_url, bytes: uploaded.bytes });
     } catch (error) {
-      console.error("Cloudinary listing photo upload failed", error);
+      logger.error("cloudinary_listing_photo_upload_failed", { userId: user.id, error });
       return NextResponse.json({ error: "Cloudinary upload failed. Check the storage credentials and try again." }, { status: 502 });
     }
   }
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
         storage: "vercel-blob",
       });
     } catch (error) {
-      console.error("Vercel Blob listing photo upload failed", error);
+      logger.error("vercel_blob_listing_photo_upload_failed", { userId: user.id, error });
       return NextResponse.json({ error: "Vercel Blob upload failed. Check the connected Blob store and try again." }, { status: 502 });
     }
   }

@@ -19,6 +19,7 @@ const demoAccountSelectors = [
 const adminPassword = process.env.ROTATE_ADMIN_PASSWORD;
 const adminNewEmail = process.env.ROTATE_ADMIN_EMAIL?.trim().toLowerCase();
 const dryRun = process.env.DRY_RUN === "1";
+const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 
 function strongEnough(password) {
   return (
@@ -28,6 +29,17 @@ function strongEnough(password) {
     /\d/.test(password) &&
     /[^A-Za-z0-9]/.test(password)
   );
+}
+
+function maskEmail(value) {
+  const [local = "", domain = ""] = String(value ?? "").split("@");
+  if (!domain) return "[redacted]";
+  const safeLocal = local.length <= 2 ? `${local[0] ?? "*"}***` : `${local[0]}***${local.at(-1)}`;
+  return `${safeLocal}@${domain.toLowerCase()}`;
+}
+
+function sanitizeMessage(value) {
+  return String(value).replace(emailPattern, (match) => maskEmail(match));
 }
 
 function unusablePasswordHash() {
@@ -59,7 +71,7 @@ async function main() {
 
     if (admin) {
       updates.push({
-        label: `rotate ${admin.email}`,
+        label: `rotate ${maskEmail(admin.email)}`,
         run: () =>
           prisma.user.update({
             where: { id: admin.id },
@@ -81,7 +93,7 @@ async function main() {
     for (const user of demoUsers) {
       if (user.email === adminEmail && admin) continue;
       updates.push({
-        label: `invalidate demo credentials for ${user.email}`,
+        label: `invalidate demo credentials for ${maskEmail(user.email)}`,
         run: () =>
           prisma.user.update({
             where: { id: user.id },
@@ -116,6 +128,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(sanitizeMessage(error instanceof Error ? error.message : error));
   process.exit(1);
 });

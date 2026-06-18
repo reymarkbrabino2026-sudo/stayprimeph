@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Vercel Blob client upload setup failed", error);
+    logger.error("vercel_blob_client_upload_setup_failed", { error });
     return NextResponse.json({ error: "Vercel Blob upload setup failed. Check the connected Blob store and try again." }, { status: 502 });
   }
 }

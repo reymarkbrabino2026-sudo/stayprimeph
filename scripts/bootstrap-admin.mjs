@@ -19,9 +19,21 @@ const name = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "StayPrimePH Admin";
 const password = process.env.BOOTSTRAP_ADMIN_PASSWORD ?? "";
 const confirmation = process.env.BOOTSTRAP_ADMIN_CONFIRM;
 const dryRun = process.env.DRY_RUN === "1";
+const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 
 function validEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function maskEmail(value) {
+  const [local = "", domain = ""] = String(value ?? "").split("@");
+  if (!domain) return "[redacted]";
+  const safeLocal = local.length <= 2 ? `${local[0] ?? "*"}***` : `${local[0]}***${local.at(-1)}`;
+  return `${safeLocal}@${domain.toLowerCase()}`;
+}
+
+function sanitizeMessage(value) {
+  return String(value).replace(emailPattern, (match) => maskEmail(match));
 }
 
 function initials(value) {
@@ -101,7 +113,7 @@ async function main() {
     });
 
     if (activeAdmin) {
-      throw new Error(`Active admin already exists (${activeAdmin.email}). Bootstrap is one-time only.`);
+      throw new Error(`Active admin already exists (${maskEmail(activeAdmin.email)}). Bootstrap is one-time only.`);
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -114,7 +126,7 @@ async function main() {
     const action = existingUser ? "promote existing user to admin" : "create first admin user";
 
     if (dryRun) {
-      console.log(`Dry run only. Would ${action} for ${email}.`);
+      console.log(`Dry run only. Would ${action} for ${maskEmail(email)}.`);
       return;
     }
 
@@ -160,13 +172,13 @@ async function main() {
       return user;
     });
 
-    console.log(`Admin bootstrap complete for ${admin.email}. Clear BOOTSTRAP_ADMIN_* secrets now.`);
+    console.log(`Admin bootstrap complete for ${maskEmail(admin.email)}. Clear BOOTSTRAP_ADMIN_* secrets now.`);
   } finally {
     await prisma.$disconnect();
   }
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(sanitizeMessage(error instanceof Error ? error.message : error));
   process.exit(1);
 });

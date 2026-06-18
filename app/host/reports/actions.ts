@@ -8,6 +8,7 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { appendHostExpenses, readHostExpenses, removeHostExpense, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport, saveHostMonthlyReport as saveHostMonthlyReportEntry } from "@/lib/host-report-store";
+import { logger } from "@/lib/logger";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { HostExpense, HostMonthlyReport } from "@/lib/types";
 import { getUsers } from "@/lib/users";
@@ -103,7 +104,7 @@ export async function saveHostMonthlyReport(formData: FormData) {
   try {
     await saveHostMonthlyReportEntry(nextReport);
   } catch (error) {
-    console.error("Failed to save host sales", error);
+    logger.error("host_sales_save_failed", { hostId: user.id, reportId: nextReport.id, error });
     redirect(reportsPath(month, { reportError: "We could not save the sales entry. Please try again." }));
   }
 
@@ -125,7 +126,7 @@ export async function deleteHostMonthlyReport(formData: FormData) {
   try {
     await removeHostMonthlyReport(reportId);
   } catch (error) {
-    console.error("Failed to delete host sales", error);
+    logger.error("host_sales_delete_failed", { actorId: user.id, reportId, error });
     redirect(reportsPath(redirectMonth, { reportError: "We could not delete the sales entry. Please try again." }));
   }
 
@@ -189,7 +190,7 @@ export async function saveHostExpense(formData: FormData) {
   try {
     await appendHostExpenses(nextExpenses);
   } catch (error) {
-    console.error("Failed to save host expenses", error);
+    logger.error("host_expenses_save_failed", { actorId: user.id, hostId, count: nextExpenses.length, error });
     redirect(reportsPath(nextExpenses[0].month, { expenseError: "We could not save the expense. Please try again." }));
   }
 
@@ -233,7 +234,7 @@ export async function updateHostExpense(formData: FormData) {
   try {
     await replaceHostExpense(updatedExpense);
   } catch (error) {
-    console.error("Failed to update host expense", error);
+    logger.error("host_expense_update_failed", { actorId: user.id, hostId: existing.hostId, expenseId, error });
     redirect(reportsPath(updatedExpense.month, { expenseError: "We could not update the expense. Please try again." }));
   }
 
@@ -255,7 +256,7 @@ export async function deleteHostExpense(formData: FormData) {
   try {
     await removeHostExpense(expenseId);
   } catch (error) {
-    console.error("Failed to delete host expense", error);
+    logger.error("host_expense_delete_failed", { actorId: user.id, hostId: existing.hostId, expenseId, error });
     redirect(reportsPath(redirectMonth, { expenseError: "We could not delete the expense. Please try again." }));
   }
 
