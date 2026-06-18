@@ -63,6 +63,10 @@ if (isProductionRuntime && (!optionalEnv(process.env.UPSTASH_REDIS_REST_URL) || 
   throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required for production rate limiting.");
 }
 
+if (isProductionRuntime && (!optionalEnv(process.env.SENTRY_DSN) || !optionalEnv(process.env.NEXT_PUBLIC_SENTRY_DSN))) {
+  throw new Error("SENTRY_DSN and NEXT_PUBLIC_SENTRY_DSN are required for production monitoring.");
+}
+
 if (isProductionRuntime && paymentLaunchMode === "stripe") {
   if (!stripeSecretKey?.startsWith("sk_live_") && !stripeSecretKey?.startsWith("rk_live_")) {
     throw new Error("STRIPE_SECRET_KEY must be a live Stripe key when PAYMENT_LAUNCH_MODE=stripe in production runtime.");

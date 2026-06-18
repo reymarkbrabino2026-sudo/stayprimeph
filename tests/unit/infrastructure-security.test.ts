@@ -77,4 +77,22 @@ describe("infrastructure security controls", () => {
     expect(proxy).toContain("corsHeaders(request.headers.get(\"origin\"))");
     expect(productionEnv).toContain('API_CORS_ALLOWED_ORIGINS=""');
   });
+
+  test("documents production monitoring and provider alerts", async () => {
+    const [env, monitoring] = await Promise.all([
+      readRepoFile("lib/env.ts"),
+      readRepoFile("docs/monitoring-alerts.md"),
+    ]);
+
+    expect(env).toContain("SENTRY_DSN and NEXT_PUBLIC_SENTRY_DSN are required for production monitoring.");
+    expect(monitoring).toContain("Provider Alert Rules");
+    expect(monitoring).toContain("Sentry");
+    expect(monitoring).toContain("Vercel");
+    expect(monitoring).toContain("Database provider");
+    expect(monitoring).toContain("Upstash Redis");
+    expect(monitoring).toContain("Stripe");
+    expect(monitoring).toContain("Resend");
+    expect(monitoring).toContain("Cloudinary or Blob storage");
+    expect(monitoring).toContain("Privacy scrubbing must stay enabled");
+  });
 });

@@ -18,6 +18,8 @@ async function loadEnv({
   stripeSecretKey,
   stripeWebhookSecret,
   stripePublishableKey,
+  sentryDsn = "https://public@example.ingest.sentry.io/1",
+  sentryPublicDsn = "https://public@example.ingest.sentry.io/1",
   upstashRedisRestToken = "ci-upstash-token",
   upstashRedisRestUrl = "https://ci-upstash.example.com",
 }: {
@@ -31,6 +33,8 @@ async function loadEnv({
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   stripePublishableKey?: string;
+  sentryDsn?: string;
+  sentryPublicDsn?: string;
   upstashRedisRestToken?: string;
   upstashRedisRestUrl?: string;
 }) {
@@ -45,6 +49,8 @@ async function loadEnv({
     BLOB_READ_WRITE_TOKEN: blobReadWriteToken,
     PERSISTENCE_DRIVER: persistenceDriver,
     PAYMENT_LAUNCH_MODE: paymentLaunchMode,
+    SENTRY_DSN: sentryDsn,
+    NEXT_PUBLIC_SENTRY_DSN: sentryPublicDsn,
     UPSTASH_REDIS_REST_TOKEN: upstashRedisRestToken,
     UPSTASH_REDIS_REST_URL: upstashRedisRestUrl,
     STRIPE_SECRET_KEY: stripeSecretKey,
@@ -85,6 +91,14 @@ describe("environment defaults", () => {
       upstashRedisRestToken: "",
       upstashRedisRestUrl: "",
     })).rejects.toThrow("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required for production rate limiting.");
+  });
+
+  test("requires Sentry monitoring in production runtime", async () => {
+    await expect(loadEnv({
+      nodeEnv: "production",
+      sentryDsn: "",
+      sentryPublicDsn: "",
+    })).rejects.toThrow("SENTRY_DSN and NEXT_PUBLIC_SENTRY_DSN are required for production monitoring.");
   });
 
   test("allows JSON persistence during sanitized production builds", async () => {

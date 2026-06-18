@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { promises as fs } from "node:fs";
 import { scrubSentryEvent } from "@/lib/sentry-scrubbing";
 import type { Event } from "@sentry/nextjs";
 
@@ -60,5 +61,26 @@ describe("Sentry event privacy scrubber", () => {
     expect(scrubbed?.request?.headers?.["x-request-id"]).toBe("request-1");
     expect(payload).toContain("b***r@example.com");
     expect(payload).toContain("[redacted]");
+  });
+
+  test("keeps Sentry enabled through server, edge, and browser configs", async () => {
+    const [serverConfig, edgeConfig, clientConfig, instrumentation] = await Promise.all([
+      fs.readFile("sentry.server.config.ts", "utf8"),
+      fs.readFile("sentry.edge.config.ts", "utf8"),
+      fs.readFile("sentry.client.config.ts", "utf8"),
+      fs.readFile("instrumentation.ts", "utf8"),
+    ]);
+
+    expect(serverConfig).toContain("dsn: process.env.SENTRY_DSN");
+    expect(edgeConfig).toContain("dsn: process.env.SENTRY_DSN");
+    expect(clientConfig).toContain("dsn: process.env.NEXT_PUBLIC_SENTRY_DSN");
+    expect(serverConfig).toContain("enabled: Boolean(process.env.SENTRY_DSN)");
+    expect(edgeConfig).toContain("enabled: Boolean(process.env.SENTRY_DSN)");
+    expect(clientConfig).toContain("enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN)");
+    expect(serverConfig).toContain("...sentryPrivacyOptions");
+    expect(edgeConfig).toContain("...sentryPrivacyOptions");
+    expect(clientConfig).toContain("...sentryPrivacyOptions");
+    expect(instrumentation).toContain('void import("./sentry.server.config")');
+    expect(instrumentation).toContain('void import("./sentry.edge.config")');
   });
 });
