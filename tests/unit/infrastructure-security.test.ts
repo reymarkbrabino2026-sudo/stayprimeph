@@ -20,8 +20,21 @@ describe("infrastructure security controls", () => {
     expect(workflow).toContain("npm run prod:check");
     expect(workflow).toContain("actions/dependency-review-action@v4");
     expect(workflow).toContain("fail-on-severity: high");
+    expect(workflow).toContain("trufflesecurity/trufflehog@main");
+    expect(workflow).toContain("--results=verified,unknown");
     expect(workflow).toContain("npm audit --audit-level=high");
     expect(workflow).toContain("Reject committed local secret files");
+  });
+
+  test("documents GitHub and provider secret scanning controls", async () => {
+    const docs = await readRepoFile("docs/secret-scanning.md");
+
+    expect(docs).toContain("Secret scanning: enabled.");
+    expect(docs).toContain("Push protection: enabled.");
+    expect(docs).toContain("Dependabot alerts: enabled.");
+    expect(docs).toContain("Dependabot security updates: enabled.");
+    expect(docs).toContain("TruffleHog secret scanning.");
+    expect(docs).toContain("Store production secrets only in Vercel/provider secret managers.");
   });
 
   test("keeps static and dynamic security headers aligned", async () => {

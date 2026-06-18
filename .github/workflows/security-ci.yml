@@ -25,6 +25,12 @@ jobs:
         with:
           fail-on-severity: high
 
+      - name: Secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          extra_args: --results=verified,unknown
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
