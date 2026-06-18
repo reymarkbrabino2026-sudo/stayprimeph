@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { maxListingPhotoUploadBytes, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
+import sharp from "sharp";
+import { maxListingPhotoUploadBytes, sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 
 const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const jpgSignature = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
@@ -25,5 +26,26 @@ describe("listing photo upload validation", () => {
     expect(validateListingPhotoBytes(pngSignature, "image/png")).toEqual({ ok: true });
     expect(validateListingPhotoBytes(webpSignature, "image/webp")).toEqual({ ok: true });
     expect(validateListingPhotoBytes(Buffer.from("not an image"), "image/png")).toMatchObject({ ok: false, status: 400 });
+  });
+
+  test("re-encodes images before storage and strips trailing payload bytes", async () => {
+    const original = await sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 3,
+        background: "#ff385c",
+      },
+    }).png().toBuffer();
+    const payload = Buffer.from("SHOULD_NOT_SURVIVE_REENCODE");
+    const withTrailingPayload = Buffer.concat([original, payload]);
+
+    expect(validateListingPhotoBytes(withTrailingPayload, "image/png")).toEqual({ ok: true });
+    const sanitized = await sanitizeListingPhotoImage(withTrailingPayload, "image/png");
+
+    expect(sanitized.ok).toBe(true);
+    if (!sanitized.ok) return;
+    expect(sanitized.bytes.includes(payload)).toBe(false);
+    expect(validateListingPhotoBytes(sanitized.bytes, "image/png")).toEqual({ ok: true });
   });
 });

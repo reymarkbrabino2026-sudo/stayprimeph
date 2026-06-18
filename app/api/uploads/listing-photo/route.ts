@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
-import { validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
+import { sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhotoStorage } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
@@ -78,6 +78,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: byteValidation.error }, { status: byteValidation.status });
   }
 
+  const sanitizedImage = await sanitizeListingPhotoImage(bytes, file.type);
+  if (!sanitizedImage.ok) {
+    return NextResponse.json({ error: sanitizedImage.error }, { status: sanitizedImage.status });
+  }
+
   const uploadPath = serverGeneratedListingUploadPath({
     userId: user.id,
     listingId,
@@ -105,7 +110,7 @@ export async function POST(request: Request) {
             else resolve({ secure_url: result.secure_url, public_id: result.public_id, bytes: result.bytes });
           },
         );
-        stream.end(bytes);
+        stream.end(sanitizedImage.bytes);
       });
       return NextResponse.json({ id: uploaded.public_id, url: uploaded.secure_url, bytes: uploaded.bytes });
     } catch (error) {
@@ -117,7 +122,7 @@ export async function POST(request: Request) {
   if (hasVercelBlobConfig()) {
     try {
       const token = getPhotoBlobReadWriteToken();
-      const blob = await put(uploadPath, bytes, {
+      const blob = await put(uploadPath, sanitizedImage.bytes, {
         access: "public",
         contentType: file.type,
         addRandomSuffix: false,
@@ -128,7 +133,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         id: blob.pathname,
         url: blob.url,
-        bytes: bytes.length,
+        bytes: sanitizedImage.bytes.length,
         storage: "vercel-blob",
       });
     } catch (error) {
@@ -143,11 +148,11 @@ export async function POST(request: Request) {
 
   const uploadDir = path.join(process.cwd(), "public", path.dirname(uploadPath));
   await fs.mkdir(uploadDir, { recursive: true });
-  await fs.writeFile(path.join(process.cwd(), "public", uploadPath), bytes);
+  await fs.writeFile(path.join(process.cwd(), "public", uploadPath), sanitizedImage.bytes);
   return NextResponse.json({
     id: uploadPath,
     url: `/${uploadPath}`,
-    bytes: bytes.length,
+    bytes: sanitizedImage.bytes.length,
     storage: "local-dev",
   });
 }

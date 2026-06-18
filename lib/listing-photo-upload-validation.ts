@@ -1,7 +1,10 @@
 import path from "node:path";
+import sharp from "sharp";
 
 export const listingPhotoAcceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 export const maxListingPhotoUploadBytes = 4 * 1024 * 1024;
+const maxListingPhotoPixels = 24_000_000;
+const maxListingPhotoDimension = 8_000;
 
 const acceptedExtensionsByType = new Map([
   ["image/jpeg", new Set(["jpg", "jpeg"])],
@@ -44,4 +47,48 @@ export function validateListingPhotoBytes(bytes: Buffer, type: string) {
   }
 
   return { ok: true as const };
+}
+
+function expectedSharpFormat(type: string) {
+  if (type === "image/jpeg") return "jpeg";
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  return null;
+}
+
+async function reencodeListingPhoto(bytes: Buffer, type: string) {
+  const image = sharp(bytes, {
+    animated: false,
+    failOn: "warning",
+    limitInputPixels: maxListingPhotoPixels,
+  }).rotate();
+  const metadata = await image.metadata();
+  const expectedFormat = expectedSharpFormat(type);
+
+  if (
+    !metadata.width ||
+    !metadata.height ||
+    metadata.width > maxListingPhotoDimension ||
+    metadata.height > maxListingPhotoDimension ||
+    metadata.pages && metadata.pages > 1 ||
+    !expectedFormat ||
+    metadata.format !== expectedFormat
+  ) {
+    throw new Error("Unsupported image payload.");
+  }
+
+  if (type === "image/jpeg") return image.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+  if (type === "image/png") return image.png({ compressionLevel: 9, palette: false }).toBuffer();
+  if (type === "image/webp") return image.webp({ quality: 85 }).toBuffer();
+
+  throw new Error("Unsupported image payload.");
+}
+
+export async function sanitizeListingPhotoImage(bytes: Buffer, type: string) {
+  try {
+    const sanitizedBytes = await reencodeListingPhoto(bytes, type);
+    return { ok: true as const, bytes: sanitizedBytes };
+  } catch {
+    return { ok: false as const, error: "The uploaded image could not be safely processed.", status: 400 };
+  }
 }
