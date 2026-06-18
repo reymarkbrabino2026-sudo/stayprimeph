@@ -14,6 +14,13 @@ describe("security headers", () => {
     expect(config).toContain("form-action 'self'");
     expect(config).toContain("https://res.cloudinary.com");
     expect(config).toContain("https://*.public.blob.vercel-storage.com");
+    expect(config).toContain("https://a.tile.openstreetmap.org");
+    expect(config).toContain("https://b.tile.openstreetmap.org");
+    expect(config).toContain("https://c.tile.openstreetmap.org");
+    expect(config).toContain("isProduction ? \"\" : \"https://va.vercel-scripts.com\"");
     expect(config).not.toContain("default-src *");
+    expect(config).not.toContain("https://*.tile.openstreetmap.org");
+    expect(config).not.toContain("https://*.vercel-insights.com");
+    expect(config).not.toContain("blob: https://res.cloudinary.com");
   });
 });

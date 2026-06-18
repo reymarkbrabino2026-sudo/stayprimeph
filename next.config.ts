@@ -6,8 +6,22 @@ const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   isProduction ? "" : "'unsafe-eval'",
-  "https://va.vercel-scripts.com",
+  isProduction ? "" : "https://va.vercel-scripts.com",
 ].filter(Boolean).join(" ");
+const connectSrc = [
+  "'self'",
+  "https://*.ingest.sentry.io",
+  isProduction ? "" : "https://va.vercel-scripts.com",
+].filter(Boolean).join(" ");
+const imgSrc = [
+  "'self'",
+  "data:",
+  "https://res.cloudinary.com",
+  "https://*.public.blob.vercel-storage.com",
+  "https://a.tile.openstreetmap.org",
+  "https://b.tile.openstreetmap.org",
+  "https://c.tile.openstreetmap.org",
+].join(" ");
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -19,8 +33,8 @@ const contentSecurityPolicy = [
   `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https://res.cloudinary.com https://*.public.blob.vercel-storage.com https://*.tile.openstreetmap.org",
-  "connect-src 'self' https://*.ingest.sentry.io https://*.vercel-insights.com https://va.vercel-scripts.com",
+  `img-src ${imgSrc}`,
+  `connect-src ${connectSrc}`,
   "frame-src https://checkout.stripe.com",
   "media-src 'self' blob: data:",
   "worker-src 'self' blob:",
