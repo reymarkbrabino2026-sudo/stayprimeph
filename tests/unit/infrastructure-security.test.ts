@@ -23,6 +23,7 @@ describe("infrastructure security controls", () => {
     expect(workflow).toContain("trufflesecurity/trufflehog@main");
     expect(workflow).toContain("--results=verified,unknown");
     expect(workflow).toContain("npm audit --audit-level=high");
+    expect(workflow).toContain("npm audit --omit=dev");
     expect(workflow).toContain("Reject committed local secret files");
   });
 

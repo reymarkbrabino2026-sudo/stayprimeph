@@ -84,3 +84,6 @@ jobs:
 
       - name: Dependency audit
         run: npm audit --audit-level=high
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev
