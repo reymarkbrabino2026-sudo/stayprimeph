@@ -3,6 +3,7 @@
 import { Banknote, ChevronRight, Download, Landmark, WalletCards, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { FinancialSettingsState, PayoutMethod } from "@/lib/account-settings-types";
 
 type PayoutRecord = {
@@ -31,11 +32,12 @@ function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-export function PayoutSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
   const [financial, setFinancial] = useState(initialFinancial);
   const [draft, setDraft] = useState(emptyMethod);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<"method" | "timing" | "how" | "history" | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const methods = financial.payoutMethods;
@@ -48,11 +50,14 @@ export function PayoutSettings({ initialFinancial }: { initialFinancial: Financi
 
   function saveMethods(next: PayoutMethod[]) {
     const nextFinancial = { ...financial, payoutMethods: next };
+    const previous = financial;
     setFinancial(nextFinancial);
     setMessage("");
     startTransition(async () => {
-      const result = await saveFinancialSettingsAction(nextFinancial);
+      const result = await saveFinancialSettingsAction(nextFinancial, currentPassword);
+      if (requiresStepUp) setCurrentPassword("");
       if (!result.ok) {
+        setFinancial(previous);
         setMessage(result.error);
         return;
       }
@@ -99,6 +104,9 @@ export function PayoutSettings({ initialFinancial }: { initialFinancial: Financi
         {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-3xl font-semibold">How you&apos;ll get paid</h3>
         <p className="mt-2">Add at least one payout method so we know where to send your money.</p>
+        <div className="mt-5 max-w-md">
+          <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+        </div>
         {methods.length > 0 ? (
           <div className="mt-7 space-y-3">
             {methods.map((method) => (

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCanonicalPathname } from "@/lib/canonical-paths";
 
 const sessionCookieName = "stayprimeph_session";
 
@@ -8,6 +9,9 @@ const protectedRoutes: Array<{ prefix: string; role?: "admin" | "host" | "guest"
   { prefix: "/guest", role: "guest" },
   { prefix: "/account-settings" },
 ];
+
+// Proxy only rejects obviously unauthenticated traffic early. Role enforcement
+// must stay in server layouts, server actions, and API routes via requireRole().
 
 function matchesPrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -60,13 +64,28 @@ function constantTimeEqual(left: string, right: string) {
 
 async function hasValidSession(value?: string) {
   const authSecret = process.env.AUTH_SECRET;
-  if (!value || !authSecret) return false;
+  if (!value) return false;
 
-  const [userId, expiresAtValue, signature] = value.split(".");
+  // Current server-side sessions use an opaque 64-character token. The proxy
+  // cannot query the session store, so it only performs the cheap early check
+  // and lets server layouts/actions enforce the actual user and role.
+  if (/^[a-f0-9]{64}$/i.test(value)) return true;
+
+  if (!authSecret) return false;
+
+  const parts = value.split(".");
+  if (parts.length !== 3 && parts.length !== 4) return false;
+
+  const isLegacySession = parts.length === 3;
+  const [userId, issuedAtValue, expiresAtValue, signature] = isLegacySession
+    ? [parts[0], "0", parts[1], parts[2]]
+    : parts;
+  const issuedAt = Number(issuedAtValue);
   const expiresAt = Number(expiresAtValue);
-  if (!userId || !Number.isFinite(expiresAt) || expiresAt <= Date.now() || !signature) return false;
+  if (!userId || !Number.isFinite(issuedAt) || !Number.isFinite(expiresAt) || expiresAt <= Date.now() || !signature) return false;
 
-  const expected = await hmacSha256(`${userId}.${expiresAtValue}`, authSecret);
+  const payload = isLegacySession ? `${userId}.${expiresAtValue}` : `${userId}.${issuedAtValue}.${expiresAtValue}`;
+  const expected = await hmacSha256(payload, authSecret);
   return constantTimeEqual(expected, signature);
 }
 
@@ -80,6 +99,13 @@ function buildLoginUrl(request: NextRequest, role?: "admin" | "host" | "guest") 
 }
 
 export async function proxy(request: NextRequest) {
+  const canonicalPathname = getCanonicalPathname(request.nextUrl.pathname);
+  if (canonicalPathname && canonicalPathname !== request.nextUrl.pathname) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = canonicalPathname;
+    return withSecurityHeaders(NextResponse.redirect(redirectUrl));
+  }
+
   const protectedRoute = getProtectedRoute(request.nextUrl.pathname);
   if (protectedRoute) {
     const sessionValue = request.cookies.get(sessionCookieName)?.value;

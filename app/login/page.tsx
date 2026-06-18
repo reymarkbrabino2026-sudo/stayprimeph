@@ -1,15 +1,16 @@
 import { AuthForm } from "@/components/forms/auth-form";
 import { signIn, signInWithFacebook, signInWithGoogle } from "@/app/auth/actions";
 import { getCurrentUser, roleHome } from "@/lib/auth";
+import { normalizeKnownAppPath } from "@/lib/canonical-paths";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string; error?: string; next?: string }>;
+  searchParams: Promise<{ role?: string; error?: string; message?: string; next?: string }>;
 }) {
-  const { role, error, next } = await searchParams;
-  const nextPath = next?.startsWith("/") && !next.startsWith("//") ? next : undefined;
+  const { role, error, message, next } = await searchParams;
+  const nextPath = next?.startsWith("/") && !next.startsWith("//") ? normalizeKnownAppPath(next) : undefined;
   if (role === "admin") {
     const params = new URLSearchParams();
     if (error) params.set("error", error);
@@ -54,6 +55,7 @@ export default async function LoginPage({
       facebookAction={signInWithFacebook}
       helperText={helperText}
       error={error}
+      message={message}
       requestedRole={requestedRole}
       nextPath={nextPath}
     />

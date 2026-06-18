@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { continueAsHost } from "@/app/become-a-host/upgrade/actions";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
+import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 
 export default async function BecomeAHostUpgradePage() {
-  const user = await getCurrentUser();
-
-  if (!user) redirect("/register?role=host");
-  if (user.role === "host") redirect("/become-a-host/setup");
-  if (user.role !== "guest") redirect("/login?role=host");
+  await requireRole("guest", {
+    redirectTo: "/register?role=host",
+    roleRedirects: { host: "/become-a-host/setup" },
+    forbiddenRedirectTo: "/login?role=host",
+  });
+  const csrfToken = await getCsrfToken();
 
   return (
     <main className="min-h-dvh bg-[#fbfaf7] text-[#1f1f1f]">
@@ -45,6 +46,7 @@ export default async function BecomeAHostUpgradePage() {
         </div>
 
         <form action={continueAsHost} className="mt-8">
+          <input type="hidden" name={csrfFieldName} value={csrfToken} />
           <button className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#083f35] px-8 font-semibold text-white transition hover:bg-[#062f28]">
             Continue as host
           </button>

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Mail, MessageCircle, Phone } from "lucide-react";
 import Link from "next/link";
 import { SiteFooter } from "@/components/home/site-footer";
 import { Navbar } from "@/components/public/navbar";
 import { env } from "@/lib/env";
 import { footerPages } from "@/lib/home-data";
+import { supportContact } from "@/lib/support";
 
 export const metadata: Metadata = {
   title: "Guest Support",
@@ -24,6 +26,45 @@ export default function SupportIndexPage() {
           <p className="mt-5 max-w-2xl text-base leading-7 text-black/65 sm:text-lg">
             Get guidance for reservations, stay concerns, accessibility details, trip changes, and account recovery.
           </p>
+        </section>
+
+        <section className="mt-6 grid gap-3 md:grid-cols-3">
+          <Link
+            href="/support/help-center"
+            className="flex min-h-24 items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#083f35] text-white">
+              <MessageCircle size={20} />
+            </span>
+            <span>
+              <span className="block text-sm text-black/50">Live chat</span>
+              <span className="block font-semibold">Message admin support</span>
+            </span>
+          </Link>
+          <a
+            href={supportContact.phoneHref}
+            className="flex min-h-24 items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#21170f] text-white">
+              <Phone size={20} />
+            </span>
+            <span>
+              <span className="block text-sm text-black/50">Call support</span>
+              <span className="block font-semibold">{supportContact.phoneDisplay}</span>
+            </span>
+          </a>
+          <a
+            href={`mailto:${supportContact.email}`}
+            className="flex min-h-24 items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-rose-50 text-rose-600">
+              <Mail size={20} />
+            </span>
+            <span>
+              <span className="block text-sm text-black/50">Email support</span>
+              <span className="block break-all font-semibold">{supportContact.email}</span>
+            </span>
+          </a>
         </section>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

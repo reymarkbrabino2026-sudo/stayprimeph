@@ -1,8 +1,5 @@
-UPDATE "User"
-SET
-  "name" = 'StayPrimePH Admin',
-  "password" = '$2b$12$LU1BEyyeDRv2lwbrgovjaeqM53kxcSTpOPxnUNFixadXagaWQZMWe',
-  "role" = 'admin',
-  "avatar" = 'SA',
-  "emailVerifiedAt" = COALESCE("emailVerifiedAt", CURRENT_TIMESTAMP)
-WHERE "email" = 'admin@stayprimeph.com';
+-- Intentionally no-op.
+--
+-- This migration previously updated a repo-known admin account. Static admin
+-- credentials are not safe for production; rotate or remove any account that
+-- was created from older seed migrations before launch.

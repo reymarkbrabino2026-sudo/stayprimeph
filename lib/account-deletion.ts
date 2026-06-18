@@ -7,6 +7,7 @@ import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-st
 import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { usesPrismaPersistence } from "@/lib/repositories";
+import { readStoredSessions, writeStoredSessions } from "@/lib/session-store";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 import { getUserById } from "@/lib/users";
 import type { Booking, User, WishlistItem } from "@/lib/types";
@@ -60,12 +61,13 @@ async function anonymizeUserInJsonStore(target: User) {
     throw new Error("This account still has an active booking or submitted payment. Resolve those first.");
   }
 
-  const [users, properties, tokens, accountSettings, wishlists] = await Promise.all([
+  const [users, properties, tokens, accountSettings, wishlists, sessions] = await Promise.all([
     readStoredUsers(),
     readStoredProperties(),
     readStoredAuthTokens(),
     readJsonStore<StoredAccountSettings>("account-settings.json"),
     readJsonStore<WishlistItem>("wishlists.json"),
+    readStoredSessions(),
   ]);
 
   await writeStoredUsers(users.map((user) => user.id === target.id ? {
@@ -81,6 +83,7 @@ async function anonymizeUserInJsonStore(target: User) {
   await writeStoredAuthTokens(tokens.filter((token) => token.userId !== target.id));
   await writeJsonStore("account-settings.json", accountSettings.filter((record) => record.userId !== target.id));
   await writeJsonStore("wishlists.json", wishlists.filter((item) => item.userId !== target.id));
+  await writeStoredSessions(sessions.filter((session) => session.userId !== target.id));
 }
 
 async function anonymizeUserInDatabase(target: User, adminId: string) {
@@ -105,6 +108,7 @@ async function anonymizeUserInDatabase(target: User, adminId: string) {
     if (blocker) throw new Error("This account still has an active booking or submitted payment. Resolve those first.");
 
     await tx.authToken.deleteMany({ where: { userId: target.id } });
+    await tx.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${target.id}`;
     await tx.wishlist.deleteMany({ where: { userId: target.id } });
     await tx.accountSettings.deleteMany({ where: { userId: target.id } });
     await tx.property.updateMany({ where: { hostId: target.id }, data: { status: "rejected" } });

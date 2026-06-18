@@ -21,10 +21,16 @@ vi.mock("@/lib/payment-store", () => ({
   readStoredPayments: vi.fn(),
   writeStoredPayments: vi.fn(),
 }));
+vi.mock("@/lib/platform-ledger-store", () => ({
+  readStoredPlatformLedger: vi.fn(async () => []),
+  writeStoredPlatformLedger: vi.fn(),
+}));
 
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
-import { cancelBookingByGuest } from "@/lib/bookings";
+import { cancelBookingByGuest, markBookingPaid } from "@/lib/bookings";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
+import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 
 const booking = {
   id: "booking-1",
@@ -63,6 +69,41 @@ describe("cancelBookingByGuest", () => {
         propertyId: booking.propertyId,
         reason: "Plans changed",
         status: "closed",
+      }),
+    ]);
+  });
+});
+
+describe("markBookingPaid", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readStoredBookings).mockResolvedValue([booking]);
+    vi.mocked(readStoredPayments).mockResolvedValue([]);
+  });
+
+  it("confirms the booking only after provider payment is recorded", async () => {
+    await markBookingPaid(booking.id, "pi_stripe_123");
+
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: booking.id,
+        status: "confirmed",
+        paymentStatus: "paid",
+      }),
+    ]);
+    expect(writeStoredPayments).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        paymentMethod: "stripe",
+        paymentStatus: "paid",
+        transactionId: "pi_stripe_123",
+      }),
+    ]);
+    expect(writeStoredPlatformLedger).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        source: "stripe",
+        status: "banked",
       }),
     ]);
   });

@@ -3,12 +3,13 @@ import path from "node:path";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhotoStorage } from "@/lib/photo-storage";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import { v2 as cloudinary } from "cloudinary";
 
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -37,12 +38,26 @@ function hasExpectedImageSignature(bytes: Buffer, type: string) {
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "host") {
-    return NextResponse.json({ error: "Please sign in with a host account before uploading photos." }, { status: 401 });
+  const headerStore = await headers();
+  if (!isTrustedRequestOrigin(headerStore)) {
+    return NextResponse.json({ error: untrustedRequestMessage }, { status: 403 });
   }
 
-  const headerStore = await headers();
+  let user;
+  try {
+    user = await requireRole("host", {
+      message: "Please sign in with a host account before uploading photos.",
+      forbiddenMessage: "Please sign in with a host account before uploading photos.",
+    });
+  } catch {
+    return NextResponse.json({ error: "Please sign in with a host account before uploading photos." }, { status: 401 });
+  }
+  try {
+    requireVerifiedEmail(user);
+  } catch {
+    return NextResponse.json({ error: "Verify your email address before uploading listing photos." }, { status: 403 });
+  }
+
   const rateLimit = await checkDistributedRateLimit(`listing-upload:${user.id}:${headerStore.get("x-forwarded-for") ?? "local"}`, 30);
   if (rateLimit.limited) {
     logger.warn("listing_photo_upload_rate_limited", { userId: user.id });

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { resolveLocationCoordinates } from "@/lib/property-map";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
 
 interface NominatimSearchResult {
@@ -27,33 +26,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Address query is too long." }, { status: 400 });
   }
 
-  const knownCoordinates = resolveLocationCoordinates(query);
-  if (knownCoordinates) {
-    return NextResponse.json({
-      latitude: knownCoordinates[0],
-      longitude: knownCoordinates[1],
-      displayName: query,
-    });
-  }
 
   const parts = query.split(",").map((part) => part.trim()).filter(Boolean);
   const maybeZip = parts.at(-1);
   const withoutZip = maybeZip && /^\d{4,}$/.test(maybeZip) ? parts.slice(0, -1) : parts;
-  const country = withoutZip.at(-1);
-  const province = withoutZip.at(-2);
-  const city = withoutZip.at(-3);
-  const barangay = withoutZip.at(-4);
   const candidates = Array.from(new Set([
     query,
     withoutZip.join(", "),
-    barangay && city && province && country ? [barangay, city, province, country].join(", ") : "",
-    city && province && country ? [city, province, country].join(", ") : "",
-    province && country ? [province, country].join(", ") : "",
   ].filter(Boolean)));
 
   for (const candidate of candidates) {
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&q=${encodeURIComponent(candidate)}`,
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=3&countrycodes=ph&q=${encodeURIComponent(candidate)}`,
       {
         headers: {
           "User-Agent": "stayprimeph-local-dev/1.0",
@@ -70,9 +54,13 @@ export async function GET(request: Request) {
     const [result] = (await response.json()) as NominatimSearchResult[];
 
     if (result) {
+      const latitude = Number(result.lat);
+      const longitude = Number(result.lon);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+
       return NextResponse.json({
-        latitude: Number(result.lat),
-        longitude: Number(result.lon),
+        latitude,
+        longitude,
         displayName: result.display_name,
       });
     }

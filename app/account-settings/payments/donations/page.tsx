@@ -19,7 +19,7 @@ export default async function DonationsPage() {
         <h3 className="mt-5 text-2xl font-semibold">Donations</h3>
         <p className="mt-2 text-black/65">Support nonprofit stays by adding a donation preference to eligible bookings and payouts.</p>
       </section>
-      <DonationSettings initialFinancial={accountSettings.financial} />
+      <DonationSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} />
     </AccountSettingsShell>
   );
 }

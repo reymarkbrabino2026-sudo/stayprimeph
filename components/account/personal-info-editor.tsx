@@ -60,32 +60,36 @@ export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; init
   const [profile, setProfile] = useState<PersonalInfoState>(initialProfile);
   const [activeField, setActiveField] = useState<PersonalInfoField | null>(null);
   const [draftValue, setDraftValue] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const activeMeta = fieldMeta.find((item) => item.key === activeField);
+  const emailRequiresReauth = activeMeta?.key === "email" && draftValue.trim().toLowerCase() !== profile.email.trim().toLowerCase();
 
   function openEditor(key: PersonalInfoField) {
     setActiveField(key);
     setDraftValue(profile[key]);
+    setCurrentPassword("");
     setMessage("");
   }
 
   function closeEditor() {
     setActiveField(null);
     setDraftValue("");
+    setCurrentPassword("");
   }
 
   function saveField() {
     if (!activeField) return;
     const nextProfile = { ...profile, [activeField]: draftValue.trim() };
     startTransition(async () => {
-      const result = await savePersonalInfoAction(nextProfile);
+      const result = await savePersonalInfoAction(nextProfile, emailRequiresReauth ? currentPassword : undefined);
       if (!result.ok) {
         setMessage(result.error);
         return;
       }
       setProfile(result.data);
-      setMessage("Saved.");
+      setMessage(emailRequiresReauth ? "Check your new email address to confirm this change." : "Saved.");
       closeEditor();
     });
   }
@@ -170,11 +174,32 @@ export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; init
                   />
                 )}
                 {activeMeta.help ? <p className="mt-2 text-sm leading-5 text-black/60">{activeMeta.help}</p> : null}
+                {emailRequiresReauth ? (
+                  <div className="mt-5">
+                    <label className="text-sm font-semibold" htmlFor="account-current-password">
+                      Current password
+                    </label>
+                    <input
+                      id="account-current-password"
+                      type="password"
+                      autoComplete="current-password"
+                      value={currentPassword}
+                      onChange={(event) => setCurrentPassword(event.target.value)}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-black/20 px-4 outline-none focus:border-black"
+                    />
+                    <p className="mt-2 text-sm leading-5 text-black/60">Required to protect your account sign-in email.</p>
+                  </div>
+                ) : null}
                 <div className="mt-6 flex justify-end gap-3">
                   <button type="button" onClick={closeEditor} className="min-h-12 rounded-xl px-5 font-semibold hover:bg-black/[0.06]">
                     Cancel
                   </button>
-                  <button type="button" onClick={saveField} disabled={isPending} className="min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25">
+                  <button
+                    type="button"
+                    onClick={saveField}
+                    disabled={isPending || (emailRequiresReauth && !currentPassword)}
+                    className="min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25"
+                  >
                     {isPending ? "Saving..." : "Save"}
                   </button>
                 </div>

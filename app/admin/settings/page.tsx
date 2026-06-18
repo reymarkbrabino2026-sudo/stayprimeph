@@ -4,11 +4,18 @@ import { adminLinks } from "@/lib/navigation";
 export default function AdminSettingsPage() {
   const hasCloudinary = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
   const hasVercelBlob = Boolean(process.env.PHOTO_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN);
+  const paymentMode = process.env.PAYMENT_LAUNCH_MODE || "disabled";
+  const hasLiveStripe = Boolean(
+    paymentMode === "stripe" &&
+    (process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") || process.env.STRIPE_SECRET_KEY?.startsWith("rk_live_")) &&
+    process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_") &&
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_"),
+  );
   const settings = [
     ["App URL", Boolean(process.env.NEXT_PUBLIC_APP_URL), "Public canonical URL for links and auth callbacks."],
     ["Database", Boolean(process.env.DATABASE_URL), "PostgreSQL connection for production persistence."],
     ["Prisma persistence", process.env.PERSISTENCE_DRIVER === "prisma", "Production must use Prisma instead of local JSON files."],
-    ["Online payments", false, "Stripe checkout is disabled while StayPrimePH migrates to PayMongo."],
+    ["Payment launch mode", paymentMode === "disabled" || hasLiveStripe, paymentMode === "stripe" ? "Live Stripe provider payments are enabled." : "Paid bookings are disabled until a verified payment provider is launched."],
     ["Photo storage", hasCloudinary || hasVercelBlob, "Cloudinary or Vercel Blob is configured for durable listing photo uploads."],
     ["Resend email", Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM), "Transactional email sender is configured."],
     ["Upstash Redis", Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN), "Distributed rate limiting is configured."],

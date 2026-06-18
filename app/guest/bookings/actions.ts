@@ -3,11 +3,13 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { cancelBookingByGuest, getBookingById } from "@/lib/bookings";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { readManualPaymentInput, submitManualPayment } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { canReviewBooking, createStayReview, getReviewForBooking } from "@/lib/reviews";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 
 export type ManualPaymentActionState = {
   error?: string;
@@ -28,12 +30,30 @@ function isBeforeCheckIn(checkIn: string) {
   return checkInDate.getTime() > today.getTime();
 }
 
+function actionError(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+async function requireGuestBookingUser() {
+  return requireRole("guest", {
+    message: "Please sign in as the guest for this booking.",
+    forbiddenMessage: "Please sign in as the guest for this booking.",
+  });
+}
+
 export async function cancelGuestBooking(
   _previousState: CancellationActionState,
   formData: FormData,
 ): Promise<CancellationActionState> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "guest") return { error: "Please sign in as the guest for this booking." };
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
+  let user;
+  try {
+    user = await requireGuestBookingUser();
+  } catch (error) {
+    return { error: actionError(error, "Please sign in as the guest for this booking.") };
+  }
 
   const bookingId = String(formData.get("bookingId") ?? "").trim();
   const reason = String(formData.get("reason") ?? "").trim();
@@ -74,8 +94,20 @@ export async function submitManualPaymentDetails(
   _previousState: ManualPaymentActionState,
   formData: FormData,
 ): Promise<ManualPaymentActionState> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "guest") return { error: "Please sign in as the guest for this booking." };
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
+  let user;
+  try {
+    user = await requireGuestBookingUser();
+  } catch (error) {
+    return { error: actionError(error, "Please sign in as the guest for this booking.") };
+  }
+  try {
+    requireVerifiedEmail(user);
+  } catch (error) {
+    return { error: actionError(error, "Verify your email address before submitting payment.") };
+  }
 
   let bookingId = "";
 
@@ -108,8 +140,15 @@ export async function submitStayReview(
   _previousState: ReviewActionState,
   formData: FormData,
 ): Promise<ReviewActionState> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "guest") return { error: "Please sign in as the guest for this booking." };
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
+  let user;
+  try {
+    user = await requireGuestBookingUser();
+  } catch (error) {
+    return { error: actionError(error, "Please sign in as the guest for this booking.") };
+  }
 
   const bookingId = String(formData.get("bookingId") ?? "").trim();
   const rating = Number(formData.get("rating") ?? 0);

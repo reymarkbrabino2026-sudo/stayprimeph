@@ -3,19 +3,24 @@
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clearSession, createSession, hashPassword, roleHome, verifyPassword } from "@/lib/auth";
+import { clearPendingAdminMfaChallenge, createAdminMfaCode, createPendingAdminMfaChallenge, isAdminMfaCodeValid, readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
+import { clearAllSessionsForUser, clearSession, createSession, hashPassword, requireUser, roleHome, verifyPassword } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
-import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
-import { consumeAuthToken, issueAuthToken, markUserEmailVerified, updateUserPassword } from "@/lib/auth-tokens";
-import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { normalizeKnownAppPath } from "@/lib/canonical-paths";
+import { completeEmailChange, consumeAuthToken, getAuthToken, hashAuthTokenValue, issueAuthToken, markUserEmailVerified, updateUserPassword } from "@/lib/auth-tokens";
+import { passwordPolicyMessage } from "@/lib/password-policy";
+import { checkDistributedRateLimit, checkLoginLockout, clearFailedLoginAttempts, recordFailedLoginAttempt } from "@/lib/rate-limit";
 import { createUserInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { assertTrustedRequestOrigin, isTrustedRequestOrigin } from "@/lib/request-safety";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
-import { getUsers } from "@/lib/users";
+import { getUserById, getUsers } from "@/lib/users";
 import type { UserRole } from "@/lib/types";
 
 type SocialProvider = "google" | "facebook";
+const signupNextStepsMessage = "If we can process that signup, we sent next steps to the email address provided.";
 
 function safeRole(value: FormDataEntryValue | null): UserRole {
   return value === "host" ? "host" : "guest";
@@ -28,7 +33,7 @@ function initials(name: string) {
 function safeNextPath(value: FormDataEntryValue | null) {
   const path = String(value ?? "");
   if (!path.startsWith("/") || path.startsWith("//")) return null;
-  return path;
+  return normalizeKnownAppPath(path);
 }
 
 function authErrorTarget(path: "/login" | "/register" | "/admin/login", message: string, formData: FormData, role?: FormDataEntryValue | null) {
@@ -39,30 +44,98 @@ function authErrorTarget(path: "/login" | "/register" | "/admin/login", message:
   return `${path}?${params.toString()}`;
 }
 
+function authNoticeTarget(path: "/register", message: string, formData: FormData, role?: FormDataEntryValue | null) {
+  const params = new URLSearchParams({ message });
+  if (role === "host" || role === "guest") params.set("role", role);
+  const nextPath = safeNextPath(formData.get("next"));
+  if (nextPath) params.set("next", nextPath);
+  return `${path}?${params.toString()}`;
+}
+
+function adminMfaTarget(kind: "error" | "message", message: string, formData: FormData) {
+  const params = new URLSearchParams({ mfa: "1", [kind]: message });
+  const nextPath = safeNextPath(formData.get("next"));
+  if (nextPath?.startsWith("/admin")) params.set("next", nextPath);
+  return `/admin/login?${params.toString()}`;
+}
+
+function resetPasswordTarget(token: string, message: string) {
+  return `/reset-password/${encodeURIComponent(token)}?error=${encodeURIComponent(message)}`;
+}
+
+function genericResetLinkFailure() {
+  return `/forgot-password?error=${encodeURIComponent("This reset link is invalid or expired.")}`;
+}
+
+function clientIp(headerStore: Headers) {
+  return headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+}
+
+function loginThrottleKeys(email: string, ip: string) {
+  return [`signin:ip:${ip}`, `signin:email:${email}`];
+}
+
+function loginLockoutMessage(retryAfterSeconds?: number) {
+  if (!retryAfterSeconds) return "Too many login attempts. Please try again later.";
+  const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+  return `Too many login attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+}
+
+async function sendPasswordResetForUser(user: { id: string; email: string; name: string }) {
+  const token = await issueAuthToken(user.id, "password_reset");
+  await sendPasswordResetEmail({ to: user.email, name: user.name, token });
+}
+
+async function startAdminMfaChallenge(user: { id: string; email: string; name: string }, formData: FormData) {
+  const token = await issueAuthToken(user.id, "admin_mfa");
+  const code = createAdminMfaCode(token);
+  await createPendingAdminMfaChallenge(token);
+  await sendAdminMfaEmail({ to: user.email, name: user.name, code });
+  logger.info("admin_mfa_challenge_issued", { userId: user.id });
+  redirect(adminMfaTarget("message", "Enter the 6-digit code sent to the admin email.", formData));
+}
+
 export async function signIn(formData: FormData) {
   const requestedRole = formData.get("requestedRole");
-  const headerStore = await headers();
-  const rateLimit = await checkDistributedRateLimit(`signin:${headerStore.get("x-forwarded-for") ?? "local"}`, 10);
-  if (rateLimit.limited) {
-    logger.warn("signin_rate_limited");
-    redirect(authErrorTarget(requestedRole === "admin" ? "/admin/login" : "/login", "Too many login attempts. Please try again later.", formData, requestedRole));
-  }
+  const headerStore = await assertTrustedRequestOrigin();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const ip = clientIp(headerStore);
+  const errorPath = requestedRole === "admin" ? "/admin/login" : "/login";
+  const throttleKeys = loginThrottleKeys(email || "missing", ip);
+  const lockout = await checkLoginLockout(throttleKeys);
+  if (lockout.limited) {
+    logger.warn("signin_progressive_lockout", { email, ip });
+    redirect(authErrorTarget(errorPath, loginLockoutMessage(lockout.retryAfterSeconds), formData, requestedRole));
+  }
+
+  const rateLimit = await checkDistributedRateLimit(`signin:${ip}`, 20);
+  if (rateLimit.limited) {
+    logger.warn("signin_rate_limited");
+    redirect(authErrorTarget(errorPath, "Too many login attempts. Please try again later.", formData, requestedRole));
+  }
+
   const users = await getUsers();
   const user = users.find((item) => item.email.toLowerCase() === email);
-  const errorPath = requestedRole === "admin" ? "/admin/login" : "/login";
 
   if (!user || !verifyPassword(password, user.passwordHash)) {
     logger.warn("signin_failed", { email });
+    const failedAttempt = await recordFailedLoginAttempt(throttleKeys);
+    if (failedAttempt.limited) {
+      redirect(authErrorTarget(errorPath, loginLockoutMessage(failedAttempt.retryAfterSeconds), formData, requestedRole));
+    }
     redirect(authErrorTarget(errorPath, "Incorrect email or password.", formData, requestedRole));
   }
 
-  if (
-    (requestedRole === "host" || requestedRole === "guest" || requestedRole === "admin") &&
-    user.role !== requestedRole
-  ) {
+  if ((requestedRole === "host" || requestedRole === "guest" || requestedRole === "admin") && user.role !== requestedRole) {
+    await recordFailedLoginAttempt(throttleKeys);
     redirect(authErrorTarget(errorPath, `Use a ${requestedRole} account to continue.`, formData, requestedRole));
+  }
+
+  await clearFailedLoginAttempts(throttleKeys);
+
+  if (user.role === "admin") {
+    await startAdminMfaChallenge(user, formData);
   }
 
   await createSession(user.id);
@@ -70,19 +143,78 @@ export async function signIn(formData: FormData) {
   redirect(safeNextPath(formData.get("next")) ?? roleHome(user.role));
 }
 
+export async function verifyAdminMfa(formData: FormData) {
+  const headerStore = await headers();
+  const rawToken = await readPendingAdminMfaChallenge();
+  const tokenKey = rawToken ? hashAuthTokenValue(rawToken).slice(0, 16) : "missing";
+  const rateLimit = await checkDistributedRateLimit(`admin-mfa:${headerStore.get("x-forwarded-for") ?? "local"}:${tokenKey}`, 5, 10 * 60_000);
+  if (rateLimit.limited) {
+    logger.warn("admin_mfa_rate_limited");
+    redirect(adminMfaTarget("error", "Too many code attempts. Log in again to request a new code.", formData));
+  }
+
+  if (!isTrustedRequestOrigin(headerStore)) {
+    logger.warn("admin_mfa_untrusted_origin");
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  if (!rawToken) {
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  const pendingToken = await getAuthToken(rawToken, "admin_mfa");
+  if (!pendingToken) {
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  const code = String(formData.get("code") ?? "");
+  if (!isAdminMfaCodeValid(rawToken, code)) {
+    logger.warn("admin_mfa_failed", { userId: pendingToken.userId });
+    redirect(adminMfaTarget("error", "Incorrect or expired admin code.", formData));
+  }
+
+  const user = await getUserById(pendingToken.userId);
+  if (!user || user.role !== "admin") {
+    await consumeAuthToken(rawToken, "admin_mfa");
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  const consumedToken = await consumeAuthToken(rawToken, "admin_mfa");
+  if (!consumedToken || consumedToken.userId !== user.id) {
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  await clearPendingAdminMfaChallenge();
+  await createSession(user.id);
+  logger.info("admin_mfa_success", { userId: user.id });
+  const nextPath = safeNextPath(formData.get("next"));
+  redirect(nextPath?.startsWith("/admin") ? nextPath : roleHome(user.role));
+}
+
 export async function signUp(formData: FormData) {
+  await assertTrustedRequestOrigin();
+
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const role = safeRole(formData.get("role"));
 
-  if (name.length < 2 || !email.includes("@") || password.length < 8) {
-    redirect(authErrorTarget("/register", "Use a valid name, email, and password with at least 8 characters.", formData, role));
+  if (name.length < 2 || !email.includes("@")) {
+    redirect(authErrorTarget("/register", "Use a valid name and email address.", formData, role));
   }
 
+  const passwordError = passwordPolicyMessage(password, { email, name });
+  if (passwordError) redirect(authErrorTarget("/register", passwordError, formData, role));
+
   const users = await getUsers();
-  if (users.some((user) => user.email.toLowerCase() === email)) {
-    redirect(authErrorTarget("/register", "An account with that email already exists.", formData, role));
+  const existingUser = users.find((user) => user.email.toLowerCase() === email);
+  if (existingUser) {
+    await sendPasswordResetForUser(existingUser);
+    redirect(authNoticeTarget("/register", signupNextStepsMessage, formData, role));
   }
 
   const user = {
@@ -95,17 +227,18 @@ export async function signUp(formData: FormData) {
     createdAt: new Date().toISOString().slice(0, 10),
     passwordHash: hashPassword(password),
   };
+
   if (usesPrismaPersistence()) {
     await createUserInDatabase(user);
   } else {
     const storedUsers = await readStoredUsers();
     await writeStoredUsers([user, ...storedUsers]);
   }
+
   await sendWelcomeEmail(user.email, user.name);
   const verificationToken = await issueAuthToken(user.id, "email_verification");
   await sendVerificationEmail({ to: user.email, name: user.name, token: verificationToken });
-  await createSession(user.id);
-  redirect(safeNextPath(formData.get("next")) ?? roleHome(role));
+  redirect(authNoticeTarget("/register", signupNextStepsMessage, formData, role));
 }
 
 export async function signUpHost(formData: FormData) {
@@ -114,12 +247,29 @@ export async function signUpHost(formData: FormData) {
 }
 
 export async function signOut() {
+  await assertTrustedRequestOrigin();
+
   if (hasSupabaseConfig()) {
     const supabase = await createSupabaseServerClient();
     await supabase.auth.signOut();
   }
   await clearSession();
   redirect("/");
+}
+
+export async function signOutAllDevices() {
+  await assertTrustedRequestOrigin();
+
+  const user = await requireUser({ redirectTo: "/login" });
+
+  if (hasSupabaseConfig()) {
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut();
+  }
+
+  await clearAllSessionsForUser(user.id);
+  await clearSession();
+  redirect(`/login?message=${encodeURIComponent("You have been logged out from all devices.")}`);
 }
 
 function socialAuthErrorTarget(formData: FormData | undefined, message: string) {
@@ -132,6 +282,8 @@ function socialAuthErrorTarget(formData: FormData | undefined, message: string) 
 }
 
 async function signInWithSocialProvider(provider: SocialProvider, label: string, formData?: FormData) {
+  await assertTrustedRequestOrigin();
+
   if (!hasSupabaseConfig()) {
     redirect(socialAuthErrorTarget(formData, `${label} login is not configured yet. Add Supabase environment variables first.`));
   }
@@ -162,25 +314,73 @@ export async function signInWithFacebook(formData?: FormData) {
 }
 
 export async function requestPasswordReset(formData: FormData) {
+  const headerStore = await assertTrustedRequestOrigin();
+  const rateLimit = await checkDistributedRateLimit(`password-reset-request:${headerStore.get("x-forwarded-for") ?? "local"}`, 5, 15 * 60_000);
+  if (rateLimit.limited) {
+    logger.warn("password_reset_request_rate_limited");
+    redirect("/forgot-password?sent=1");
+  }
+
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const user = (await getUsers()).find((item) => item.email.toLowerCase() === email);
-  if (user) {
-    const token = await issueAuthToken(user.id, "password_reset");
-    await sendPasswordResetEmail({ to: user.email, name: user.name, token });
-  }
-  redirect(`/forgot-password?sent=1`);
+  if (user) await sendPasswordResetForUser(user);
+  redirect("/forgot-password?sent=1");
 }
 
 export async function resetPassword(token: string, formData: FormData) {
+  const headerStore = await headers();
+  const tokenKey = hashAuthTokenValue(token).slice(0, 16);
+  const rateLimit = await checkDistributedRateLimit(`password-reset:${headerStore.get("x-forwarded-for") ?? "local"}:${tokenKey}`, 5, 15 * 60_000);
+  if (rateLimit.limited) {
+    logger.warn("password_reset_rate_limited");
+    redirect(resetPasswordTarget(token, "Too many attempts. Please try again later."));
+  }
+
+  if (!isTrustedRequestOrigin(headerStore)) {
+    logger.warn("password_reset_untrusted_origin");
+    redirect(genericResetLinkFailure());
+  }
+
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (password.length < 8) redirect(`/reset-password/${token}?error=${encodeURIComponent("Use at least 8 characters.")}`);
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  if (!email.includes("@")) redirect(resetPasswordTarget(token, "Confirm the email address for this account."));
+  if (password !== confirmPassword) redirect(resetPasswordTarget(token, "Passwords do not match."));
+
+  const basicPasswordError = passwordPolicyMessage(password);
+  if (basicPasswordError) redirect(resetPasswordTarget(token, basicPasswordError));
+
+  const pendingToken = await getAuthToken(token, "password_reset");
+  if (!pendingToken) redirect(genericResetLinkFailure());
+
+  const user = await getUserById(pendingToken.userId);
+  if (!user) {
+    await consumeAuthToken(token, "password_reset");
+    redirect(genericResetLinkFailure());
+  }
+
+  if (user.email.toLowerCase() !== email) {
+    redirect(resetPasswordTarget(token, "Email does not match this reset link."));
+  }
+
+  const accountPasswordError = passwordPolicyMessage(password, { email: user.email, name: user.name });
+  if (accountPasswordError) redirect(resetPasswordTarget(token, accountPasswordError));
+
   const authToken = await consumeAuthToken(token, "password_reset");
-  if (!authToken) redirect(`/forgot-password?error=${encodeURIComponent("That reset link is invalid or expired.")}`);
+  if (!authToken || authToken.userId !== user.id) redirect(genericResetLinkFailure());
+
   await updateUserPassword(authToken.userId, hashPassword(password));
-  redirect(`/login?message=${encodeURIComponent("Password updated. Please sign in.")}`);
+  await sendPasswordChangedEmail({ to: user.email, name: user.name });
+  await clearSession();
+  redirect(`/login?message=${encodeURIComponent("Password changed successfully. We sent a confirmation to your email. Please log in again.")}`);
 }
 
 export async function verifyEmailToken(token: string) {
+  await assertTrustedRequestOrigin();
+
+  const emailChangeToken = await consumeAuthToken(token, "email_change");
+  if (emailChangeToken) return completeEmailChange(emailChangeToken);
+
   const authToken = await consumeAuthToken(token, "email_verification");
   if (!authToken) return false;
   await markUserEmailVerified(authToken.userId);

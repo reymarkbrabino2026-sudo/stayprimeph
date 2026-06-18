@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { FinancialSettingsState, TaxpayerInfo, VatInfo } from "@/lib/account-settings-types";
 
 const emptyTaxpayer: TaxpayerInfo = {
@@ -18,11 +19,12 @@ const emptyVat: VatInfo = {
   vatId: "",
 };
 
-export function TaxpayerSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+export function TaxpayerSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
   const [financial, setFinancial] = useState(initialFinancial);
   const [taxpayerDraft, setTaxpayerDraft] = useState(emptyTaxpayer);
   const [vatDraft, setVatDraft] = useState(emptyVat);
   const [editing, setEditing] = useState<"taxpayer" | "vat" | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const taxpayer = financial.taxpayer;
@@ -33,7 +35,8 @@ export function TaxpayerSettings({ initialFinancial }: { initialFinancial: Finan
     setFinancial(next);
     setMessage("");
     startTransition(async () => {
-      const result = await saveFinancialSettingsAction(next);
+      const result = await saveFinancialSettingsAction(next, currentPassword);
+      if (requiresStepUp) setCurrentPassword("");
       if (!result.ok) {
         setFinancial(previous);
         setMessage(result.error);
@@ -88,6 +91,9 @@ export function TaxpayerSettings({ initialFinancial }: { initialFinancial: Finan
             Learn more
           </Link>
         </p>
+        <div className="mt-5 max-w-md">
+          <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+        </div>
         {taxpayer ? (
           <SavedCard title={taxpayer.legalName} lines={[taxpayer.country, taxpayer.taxId, taxpayer.address]} onEdit={openTaxpayerForm} />
         ) : (

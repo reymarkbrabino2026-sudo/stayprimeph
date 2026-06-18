@@ -12,7 +12,7 @@ export default async function ServiceFeePage() {
     <AccountSettingsShell active="Payments">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Payments</h2>
       <SettingsTabs tabs={[{ label: "Payments", href: "/account-settings/payments" }, { label: "Payouts", href: "/account-settings/payments/payouts" }, { label: "Service fee", href: "/account-settings/payments/service-fee", active: true }, { label: "Donations", href: "/account-settings/payments/donations" }]} />
-      <ServiceFeeSettings initialFinancial={accountSettings.financial} />
+      <ServiceFeeSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} />
     </AccountSettingsShell>
   );
 }

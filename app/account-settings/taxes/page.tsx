@@ -13,7 +13,7 @@ export default async function TaxesPage() {
     <AccountSettingsShell active="Taxes">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Taxes</h2>
       <SettingsTabs tabs={[{ label: "Taxpayers", href: "/account-settings/taxes", active: true }, { label: "Tax documents", href: "/account-settings/taxes/tax-documents" }]} />
-      <TaxpayerSettings initialFinancial={accountSettings.financial} />
+      <TaxpayerSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} />
       <section className="mt-16">
         <h3 className="text-2xl font-semibold">Need help?</h3>
         <p className="mt-2">Get answers to questions about taxes in our <Link href="/support" className="font-semibold underline">guest support desk</Link>.</p>

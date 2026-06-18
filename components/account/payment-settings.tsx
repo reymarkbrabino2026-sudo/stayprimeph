@@ -3,6 +3,7 @@
 import { CreditCard, Download, Gift, Tag, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { Coupon, FinancialSettingsState, GiftCredit, SavedPaymentMethod } from "@/lib/account-settings-types";
 
 type PaymentRecord = {
@@ -30,13 +31,14 @@ function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 }
 
-export function PaymentSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+export function PaymentSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
   const [openPanel, setOpenPanel] = useState<"payments" | "method" | "gift" | "coupon" | null>(null);
   const [financial, setFinancial] = useState(initialFinancial);
   const [methodDraft, setMethodDraft] = useState(emptyMethod);
   const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
   const [giftCode, setGiftCode] = useState("");
   const [couponCode, setCouponCode] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const methods = financial.paymentMethods;
@@ -50,11 +52,14 @@ export function PaymentSettings({ initialFinancial }: { initialFinancial: Financ
   }, []);
 
   function saveFinancial(next: FinancialSettingsState, onSaved?: () => void) {
+    const previous = financial;
     setFinancial(next);
     setMessage("");
     startTransition(async () => {
-      const result = await saveFinancialSettingsAction(next);
+      const result = await saveFinancialSettingsAction(next, currentPassword);
+      if (requiresStepUp) setCurrentPassword("");
       if (!result.ok) {
+        setFinancial(previous);
         setMessage(result.error);
         return;
       }
@@ -132,6 +137,9 @@ export function PaymentSettings({ initialFinancial }: { initialFinancial: Financ
         {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-2xl font-semibold">Your payments</h3>
         <p className="mt-2">Keep track of all your payments and refunds.</p>
+        <div className="mt-5 max-w-md">
+          <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+        </div>
         <PrimaryButton onClick={() => setOpenPanel((current) => (current === "payments" ? null : "payments"))}>Manage payments</PrimaryButton>
         {openPanel === "payments" ? (
           <Panel>

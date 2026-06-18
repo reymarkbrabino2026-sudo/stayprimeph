@@ -1,10 +1,13 @@
 import { Monitor } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AccountSettingsShell, SettingsTabs } from "@/components/account/settings-shell";
+import { LogoutAllDevicesButton } from "@/components/auth/logout-all-devices-button";
 import { getCurrentUser } from "@/lib/auth";
 
 export default async function LoginSecurityPage() {
-  if (!(await getCurrentUser())) redirect("/login");
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   return (
     <AccountSettingsShell active="Login & security">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Login & security</h2>
@@ -17,10 +20,13 @@ export default async function LoginSecurityPage() {
       <Section title="Device history" />
       <div className="flex gap-4 border-b border-black/10 py-6">
         <Monitor size={30} strokeWidth={1.6} />
-        <div>
-          <h3 className="font-semibold">Windows 10.0 · Chrome</h3>
-          <span className="rounded bg-black/[0.06] px-2 py-1 text-[0.65rem] font-bold uppercase">Current session</span>
-          <p className="mt-2 text-sm text-black/65">Rosario, Calabarzon · May 16, 2026 at 13:00</p>
+        <div className="flex flex-1 flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold">Current browser session</h3>
+            <span className="rounded bg-black/[0.06] px-2 py-1 text-[0.65rem] font-bold uppercase">Current session</span>
+            <p className="mt-2 text-sm text-black/65">{user.email}</p>
+          </div>
+          <LogoutAllDevicesButton />
         </div>
       </div>
       <Section title="Account" />

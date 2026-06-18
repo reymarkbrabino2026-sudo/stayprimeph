@@ -23,7 +23,9 @@ export const hostLinks = [
 
 export const adminLinks = [
   { label: "Overview", href: "/admin/dashboard" },
+  { label: "Support Inbox", href: "/admin/support" },
   { label: "Host ERP", href: "/host/erp" },
+  { label: "Host Reports", href: "/host/reports" },
   { label: "Users", href: "/admin/users" },
   { label: "Hosts", href: "/admin/hosts" },
   { label: "Listings Approval", href: "/admin/listings" },

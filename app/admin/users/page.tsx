@@ -2,6 +2,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DeleteUserButton } from "@/components/admin/delete-user-button";
 import { getDeletionRequestMap } from "@/lib/account-deletion";
 import { getCurrentUser } from "@/lib/auth";
+import { getCsrfToken } from "@/lib/csrf";
 import { adminLinks } from "@/lib/navigation";
 import { getUsers } from "@/lib/users";
 
@@ -30,7 +31,7 @@ function requestBadge(value?: string) {
 }
 
 export default async function AdminUsersPage() {
-  const [users, deletionRequests, admin] = await Promise.all([getUsers(), getDeletionRequestMap(), getCurrentUser()]);
+  const [users, deletionRequests, admin, csrfToken] = await Promise.all([getUsers(), getDeletionRequestMap(), getCurrentUser(), getCsrfToken()]);
 
   return (
     <DashboardShell
@@ -70,6 +71,7 @@ export default async function AdminUsersPage() {
                     userEmail={user.email}
                     disabled={protectedAccount}
                     disabledLabel={alreadyDeleted ? "Deleted" : "Protected"}
+                    csrfToken={csrfToken}
                   />
                 </div>
               </div>
@@ -109,6 +111,7 @@ export default async function AdminUsersPage() {
                         userEmail={user.email}
                         disabled={protectedAccount}
                         disabledLabel={alreadyDeleted ? "Deleted" : "Protected"}
+                        csrfToken={csrfToken}
                       />
                     </td>
                   </tr>

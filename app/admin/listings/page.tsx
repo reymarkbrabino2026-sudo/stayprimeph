@@ -3,10 +3,11 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { adminLinks } from "@/lib/navigation";
+import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { getProperties } from "@/lib/properties";
 
 export default async function AdminListingsPage() {
-  const properties = await getProperties();
+  const [properties, csrfToken] = await Promise.all([getProperties(), getCsrfToken()]);
   const pending = properties.filter((property) => property.status === "pending");
   const reviewed = properties.filter((property) => property.status !== "pending");
 
@@ -35,10 +36,12 @@ export default async function AdminListingsPage() {
           <StatusBadge key={`${property.id}-status`} status={property.status} />,
           <div key={`${property.id}-actions`} className="flex gap-2">
             <form action={approveListing}>
+              <input type="hidden" name={csrfFieldName} value={csrfToken} />
               <input type="hidden" name="id" value={property.id} />
               <button className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">Approve</button>
             </form>
             <form action={rejectListing}>
+              <input type="hidden" name={csrfFieldName} value={csrfToken} />
               <input type="hidden" name="id" value={property.id} />
               <button className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">Reject</button>
             </form>

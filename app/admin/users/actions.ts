@@ -1,14 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { processAccountDeletion } from "@/lib/account-deletion";
+import { assertValidCsrfToken } from "@/lib/csrf";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { AccountActionResult } from "@/lib/account-settings-types";
 
-export async function processAccountDeletionAction(userId: string): Promise<AccountActionResult<{ message: string }>> {
+export async function processAccountDeletionAction(userId: string, csrfToken?: string): Promise<AccountActionResult<{ message: string }>> {
   try {
-    const admin = await getCurrentUser();
-    if (!admin || admin.role !== "admin") throw new Error("Only admins can process account deletion.");
+    await assertTrustedRequestOrigin();
+    await assertValidCsrfToken(csrfToken);
+
+    const admin = await requireRole("admin", { forbiddenMessage: "Only admins can process account deletion." });
 
     await processAccountDeletion({ adminId: admin.id, targetUserId: userId });
     revalidatePath("/admin/users");

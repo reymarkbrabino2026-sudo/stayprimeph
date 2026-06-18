@@ -7,6 +7,7 @@ import { MessageAutoRefresh } from "@/components/ui/message-auto-refresh";
 import { MessageThread } from "@/components/ui/message-thread";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { getMessagesForUser } from "@/lib/messages";
 import { hostLinks } from "@/lib/navigation";
 import { getProperties } from "@/lib/properties";
@@ -30,12 +31,14 @@ export default async function HostMessagesPage({
   noStore();
   const query = await searchParams;
   const user = await getCurrentUser();
-  const [messages, bookings, properties, users] = await Promise.all([
+  const [allMessages, bookings, properties, users, csrfToken] = await Promise.all([
     user ? getMessagesForUser(user.id) : [],
     getBookings(),
     getProperties(),
     getUsers(),
+    getCsrfToken(),
   ]);
+  const messages = allMessages.filter((message) => message.bookingId || message.propertyId);
   const bookingsById = new Map(bookings.map((booking) => [booking.id, booking]));
   const selectedBooking = query.bookingId ? bookingsById.get(query.bookingId) : null;
   const selectedProperty = query.propertyId ? properties.find((item) => item.id === query.propertyId) : null;
@@ -92,6 +95,7 @@ export default async function HostMessagesPage({
 
             {canReply && guest ? (
               <form action={sendGuestMessage} className="rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+                <input type="hidden" name={csrfFieldName} value={csrfToken} />
                 <input type="hidden" name="guestId" value={guest.id} />
                 <input type="hidden" name="propertyId" value={property?.id ?? ""} />
                 <input type="hidden" name="bookingId" value={booking?.id ?? ""} />

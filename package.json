@@ -8,7 +8,7 @@
     "prod:check": "node scripts/check-env.mjs production",
     "build": "next build",
     "build:vercel": "node scripts/vercel-build.mjs",
-    "build:prod": "node scripts/check-env.mjs production && next build",
+    "build:prod": "node scripts/vercel-build.mjs",
     "start": "next start",
     "start:prod": "node scripts/check-env.mjs production && next start",
     "lint": "eslint",
@@ -21,7 +21,9 @@
     "db:push": "prisma db push",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "security:bootstrap-admin": "node scripts/bootstrap-admin.mjs",
+    "security:rotate-seeded-passwords": "node scripts/rotate-seeded-passwords.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
@@ -32,7 +34,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.3",
-    "@sentry/nextjs": "^10.53.1",
+    "@sentry/nextjs": "^10.58.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.1",
     "@types/leaflet": "^1.9.21",

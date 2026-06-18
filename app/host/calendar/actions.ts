@@ -8,9 +8,11 @@ import {
   getBlockedDateKeys,
   hasAvailabilityBlockConflict,
 } from "@/lib/availability-calendar";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { getPropertyById } from "@/lib/properties";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { AvailabilityBlock, AvailabilityBlockReason } from "@/lib/types";
 
 export type AvailabilityFormState = {
@@ -36,7 +38,27 @@ function cleanNote(value?: string) {
   return value?.trim() || undefined;
 }
 
+function actionError(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+async function requireHostForAvailability() {
+  const user = await requireRole("host", {
+    message: "Use a host account to update availability.",
+    forbiddenMessage: "Use a host account to update availability.",
+  });
+  requireVerifiedEmail(user);
+  return user;
+}
+
 export async function blockHostAvailability(_state: AvailabilityFormState, formData: FormData): Promise<AvailabilityFormState> {
+  try {
+    await assertTrustedRequestOrigin();
+    await assertValidCsrfForm(formData);
+  } catch (error) {
+    return { status: "error", message: actionError(error, "Request origin could not be verified.") };
+  }
+
   const parsed = blockAvailabilitySchema.safeParse({
     propertyId: formData.get("propertyId"),
     checkIn: formData.get("checkIn"),
@@ -49,8 +71,12 @@ export async function blockHostAvailability(_state: AvailabilityFormState, formD
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the unavailable date details." };
   }
 
-  const user = await getCurrentUser();
-  if (!user || user.role !== "host") return { status: "error", message: "Use a host account to update availability." };
+  let user;
+  try {
+    user = await requireHostForAvailability();
+  } catch (error) {
+    return { status: "error", message: actionError(error, "Use a host account to update availability.") };
+  }
 
   const { propertyId, checkIn, checkOut, reason, note } = parsed.data;
   const property = await getPropertyById(propertyId);
@@ -90,11 +116,22 @@ export async function blockHostAvailability(_state: AvailabilityFormState, formD
 }
 
 export async function removeHostAvailabilityBlock(formData: FormData) {
+  try {
+    await assertTrustedRequestOrigin();
+    await assertValidCsrfForm(formData);
+  } catch {
+    return;
+  }
+
   const blockId = String(formData.get("blockId") ?? "");
   if (!blockId) return;
 
-  const user = await getCurrentUser();
-  if (!user || user.role !== "host") return;
+  let user;
+  try {
+    user = await requireHostForAvailability();
+  } catch {
+    return;
+  }
 
   const blocks = await getAvailabilityBlocks();
   const block = blocks.find((item) => item.id === blockId);

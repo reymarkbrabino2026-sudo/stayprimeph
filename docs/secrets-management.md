@@ -22,6 +22,7 @@ Production secrets should live in your hosting provider's encrypted secret store
 | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | Public production URL; this value is exposed to the browser |
 | `PERSISTENCE_DRIVER` | Must be `prisma` in production |
+| `PAYMENT_LAUNCH_MODE` | Use `disabled` until paid bookings are intentionally launched. Use `stripe` only with live Stripe keys and a live webhook secret |
 | `NEXT_PUBLIC_SENTRY_DSN` | Browser-visible Sentry DSN |
 | `NEXT_PUBLIC_VERCEL_ANALYTICS` | Set to `enabled` in production |
 | `EMAIL_FROM` | Verified sender identity for transactional email |
@@ -35,9 +36,12 @@ Production secrets should live in your hosting provider's encrypted secret store
    - GitHub Actions: repository or environment secrets
 2. Give production, preview, and development environments separate values.
 3. Rotate `AUTH_SECRET` and database credentials on a schedule and after any suspected leak.
-4. Run `npm run prod:check` before each deployment.
-5. Never paste real values into screenshots, issues, chat, or committed files.
-6. For Stripe live mode, keep the publishable, server, and webhook keys from the same Stripe mode. Do not mix `pk_live_` with `sk_test_`, or a live API key with a test webhook secret.
+4. Do not pass secrets as Docker build args, Vercel build-time variables, or checked-in files. Build commands use sanitized placeholders.
+5. Run `npm run prod:check` in the runtime environment before launch or as a release smoke check.
+6. Run database migrations separately from app builds using a trusted operator machine or CI job with migration-only access to `DIRECT_URL`.
+7. Never paste real values into screenshots, issues, chat, or committed files.
+8. Keep `PAYMENT_LAUNCH_MODE=disabled` unless production is approved to collect real money.
+9. For Stripe live mode, set `PAYMENT_LAUNCH_MODE=stripe` and keep the publishable, server, and webhook keys from the same Stripe mode. Do not mix `pk_live_` with `sk_test_`, or a live API key with a test webhook secret.
 
 ## Generate a secret
 

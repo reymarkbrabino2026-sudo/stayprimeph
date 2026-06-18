@@ -2,14 +2,16 @@
 
 import { useActionState } from "react";
 import { submitStayReview, type ReviewActionState } from "@/app/guest/bookings/actions";
+import { csrfFieldName } from "@/lib/csrf-fields";
 
 const initialState: ReviewActionState = {};
 
-export function StayReviewForm({ bookingId }: { bookingId: string }) {
+export function StayReviewForm({ bookingId, csrfToken }: { bookingId: string; csrfToken: string }) {
   const [state, formAction, pending] = useActionState(submitStayReview, initialState);
 
   return (
     <form action={formAction} className="mt-6 rounded-[1.5rem] border border-black/10 bg-white p-5">
+      <input type="hidden" name={csrfFieldName} value={csrfToken} />
       <input type="hidden" name="bookingId" value={bookingId} />
       <div>
         <p className="text-lg font-semibold">Review your stay</p>

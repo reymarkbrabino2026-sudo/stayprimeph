@@ -44,7 +44,7 @@ export function HomeHeroSlider() {
   }
 
   return (
-    <section className="relative h-[60svh] min-h-[27rem] overflow-hidden bg-[#053f34] text-white md:h-[60vh] md:min-h-0">
+    <section className="relative h-[51svh] min-h-[23rem] overflow-hidden bg-[#053f34] text-white md:h-[51vh] md:min-h-0">
       {slides.map((slide, index) => (
         <Image
           key={slide.src}

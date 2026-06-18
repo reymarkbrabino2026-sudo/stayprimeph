@@ -3,6 +3,7 @@
 import { CircleDollarSign } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { FinancialSettingsState, ServiceFeeMode } from "@/lib/account-settings-types";
 
 const nightlyPrice = 10000;
@@ -13,11 +14,12 @@ function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-export function ServiceFeeSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+export function ServiceFeeSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
   const [financial, setFinancial] = useState(initialFinancial);
   const savedMode = financial.serviceFeeMode;
   const [draftMode, setDraftMode] = useState<ServiceFeeMode | null>(null);
   const [showExample, setShowExample] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -40,7 +42,8 @@ export function ServiceFeeSettings({ initialFinancial }: { initialFinancial: Fin
     setFinancial(nextFinancial);
     setMessage("");
     startTransition(async () => {
-      const result = await saveFinancialSettingsAction(nextFinancial);
+      const result = await saveFinancialSettingsAction(nextFinancial, currentPassword);
+      if (requiresStepUp) setCurrentPassword("");
       if (!result.ok) {
         setFinancial(previous);
         setMessage(result.error);
@@ -63,6 +66,9 @@ export function ServiceFeeSettings({ initialFinancial }: { initialFinancial: Fin
         {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-2xl font-semibold">Service fee settings</h3>
         <p className="mt-2">Choose a service fee pricing option for all of your listings.</p>
+        <div className="mt-5 max-w-md">
+          <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+        </div>
         <FeeOption
           mode="single"
           selected={selectedMode === "single"}

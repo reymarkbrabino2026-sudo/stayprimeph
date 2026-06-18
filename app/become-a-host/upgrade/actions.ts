@@ -1,14 +1,19 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { clearAllSessionsForUser, clearSession, requireUser, requireVerifiedEmail } from "@/lib/auth";
+import { assertValidCsrfForm } from "@/lib/csrf";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { updateUserRoleInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 
-export async function continueAsHost() {
-  const user = await getCurrentUser();
+export async function continueAsHost(formData: FormData) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
-  if (!user) redirect("/register?role=host");
+  const user = await requireUser({ redirectTo: "/register?role=host" });
+
+  requireVerifiedEmail(user);
   if (user.role === "host") redirect("/become-a-host/setup");
   if (user.role !== "guest") redirect("/login?role=host");
 
@@ -17,7 +22,9 @@ export async function continueAsHost() {
   } else {
     const users = await readStoredUsers();
     await writeStoredUsers(users.map((item) => (item.id === user.id ? { ...item, role: "host" } : item)));
+    await clearAllSessionsForUser(user.id);
   }
 
-  redirect("/become-a-host/setup");
+  await clearSession();
+  redirect(`/login?role=host&message=${encodeURIComponent("Your host access was updated. Please log in again.")}`);
 }

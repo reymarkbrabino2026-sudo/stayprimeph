@@ -3,9 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import {
-  AlarmSmoke, Baby, Bath, BriefcaseMedical, Building, Building2, CarFront, CookingPot, DoorOpen,
-  Check, FireExtinguisher, Flame, Home, Hotel, House, Lamp, Laptop, Leaf, MapPin, Palmtree, ShieldAlert, Snowflake,
-  Sparkles, TentTree, Tractor, TreePine, Tv, Umbrella, Users, UtensilsCrossed, WashingMachine, Waves, Wifi,
+  AlarmSmoke, Armchair, Baby, Bath, BriefcaseMedical, Building, Building2, CarFront, CookingPot, DoorOpen,
+  Check, FireExtinguisher, Flame, Home, Hotel, House, Lamp, Laptop, Layers, Leaf, MapPin, Mic, Palmtree, Projector,
+  Puzzle, ShieldAlert, Snowflake, Sofa, Sparkles, Sun, Target, TentTree, Tractor, TreePine, Tv, Umbrella, Users,
+  UtensilsCrossed, WashingMachine, Waves, Wifi,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -18,6 +19,7 @@ import { MapSelector } from "@/components/host-wizard/map-selector";
 import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout";
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
 import { hostListingSchema } from "@/lib/host-wizard-schema";
+import type { HostBookingPackageDraft } from "@/lib/host-wizard-types";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
 const iconMap = {
@@ -27,6 +29,7 @@ const iconMap = {
   laptop: Laptop, snowflake: Snowflake, bath: Bath, umbrella: Umbrella, flame: Flame, "utensils-crossed": UtensilsCrossed,
   bonfire: Flame, "alarm-smoke": AlarmSmoke, "briefcase-medical": BriefcaseMedical, "fire-extinguisher": FireExtinguisher,
   "shield-alert": ShieldAlert, leaf: Leaf, sparkles: Sparkles, baby: Baby, lamp: Lamp, "map-pin": MapPin,
+  sofa: Sofa, armchair: Armchair, projector: Projector, mic: Mic, target: Target, puzzle: Puzzle, layers: Layers, sun: Sun,
 };
 
 function DynamicIcon({ name }: { name: keyof typeof iconMap | string }) {
@@ -96,7 +99,13 @@ function HighlightPicker() {
 const addressSchema = hostListingSchema.pick({ country: true, street: true, barangay: true, city: true, province: true, zipCode: true });
 type AddressValues = z.infer<typeof addressSchema>;
 
-export function HostListingWizard({ user, freshStart = false }: { user: { id: string; email: string }; freshStart?: boolean }) {
+function formatAddressValues(values: AddressValues) {
+  return [values.street, values.barangay, values.city, values.province, values.country, values.zipCode]
+    .filter(Boolean)
+    .join(", ");
+}
+
+export function HostListingWizard({ user, csrfToken, freshStart = false }: { user: { id: string; email: string }; csrfToken: string; freshStart?: boolean }) {
   const { ownerUserId, initialized, currentStep, draft, initializeForUser, setStep, updateDraft, toggleAmenity } = useHostWizardStore();
   const step = hostWizardSteps.find((item) => item.id === currentStep) ?? hostWizardSteps[0];
 
@@ -128,10 +137,16 @@ export function HostListingWizard({ user, freshStart = false }: { user: { id: st
   async function submitListing() {
     const parsed = hostListingSchema.safeParse({ ...draft, status: "pending" });
     if (!parsed.success) {
-      alert("Please finish the missing steps before publishing your listing.");
+      alert(draft.locationConfirmed ? "Please finish the missing steps before publishing your listing." : "Please confirm the map pin before publishing your listing.");
       return;
     }
-    await publishWizardListing(parsed.data);
+    await publishWizardListing(parsed.data, csrfToken);
+  }
+
+  function updateBookingPackage(id: string, patch: Partial<HostBookingPackageDraft>) {
+    updateDraft({
+      bookingPackages: draft.bookingPackages.map((item) => item.id === id ? { ...item, ...patch } : item),
+    });
   }
 
   if (!initialized || ownerUserId !== user.id) {
@@ -166,7 +181,18 @@ export function HostListingWizard({ user, freshStart = false }: { user: { id: st
             <div>
               <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">{step.title}</h1>
               <p className="mt-5 max-w-md text-lg text-black/60">{step.description}</p>
-              <form className="mt-8 grid gap-3 sm:grid-cols-2" onChange={() => updateDraft(addressForm.getValues())}>
+              <form
+                className="mt-8 grid gap-3 sm:grid-cols-2"
+                onChange={() => {
+                  const nextAddress = addressForm.getValues();
+                  const nextFormattedAddress = formatAddressValues(nextAddress);
+                  updateDraft({
+                    ...nextAddress,
+                    locationConfirmed: draft.locationConfirmed && draft.locationConfirmedAddress === nextFormattedAddress,
+                    locationConfirmedAddress: draft.locationConfirmedAddress === nextFormattedAddress ? draft.locationConfirmedAddress : "",
+                  });
+                }}
+              >
                 {[
                   ["country", "Country"], ["street", "Street address"], ["barangay", "Barangay"],
                   ["city", "City"], ["province", "Province"], ["zipCode", "ZIP code"],
@@ -307,11 +333,31 @@ export function HostListingWizard({ user, freshStart = false }: { user: { id: st
         ) : null}
 
         {currentStep === "pricing" ? (
-          <section className="mx-auto max-w-2xl text-center">
+          <section className="mx-auto max-w-2xl">
             <h1 className="text-3xl font-semibold">{step.title}</h1>
             <p className="mt-2 text-black/60">{step.description}</p>
-            <div className="mt-12 text-6xl font-semibold sm:text-7xl">PHP {draft.basePrice.toLocaleString()}</div>
-            <input aria-label="Base price" type="range" min="500" max="20000" step="100" value={draft.basePrice} onChange={(event) => updateDraft({ basePrice: Number(event.target.value) })} className="mt-10 w-full" />
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => updateDraft({ pricingMode: "simple" })}
+                className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "simple" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
+              >
+                <span className="block font-semibold">Simple nightly pricing</span>
+                <span className={`mt-2 block text-sm ${draft.pricingMode === "simple" ? "text-white/70" : "text-black/60"}`}>Use one weekday and one weekend rate.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => updateDraft({ pricingMode: "packages" })}
+                className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
+              >
+                <span className="block font-semibold">Booking packages</span>
+                <span className={`mt-2 block text-sm ${draft.pricingMode === "packages" ? "text-white/70" : "text-black/60"}`}>Let guests choose overnight, daytime, or custom access.</span>
+              </button>
+            </div>
+            <div className="mt-10 text-center">
+              <div className="text-6xl font-semibold sm:text-7xl">PHP {draft.basePrice.toLocaleString()}</div>
+              <input aria-label="Base price" type="range" min="500" max="20000" step="100" value={draft.basePrice} onChange={(event) => updateDraft({ basePrice: Number(event.target.value) })} className="mt-10 w-full" />
+            </div>
           </section>
         ) : null}
 
@@ -335,6 +381,75 @@ export function HostListingWizard({ user, freshStart = false }: { user: { id: st
                 className="w-full"
               />
             </div>
+          </section>
+        ) : null}
+
+        {currentStep === "booking-packages" ? (
+          <section className="mx-auto max-w-4xl">
+            <h1 className="text-3xl font-semibold">{step.title}</h1>
+            <p className="mt-2 max-w-2xl text-black/60">{step.description}</p>
+            {draft.pricingMode === "simple" ? (
+              <div className="mt-8 rounded-2xl border border-black/10 bg-black/[0.03] p-5 text-black/65">
+                Simple nightly pricing is selected, so guests will book using your weekday and weekend rates.
+              </div>
+            ) : (
+              <div className="mt-8 grid gap-5">
+                {draft.bookingPackages.map((pkg) => (
+                  <section key={pkg.id} className={`rounded-3xl border p-5 ${pkg.enabled ? "border-black bg-white" : "border-black/10 bg-black/[0.02]"}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <label className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={pkg.enabled}
+                          onChange={(event) => updateBookingPackage(pkg.id, { enabled: event.target.checked })}
+                          className="mt-1 h-5 w-5"
+                        />
+                        <span>
+                          <span className="block font-semibold">{pkg.name}</span>
+                          <span className="mt-1 block text-sm text-black/55">{pkg.accessType}</span>
+                        </span>
+                      </label>
+                      <select
+                        value={pkg.unit}
+                        onChange={(event) => updateBookingPackage(pkg.id, { unit: event.target.value as HostBookingPackageDraft["unit"] })}
+                        className="min-h-11 rounded-xl border px-3 text-sm"
+                      >
+                        <option value="night">Counts by night</option>
+                        <option value="day">Counts by day</option>
+                      </select>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        ["name", "Package name", "text"],
+                        ["accessType", "Access", "text"],
+                        ["weekdayRate", "Weekday rate", "number"],
+                        ["weekendRate", "Weekend rate", "number"],
+                        ["includedGuests", "Included guests", "number"],
+                        ["maxGuests", "Max guests", "number"],
+                        ["additionalGuestFee", "Extra head fee", "number"],
+                        ["extensionHourlyFee", "Extension / hour", "number"],
+                        ["checkInTime", "Start / check-in", "text"],
+                        ["checkOutTime", "End / check-out", "text"],
+                      ].map(([key, label, type]) => (
+                        <label key={key} className={key === "name" || key === "accessType" ? "lg:col-span-2" : ""}>
+                          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</span>
+                          <input
+                            value={String(pkg[key as keyof HostBookingPackageDraft])}
+                            type={type}
+                            min={type === "number" ? 0 : undefined}
+                            onChange={(event) => {
+                              const value = type === "number" ? Number(event.target.value) : event.target.value;
+                              updateBookingPackage(pkg.id, { [key]: value } as Partial<HostBookingPackageDraft>);
+                            }}
+                            className="min-h-12 w-full rounded-xl border px-3"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
           </section>
         ) : null}
 
@@ -436,6 +551,3 @@ export function HostListingWizard({ user, freshStart = false }: { user: { id: st
     </StepLayout>
   );
 }
-
-
-

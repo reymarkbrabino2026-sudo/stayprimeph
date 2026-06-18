@@ -3,10 +3,12 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { createMessage } from "@/lib/messages";
 import { getPropertyById } from "@/lib/properties";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { getUserById } from "@/lib/users";
 
 function cleanMessage(value: FormDataEntryValue | null) {
@@ -14,14 +16,18 @@ function cleanMessage(value: FormDataEntryValue | null) {
 }
 
 export async function sendGuestMessage(formData: FormData) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
   const guestId = String(formData.get("guestId") ?? "");
   const propertyId = String(formData.get("propertyId") ?? "");
   const bookingId = String(formData.get("bookingId") ?? "");
   const body = cleanMessage(formData.get("message"));
-  const user = await getCurrentUser();
-
-  if (!user) redirect("/login?role=host");
-  if (user.role !== "host") throw new Error("Only hosts can reply from this page.");
+  const user = await requireRole("host", {
+    redirectTo: "/login?role=host",
+    forbiddenMessage: "Only hosts can reply from this page.",
+  });
+  requireVerifiedEmail(user);
   if (!body) redirect(`/host/messages?guestId=${encodeURIComponent(guestId)}&propertyId=${encodeURIComponent(propertyId)}&error=${encodeURIComponent("Write a reply before sending.")}`);
 
   const guest = await getUserById(guestId);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkDistributedRateLimit, checkRateLimit, resetRateLimits } from "@/lib/rate-limit";
+import { checkDistributedRateLimit, checkLoginLockout, clearFailedLoginAttempts, checkRateLimit, recordFailedLoginAttempt, resetRateLimits } from "@/lib/rate-limit";
 
 describe("checkRateLimit", () => {
   beforeEach(() => {
@@ -29,6 +29,51 @@ describe("checkRateLimit", () => {
     await expect(checkDistributedRateLimit("signin:local", 0)).resolves.toMatchObject({
       limited: false,
       remaining: 0,
+    });
+  });
+
+  it("progressively locks login attempts after repeated failures", async () => {
+    const keys = ["signin:email:user@example.com", "signin:ip:127.0.0.1"];
+
+    await recordFailedLoginAttempt(keys);
+    await recordFailedLoginAttempt(keys);
+    await recordFailedLoginAttempt(keys);
+    await recordFailedLoginAttempt(keys);
+    const fifth = await recordFailedLoginAttempt(keys);
+
+    expect(fifth).toMatchObject({
+      limited: true,
+      remaining: 0,
+    });
+    expect(fifth.retryAfterSeconds).toBe(300);
+
+    const locked = await checkLoginLockout(keys);
+    expect(locked).toMatchObject({
+      limited: true,
+      retryAfterSeconds: 300,
+    });
+  });
+
+  it("escalates lockout duration at higher failure counts", async () => {
+    const keys = ["signin:email:high-risk@example.com"];
+
+    for (let index = 0; index < 7; index += 1) {
+      await recordFailedLoginAttempt(keys);
+    }
+    const eighth = await recordFailedLoginAttempt(keys);
+
+    expect(eighth.limited).toBe(true);
+    expect(eighth.retryAfterSeconds).toBe(900);
+  });
+
+  it("clears login lockout state after successful authentication", async () => {
+    const keys = ["signin:email:clear@example.com"];
+    await recordFailedLoginAttempt(keys);
+    await clearFailedLoginAttempts(keys);
+
+    await expect(checkLoginLockout(keys)).resolves.toMatchObject({
+      limited: false,
+      remaining: 5,
     });
   });
 });

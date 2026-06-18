@@ -1,24 +1,42 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { getStripe } from "@/lib/payments";
+import { getStripe, isStripeCheckoutEnabled } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 
 const checkoutRequestSchema = z.object({
   bookingId: z.string().trim().min(1).max(120),
 });
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role !== "guest") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
   const headerStore = await headers();
+  if (!isTrustedRequestOrigin(headerStore)) {
+    return NextResponse.json({ error: untrustedRequestMessage }, { status: 403 });
+  }
+
+  if (!isStripeCheckoutEnabled()) {
+    return NextResponse.json({ error: "Paid bookings are disabled until StayPrimePH launches a verified payment provider." }, { status: 503 });
+  }
+
+  let user;
+  try {
+    user = await requireRole("guest", { message: "Unauthorized", forbiddenMessage: "Forbidden" });
+  } catch (error) {
+    const message = error instanceof Error && error.message === "Forbidden" ? "Forbidden" : "Unauthorized";
+    return NextResponse.json({ error: message }, { status: message === "Forbidden" ? 403 : 401 });
+  }
+  try {
+    requireVerifiedEmail(user);
+  } catch {
+    return NextResponse.json({ error: "Verify your email address before starting payment." }, { status: 403 });
+  }
+
   const rateLimit = await checkDistributedRateLimit(`checkout:${user.id}:${headerStore.get("x-forwarded-for") ?? "local"}`, 20);
   if (rateLimit.limited) {
     logger.warn("checkout_rate_limited", { userId: user.id });
@@ -52,9 +70,11 @@ export async function POST(request: Request) {
   if (!property || !stripe) return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    success_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=success`,
+    client_reference_id: booking.id,
+    success_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=processing`,
     cancel_url: `${env.NEXT_PUBLIC_APP_URL}/guest/bookings/${booking.id}?payment=cancelled`,
     metadata: { bookingId: booking.id },
+    payment_intent_data: { metadata: { bookingId: booking.id } },
     line_items: [{
       quantity: 1,
       price_data: {

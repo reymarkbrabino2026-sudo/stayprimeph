@@ -6,14 +6,24 @@ loadEnvConfig(process.cwd());
 
 const environment = process.argv[2] ?? process.env.NODE_ENV ?? "development";
 
+function optionalEnv(value) {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "\"\"" || trimmed === "''") return undefined;
+  return trimmed;
+}
+
+const databaseUrl = optionalEnv(process.env.DATABASE_URL);
+const directUrl = optionalEnv(process.env.DIRECT_URL) ?? optionalEnv(process.env.POSTGRES_URL_NON_POOLING);
+
 const requiredByEnvironment = {
   development: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
   test: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
-  production: ["DATABASE_URL", "DIRECT_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
+  production: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
 };
 
 const required = requiredByEnvironment[environment] ?? requiredByEnvironment.development;
-const missing = required.filter((key) => !process.env[key]);
+const missing = required.filter((key) => !optionalEnv(process.env[key]));
+if (environment === "production" && !directUrl) missing.push("DIRECT_URL or POSTGRES_URL_NON_POOLING");
 
 if (missing.length > 0) {
   console.error(`Missing required ${environment} environment variables: ${missing.join(", ")}`);
@@ -35,12 +45,12 @@ if (environment === "production") {
     console.error("PERSISTENCE_DRIVER must be prisma in production.");
     process.exit(1);
   }
-  if (!process.env.DATABASE_URL?.startsWith("postgresql://") && !process.env.DATABASE_URL?.startsWith("postgres://")) {
+  if (!databaseUrl?.startsWith("postgresql://") && !databaseUrl?.startsWith("postgres://")) {
     console.error("DATABASE_URL must be a PostgreSQL connection string in production.");
     process.exit(1);
   }
-  if (!process.env.DIRECT_URL?.startsWith("postgresql://") && !process.env.DIRECT_URL?.startsWith("postgres://")) {
-    console.error("DIRECT_URL must be a PostgreSQL direct connection string in production.");
+  if (!directUrl?.startsWith("postgresql://") && !directUrl?.startsWith("postgres://")) {
+    console.error("DIRECT_URL or POSTGRES_URL_NON_POOLING must be a PostgreSQL direct connection string in production.");
     process.exit(1);
   }
   const integrationPairs = [

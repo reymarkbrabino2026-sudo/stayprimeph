@@ -6,20 +6,19 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { hasAvailabilityBlockConflict } from "@/lib/availability-calendar";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { createBookingInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { env } from "@/lib/env";
 import { sendBookingConfirmedEmail, sendBookingReceivedEmail, sendBookingRequestEmail } from "@/lib/email";
+import { arePaidBookingsEnabled } from "@/lib/payments";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { getUserById } from "@/lib/users";
-import { calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
+import { calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import type { Booking, Property, User } from "@/lib/types";
-
-function nightsBetween(checkIn: string, checkOut: string) {
-  return Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
-}
 
 function isIsoDate(value: string) {
   const raw = value.trim();
@@ -33,8 +32,9 @@ function dateTime(value: string) {
   return new Date(`${value}T00:00:00.000Z`).getTime();
 }
 
-function checkoutPath(propertyId: string, checkIn: string, checkOut: string, guests: number, error?: string) {
+function checkoutPath(propertyId: string, checkIn: string, checkOut: string, guests: number, packageId?: string | null, error?: string) {
   const params = new URLSearchParams({ checkIn, checkOut, guests: String(guests) });
+  if (packageId) params.set("packageId", packageId);
   if (error) params.set("error", error);
   return `/bookings/checkout/${propertyId}?${params.toString()}`;
 }
@@ -77,30 +77,38 @@ const bookingFormSchema = z.object({
   checkIn: z.string().trim().refine(isIsoDate, "Use a valid check-in date."),
   checkOut: z.string().trim().refine(isIsoDate, "Use a valid check-out date."),
   guests: z.coerce.number().int().min(1).max(50),
+  packageId: z.string().trim().max(120).optional(),
 });
 
 export async function createBooking(formData: FormData) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
   const parsed = bookingFormSchema.safeParse({
     propertyId: formData.get("propertyId"),
     checkIn: formData.get("checkIn"),
     checkOut: formData.get("checkOut"),
     guests: formData.get("guests"),
+    packageId: formData.get("packageId") || undefined,
   });
   if (!parsed.success) throw new Error("Please complete your booking details.");
 
-  const { propertyId, checkIn, checkOut, guests } = parsed.data;
+  const { propertyId, checkIn, checkOut, guests, packageId } = parsed.data;
   const checkInTime = dateTime(checkIn);
   const checkOutTime = dateTime(checkOut);
   const property = await getPropertyById(propertyId);
   const [bookings, availabilityBlocks] = await Promise.all([getBookings(), getAvailabilityBlocks()]);
-  const user = await getCurrentUser();
-
-  if (!user) redirect(`/login?role=guest&next=${encodeURIComponent(checkoutPath(propertyId, checkIn, checkOut, guests))}`);
-  if (user.role !== "guest") redirect(checkoutPath(propertyId, checkIn, checkOut, guests, "guest-only"));
+  const user = await requireRole("guest", {
+    redirectTo: `/login?role=guest&next=${encodeURIComponent(checkoutPath(propertyId, checkIn, checkOut, guests, packageId))}`,
+    forbiddenRedirectTo: checkoutPath(propertyId, checkIn, checkOut, guests, packageId, "guest-only"),
+  });
+  requireVerifiedEmail(user);
   if (!property) throw new Error("Please complete your booking details.");
   if (property.status !== "approved") throw new Error("This listing is not available for booking.");
   if (!Number.isFinite(property.pricePerNight) || property.pricePerNight <= 0) throw new Error("This listing is missing valid pricing.");
-  if (!Number.isInteger(property.maxGuests) || guests > property.maxGuests) throw new Error("Guest count exceeds this listing's capacity.");
+  const bookingPackage = getEnabledBookingPackages(property).length ? getBookingPackageById(property, packageId) : null;
+  const maxGuests = bookingPackage?.maxGuests ?? property.maxGuests;
+  if (!Number.isInteger(maxGuests) || guests > maxGuests) throw new Error("Guest count exceeds this listing's capacity.");
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   if (checkInTime < today.getTime()) throw new Error("Check-in must be today or later.");
@@ -108,14 +116,17 @@ export async function createBooking(formData: FormData) {
   if (hasDateConflict(bookings, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
   if (hasAvailabilityBlockConflict(availabilityBlocks, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
 
-  const nights = nightsBetween(checkIn, checkOut);
+  const { nights, subtotal } = bookingPackage
+    ? calculatePackageSubtotal(bookingPackage, checkIn, checkOut, guests)
+    : calculateNightlySubtotal(property, checkIn, checkOut);
   if (nights > 90) throw new Error("Stays longer than 90 nights need host approval.");
-  const subtotal = property.pricePerNight * nights;
   const discount = getBestDiscount({ property, bookings, checkIn, nights, subtotal });
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
   const serviceFee = calculateStayprimeMarkup(discountedSubtotal);
   const totalPrice = discountedSubtotal + serviceFee;
   if (!Number.isSafeInteger(totalPrice) || totalPrice <= 0) throw new Error("This booking total could not be calculated.");
+  const requiresProviderPayment = arePaidBookingsEnabled();
+  const bookingStatus = !requiresProviderPayment && property.rules.includes("Instant book enabled") ? "confirmed" : "pending";
   const booking: Booking = {
     id: randomUUID(),
     propertyId,
@@ -125,9 +136,12 @@ export async function createBooking(formData: FormData) {
     checkOut,
     guests,
     totalPrice,
-    status: property.rules.includes("Instant book enabled") ? "confirmed" : "pending",
+    status: bookingStatus,
     paymentStatus: "pending",
     createdAt: new Date().toISOString().slice(0, 10),
+    bookingPackageId: bookingPackage?.id,
+    bookingPackageName: bookingPackage?.name,
+    bookingPackageUnit: bookingPackage?.unit,
   };
 
   if (usesPrismaPersistence()) {

@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AuthToken, AvailabilityBlock, Booking, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, Review, User } from "@/lib/types";
+import type { AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, HostExpense, HostMonthlyReport, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, Review, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -27,22 +27,101 @@ export function usesPrismaPersistence() {
   return env.PERSISTENCE_DRIVER === "prisma";
 }
 
+let platformLedgerTableReady: Promise<void> | null = null;
+let listingBookingPackageTableReady: Promise<void> | null = null;
+let bookingPackageColumnsReady: Promise<void> | null = null;
+let authSessionTableReady: Promise<void> | null = null;
+
+function cacheGlobalEnsure(db: unknown, cached: Promise<void> | null, setCached: (promise: Promise<void> | null) => void, ensure: () => Promise<void>) {
+  if (db !== prisma) return ensure();
+  if (cached) return cached;
+
+  const promise = ensure().catch((error) => {
+    setCached(null);
+    throw error;
+  });
+  setCached(promise);
+  return promise;
+}
+
 async function ensurePlatformLedgerTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
-  await db.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "PlatformLedgerEntry" (
-      "id" TEXT NOT NULL,
-      "bookingId" TEXT NOT NULL,
-      "paymentId" TEXT,
-      "amount" INTEGER NOT NULL,
-      "source" TEXT NOT NULL,
-      "destination" TEXT NOT NULL,
-      "status" TEXT NOT NULL,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "PlatformLedgerEntry_pkey" PRIMARY KEY ("id")
-    )
-  `);
-  await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PlatformLedgerEntry_bookingId_key" ON "PlatformLedgerEntry"("bookingId")`);
-  await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "PlatformLedgerEntry_status_createdAt_idx" ON "PlatformLedgerEntry"("status", "createdAt")`);
+  return cacheGlobalEnsure(db, platformLedgerTableReady, (promise) => {
+    platformLedgerTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "PlatformLedgerEntry" (
+        "id" TEXT NOT NULL,
+        "bookingId" TEXT NOT NULL,
+        "paymentId" TEXT,
+        "amount" INTEGER NOT NULL,
+        "source" TEXT NOT NULL,
+        "destination" TEXT NOT NULL,
+        "status" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "PlatformLedgerEntry_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PlatformLedgerEntry_bookingId_key" ON "PlatformLedgerEntry"("bookingId")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "PlatformLedgerEntry_status_createdAt_idx" ON "PlatformLedgerEntry"("status", "createdAt")`);
+  });
+}
+
+async function ensureListingBookingPackageTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, listingBookingPackageTableReady, (promise) => {
+    listingBookingPackageTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ListingBookingPackage" (
+        "id" TEXT NOT NULL,
+        "propertyId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "accessType" TEXT NOT NULL,
+        "unit" TEXT NOT NULL,
+        "weekdayRate" INTEGER NOT NULL,
+        "weekendRate" INTEGER NOT NULL,
+        "holidayRate" INTEGER,
+        "includedGuests" INTEGER NOT NULL,
+        "maxGuests" INTEGER NOT NULL,
+        "additionalGuestFee" INTEGER NOT NULL,
+        "extensionHourlyFee" INTEGER NOT NULL,
+        "checkInTime" TEXT NOT NULL,
+        "checkOutTime" TEXT NOT NULL,
+        "enabled" BOOLEAN NOT NULL DEFAULT true,
+        CONSTRAINT "ListingBookingPackage_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ListingBookingPackage_propertyId_idx" ON "ListingBookingPackage"("propertyId")`);
+  });
+}
+
+async function ensureBookingPackageColumns(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, bookingPackageColumnsReady, (promise) => {
+    bookingPackageColumnsReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageId" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageName" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageUnit" TEXT`);
+  });
+}
+
+async function ensureAuthSessionTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, authSessionTableReady, (promise) => {
+    authSessionTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "AuthSession" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "sessionHash" TEXT NOT NULL,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "AuthSession_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "AuthSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "AuthSession_sessionHash_key" ON "AuthSession"("sessionHash")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "AuthSession_userId_expiresAt_idx" ON "AuthSession"("userId", "expiresAt")`);
+  });
 }
 
 async function recordPlatformLedgerEntry(
@@ -79,8 +158,27 @@ async function recordPlatformLedgerEntry(
   `;
 }
 
+type DatabaseUser = {
+  id: string;
+  name: string;
+  email: string;
+  password: string | null;
+  role: string;
+  avatar: string | null;
+  phone: string | null;
+  emailVerifiedAt: Date | null;
+  passwordChangedAt: Date | null;
+  createdAt: Date;
+};
+
 export async function listUsersFromDatabase(): Promise<User[]> {
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+  const users = await prisma.$queryRaw<DatabaseUser[]>`
+    SELECT
+      "id", "name", "email", "password", "role", "avatar", "phone",
+      "emailVerifiedAt", "passwordChangedAt", "createdAt"
+    FROM "User"
+    ORDER BY "createdAt" DESC
+  `;
   return users.map((user) => ({
     id: user.id,
     name: user.name,
@@ -91,6 +189,7 @@ export async function listUsersFromDatabase(): Promise<User[]> {
     createdAt: user.createdAt.toISOString().slice(0, 10),
     passwordHash: user.password ?? undefined,
     emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
+    passwordChangedAt: user.passwordChangedAt?.toISOString(),
   }));
 }
 
@@ -110,7 +209,18 @@ export async function createUserInDatabase(user: User) {
   });
 }
 
+type DatabaseBookingPackage = BookingPackage & { propertyId: string };
+
+function groupBookingPackages(packages: DatabaseBookingPackage[]) {
+  return packages.reduce<Record<string, BookingPackage[]>>((groups, item) => {
+    const { propertyId: _propertyId, ...bookingPackage } = item;
+    groups[_propertyId] = [...(groups[_propertyId] ?? []), bookingPackage];
+    return groups;
+  }, {});
+}
+
 export async function listPropertiesFromDatabase(): Promise<Property[]> {
+  await ensureListingBookingPackageTable();
   const properties = await prisma.property.findMany({
     include: {
       images: true,
@@ -120,6 +230,14 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     },
     orderBy: { createdAt: "desc" },
   });
+  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
+    SELECT
+      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
+      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+    FROM "ListingBookingPackage"
+    ORDER BY "name" ASC
+  `;
+  const packagesByProperty = groupBookingPackages(packages);
 
   return properties.map((property) => ({
     id: property.id,
@@ -145,6 +263,7 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     rules: parseRules(property.rules),
     createdAt: property.createdAt.toISOString().slice(0, 10),
     images: property.images.map(toPropertyImage),
+    bookingPackages: packagesByProperty[property.id] ?? undefined,
     latitude: property.location?.latitude,
     longitude: property.location?.longitude,
     barangay: property.location?.barangay ?? undefined,
@@ -219,6 +338,24 @@ export async function createPropertyInDatabase(property: Property) {
       },
     },
   });
+
+  if (property.bookingPackages?.length) {
+    await ensureListingBookingPackageTable();
+    await prisma.$transaction(
+      property.bookingPackages.map((bookingPackage) => prisma.$executeRaw`
+        INSERT INTO "ListingBookingPackage" (
+          "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
+          "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+        )
+        VALUES (
+          ${bookingPackage.id}, ${property.id}, ${bookingPackage.name}, ${bookingPackage.accessType}, ${bookingPackage.unit},
+          ${bookingPackage.weekdayRate}, ${bookingPackage.weekendRate}, ${bookingPackage.holidayRate ?? null},
+          ${bookingPackage.includedGuests}, ${bookingPackage.maxGuests}, ${bookingPackage.additionalGuestFee},
+          ${bookingPackage.extensionHourlyFee}, ${bookingPackage.checkInTime}, ${bookingPackage.checkOutTime}, ${bookingPackage.enabled}
+        )
+      `),
+    );
+  }
 }
 
 export async function updatePropertyStatusInDatabase(id: string, status: Property["status"]) {
@@ -226,8 +363,22 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 }
 
 export async function listBookingsFromDatabase(): Promise<Booking[]> {
+  await ensureBookingPackageColumns();
   const bookings = await prisma.booking.findMany({ orderBy: { createdAt: "desc" } });
+  const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
+    SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
+    FROM "Booking"
+  `;
+  const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
   return bookings.map((booking) => ({
+    ...(() => {
+      const selectedPackage = packageByBookingId.get(booking.id);
+      return {
+        bookingPackageId: selectedPackage?.bookingPackageId ?? undefined,
+        bookingPackageName: selectedPackage?.bookingPackageName ?? undefined,
+        bookingPackageUnit: selectedPackage?.bookingPackageUnit === "day" ? "day" as const : selectedPackage?.bookingPackageUnit === "night" ? "night" as const : undefined,
+      };
+    })(),
     id: booking.id,
     propertyId: booking.propertyId,
     guestId: booking.guestId,
@@ -290,6 +441,7 @@ export async function createBookingInDatabase(booking: Booking) {
   const checkIn = new Date(booking.checkIn);
   const checkOut = new Date(booking.checkOut);
   await prisma.$transaction(async (tx) => {
+    await ensureBookingPackageColumns(tx);
     const conflictingBooking = await tx.booking.findFirst({
       where: {
         propertyId: booking.propertyId,
@@ -326,6 +478,16 @@ export async function createBookingInDatabase(booking: Booking) {
         createdAt: new Date(booking.createdAt),
       },
     });
+    if (booking.bookingPackageId) {
+      await tx.$executeRaw`
+        UPDATE "Booking"
+        SET
+          "bookingPackageId" = ${booking.bookingPackageId},
+          "bookingPackageName" = ${booking.bookingPackageName ?? null},
+          "bookingPackageUnit" = ${booking.bookingPackageUnit ?? null}
+        WHERE "id" = ${booking.id}
+      `;
+    }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
@@ -334,7 +496,10 @@ export async function updateBookingPaymentInDatabase(bookingId: string, paymentS
   const confirmedAt = paymentStatus === "paid" ? now : null;
 
   await prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.update({ where: { id: bookingId }, data: { paymentStatus } });
+    const booking = await tx.booking.update({
+      where: { id: bookingId },
+      data: paymentStatus === "paid" ? { paymentStatus, status: "confirmed" } : { paymentStatus },
+    });
 
     await tx.$executeRaw`
       INSERT INTO "Payment" (
@@ -517,6 +682,186 @@ export async function listPlatformLedgerFromDatabase(): Promise<PlatformLedgerEn
   }));
 }
 
+type DatabaseHostExpense = {
+  id: string;
+  hostId: string;
+  expenseDate: Date;
+  month: string;
+  category: string;
+  amount: number;
+  vendor: string;
+  description: string | null;
+  receiptReference: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export async function listHostExpensesFromDatabase(): Promise<HostExpense[]> {
+  const expenses = await prisma.hostExpense.findMany({ orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }] });
+  return expenses.map((expense: DatabaseHostExpense) => ({
+    id: expense.id,
+    hostId: expense.hostId,
+    expenseDate: expense.expenseDate.toISOString().slice(0, 10),
+    month: expense.month,
+    category: expense.category,
+    amount: expense.amount,
+    vendor: expense.vendor,
+    description: expense.description ?? undefined,
+    receiptReference: expense.receiptReference ?? undefined,
+    createdAt: expense.createdAt.toISOString(),
+    updatedAt: expense.updatedAt.toISOString(),
+  }));
+}
+
+export async function writeHostExpensesToDatabase(expenses: HostExpense[]) {
+  await prisma.$transaction([
+    prisma.hostExpense.deleteMany(),
+    ...(expenses.length > 0
+      ? [prisma.hostExpense.createMany({
+        data: expenses.map((expense) => ({
+          id: expense.id,
+          hostId: expense.hostId,
+          expenseDate: new Date(`${expense.expenseDate}T00:00:00.000Z`),
+          month: expense.month,
+          category: expense.category,
+          amount: expense.amount,
+          vendor: expense.vendor,
+          description: expense.description ?? null,
+          receiptReference: expense.receiptReference ?? null,
+          createdAt: new Date(expense.createdAt),
+          updatedAt: new Date(expense.updatedAt),
+        })),
+      })]
+      : []),
+  ]);
+}
+
+function hostExpenseData(expense: HostExpense) {
+  return {
+    id: expense.id,
+    hostId: expense.hostId,
+    expenseDate: new Date(`${expense.expenseDate}T00:00:00.000Z`),
+    month: expense.month,
+    category: expense.category,
+    amount: expense.amount,
+    vendor: expense.vendor,
+    description: expense.description ?? null,
+    receiptReference: expense.receiptReference ?? null,
+    createdAt: new Date(expense.createdAt),
+    updatedAt: new Date(expense.updatedAt),
+  };
+}
+
+function hostExpenseUpdateData(expense: HostExpense) {
+  return {
+    hostId: expense.hostId,
+    expenseDate: new Date(`${expense.expenseDate}T00:00:00.000Z`),
+    month: expense.month,
+    category: expense.category,
+    amount: expense.amount,
+    vendor: expense.vendor,
+    description: expense.description ?? null,
+    receiptReference: expense.receiptReference ?? null,
+    updatedAt: new Date(expense.updatedAt),
+  };
+}
+
+export async function createHostExpensesInDatabase(expenses: HostExpense[]) {
+  if (expenses.length === 0) return;
+  await prisma.hostExpense.createMany({
+    data: expenses.map(hostExpenseData),
+  });
+}
+
+export async function updateHostExpenseInDatabase(expense: HostExpense) {
+  await prisma.hostExpense.update({
+    data: hostExpenseUpdateData(expense),
+    where: { id: expense.id },
+  });
+}
+
+export async function deleteHostExpenseFromDatabase(expenseId: string) {
+  await prisma.hostExpense.delete({ where: { id: expenseId } });
+}
+
+type DatabaseHostMonthlyReport = {
+  id: string;
+  hostId: string;
+  month: string;
+  reportDate: Date | null;
+  salesAmount: number;
+  expensesAmount: number;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export async function listHostMonthlyReportsFromDatabase(): Promise<HostMonthlyReport[]> {
+  const reports = await prisma.hostMonthlyReport.findMany({ orderBy: { month: "desc" } });
+  return reports.map((report: DatabaseHostMonthlyReport) => ({
+    id: report.id,
+    hostId: report.hostId,
+    month: report.month,
+    reportDate: (report.reportDate ?? new Date(`${report.month}-01T00:00:00.000Z`)).toISOString().slice(0, 10),
+    salesAmount: report.salesAmount,
+    expensesAmount: report.expensesAmount,
+    notes: report.notes ?? undefined,
+    createdAt: report.createdAt.toISOString(),
+    updatedAt: report.updatedAt.toISOString(),
+  }));
+}
+
+export async function writeHostMonthlyReportsToDatabase(reports: HostMonthlyReport[]) {
+  await prisma.$transaction([
+    prisma.hostMonthlyReport.deleteMany(),
+    ...(reports.length > 0
+      ? [prisma.hostMonthlyReport.createMany({
+        data: reports.map((report) => ({
+          id: report.id,
+          hostId: report.hostId,
+          month: report.month,
+          reportDate: new Date(`${report.reportDate ?? `${report.month}-01`}T00:00:00.000Z`),
+          salesAmount: report.salesAmount,
+          expensesAmount: report.expensesAmount,
+          notes: report.notes ?? null,
+          createdAt: new Date(report.createdAt),
+          updatedAt: new Date(report.updatedAt),
+        })),
+      })]
+      : []),
+  ]);
+}
+
+export async function upsertHostMonthlyReportInDatabase(report: HostMonthlyReport) {
+  await prisma.hostMonthlyReport.upsert({
+    where: { id: report.id },
+    update: {
+      hostId: report.hostId,
+      month: report.month,
+      reportDate: new Date(`${report.reportDate ?? `${report.month}-01`}T00:00:00.000Z`),
+      salesAmount: report.salesAmount,
+      expensesAmount: report.expensesAmount,
+      notes: report.notes ?? null,
+      updatedAt: new Date(report.updatedAt),
+    },
+    create: {
+      id: report.id,
+      hostId: report.hostId,
+      month: report.month,
+      reportDate: new Date(`${report.reportDate ?? `${report.month}-01`}T00:00:00.000Z`),
+      salesAmount: report.salesAmount,
+      expensesAmount: report.expensesAmount,
+      notes: report.notes ?? null,
+      createdAt: new Date(report.createdAt),
+      updatedAt: new Date(report.updatedAt),
+    },
+  });
+}
+
+export async function deleteHostMonthlyReportFromDatabase(reportId: string) {
+  await prisma.hostMonthlyReport.delete({ where: { id: reportId } });
+}
+
 export async function recordManualPaymentInDatabase(
   booking: Booking,
   payment: Pick<Payment, "amount" | "paymentMethod" | "transactionId" | "notes">,
@@ -646,41 +991,194 @@ export async function createMessageInDatabase(message: Message) {
   `;
 }
 
+function encodeEmailChangeTokenType(metadata: Record<string, unknown> | undefined) {
+  const payload = Buffer.from(JSON.stringify(metadata ?? {}), "utf8").toString("base64url");
+  return `email_change:${payload}`;
+}
+
+function decodeStoredAuthTokenType(value: string): Pick<AuthToken, "type" | "metadata"> | null {
+  if (value.startsWith("email_change:")) {
+    try {
+      const rawPayload = value.slice("email_change:".length);
+      const metadata = JSON.parse(Buffer.from(rawPayload, "base64url").toString("utf8"));
+      return {
+        type: "email_change",
+        metadata: metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata as Record<string, unknown> : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  if (value === "email_verification" || value === "password_reset" || value === "admin_mfa") return { type: value };
+  return null;
+}
+
 export async function createAuthTokenInDatabase(token: AuthToken) {
   await prisma.authToken.create({
     data: {
       id: token.id,
       userId: token.userId,
       tokenHash: token.tokenHash,
-      type: token.type,
+      type: token.type === "email_change" ? encodeEmailChangeTokenType(token.metadata) : token.type,
       expiresAt: new Date(token.expiresAt),
       createdAt: new Date(token.createdAt),
     },
   });
 }
 
-export async function consumeAuthTokenFromDatabase(tokenHash: string, type: AuthToken["type"]) {
-  const token = await prisma.authToken.findFirst({ where: { tokenHash, type } });
-  if (!token || token.expiresAt < new Date()) return null;
-  await prisma.authToken.delete({ where: { id: token.id } });
+export async function createSessionInDatabase(session: AuthSession) {
+  await ensureAuthSessionTable();
+  await prisma.$executeRaw`
+    INSERT INTO "AuthSession" ("id", "userId", "sessionHash", "expiresAt", "createdAt")
+    VALUES (${session.id}, ${session.userId}, ${session.sessionHash}, ${new Date(session.expiresAt)}, ${new Date(session.createdAt)})
+  `;
+}
+
+type DatabaseAuthSession = {
+  id: string;
+  userId: string;
+  sessionHash: string;
+  expiresAt: Date;
+  createdAt: Date;
+};
+
+function toAuthSession(session: DatabaseAuthSession): AuthSession {
+  return {
+    id: session.id,
+    userId: session.userId,
+    sessionHash: session.sessionHash,
+    expiresAt: session.expiresAt.toISOString(),
+    createdAt: session.createdAt.toISOString(),
+  };
+}
+
+export async function findSessionFromDatabase(sessionHash: string) {
+  await ensureAuthSessionTable();
+  const session = await prisma.$queryRaw<DatabaseAuthSession[]>`
+    SELECT "id", "userId", "sessionHash", "expiresAt", "createdAt"
+    FROM "AuthSession"
+    WHERE "sessionHash" = ${sessionHash}
+    LIMIT 1
+  `;
+  const found = session[0];
+  if (!found) return null;
+  if (found.expiresAt <= new Date()) {
+    await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "id" = ${found.id}`;
+    return null;
+  }
+  return toAuthSession(found);
+}
+
+export async function deleteSessionFromDatabase(sessionHash: string) {
+  await ensureAuthSessionTable();
+  await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "sessionHash" = ${sessionHash}`;
+}
+
+export async function deleteSessionsForUserFromDatabase(userId: string) {
+  await ensureAuthSessionTable();
+  await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${userId}`;
+}
+
+function toAuthToken(token: { id: string; userId: string; tokenHash: string; type: string; expiresAt: Date; createdAt: Date }): AuthToken | null {
+  const decoded = decodeStoredAuthTokenType(token.type);
+  if (!decoded) return null;
+
   return {
     id: token.id,
     userId: token.userId,
     tokenHash: token.tokenHash,
-    type: token.type as AuthToken["type"],
+    type: decoded.type,
+    metadata: decoded.metadata,
     expiresAt: token.expiresAt.toISOString(),
     createdAt: token.createdAt.toISOString(),
   };
+}
+
+export async function deleteAuthTokensForUserInDatabase(userId: string, type: AuthToken["type"]) {
+  if (type === "email_change") {
+    await prisma.authToken.deleteMany({ where: { userId, type: { startsWith: "email_change:" } } });
+    return;
+  }
+
+  await prisma.authToken.deleteMany({ where: { userId, type } });
+}
+
+export async function findAuthTokenFromDatabase(tokenHash: string, type: AuthToken["type"]) {
+  const token = await prisma.authToken.findFirst({
+    where: type === "email_change" ? { tokenHash, type: { startsWith: "email_change:" } } : { tokenHash, type },
+  });
+  if (!token) return null;
+  if (token.expiresAt < new Date()) {
+    await prisma.authToken.delete({ where: { id: token.id } });
+    return null;
+  }
+  const decoded = toAuthToken(token);
+  return decoded?.type === type ? decoded : null;
+}
+
+export async function consumeAuthTokenFromDatabase(tokenHash: string, type: AuthToken["type"]) {
+  const token = await prisma.authToken.findFirst({
+    where: type === "email_change" ? { tokenHash, type: { startsWith: "email_change:" } } : { tokenHash, type },
+  });
+  if (!token) return null;
+  if (token.expiresAt < new Date()) {
+    await prisma.authToken.delete({ where: { id: token.id } });
+    return null;
+  }
+  await prisma.authToken.delete({ where: { id: token.id } });
+  const decoded = toAuthToken(token);
+  return decoded?.type === type ? decoded : null;
 }
 
 export async function markUserEmailVerifiedInDatabase(userId: string) {
   await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
 }
 
+export async function completeUserEmailChangeInDatabase(userId: string, oldEmail: string, newEmail: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (!user || user.email.toLowerCase() !== oldEmail.toLowerCase()) return false;
+
+  const existingUser = await prisma.user.findFirst({
+    where: { email: newEmail, NOT: { id: userId } },
+    select: { id: true },
+  });
+  if (existingUser) return false;
+
+  const settings = await prisma.accountSettings.findUnique({
+    where: { userId },
+    select: { personalInfo: true },
+  });
+  const personalInfo = settings?.personalInfo && typeof settings.personalInfo === "object" && !Array.isArray(settings.personalInfo)
+    ? { ...settings.personalInfo as Record<string, unknown>, email: newEmail }
+    : undefined;
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { email: newEmail, emailVerifiedAt: new Date() },
+    }),
+    ...(personalInfo
+      ? [prisma.accountSettings.update({
+        where: { userId },
+        data: { personalInfo: personalInfo as Prisma.InputJsonValue },
+      })]
+      : []),
+  ]);
+  return true;
+}
+
 export async function updateUserPasswordInDatabase(userId: string, passwordHash: string) {
-  await prisma.user.update({ where: { id: userId }, data: { password: passwordHash } });
+  await prisma.$executeRaw`
+    UPDATE "User"
+    SET "password" = ${passwordHash}, "passwordChangedAt" = ${new Date()}
+    WHERE "id" = ${userId}
+  `;
 }
 
 export async function updateUserRoleInDatabase(userId: string, role: User["role"]) {
-  await prisma.user.update({ where: { id: userId }, data: { role } });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { role } }),
+    prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${userId}`,
+  ]);
 }

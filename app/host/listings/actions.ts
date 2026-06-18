@@ -3,11 +3,14 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
+import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
 import { amenityGroups } from "@/lib/host-wizard-data";
 import { createPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
+import { calculateDefaultWeekendPrice } from "@/lib/pricing";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { Property } from "@/lib/types";
 
 function slugify(value: string) {
@@ -35,10 +38,35 @@ function buildHouseRules(input: HostListingInput) {
   return rules;
 }
 
+function formatListingAddress(input: Pick<HostListingInput, "street" | "barangay" | "city" | "province" | "country" | "zipCode">) {
+  return [input.street, input.barangay, input.city, input.province, input.country, input.zipCode]
+    .filter(Boolean)
+    .join(", ");
+}
+
 function orderedImages(input: HostListingInput, propertyId: string) {
   return [...input.photos]
     .sort((a, b) => Number(b.isCover) - Number(a.isCover))
     .map((photo) => ({ id: photo.id, propertyId, imageUrl: photo.url, tone: "from-rose-100 via-orange-50 to-stone-100" }));
+}
+
+function enabledBookingPackages(input: HostListingInput) {
+  return input.pricingMode === "packages" ? input.bookingPackages.filter((item) => item.enabled) : [];
+}
+
+function propertyScopedBookingPackages(input: HostListingInput, propertyId: string) {
+  return enabledBookingPackages(input).map((item) => ({ ...item, id: `${propertyId}-${item.id}` }));
+}
+
+function minimumPackageWeekdayRate(input: HostListingInput) {
+  const packages = enabledBookingPackages(input);
+  return packages.length ? Math.min(...packages.map((item) => item.weekdayRate)) : input.basePrice;
+}
+
+function minimumPackageWeekendRate(input: HostListingInput) {
+  const packages = enabledBookingPackages(input);
+  if (!packages.length) return input.weekendPrice;
+  return Math.min(...packages.map((item) => item.weekendRate > 0 ? item.weekendRate : item.weekdayRate));
 }
 
 function isAllowedListingPhotoUrl(value: string) {
@@ -55,14 +83,19 @@ function isAllowedListingPhotoUrl(value: string) {
 }
 
 async function requireHost() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login?role=host");
-  if (user.role !== "host") throw new Error("Only hosts can create listings.");
+  await assertTrustedRequestOrigin();
+
+  const user = await requireRole("host", {
+    redirectTo: "/login?role=host",
+    forbiddenMessage: "Only hosts can create listings.",
+  });
+  requireVerifiedEmail(user);
   return user;
 }
 
 export async function createListing(formData: FormData) {
   const user = await requireHost();
+  await assertValidCsrfForm(formData);
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
@@ -70,6 +103,8 @@ export async function createListing(formData: FormData) {
   const country = String(formData.get("country") ?? "").trim();
   const propertyType = String(formData.get("propertyType") ?? "House").trim();
   const pricePerNight = numberFrom(formData, "pricePerNight");
+  const weekendPriceInput = numberFrom(formData, "weekendPrice");
+  const weekendPrice = weekendPriceInput > 0 ? weekendPriceInput : calculateDefaultWeekendPrice(pricePerNight);
   const bedrooms = numberFrom(formData, "bedrooms");
   const bathrooms = numberFrom(formData, "bathrooms");
   const maxGuests = numberFrom(formData, "maxGuests");
@@ -88,6 +123,7 @@ export async function createListing(formData: FormData) {
     city,
     country,
     pricePerNight,
+    weekendPrice,
     bedrooms,
     bathrooms,
     maxGuests,
@@ -110,17 +146,23 @@ export async function createListing(formData: FormData) {
   redirect("/host/listings");
 }
 
-export async function publishWizardListing(input: HostListingInput) {
+export async function publishWizardListing(input: HostListingInput, csrfToken?: string) {
   const user = await requireHost();
+  await assertValidCsrfToken(csrfToken);
   const parsed = hostListingSchema.safeParse(input);
   if (!parsed.success) throw new Error("Please complete the required listing details before publishing.");
 
   const listing = parsed.data;
+  if (listing.locationConfirmedAddress !== formatListingAddress(listing)) {
+    throw new Error("Please confirm the map pin for the current listing address before publishing.");
+  }
+
   if (!listing.photos.every((photo) => isAllowedListingPhotoUrl(photo.url))) {
     throw new Error("Listing photos must be uploaded through StayPrimePH before publishing.");
   }
 
   const id = randomUUID();
+  const bookingPackages = propertyScopedBookingPackages(listing, id);
   const property: Property = {
     id,
     hostId: user.id,
@@ -136,14 +178,14 @@ export async function publishWizardListing(input: HostListingInput) {
     latitude: listing.latitude,
     longitude: listing.longitude,
     preciseLocation: listing.preciseLocation,
-    pricePerNight: listing.basePrice,
-    weekendPrice: listing.weekendPrice,
+    pricePerNight: minimumPackageWeekdayRate(listing),
+    weekendPrice: minimumPackageWeekendRate(listing),
     cleaningFee: listing.cleaningFee,
     securityDeposit: listing.securityDeposit,
     currency: listing.currency,
     bedrooms: listing.bedrooms,
     bathrooms: listing.bathrooms,
-    maxGuests: listing.guests,
+    maxGuests: bookingPackages.length ? Math.max(...bookingPackages.map((item) => item.maxGuests)) : listing.guests,
     propertyType: listing.propertyType,
     status: "pending",
     rating: 0,
@@ -152,6 +194,7 @@ export async function publishWizardListing(input: HostListingInput) {
     createdAt: new Date().toISOString().slice(0, 10),
     images: orderedImages(listing, id),
     discounts: listing.discounts,
+    bookingPackages,
   };
   if (usesPrismaPersistence()) {
     await createPropertyInDatabase(property);

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
-import { LocateFixed, MapPin, RefreshCw } from "lucide-react";
+import { CheckCircle2, LocateFixed, MapPin, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { defaultMapCenter, defaultMapCenterLabel } from "@/lib/property-map";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
@@ -23,11 +23,18 @@ export function MapSelector() {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
+  const addressQueryRef = useRef("");
   const [resolvedAddress, setResolvedAddress] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState("");
   const addressQuery = useMemo(() => formatDraftAddress(draft), [draft]);
-  const canAutoGeocode = !draft.locationPinned || draft.lastAutoGeocodeAddress !== addressQuery;
+  const canAutoGeocode = !draft.locationConfirmed || draft.lastAutoGeocodeAddress !== addressQuery;
+  const pinConfirmed = draft.locationPinned && draft.locationConfirmed && draft.locationConfirmedAddress === addressQuery;
+  const canConfirmCurrentPin = Boolean(addressQuery && status !== "loading" && (draft.locationPinned || draft.lastAutoGeocodeAddress === addressQuery));
+
+  useEffect(() => {
+    addressQueryRef.current = addressQuery;
+  }, [addressQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +68,15 @@ export function MapSelector() {
 
       marker.on("dragend", async () => {
         const next = marker.getLatLng();
-        updateDraft({ latitude: next.lat, longitude: next.lng, locationPinned: true });
+        const currentAddressQuery = addressQueryRef.current;
+        updateDraft({
+          latitude: next.lat,
+          longitude: next.lng,
+          locationPinned: true,
+          locationConfirmed: true,
+          locationConfirmedAddress: currentAddressQuery,
+          lastAutoGeocodeAddress: currentAddressQuery,
+        });
         await reverseGeocode(next.lat, next.lng);
       });
 
@@ -105,6 +120,8 @@ export function MapSelector() {
         latitude: result.latitude,
         longitude: result.longitude,
         locationPinned: false,
+        locationConfirmed: false,
+        locationConfirmedAddress: "",
         lastAutoGeocodeAddress: addressQuery,
       });
       setResolvedAddress(result.displayName);
@@ -144,7 +161,14 @@ export function MapSelector() {
       async (position) => {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
-        updateDraft({ latitude, longitude, locationPinned: true });
+        updateDraft({
+          latitude,
+          longitude,
+          locationPinned: true,
+          locationConfirmed: true,
+          locationConfirmedAddress: addressQuery,
+          lastAutoGeocodeAddress: addressQuery,
+        });
         await reverseGeocode(latitude, longitude);
       },
       () => {
@@ -153,6 +177,18 @@ export function MapSelector() {
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  }
+
+  function confirmCurrentPin() {
+    if (!canConfirmCurrentPin) return;
+    updateDraft({
+      locationPinned: true,
+      locationConfirmed: true,
+      locationConfirmedAddress: addressQuery,
+      lastAutoGeocodeAddress: addressQuery,
+    });
+    setStatus("ready");
+    setError("");
   }
 
   const visibleAddress = resolvedAddress || addressQuery || "Enter an address to place the pin";
@@ -166,11 +202,11 @@ export function MapSelector() {
           <div className="min-w-0">
             <p className="truncate text-sm font-medium sm:text-base">{visibleAddress}</p>
             <p className="mt-1 text-xs text-black/55">
-              {status === "loading" ? "Finding this location..." : `${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)}${isDefaultLocation ? ` (${defaultMapCenterLabel})` : ""}`}
+              {status === "loading" ? "Finding this location..." : `${draft.latitude.toFixed(6)}, ${draft.longitude.toFixed(6)}${isDefaultLocation ? ` (${defaultMapCenterLabel})` : ""}`}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void geocodeAddress()}
@@ -187,6 +223,17 @@ export function MapSelector() {
             <LocateFixed className="h-4 w-4" />
             Use my location
           </button>
+          <button
+            type="button"
+            onClick={confirmCurrentPin}
+            disabled={!canConfirmCurrentPin}
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              pinConfirmed ? "bg-emerald-700 text-white" : "bg-[#083f35] text-white hover:bg-[#052d26]"
+            }`}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {pinConfirmed ? "Pin confirmed" : "Confirm pin"}
+          </button>
         </div>
       </div>
 
@@ -195,6 +242,7 @@ export function MapSelector() {
       </div>
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {!pinConfirmed ? <p className="mt-3 text-sm font-medium text-amber-700">Move the pin to the exact entrance or use your GPS location, then confirm it before continuing.</p> : null}
 
       <label className="mt-5 flex items-center justify-between gap-4 rounded-2xl bg-white p-4">
         <span>

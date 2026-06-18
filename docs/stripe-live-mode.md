@@ -11,7 +11,9 @@ Do not paste live Stripe secret keys into chat, screenshots, issues, email, or c
 - Checkout mode: one-time payment
 - Currency: `php`
 - Booking is marked paid only after a valid Stripe webhook with `checkout.session.completed`, `payment_status=paid`, matching currency, and matching amount.
+- Production should keep `PAYMENT_LAUNCH_MODE=disabled` until this runbook is approved and the first live payment test is scheduled.
 - App variables already used by the code:
+  - `PAYMENT_LAUNCH_MODE`
   - `STRIPE_SECRET_KEY`
   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
   - `STRIPE_WEBHOOK_SECRET`
@@ -49,6 +51,7 @@ In Vercel -> StayPrimePH project -> Settings -> Environment Variables -> Product
 - Replace `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` with the `pk_live_...` value.
 - Replace `STRIPE_SECRET_KEY` with the `sk_live_...` or `rk_live_...` value.
 - Replace `STRIPE_WEBHOOK_SECRET` with the live endpoint `whsec_...` value.
+- Set `PAYMENT_LAUNCH_MODE` to `stripe`.
 
 Keep Preview/Development on test keys unless you intentionally want those environments to create real payments.
 

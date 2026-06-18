@@ -16,6 +16,7 @@ export function AuthForm({
   showRole = false,
   helperText,
   error,
+  message,
   requestedRole,
   nextPath,
 }: {
@@ -31,6 +32,7 @@ export function AuthForm({
   showRole?: boolean;
   helperText?: string;
   error?: string;
+  message?: string;
   requestedRole?: "guest" | "host" | "admin";
   nextPath?: string;
 }) {
@@ -47,6 +49,7 @@ export function AuthForm({
           <h1 className="text-3xl font-bold">{mode}</h1>
           {helperText && <p className="mt-2 text-sm text-black/55">{helperText}</p>}
           {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+          {message && <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
           <form action={action} className="mt-6 space-y-3">
             {requestedRole ? <input type="hidden" name="requestedRole" value={requestedRole} /> : null}
             {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
@@ -58,7 +61,7 @@ export function AuthForm({
                 <option value="host">Host</option>
               </select>
             )}
-            <PasswordInput name="password" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Password" minLength={8} required />
+            <PasswordInput name="password" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Password" minLength={showName ? 12 : undefined} required />
             {!showName ? <Link href="/forgot-password" className="block text-sm font-semibold text-[#a8431f]">Forgot password?</Link> : null}
             <AuthSubmitButton label={submitLabel} />
           </form>

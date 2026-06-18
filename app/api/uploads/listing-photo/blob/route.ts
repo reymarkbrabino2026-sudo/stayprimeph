@@ -2,10 +2,11 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
 import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 const acceptedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
@@ -17,6 +18,11 @@ function isAllowedListingUploadPath(pathname: string) {
 }
 
 export async function POST(request: Request) {
+  const headerStore = await headers();
+  if (!isTrustedRequestOrigin(headerStore)) {
+    return NextResponse.json({ error: untrustedRequestMessage }, { status: 403 });
+  }
+
   if (!hasVercelBlobConfig()) {
     return NextResponse.json({ error: "Vercel Blob is not configured for photo uploads." }, { status: 503 });
   }
@@ -24,12 +30,21 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as HandleUploadBody;
     if (body.type === "blob.generate-client-token") {
-      const user = await getCurrentUser();
-      if (!user || user.role !== "host") {
+      let user;
+      try {
+        user = await requireRole("host", {
+          message: "Please sign in with a host account before uploading photos.",
+          forbiddenMessage: "Please sign in with a host account before uploading photos.",
+        });
+      } catch {
         return NextResponse.json({ error: "Please sign in with a host account before uploading photos." }, { status: 401 });
       }
+      try {
+        requireVerifiedEmail(user);
+      } catch {
+        return NextResponse.json({ error: "Verify your email address before uploading listing photos." }, { status: 403 });
+      }
 
-      const headerStore = await headers();
       const rateLimit = await checkDistributedRateLimit(`listing-blob-upload:${user.id}:${headerStore.get("x-forwarded-for") ?? "local"}`, 30);
       if (rateLimit.limited) {
         logger.warn("listing_blob_upload_rate_limited", { userId: user.id });

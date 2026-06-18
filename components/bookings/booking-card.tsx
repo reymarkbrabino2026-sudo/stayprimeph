@@ -2,11 +2,10 @@
 
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
-import { calculateGuestPriceWithMarkup, calculateStayprimeMarkup } from "@/lib/pricing";
+import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, calculateStayprimeMarkup } from "@/lib/pricing";
 
 export function BookingCard({ property }: { property: Property }) {
-  const nights = 4;
-  const stayTotal = property.pricePerNight * nights;
+  const { nights, subtotal: stayTotal } = calculateNightlySubtotal(property, "2026-06-12", "2026-06-16");
   const fee = calculateStayprimeMarkup(stayTotal);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
   const guestTotal = stayTotal + fee;

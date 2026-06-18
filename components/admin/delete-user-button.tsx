@@ -10,12 +10,14 @@ export function DeleteUserButton({
   userEmail,
   disabled,
   disabledLabel = "Unavailable",
+  csrfToken,
 }: {
   userId: string;
   userName: string;
   userEmail: string;
   disabled?: boolean;
   disabledLabel?: string;
+  csrfToken: string;
 }) {
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -26,7 +28,7 @@ export function DeleteUserButton({
 
     setMessage("");
     startTransition(async () => {
-      const result = await processAccountDeletionAction(userId);
+      const result = await processAccountDeletionAction(userId, csrfToken);
       setMessage(result.ok ? result.data.message : result.error);
     });
   }

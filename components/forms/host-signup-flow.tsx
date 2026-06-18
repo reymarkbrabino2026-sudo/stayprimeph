@@ -20,7 +20,7 @@ const posterCards = [
   ["CORON", "from-teal-200 to-cyan-600"],
 ];
 
-export function HostSignupFlow({ error }: { error?: string }) {
+export function HostSignupFlow({ error, message }: { error?: string; message?: string }) {
   const [step, setStep] = useState<"details" | "commitment">("details");
   const [details, setDetails] = useState({ firstName: "", lastName: "", birthDate: "", email: "", password: "" });
 
@@ -57,6 +57,7 @@ export function HostSignupFlow({ error }: { error?: string }) {
 
               <div className="mt-7 space-y-5">
                 {error && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+                {message && <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
                 <section>
                   <h2 className="mb-3 font-semibold">Legal name</h2>
                   <div className="overflow-hidden rounded-2xl border">

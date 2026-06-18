@@ -9,12 +9,12 @@ import { ReviewCard } from "@/components/ui/review-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
+import { getCsrfToken } from "@/lib/csrf";
 import { guestLinks } from "@/lib/navigation";
-import { getPaymentByBookingId } from "@/lib/payments";
+import { arePaidBookingsEnabled, getPaymentByBookingId, isStripeCheckoutEnabled } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { canReviewBooking, getReviewForBooking } from "@/lib/reviews";
-import { getUserById } from "@/lib/users";
 import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function BookingDetailsPage({
@@ -26,14 +26,14 @@ export default async function BookingDetailsPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  const [booking, user] = await Promise.all([getBookingById(id), getCurrentUser()]);
+  const [booking, user, csrfToken] = await Promise.all([getBookingById(id), getCurrentUser(), getCsrfToken()]);
   const [property, payment] = booking
     ? await Promise.all([getPropertyById(booking.propertyId), getPaymentByBookingId(booking.id)])
     : [null, null];
-  const host = booking ? await getUserById(booking.hostId) : null;
 
   if (!booking || !property || booking.guestId !== user?.id) notFound();
-  const stripeReady = false;
+  const paidBookingsEnabled = arePaidBookingsEnabled();
+  const stripeReady = isStripeCheckoutEnabled();
   const existingReview = await getReviewForBooking(booking);
   const reviewEligible = canReviewBooking(booking);
   const checkInDate = new Date(`${booking.checkIn}T00:00:00`);
@@ -49,10 +49,9 @@ export default async function BookingDetailsPage({
   return (
     <DashboardShell title="Booking Details" subtitle="Guest dashboard" links={guestLinks}>
       <div className="rounded-[1.5rem] bg-white p-6 soft-card">
-        {query.payment === "success" ? <p className="mb-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">Payment received.</p> : null}
-        {query.payment === "manual-submitted" ? (
-          <p className="mb-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
-            Payment submitted. Your host will review and approve your booking once payment is received.
+        {query.payment === "processing" && booking.paymentStatus !== "paid" ? (
+          <p className="mb-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
+            Payment is processing. This booking will show as paid only after provider webhook confirmation.
           </p>
         ) : null}
         {query.review === "posted" ? (
@@ -82,6 +81,13 @@ export default async function BookingDetailsPage({
           </div>
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {booking.bookingPackageName ? (
+            <div>
+              <p className="text-sm text-black/45">Package</p>
+              <p>{booking.bookingPackageName}</p>
+              <p className="mt-1 text-sm text-black/55">Counts by {booking.bookingPackageUnit === "day" ? "day" : "night"}</p>
+            </div>
+          ) : null}
           <div>
             <p className="text-sm text-black/45">Dates</p>
             <p>{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
@@ -104,12 +110,15 @@ export default async function BookingDetailsPage({
           <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             Payment confirmed. Your booking is approved.
           </p>
+        ) : !paidBookingsEnabled ? (
+          <p className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            Paid bookings are disabled until StayPrimePH launches a verified payment provider. No payment is due through the app right now.
+          </p>
         ) : (
           <PayNowButton
             booking={booking}
             propertyTitle={property.title}
             propertyLocation={formatPropertyLocation(property)}
-            hostName={host?.name ?? "your host"}
             payment={payment}
             stripeReady={stripeReady}
           />
@@ -120,6 +129,7 @@ export default async function BookingDetailsPage({
             propertyTitle={property.title}
             checkIn={booking.checkIn}
             checkOut={booking.checkOut}
+            csrfToken={csrfToken}
             totalPrice={booking.totalPrice}
             requiresReview={cancellationRequiresReview}
           />
@@ -131,7 +141,7 @@ export default async function BookingDetailsPage({
           <ReviewCard review={existingReview} />
         </section>
       ) : reviewEligible ? (
-        <StayReviewForm bookingId={booking.id} />
+        <StayReviewForm bookingId={booking.id} csrfToken={csrfToken} />
       ) : booking.status === "cancelled" ? (
         <section className="mt-6 rounded-[1.5rem] border border-dashed bg-white p-5 text-sm leading-6 text-black/60">
           Cancelled bookings cannot be reviewed.

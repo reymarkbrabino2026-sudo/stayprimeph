@@ -3,6 +3,7 @@
 import { Check, Download, HeartHandshake } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { DonationPreference, FinancialSettingsState } from "@/lib/account-settings-types";
 
 type DonationRecord = {
@@ -19,12 +20,13 @@ function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-export function DonationSettings({ initialFinancial }: { initialFinancial: FinancialSettingsState }) {
+export function DonationSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
   const [financial, setFinancial] = useState(initialFinancial);
   const preference = financial.donationPreference;
   const [draft, setDraft] = useState(preference);
   const [editing, setEditing] = useState(false);
   const [showHow, setShowHow] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -43,7 +45,8 @@ export function DonationSettings({ initialFinancial }: { initialFinancial: Finan
     setFinancial(nextFinancial);
     setMessage("");
     startTransition(async () => {
-      const result = await saveFinancialSettingsAction(nextFinancial);
+      const result = await saveFinancialSettingsAction(nextFinancial, currentPassword);
+      if (requiresStepUp) setCurrentPassword("");
       if (!result.ok) {
         setFinancial(previous);
         setMessage(result.error);
@@ -85,6 +88,9 @@ export function DonationSettings({ initialFinancial }: { initialFinancial: Finan
     <>
       <div className="mt-8 border-y border-black/10 py-6">
         {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
+        <div className="mb-5 max-w-md">
+          <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+        </div>
         <button type="button" role="switch" aria-checked={preference.recurring} onClick={toggleRecurring} disabled={isPending} className="grid w-full grid-cols-[1fr_auto] gap-6 text-left disabled:cursor-not-allowed disabled:opacity-60">
           <span>
             <span className="block font-semibold">Recurring donation</span>

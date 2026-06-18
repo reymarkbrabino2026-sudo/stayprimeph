@@ -22,7 +22,10 @@ import {
   type ProfessionalHostingToolState,
   type WorkTravelProfile,
 } from "@/lib/account-settings-types";
+import { verifyPassword } from "@/lib/auth";
+import { issueAuthToken } from "@/lib/auth-tokens";
 import { prisma } from "@/lib/db";
+import { sendEmailChangeVerificationEmail } from "@/lib/email";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { usesPrismaPersistence } from "@/lib/repositories";
 import type { User } from "@/lib/types";
@@ -49,6 +52,10 @@ type DatabaseAccountSettings = {
   workTravel: Prisma.JsonValue;
   professionalHostingTools: Prisma.JsonValue;
   financial: Prisma.JsonValue;
+};
+
+type SavePersonalInfoOptions = {
+  currentPassword?: string;
 };
 
 const textFields = ["legalName", "preferredName", "email", "phone", "identity", "residentialAddress", "mailingAddress", "emergencyContact"] as const;
@@ -341,18 +348,66 @@ async function updateUserProfileFields(user: User, profile: PersonalInfoState) {
   await writeStoredUsers(users.map((item) => (item.id === user.id ? { ...item, name, email: nextEmail, phone } : item)));
 }
 
+async function assertEmailAvailableForUser(userId: string, email: string) {
+  if (usesPrismaPersistence()) {
+    const existingUser = await prisma.user.findFirst({
+      where: { email, NOT: { id: userId } },
+      select: { id: true },
+    });
+    if (existingUser) throw new Error("That email is already used by another account.");
+    return;
+  }
+
+  const users = await readStoredUsers();
+  if (users.some((item) => item.id !== userId && item.email.toLowerCase() === email)) {
+    throw new Error("That email is already used by another account.");
+  }
+}
+
 export async function getAccountSettings(user: User) {
   const stored = await readStoredAccountSettings(user.id);
   return normalizeAccountSettings(user, stored);
 }
 
-export async function savePersonalInfo(user: User, profile: PersonalInfoState) {
+export async function savePersonalInfo(user: User, profile: PersonalInfoState, options: SavePersonalInfoOptions = {}) {
   const current = await getAccountSettings(user);
   const nextProfile = normalizePersonalInfo(user, profile);
-  const next = { ...current, personalInfo: nextProfile };
-  await updateUserProfileFields(user, nextProfile);
+  const requestedEmail = nextProfile.email.trim().toLowerCase();
+  const nextEmail = requestedEmail || user.email.trim().toLowerCase();
+  const currentEmail = user.email.trim().toLowerCase();
+  let profileToPersist = nextProfile;
+  let pendingEmailChange: { oldEmail: string; newEmail: string } | null = null;
+
+  if (nextEmail !== currentEmail) {
+    if (!options.currentPassword) {
+      throw new Error("Enter your current password to change your email address.");
+    }
+
+    if (!user.passwordHash) {
+      throw new Error("Set a password before changing your email address.");
+    }
+
+    if (!verifyPassword(options.currentPassword, user.passwordHash)) {
+      throw new Error("Current password is incorrect.");
+    }
+
+    if (!isValidEmail(nextEmail)) throw new Error("Use a valid email address.");
+    await assertEmailAvailableForUser(user.id, nextEmail);
+
+    profileToPersist = { ...nextProfile, email: user.email };
+    pendingEmailChange = { oldEmail: currentEmail, newEmail: nextEmail };
+  }
+
+  const next = { ...current, personalInfo: profileToPersist };
+  await updateUserProfileFields(user, profileToPersist);
   await writeStoredAccountSettings(user.id, next);
-  return nextProfile;
+
+  if (pendingEmailChange) {
+    const token = await issueAuthToken(user.id, "email_change", pendingEmailChange);
+    await sendEmailChangeVerificationEmail({ to: pendingEmailChange.newEmail, name: user.name, token, currentEmail: user.email });
+  }
+
+  return profileToPersist;
 }
 
 export async function saveNotificationSettings(user: User, scope: NotificationScope, state: NotificationPreferencesState) {

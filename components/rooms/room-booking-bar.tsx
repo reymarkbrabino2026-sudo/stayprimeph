@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
-import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
+import { calculateGuestPriceWithMarkup, getBookingPackageById } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import { TODAY, buildReserveHref, computePrice, useReservationStore } from "@/stores/reservation-store";
@@ -24,10 +24,11 @@ function formatShortDate(value: string) {
 }
 
 export function RoomBookingBar({ property, unavailableStays = [] }: { property: Property; unavailableStays?: UnavailableStay[] }) {
-  const { checkIn, checkOut, guests } = useReservationStore();
+  const { checkIn, checkOut, guests, packageId } = useReservationStore();
   const barRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState(navItems[0].href);
   const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
+  const [inlineReservationVisible, setInlineReservationVisible] = useState(false);
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const effectiveStay = useMemo(() => {
@@ -46,9 +47,10 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
   }, [bookedNightSet, checkIn, checkOut]);
-  const { nights, validStay, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
-  const guestNightlyPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
-  const reserveHref = validStay ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests) : "#";
+  const selectedPackage = useMemo(() => getBookingPackageById(property, packageId), [packageId, property]);
+  const { nights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id);
+  const guestNightlyPrice = calculateGuestPriceWithMarkup(selectedPackage?.weekdayRate ?? property.pricePerNight);
+  const reserveHref = validStay ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id) : "#";
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
@@ -101,7 +103,7 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
         const bar = barRef.current;
         if (!bar) return;
 
-        const mobileOffset = window.matchMedia("(min-width: 768px)").matches ? 0 : 88;
+        const mobileOffset = 0;
         const footerRect = pageFooter.getBoundingClientRect();
         const barHeight = bar.getBoundingClientRect().height;
         const fixedBarBottom = window.innerHeight - mobileOffset;
@@ -125,26 +127,38 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
     };
   }, []);
 
+  useEffect(() => {
+    const inlineReservation = document.getElementById("mobile-reservation-card");
+    if (!inlineReservation || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setInlineReservationVisible(entry.isIntersecting),
+      { rootMargin: "0px 0px -20% 0px", threshold: 0.12 },
+    );
+    observer.observe(inlineReservation);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
       ref={barRef}
-      className={`inset-x-0 z-40 px-3 sm:px-5 ${
-        stopPosition?.stopped ? "absolute" : "fixed bottom-[5.5rem] md:bottom-0"
-      }`}
+      className={`inset-x-0 z-50 px-0 transition duration-200 md:px-5 ${
+        stopPosition?.stopped ? "absolute" : "fixed bottom-0"
+      } ${inlineReservationVisible ? "pointer-events-none translate-y-full opacity-0 lg:pointer-events-auto lg:translate-y-0 lg:opacity-100" : ""}`}
       style={stopPosition?.stopped ? { top: `${stopPosition.top}px` } : undefined}
     >
-      <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-[#083f35] shadow-[0_-14px_45px_rgb(0_0_0_/_0.16)] ring-1 ring-black/10 sm:px-8 md:rounded-t-2xl md:rounded-b-none">
-        <div className="flex items-end gap-2">
-          <p className="text-xl font-bold sm:text-2xl md:text-3xl">{formatCurrency(validStay ? total : guestNightlyPrice)}</p>
-          <p className="hidden pb-1 text-xs font-semibold text-black/55 min-[390px]:block">
-            {selectedHasUnavailableNight ? "dates unavailable" : validStay ? `for ${nights} night${nights === 1 ? "" : "s"}` : "/ night"}
+      <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-3 rounded-t-[1.35rem] border-t border-black/10 bg-white px-4 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-3 text-[#083f35] shadow-[0_-14px_45px_rgb(0_0_0_/_0.16)] sm:px-5 md:rounded-t-2xl md:rounded-b-none md:px-8 md:py-3 md:ring-1 md:ring-black/10">
+        <div className="min-w-0 flex-1 md:w-[15rem] md:flex-none lg:w-[18rem]">
+          <p className="truncate text-xl font-bold sm:text-2xl md:text-3xl">{formatCurrency(validStay ? total : guestNightlyPrice)}</p>
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-black/55 min-[390px]:text-xs md:pb-1">
+            {selectedHasUnavailableNight ? "dates unavailable" : validStay ? `for ${nights} ${selectedPackage?.unit === "day" ? "day" : "night"}${nights === 1 ? "" : "s"}` : `/${selectedPackage?.unit === "day" ? "day" : "night"}`}
           </p>
         </div>
 
         <div className="hidden flex-1 items-center justify-between gap-8 md:flex">
           <div className="flex items-center gap-7 text-[0.62rem] font-bold uppercase tracking-[0.08em] text-black/45">
-            <Meta label="Check-in" value={effectiveStay.checkIn ? formatShortDate(effectiveStay.checkIn) : "Add date"} time={STANDARD_CHECK_IN_TIME} />
-            <Meta label="Check-out" value={effectiveStay.checkOut ? formatShortDate(effectiveStay.checkOut) : "Add date"} time={STANDARD_CHECK_OUT_TIME} />
+            <Meta label="Check-in" value={effectiveStay.checkIn ? formatShortDate(effectiveStay.checkIn) : "Add date"} time={selectedPackage?.checkInTime ?? STANDARD_CHECK_IN_TIME} />
+            <Meta label="Check-out" value={effectiveStay.checkOut ? formatShortDate(effectiveStay.checkOut) : "Add date"} time={selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME} />
             <Meta label="Guests" value={`${guests} guest${guests === 1 ? "" : "s"}`} />
           </div>
           <nav className="hidden items-center gap-6 text-sm font-medium text-[#083f35]/70 lg:flex">
@@ -170,7 +184,7 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
           href={reserveHref}
           aria-disabled={!canReserve}
           tabIndex={canReserve ? undefined : -1}
-          className={`flex min-h-11 shrink-0 items-center justify-center rounded-full px-6 text-xs font-bold uppercase tracking-[0.08em] text-white transition sm:min-h-12 sm:px-8 ${
+          className={`flex min-h-12 shrink-0 items-center justify-center rounded-full px-6 text-xs font-bold uppercase tracking-[0.08em] text-white transition sm:px-8 ${
             canReserve ? "bg-[#083f35] hover:bg-[#062f28] active:scale-[0.98]" : "pointer-events-none bg-black/25"
           }`}
         >

@@ -58,6 +58,7 @@ Current required variables:
 | `SENTRY_DSN` | Server error tracking |
 | `NEXT_PUBLIC_SENTRY_DSN` | Browser error tracking |
 | `NEXT_PUBLIC_VERCEL_ANALYTICS` | Enables product analytics |
+| `PAYMENT_LAUNCH_MODE` | `disabled` for launch without paid bookings, or `stripe` only after live Stripe keys/webhook are ready |
 | `RESEND_API_KEY` | Transactional email provider |
 | `EMAIL_FROM` | Verified transactional sender |
 | `STRIPE_SECRET_KEY` | Server-side Stripe API key |
@@ -79,7 +80,7 @@ For the shortest production launch path, see `docs/launch-asap.md`.
 
 ## External integrations
 
-- Stripe Checkout now starts guest payments and the webhook marks bookings paid.
+- Paid bookings are disabled by default. Set `PAYMENT_LAUNCH_MODE=stripe` with live Stripe keys and webhook secret only when real provider payments are approved for launch.
 - Listing photos now use Cloudinary when configured, Vercel Blob when `BLOB_READ_WRITE_TOKEN` is present, and a local development fallback under `public/uploads/listings`.
 - Resend now sends welcome, verification, password-reset, booking, and listing-review emails.
 - Email verification and password reset use expiring one-time tokens.
@@ -109,41 +110,29 @@ npx prisma migrate deploy
 
 ## Production build
 
-Before deploying, set production environment variables in your provider secret store and run:
+Builds do not require production secrets. The build script uses sanitized placeholders for server-only values so database, auth, payment, email, storage, and monitoring secrets are not exposed to build logs or image layers.
 
 ```powershell
 npm run build:prod
+```
+
+Set production secrets only in the runtime environment through Vercel or your hosting provider secret manager. On Node.js hosts, validate runtime configuration and start the app with:
+
+```powershell
 npm run start:prod
 ```
 
-For a Node.js host, deploy the app with the standard Next.js build/start workflow.
+For Vercel, `npm run build:vercel` uses the same sanitized build path. Run database migrations separately from a trusted operator machine or CI job with migration-only access to `DIRECT_URL`.
 
 ## Docker deployment
 
 Build:
 
 ```powershell
-docker build `
-  --build-arg DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" `
-  --build-arg DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require" `
-  --build-arg NEXT_PUBLIC_APP_URL="https://your-domain.com" `
-  --build-arg AUTH_SECRET="build-time-placeholder-with-32-plus-characters" `
-  --build-arg PERSISTENCE_DRIVER="prisma" `
-  --build-arg UPSTASH_REDIS_REST_URL="https://..." `
-  --build-arg UPSTASH_REDIS_REST_TOKEN="..." `
-  --build-arg SENTRY_DSN="https://..." `
-  --build-arg NEXT_PUBLIC_SENTRY_DSN="https://..." `
-  --build-arg NEXT_PUBLIC_VERCEL_ANALYTICS="enabled" `
-  --build-arg RESEND_API_KEY="re_..." `
-  --build-arg EMAIL_FROM="StayPrimePH <noreply@your-domain.com>" `
-  --build-arg STRIPE_SECRET_KEY="sk_live_..." `
-  --build-arg STRIPE_WEBHOOK_SECRET="whsec_..." `
-  --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_live_..." `
-  --build-arg CLOUDINARY_CLOUD_NAME="..." `
-  --build-arg CLOUDINARY_API_KEY="..." `
-  --build-arg CLOUDINARY_API_SECRET="..." `
-  -t stayprimeph .
+docker build -t stayprimeph .
 ```
+
+Do not pass production secrets as Docker build args. The image build uses non-secret placeholders and real values are provided only at runtime.
 
 Run:
 
@@ -154,6 +143,7 @@ docker run -p 3000:3000 `
   -e NEXT_PUBLIC_APP_URL="https://your-domain.com" `
   -e AUTH_SECRET="your-real-provider-managed-secret" `
   -e PERSISTENCE_DRIVER="prisma" `
+  -e PAYMENT_LAUNCH_MODE="disabled" `
   -e UPSTASH_REDIS_REST_URL="https://..." `
   -e UPSTASH_REDIS_REST_TOKEN="..." `
   -e SENTRY_DSN="https://..." `
@@ -161,14 +151,13 @@ docker run -p 3000:3000 `
   -e NEXT_PUBLIC_VERCEL_ANALYTICS="enabled" `
   -e RESEND_API_KEY="re_..." `
   -e EMAIL_FROM="StayPrimePH <noreply@your-domain.com>" `
-  -e STRIPE_SECRET_KEY="sk_live_..." `
-  -e STRIPE_WEBHOOK_SECRET="whsec_..." `
-  -e NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_live_..." `
   -e CLOUDINARY_CLOUD_NAME="..." `
   -e CLOUDINARY_API_KEY="..." `
   -e CLOUDINARY_API_SECRET="..." `
   stayprimeph
 ```
+
+To intentionally launch real Stripe payments, change `PAYMENT_LAUNCH_MODE` to `stripe` and provide matching live `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` runtime secrets.
 
 The Docker image uses Next.js standalone output for a smaller production runtime image.
 
@@ -180,6 +169,7 @@ The Docker image uses Next.js standalone output for a smaller production runtime
 - Configure Upstash, Sentry, Vercel Analytics, and Resend before public launch
 - Run `npm run build:prod`
 - Run database migrations / seeding as needed
+- Create the first admin with `npm run security:bootstrap-admin` only after setting one-time `BOOTSTRAP_ADMIN_*` secrets; see `docs/admin-bootstrap.md`
 - Confirm admin / host / guest login paths
 - Confirm image storage and payment providers before public launch
 - Run the accessibility audit in `docs/accessibility-audit.md`

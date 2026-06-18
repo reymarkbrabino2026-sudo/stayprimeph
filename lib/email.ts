@@ -7,6 +7,7 @@ import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME } from "@/lib/utils";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 const brandColor = "#ff385c";
+const ctaColor = "#004236";
 const textColor = "#222222";
 const mutedColor = "#717171";
 const borderColor = "#dddddd";
@@ -49,26 +50,32 @@ function bookingCode(id: string) {
   return id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
-function emailShell(content: string) {
+function emailShell(content: string, preview = "StayPrimePH update") {
   return `
     <!doctype html>
     <html>
-      <body style="margin:0;background:#f7f7f7;font-family:Arial,Helvetica,sans-serif;color:${textColor};">
-        <div style="display:none;max-height:0;overflow:hidden;">StayPrimePH booking update</div>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7f7f7;">
+      <body style="margin:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:${textColor};">
+        <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(preview)}</div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;">
           <tr>
-            <td align="center" style="padding:32px 12px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:20px;overflow:hidden;">
+            <td align="center" style="padding:56px 24px 42px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;">
                 <tr>
-                  <td style="padding:32px 32px 18px;">
-                    <div style="font-size:22px;font-weight:800;color:${brandColor};letter-spacing:.2px;">StayPrimePH</div>
+                  <td style="padding:0 0 58px;">
+                    <div style="font-size:34px;font-weight:800;color:${brandColor};letter-spacing:-0.2px;">StayPrimePH</div>
                   </td>
                 </tr>
                 ${content}
                 <tr>
-                  <td style="padding:26px 32px 34px;border-top:1px solid ${borderColor};">
-                    <p style="margin:0 0 8px;font-size:14px;line-height:22px;color:${mutedColor};">Need help? Reply to this email or visit your StayPrimePH dashboard.</p>
-                    <p style="margin:0;font-size:12px;line-height:18px;color:#9a9a9a;">StayPrimePH sends booking updates for reservations made on stayprimeph.com.</p>
+                  <td style="padding:72px 0 0;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:2px solid ${borderColor};">
+                      <tr>
+                        <td style="padding:34px 0 0;">
+                          <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#9a9f98;">Sent with care from StayPrimePH</p>
+                          <p style="margin:0;font-size:14px;line-height:22px;color:#9a9f98;">Need help? Reply to this email or visit your StayPrimePH dashboard.</p>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -78,6 +85,28 @@ function emailShell(content: string) {
       </body>
     </html>
   `;
+}
+
+function simpleEmail(input: { headline: string; body: string; buttonText?: string; buttonUrl?: string }) {
+  const button = input.buttonText && input.buttonUrl
+    ? `
+      <tr>
+        <td style="padding:8px 32px 34px;">
+          <a href="${escapeHtml(input.buttonUrl)}" style="display:block;background:${ctaColor};border-radius:8px;color:#ffffff;font-size:18px;font-weight:700;line-height:56px;text-align:center;text-decoration:none;">${escapeHtml(input.buttonText)}</a>
+        </td>
+      </tr>
+    `
+    : "";
+
+  return emailShell(`
+    <tr>
+      <td style="padding:0 32px 24px;">
+        <h1 style="margin:0 0 12px;font-size:34px;line-height:40px;font-weight:800;color:${textColor};">${escapeHtml(input.headline)}</h1>
+        <p style="margin:0;font-size:17px;line-height:27px;color:${textColor};">${escapeHtml(input.body)}</p>
+      </td>
+    </tr>
+    ${button}
+  `, input.headline);
 }
 
 type BookingEmailDetails = {
@@ -177,10 +206,10 @@ function bookingEmail(input: BookingEmailDetails & {
     ${bookingSummaryRows(input)}
     <tr>
       <td style="padding:30px 32px 34px;">
-        <a href="${escapeHtml(input.actionUrl)}" style="display:block;background:${brandColor};border-radius:8px;color:#ffffff;font-size:18px;font-weight:700;line-height:58px;text-align:center;text-decoration:none;">${escapeHtml(input.buttonText)}</a>
+        <a href="${escapeHtml(input.actionUrl)}" style="display:block;background:${ctaColor};border-radius:8px;color:#ffffff;font-size:18px;font-weight:700;line-height:58px;text-align:center;text-decoration:none;">${escapeHtml(input.buttonText)}</a>
       </td>
     </tr>
-  `);
+  `, input.headline);
 }
 
 async function sendEmail(input: { to: string; subject: string; html: string }) {
@@ -188,12 +217,14 @@ async function sendEmail(input: { to: string; subject: string; html: string }) {
     logger.info("email_skipped", { subject: input.subject, to: input.to });
     return;
   }
+
   const { error } = await resend.emails.send({
     from: env.EMAIL_FROM,
     to: input.to,
     subject: input.subject,
     html: input.html,
   });
+
   if (error) {
     logger.error("email_send_failed", { subject: input.subject, to: input.to, error });
   } else {
@@ -205,23 +236,99 @@ export async function sendWelcomeEmail(to: string, name: string) {
   await sendEmail({
     to,
     subject: "Welcome to StayPrimePH",
-    html: `<p>Hi ${escapeHtml(name)},</p><p>Your StayPrimePH account is ready.</p>`,
+    html: simpleEmail({
+      headline: "Welcome to StayPrimePH",
+      body: `Hi ${name}, your StayPrimePH account is ready.`,
+      buttonText: "Open StayPrimePH",
+      buttonUrl: env.NEXT_PUBLIC_APP_URL,
+    }),
   });
 }
 
 export async function sendVerificationEmail(input: { to: string; name: string; token: string }) {
+  const url = `${env.NEXT_PUBLIC_APP_URL}/verify-email/${encodeURIComponent(input.token)}`;
   await sendEmail({
     to: input.to,
     subject: "Verify your StayPrimePH email",
-    html: `<p>Hi ${escapeHtml(input.name)},</p><p><a href="${env.NEXT_PUBLIC_APP_URL}/verify-email/${encodeURIComponent(input.token)}">Verify your email</a></p>`,
+    html: simpleEmail({
+      headline: "Verify your email",
+      body: `Hi ${input.name}, confirm this email address so your StayPrimePH account stays protected.`,
+      buttonText: "Verify Email",
+      buttonUrl: url,
+    }),
+  });
+}
+
+export async function sendEmailChangeVerificationEmail(input: { to: string; name: string; token: string; currentEmail: string }) {
+  const url = `${env.NEXT_PUBLIC_APP_URL}/verify-email/${encodeURIComponent(input.token)}`;
+  await sendEmail({
+    to: input.to,
+    subject: "Confirm your new StayPrimePH email",
+    html: simpleEmail({
+      headline: "Confirm your new email",
+      body: `Hi ${input.name}, confirm this address to replace ${input.currentEmail} as your StayPrimePH login email.`,
+      buttonText: "Confirm Email",
+      buttonUrl: url,
+    }),
+  });
+}
+
+export async function sendAdminMfaEmail(input: { to: string; name: string; code: string }) {
+  await sendEmail({
+    to: input.to,
+    subject: "Your StayPrimePH admin sign-in code",
+    html: simpleEmail({
+      headline: "Admin sign-in code",
+      body: `Hi ${input.name}, use code ${input.code} to finish signing in to the StayPrimePH admin area. This code expires in 10 minutes. If this was not you, change the admin password immediately.`,
+    }),
   });
 }
 
 export async function sendPasswordResetEmail(input: { to: string; name: string; token: string }) {
+  const url = `${env.NEXT_PUBLIC_APP_URL}/reset-password/${encodeURIComponent(input.token)}`;
   await sendEmail({
     to: input.to,
     subject: "Reset your StayPrimePH password",
-    html: `<p>Hi ${escapeHtml(input.name)},</p><p><a href="${env.NEXT_PUBLIC_APP_URL}/reset-password/${encodeURIComponent(input.token)}">Reset your password</a></p>`,
+    html: emailShell(
+      `
+        <tr>
+          <td style="padding:0 0 24px;">
+            <p style="margin:0 0 32px;font-size:26px;line-height:34px;color:${mutedColor};">Hi ${escapeHtml(input.name)},</p>
+            <p style="margin:0 0 26px;font-size:28px;line-height:38px;color:${mutedColor};">We received a request to reset your password.</p>
+            <p style="margin:0 0 36px;font-size:28px;line-height:38px;color:${mutedColor};">If you did not make the request, just ignore this message. Otherwise, you can reset your password.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 34px;">
+            <a href="${escapeHtml(url)}" style="display:inline-block;background:${ctaColor};border-radius:8px;color:#ffffff;font-size:24px;font-weight:700;line-height:1.2;padding:22px 48px;text-align:center;text-decoration:none;">Reset your password</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 34px;">
+            <p style="margin:0;font-size:16px;line-height:24px;color:${mutedColor};">This link expires after one hour. If the button does not work, <a href="${escapeHtml(url)}" style="color:${ctaColor};font-weight:700;text-decoration:underline;">click this link</a>.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 0 8px;">
+            <p style="margin:0;font-size:28px;line-height:38px;color:${mutedColor};">Thanks,<br>The StayPrimePH team</p>
+          </td>
+        </tr>
+      `,
+      "Use this secure link to reset your StayPrimePH password.",
+    ),
+  });
+}
+
+export async function sendPasswordChangedEmail(input: { to: string; name: string }) {
+  await sendEmail({
+    to: input.to,
+    subject: "Your StayPrimePH password was changed",
+    html: simpleEmail({
+      headline: "Your password was changed",
+      body: `Hi ${input.name}, your StayPrimePH password was updated. If this was not you, contact support right away.`,
+      buttonText: "Open StayPrimePH",
+      buttonUrl: env.NEXT_PUBLIC_APP_URL,
+    }),
   });
 }
 
@@ -280,6 +387,11 @@ export async function sendListingReviewEmail(input: { to: string; title: string;
   await sendEmail({
     to: input.to,
     subject: `Your listing was ${input.status}`,
-    html: `<p>Your listing <strong>${escapeHtml(input.title)}</strong> was ${escapeHtml(input.status)}.</p>`,
+    html: simpleEmail({
+      headline: `Your listing was ${input.status}`,
+      body: `Your listing ${input.title} was ${input.status}.`,
+      buttonText: "View Listings",
+      buttonUrl: `${env.NEXT_PUBLIC_APP_URL}/host/listings`,
+    }),
   });
 }

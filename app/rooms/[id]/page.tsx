@@ -147,19 +147,19 @@ export default async function RoomPage({
 
   return (
     <div className="bg-[#fbfaf7] text-[#1f1f1f]">
-      <Navbar transparentOnTop />
+      <Navbar transparentOnTop hideBottomNav />
 
       <main>
         {/* Hero banner */}
-        <section className="relative min-h-[88svh] overflow-hidden bg-[#14120f] text-white md:min-h-screen">
+        <section className="relative min-h-[76svh] overflow-hidden bg-[#14120f] text-white sm:min-h-[84svh] md:min-h-screen">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/75" />
-          <div className="relative z-10 flex min-h-[88svh] flex-col justify-end px-3 pb-52 sm:px-5 md:min-h-screen md:pb-40">
-            <div className="mx-auto w-full max-w-[88rem] px-5 sm:px-8">
+          <div className="relative z-10 flex min-h-[76svh] flex-col justify-end px-3 pb-[5.5rem] sm:min-h-[84svh] sm:px-5 sm:pb-44 md:min-h-screen md:pb-40">
+            <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
               <p className="mb-2 inline-flex items-center gap-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:gap-2 sm:text-sm sm:tracking-[0.28em]">
                 <MapPin className="size-3 sm:size-[15px]" /> {locationLabel}
               </p>
-              <h1 className="max-w-[18rem] text-[2rem] font-semibold leading-[1.02] tracking-normal drop-shadow min-[390px]:max-w-[21rem] min-[390px]:text-[2.25rem] sm:max-w-4xl sm:text-6xl sm:leading-[0.96] md:text-7xl">
+              <h1 className="max-w-[18rem] text-[1.9rem] font-semibold leading-[1.04] tracking-normal drop-shadow min-[390px]:max-w-[21rem] min-[390px]:text-[2.2rem] sm:max-w-4xl sm:text-6xl sm:leading-[0.96] md:text-7xl">
                 {property.title}
               </h1>
             </div>
@@ -226,7 +226,7 @@ export default async function RoomPage({
               </div>
             </div>
 
-            <div className="lg:hidden">
+            <div id="mobile-reservation-card" className="lg:hidden">
               <RoomReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} />
             </div>
 
@@ -260,7 +260,7 @@ export default async function RoomPage({
                 body="The essentials stay easy to scan, with the premium features brought forward."
                 light
               />
-              <p className="max-w-md text-sm leading-6 text-white/60 lg:text-right">
+              <p className="w-full max-w-md text-sm leading-6 text-white/60 lg:justify-self-end lg:text-right">
                 A collection of stay essentials arranged like a luxury amenity menu — bold, calm, and easy to scan.
               </p>
             </div>

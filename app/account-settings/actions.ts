@@ -22,13 +22,8 @@ import type {
   ProfessionalHostingToolState,
   WorkTravelProfile,
 } from "@/lib/account-settings-types";
-import { getCurrentUser } from "@/lib/auth";
-
-async function requireUser() {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Please sign in again before saving account settings.");
-  return user;
-}
+import { requireUser, requireVerifiedEmail, verifyPassword } from "@/lib/auth";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 
 function errorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
@@ -37,6 +32,7 @@ function errorMessage(error: unknown) {
 
 async function withAccountAction<T>(callback: () => Promise<T>): Promise<AccountActionResult<T>> {
   try {
+    await assertTrustedRequestOrigin();
     return { ok: true, data: await callback() };
   } catch (error) {
     return { ok: false, error: errorMessage(error) };
@@ -49,10 +45,10 @@ function revalidateAccountPaths() {
   revalidatePath("/host/profile");
 }
 
-export async function savePersonalInfoAction(profile: PersonalInfoState) {
+export async function savePersonalInfoAction(profile: PersonalInfoState, currentPassword?: string) {
   return withAccountAction(async () => {
-    const user = await requireUser();
-    const next = await savePersonalInfo(user, profile);
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
+    const next = await savePersonalInfo(user, profile, { currentPassword });
     revalidateAccountPaths();
     return next;
   });
@@ -60,7 +56,7 @@ export async function savePersonalInfoAction(profile: PersonalInfoState) {
 
 export async function saveNotificationSettingsAction(scope: NotificationScope, state: NotificationPreferencesState) {
   return withAccountAction(async () => {
-    const user = await requireUser();
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
     const next = await saveNotificationSettings(user, scope, state);
     revalidatePath("/account-settings/notifications");
     revalidatePath("/account-settings/notifications/account");
@@ -70,7 +66,7 @@ export async function saveNotificationSettingsAction(scope: NotificationScope, s
 
 export async function savePrivacySettingsAction(privacy: PrivacySettingsState) {
   return withAccountAction(async () => {
-    const user = await requireUser();
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
     const next = await savePrivacySettings(user, privacy);
     revalidatePath("/account-settings/privacy");
     return next;
@@ -79,7 +75,7 @@ export async function savePrivacySettingsAction(privacy: PrivacySettingsState) {
 
 export async function saveBookingPermissionsAction(bookingPermissions: BookingPermissionState) {
   return withAccountAction(async () => {
-    const user = await requireUser();
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
     const next = await saveBookingPermissions(user, bookingPermissions);
     revalidatePath("/account-settings/booking-permissions");
     return next;
@@ -88,7 +84,7 @@ export async function saveBookingPermissionsAction(bookingPermissions: BookingPe
 
 export async function saveWorkTravelProfileAction(workTravel: WorkTravelProfile) {
   return withAccountAction(async () => {
-    const user = await requireUser();
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
     const next = await saveWorkTravelProfile(user, workTravel);
     revalidatePath("/account-settings/travel-for-work");
     return next;
@@ -97,16 +93,22 @@ export async function saveWorkTravelProfileAction(workTravel: WorkTravelProfile)
 
 export async function saveProfessionalHostingToolsAction(professionalHostingTools: ProfessionalHostingToolState) {
   return withAccountAction(async () => {
-    const user = await requireUser();
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
     const next = await saveProfessionalHostingTools(user, professionalHostingTools);
     revalidatePath("/account-settings/professional-hosting-tools");
     return next;
   });
 }
 
-export async function saveFinancialSettingsAction(financial: FinancialSettingsState) {
+export async function saveFinancialSettingsAction(financial: FinancialSettingsState, currentPassword?: string) {
   return withAccountAction(async () => {
-    const user = await requireUser();
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
+    if (user.role === "host") {
+      requireVerifiedEmail(user);
+      if (!user.passwordHash) throw new Error("Set a password before changing payment or payout settings.");
+      if (!currentPassword) throw new Error("Enter your current password before changing payment or payout settings.");
+      if (!verifyPassword(currentPassword, user.passwordHash)) throw new Error("Current password is incorrect.");
+    }
     const next = await saveFinancialSettings(user, financial);
     revalidatePath("/account-settings/payments");
     revalidatePath("/account-settings/payments/payouts");

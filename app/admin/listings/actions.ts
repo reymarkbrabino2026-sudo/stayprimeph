@@ -1,8 +1,10 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { logger } from "@/lib/logger";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { updatePropertyStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { sendListingReviewEmail } from "@/lib/email";
 import { getPropertyById } from "@/lib/properties";
@@ -10,11 +12,17 @@ import { getUserById } from "@/lib/users";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import type { ListingStatus } from "@/lib/types";
 
-async function updateListingStatus(id: string, status: ListingStatus) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
+async function updateListingStatus(formData: FormData, status: ListingStatus) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
+  const id = String(formData.get("id"));
+  let user;
+  try {
+    user = await requireRole("admin", { forbiddenMessage: "Only admins can review listings." });
+  } catch (error) {
     logger.warn("listing_status_forbidden", { listingId: id, status });
-    throw new Error("Only admins can review listings.");
+    throw error;
   }
   if (usesPrismaPersistence()) {
     await updatePropertyStatusInDatabase(id, status);
@@ -37,9 +45,9 @@ async function updateListingStatus(id: string, status: ListingStatus) {
 }
 
 export async function approveListing(formData: FormData) {
-  await updateListingStatus(String(formData.get("id")), "approved");
+  await updateListingStatus(formData, "approved");
 }
 
 export async function rejectListing(formData: FormData) {
-  await updateListingStatus(String(formData.get("id")), "rejected");
+  await updateListingStatus(formData, "rejected");
 }

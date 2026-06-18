@@ -3,22 +3,28 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { createMessage } from "@/lib/messages";
 import { getPropertyById } from "@/lib/properties";
+import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 
 function cleanMessage(value: FormDataEntryValue | null) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
 export async function sendHostMessage(formData: FormData) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
   const propertyId = String(formData.get("propertyId") ?? "");
   const body = cleanMessage(formData.get("message"));
-  const user = await getCurrentUser();
-
-  if (!user) redirect(`/login?role=guest`);
-  if (user.role !== "guest") throw new Error("Only guests can message hosts from this page.");
+  const user = await requireRole("guest", {
+    redirectTo: "/login?role=guest",
+    forbiddenMessage: "Only guests can message hosts from this page.",
+  });
+  requireVerifiedEmail(user);
   if (!body) redirect(`/guest/messages?propertyId=${encodeURIComponent(propertyId)}&error=${encodeURIComponent("Write a message before sending.")}`);
 
   const property = await getPropertyById(propertyId);

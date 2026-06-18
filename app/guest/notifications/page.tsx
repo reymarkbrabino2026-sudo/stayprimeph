@@ -8,8 +8,8 @@ import { guestLinks } from "@/lib/navigation";
 function notificationCopy(paymentStatus: string) {
   if (paymentStatus === "submitted") {
     return {
-      title: "Payment waiting for host confirmation",
-      body: "Your host is reviewing the recorded transfer.",
+      title: "Payment waiting for platform verification",
+      body: "StayPrimePH support is reviewing the recorded payment.",
     };
   }
   if (paymentStatus === "rejected") {

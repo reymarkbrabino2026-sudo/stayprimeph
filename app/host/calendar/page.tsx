@@ -4,12 +4,13 @@ import { blockHostAvailability, removeHostAvailabilityBlock } from "@/app/host/c
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { getCsrfToken } from "@/lib/csrf";
 import { getProperties } from "@/lib/properties";
 import { getUsers } from "@/lib/users";
 
 export default async function HostCalendarPage() {
   const user = await getCurrentUser();
-  const [bookings, properties, users, availabilityBlocks] = await Promise.all([getBookings(), getProperties(), getUsers(), getAvailabilityBlocks()]);
+  const [bookings, properties, users, availabilityBlocks, csrfToken] = await Promise.all([getBookings(), getProperties(), getUsers(), getAvailabilityBlocks(), getCsrfToken()]);
   const hostListings = properties.filter((property) => property.hostId === user?.id);
   const hostBookings = bookings
     .filter((booking) => booking.hostId === user?.id)
@@ -56,6 +57,7 @@ export default async function HostCalendarPage() {
             note: block.note,
           }))}
         blockAvailabilityAction={blockHostAvailability}
+        csrfToken={csrfToken}
         removeAvailabilityBlockAction={removeHostAvailabilityBlock}
       />
     </HostingShell>

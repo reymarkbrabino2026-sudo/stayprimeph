@@ -6,12 +6,47 @@ import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-w
 const legacyStorageKey = "stayprimeph-host-wizard";
 const storageVersion = 1;
 
+const defaultBookingPackages = [
+  {
+    id: "overnight-full-access",
+    name: "Overnight Full Access",
+    accessType: "Full access",
+    unit: "night" as const,
+    weekdayRate: 15000,
+    weekendRate: 18000,
+    holidayRate: 18000,
+    includedGuests: 18,
+    maxGuests: 20,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1500,
+    checkInTime: "2:00 PM",
+    checkOutTime: "11:00 AM",
+    enabled: false,
+  },
+  {
+    id: "daytime-ground-outdoor",
+    name: "Daytime Ground Floor & Outdoor",
+    accessType: "Ground floor and outdoor area only",
+    unit: "day" as const,
+    weekdayRate: 8000,
+    weekendRate: 0,
+    holidayRate: 0,
+    includedGuests: 18,
+    maxGuests: 20,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1500,
+    checkInTime: "2:00 PM",
+    checkOutTime: "10:00 PM",
+    enabled: false,
+  },
+];
+
 const initialDraft: HostListingDraft = {
-  country: "Philippines", street: "", barangay: "", city: "", province: "", zipCode: "", latitude: 14.5995, longitude: 120.9842, locationPinned: false, lastAutoGeocodeAddress: "",
+  country: "Philippines", street: "", barangay: "", city: "", province: "", zipCode: "", latitude: 14.5995, longitude: 120.9842, locationPinned: false, locationConfirmed: false, locationConfirmedAddress: "", lastAutoGeocodeAddress: "",
   propertyType: "", privacyType: "", preciseLocation: false, guests: 4, bedrooms: 1, beds: 1, bathrooms: 1, amenityIds: [], photos: [], title: "", highlights: [], description: "",
-  bookingMode: "request", basePrice: 2528, weekendPrice: 2579, weekendPremium: 2, cleaningFee: 500, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
+  bookingMode: "request", pricingMode: "simple", basePrice: 2528, weekendPrice: 2579, weekendPremium: 2, cleaningFee: 500, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
   discounts: { newListing: true, lastMinute: true, weekly: true, monthly: true }, safetyDisclosures: { exteriorCamera: false, noiseMonitor: false, weapons: false },
-  residentialAddress: { unit: "", building: "", street: "", barangay: "", city: "", zipCode: "", province: "" }, hostAsBusiness: null, status: "draft",
+  residentialAddress: { unit: "", building: "", street: "", barangay: "", city: "", zipCode: "", province: "" }, hostAsBusiness: null, status: "draft", bookingPackages: defaultBookingPackages,
 };
 
 type WizardOwner = { id: string; email: string };
@@ -47,6 +82,7 @@ function createInitialDraft(): HostListingDraft {
     amenityIds: [...initialDraft.amenityIds],
     photos: [...initialDraft.photos],
     highlights: [...initialDraft.highlights],
+    bookingPackages: initialDraft.bookingPackages.map((item) => ({ ...item })),
     discounts: { ...initialDraft.discounts },
     safetyDisclosures: { ...initialDraft.safetyDisclosures },
     residentialAddress: { ...initialDraft.residentialAddress },
@@ -60,6 +96,7 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
     discounts: { ...initialDraft.discounts, ...draft?.discounts },
     safetyDisclosures: { ...initialDraft.safetyDisclosures, ...draft?.safetyDisclosures },
     residentialAddress: { ...initialDraft.residentialAddress, ...draft?.residentialAddress },
+    bookingPackages: draft?.bookingPackages?.length ? draft.bookingPackages.map((item) => ({ ...item })) : initialDraft.bookingPackages.map((item) => ({ ...item })),
   };
 }
 

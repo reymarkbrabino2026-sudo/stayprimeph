@@ -1,4 +1,4 @@
-﻿export type WizardStepId =
+export type WizardStepId =
   | "address"
   | "place-intro"
   | "property-type"
@@ -16,6 +16,7 @@
   | "booking"
   | "pricing"
   | "weekend-pricing"
+  | "booking-packages"
   | "discounts"
   | "safety"
   | "final-details"
@@ -27,6 +28,23 @@ export type ListingDraftStatus = "draft" | "pending" | "published";
 export interface WizardOption { id: string; label: string; description?: string; icon: string; }
 export interface AmenityGroup { id: string; title: string; items: WizardOption[]; }
 export interface UploadedPhoto { id: string; url: string; name: string; size: number; isCover: boolean; }
+export type HostPricingMode = "simple" | "packages";
+export interface HostBookingPackageDraft {
+  id: string;
+  name: string;
+  accessType: string;
+  unit: "night" | "day";
+  weekdayRate: number;
+  weekendRate: number;
+  holidayRate: number;
+  includedGuests: number;
+  maxGuests: number;
+  additionalGuestFee: number;
+  extensionHourlyFee: number;
+  checkInTime: string;
+  checkOutTime: string;
+  enabled: boolean;
+}
 
 export interface HostListingDraft {
   country: string;
@@ -38,6 +56,8 @@ export interface HostListingDraft {
   latitude: number;
   longitude: number;
   locationPinned: boolean;
+  locationConfirmed: boolean;
+  locationConfirmedAddress: string;
   lastAutoGeocodeAddress: string;
   propertyType: string;
   privacyType: string;
@@ -52,6 +72,7 @@ export interface HostListingDraft {
   highlights: string[];
   description: string;
   bookingMode: "request" | "instant";
+  pricingMode: HostPricingMode;
   basePrice: number;
   weekendPrice: number;
   weekendPremium: number;
@@ -64,6 +85,7 @@ export interface HostListingDraft {
   residentialAddress: { unit: string; building: string; street: string; barangay: string; city: string; zipCode: string; province: string };
   hostAsBusiness: boolean | null;
   status: ListingDraftStatus;
+  bookingPackages: HostBookingPackageDraft[];
 }
 
 export interface WizardStepDefinition { id: WizardStepId; title: string; eyebrow?: string; description?: string; }

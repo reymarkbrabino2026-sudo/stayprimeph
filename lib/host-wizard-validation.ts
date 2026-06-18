@@ -1,7 +1,26 @@
-﻿import type { HostListingDraft, WizardStepId } from "@/lib/host-wizard-types";
+import type { HostListingDraft, WizardStepId } from "@/lib/host-wizard-types";
+
+function formatDraftAddress(draft: HostListingDraft) {
+  return [draft.street, draft.barangay, draft.city, draft.province, draft.country, draft.zipCode]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function hasConfirmedListingPin(draft: HostListingDraft) {
+  return (
+    draft.locationPinned &&
+    draft.locationConfirmed &&
+    draft.locationConfirmedAddress === formatDraftAddress(draft) &&
+    Number.isFinite(draft.latitude) &&
+    Number.isFinite(draft.longitude)
+  );
+}
+
 export function canAdvanceFromStep(step: WizardStepId, draft: HostListingDraft) {
   switch (step) {
     case "address": return Boolean(draft.country && draft.street && draft.barangay && draft.city && draft.province && draft.zipCode);
+    case "location": return hasConfirmedListingPin(draft);
+    case "visibility": return hasConfirmedListingPin(draft);
     case "property-type": return Boolean(draft.propertyType);
     case "privacy-type": return Boolean(draft.privacyType);
     case "basics": return draft.guests >= 1 && draft.beds >= 1 && draft.bathrooms >= 1;
@@ -12,6 +31,7 @@ export function canAdvanceFromStep(step: WizardStepId, draft: HostListingDraft) 
     case "description": return draft.description.trim().length >= 20 && draft.description.length <= 500;
     case "pricing": return draft.basePrice > 0;
     case "weekend-pricing": return draft.weekendPrice > 0;
+    case "booking-packages": return draft.pricingMode === "simple" || draft.bookingPackages.some((item) => item.enabled && item.name.trim() && item.weekdayRate > 0 && item.includedGuests >= 1 && item.maxGuests >= item.includedGuests);
     case "final-details": return Boolean(draft.residentialAddress.street && draft.residentialAddress.barangay && draft.residentialAddress.city && draft.residentialAddress.zipCode && draft.residentialAddress.province && draft.hostAsBusiness !== null);
     default: return true;
   }

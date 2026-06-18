@@ -1,22 +1,44 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-import type Stripe from "stripe";
+import Stripe from "stripe";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
+import { env } from "@/lib/env";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import {
   confirmManualPaymentInDatabase,
   listPaymentsFromDatabase,
-  recordManualPaymentInDatabase,
   rejectManualPaymentInDatabase,
   usesPrismaPersistence,
 } from "@/lib/repositories";
 import type { Booking, Payment, PaymentMethod } from "@/lib/types";
 
+const paidBookingsDisabledMessage = "Paid bookings are disabled until StayPrimePH launches a verified payment provider.";
+
+export function getPaymentLaunchMode() {
+  return env.PAYMENT_LAUNCH_MODE;
+}
+
+function isStripeLaunchMode() {
+  return env.PAYMENT_LAUNCH_MODE === "stripe";
+}
+
+export function isStripeCheckoutEnabled() {
+  return isStripeLaunchMode() && Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+}
+
+export function arePaidBookingsEnabled() {
+  return isStripeCheckoutEnabled();
+}
+
+export function assertPaidBookingsEnabled() {
+  if (!arePaidBookingsEnabled()) throw new Error(paidBookingsDisabledMessage);
+}
+
 export function getStripe(): Stripe | null {
-  return null;
+  if (!isStripeCheckoutEnabled() || !env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(env.STRIPE_SECRET_KEY);
 }
 
 export function formatPaymentMethod(method: string) {
@@ -79,61 +101,29 @@ export async function submitManualPayment({
   booking: Booking;
   paymentInput: ReturnType<typeof readManualPaymentInput>;
 }) {
-  if (booking.guestId !== guestId) throw new Error("Booking request not found.");
-  if (booking.status === "cancelled") throw new Error("Cancelled bookings cannot be paid.");
-  if (booking.paymentStatus === "paid") throw new Error("This booking is already paid.");
-  if (paymentInput.amount !== booking.totalPrice) {
-    throw new Error("Payment amount must match the booking total.");
-  }
-
-  const existingPayment = await getPaymentByBookingId(booking.id);
-  if (existingPayment && existingPayment.paymentStatus !== "rejected") {
-    throw new Error("Payment details are already submitted for this booking.");
-  }
-
-  if (usesPrismaPersistence()) {
-    await recordManualPaymentInDatabase(booking, paymentInput);
-    return;
-  }
-
-  const now = new Date().toISOString();
-  const payments = await readStoredPayments();
-  const payment: Payment = {
-    id: existingPayment?.id ?? randomUUID(),
-    bookingId: booking.id,
-    guestId: booking.guestId,
-    hostId: booking.hostId,
-    amount: paymentInput.amount,
-    paymentMethod: paymentInput.paymentMethod,
-    paymentStatus: "submitted",
-    transactionId: paymentInput.transactionId,
-    notes: paymentInput.notes,
-    submittedAt: now,
-    createdAt: existingPayment?.createdAt ?? now,
-    updatedAt: now,
-  };
-
-  await writeStoredPayments(existingPayment
-    ? payments.map((item) => (item.id === existingPayment.id ? payment : item))
-    : [payment, ...payments]);
-
-  const bookings = await readStoredBookings();
-  await writeStoredBookings(updateBookingPaymentState(bookings, booking.id, {
-    status: "pending",
-    paymentStatus: "submitted",
-  }));
+  void guestId;
+  void booking;
+  void paymentInput;
+  throw new Error(paidBookingsDisabledMessage);
 }
 
 export async function confirmManualPayment({ booking, hostId }: { booking: Booking; hostId: string }) {
-  if (booking.hostId !== hostId) throw new Error("Booking request not found.");
+  void booking;
+  void hostId;
+  throw new Error("Only platform admins can verify submitted payments.");
+}
 
+export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { booking: Booking; adminId: string }) {
   const payment = await getPaymentByBookingId(booking.id);
   if (!payment || payment.paymentStatus !== "submitted") {
-    throw new Error("No submitted payment is waiting for confirmation.");
+    throw new Error("No submitted payment is waiting for platform verification.");
+  }
+  if (payment.amount !== booking.totalPrice) {
+    throw new Error("Submitted payment amount does not match the booking total.");
   }
 
   if (usesPrismaPersistence()) {
-    await confirmManualPaymentInDatabase(booking.id, hostId);
+    await confirmManualPaymentInDatabase(booking.id, adminId);
     return;
   }
 
@@ -143,7 +133,7 @@ export async function confirmManualPayment({ booking, hostId }: { booking: Booki
   await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
     ...item,
     paymentStatus: "paid",
-    confirmedBy: hostId,
+    confirmedBy: adminId,
     confirmedAt: now,
     rejectedAt: undefined,
     rejectionReason: undefined,
@@ -172,21 +162,19 @@ export async function confirmManualPayment({ booking, hostId }: { booking: Booki
   );
 }
 
-export async function rejectManualPayment({
+export async function rejectSubmittedPaymentByAdmin({
   booking,
-  hostId,
   rejectionReason,
 }: {
   booking: Booking;
-  hostId: string;
+  adminId: string;
   rejectionReason: string;
 }) {
-  if (booking.hostId !== hostId) throw new Error("Booking request not found.");
   if (!rejectionReason.trim()) throw new Error("Please add a rejection reason.");
 
   const payment = await getPaymentByBookingId(booking.id);
   if (!payment || payment.paymentStatus !== "submitted") {
-    throw new Error("No submitted payment is waiting for review.");
+    throw new Error("No submitted payment is waiting for platform verification.");
   }
 
   if (usesPrismaPersistence()) {
@@ -209,4 +197,19 @@ export async function rejectManualPayment({
     status: "pending",
     paymentStatus: "rejected",
   }));
+}
+
+export async function rejectManualPayment({
+  booking,
+  hostId,
+  rejectionReason,
+}: {
+  booking: Booking;
+  hostId: string;
+  rejectionReason: string;
+}) {
+  void booking;
+  void hostId;
+  void rejectionReason;
+  throw new Error("Only platform admins can reject submitted payments.");
 }

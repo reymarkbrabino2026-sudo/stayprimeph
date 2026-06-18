@@ -30,10 +30,12 @@ export function hasDateConflict(bookings: Booking[], propertyId: string, checkIn
 }
 
 export async function markBookingPaid(bookingId: string, transactionId: string) {
-  if (usesPrismaPersistence()) return updateBookingPaymentInDatabase(bookingId, "paid", transactionId);
+  const providerTransactionId = transactionId.trim();
+  if (!providerTransactionId) throw new Error("Provider transaction ID is required.");
+  if (usesPrismaPersistence()) return updateBookingPaymentInDatabase(bookingId, "paid", providerTransactionId);
   const bookings = await readStoredBookings();
   const booking = bookings.find((item) => item.id === bookingId);
-  await writeStoredBookings(bookings.map((item) => item.id === bookingId ? { ...item, paymentStatus: "paid" } : item));
+  await writeStoredBookings(bookings.map((item) => item.id === bookingId ? { ...item, status: "confirmed", paymentStatus: "paid" } : item));
   if (!booking) return;
 
   const now = new Date().toISOString();
@@ -47,7 +49,7 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
     amount: booking.totalPrice,
     paymentMethod: "stripe",
     paymentStatus: "paid",
-    transactionId,
+    transactionId: providerTransactionId,
     submittedAt: existingPayment?.submittedAt ?? now,
     confirmedAt: now,
     createdAt: existingPayment?.createdAt ?? now,

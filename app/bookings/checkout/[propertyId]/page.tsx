@@ -3,17 +3,15 @@ import Link from "next/link";
 import { ChevronLeft, ShieldCheck, Star } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
-import { getCurrentUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
-import { calculateGuestPriceWithMarkup, calculateStayprimeMarkup, getBestDiscount } from "@/lib/pricing";
+import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
+import { arePaidBookingsEnabled } from "@/lib/payments";
+import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency, formatDate } from "@/lib/utils";
-
-function nightsBetween(checkIn: string, checkOut: string) {
-  return Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000));
-}
 
 function validDateParam(value?: string) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -44,11 +42,18 @@ export default async function BookingCheckoutPage({
   searchParams,
 }: {
   params: Promise<{ propertyId: string }>;
-  searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string; error?: string }>;
+  searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string; packageId?: string; error?: string }>;
 }) {
   const { propertyId } = await params;
   const query = await searchParams;
-  const property = await getPropertyById(propertyId);
+  const nextPath = `/bookings/checkout/${propertyId}?${new URLSearchParams(
+    Object.entries(query).flatMap(([key, value]) => (value ? [[key, value]] : [])),
+  ).toString()}`;
+  await requireRole("guest", {
+    redirectTo: `/login?role=guest&next=${encodeURIComponent(nextPath)}`,
+    forbiddenRedirectTo: "/login?role=guest",
+  });
+  const [property, csrfToken] = await Promise.all([getPropertyById(propertyId), getCsrfToken()]);
   if (!property || property.status !== "approved") notFound();
 
   const today = todayDateKey();
@@ -56,12 +61,18 @@ export default async function BookingCheckoutPage({
   const checkIn = requestedCheckIn && requestedCheckIn >= today ? requestedCheckIn : today;
   const requestedCheckOut = validDateParam(query.checkOut);
   const checkOut = requestedCheckOut && new Date(requestedCheckOut) > new Date(checkIn) ? requestedCheckOut : addDays(checkIn, 5);
+  const bookingPackages = getEnabledBookingPackages(property);
+  const selectedPackage = bookingPackages.length ? getBookingPackageById(property, query.packageId) : null;
   const requestedGuests = Number(query.guests ?? 1);
-  const guests = Number.isInteger(requestedGuests) ? Math.min(property.maxGuests, Math.max(1, requestedGuests)) : 1;
-  const nights = Math.min(90, nightsBetween(checkIn, checkOut));
-  const subtotal = property.pricePerNight * nights;
+  const maxGuests = selectedPackage?.maxGuests ?? property.maxGuests;
+  const guests = Number.isInteger(requestedGuests) ? Math.min(maxGuests, Math.max(1, requestedGuests)) : 1;
+  const pricedCheckOut = new Date(checkOut) > new Date(addDays(checkIn, 90)) ? addDays(checkIn, 90) : checkOut;
+  const nightlySubtotal = selectedPackage
+    ? calculatePackageSubtotal(selectedPackage, checkIn, pricedCheckOut, guests)
+    : calculateNightlySubtotal(property, checkIn, pricedCheckOut);
+  const { nights, subtotal } = nightlySubtotal;
+  const extraGuestFee = selectedPackage && "extraGuestFee" in nightlySubtotal ? Number(nightlySubtotal.extraGuestFee) : 0;
   const bookings = await getBookings();
-  const currentUser = await getCurrentUser();
   const discount = getBestDiscount({ property, bookings, checkIn, nights, subtotal });
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
   const serviceFee = calculateStayprimeMarkup(discountedSubtotal);
@@ -70,10 +81,13 @@ export default async function BookingCheckoutPage({
   const guestSavings = guestSubtotal - total;
   const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut);
   const image = property.images[0]?.imageUrl;
-  const buttonLabel = property.rules.includes("Instant book enabled") ? "Confirm and pay" : "Request to book";
+  const paidBookingsEnabled = arePaidBookingsEnabled();
+  const buttonLabel = paidBookingsEnabled && property.rules.includes("Instant book enabled") ? "Confirm and pay" : "Request to book";
   const locationLabel = formatPropertyLocation(property);
-  const guestOnly = currentUser?.role && currentUser.role !== "guest";
-  const roleError = guestOnly || query.error === "guest-only";
+  const roleError = query.error === "guest-only";
+  const checkInTime = selectedPackage?.checkInTime ?? STANDARD_CHECK_IN_TIME;
+  const checkOutTime = selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME;
+  const unitLabel = selectedPackage?.unit === "day" ? "daytime booking" : "night";
 
   return (
     <div className="min-h-screen bg-white">
@@ -94,25 +108,34 @@ export default async function BookingCheckoutPage({
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Review your trip</h1>
 
           <form action={createBooking} className="mt-8 space-y-8">
+            <input type="hidden" name={csrfFieldName} value={csrfToken} />
             <input type="hidden" name="propertyId" value={property.id} />
+            {selectedPackage ? <input type="hidden" name="packageId" value={selectedPackage.id} /> : null}
 
             <section className="border-b pb-8">
               <div className="flex items-start justify-between gap-4">
                 <h2 className="text-xl font-semibold">Your trip</h2>
                 <Link href={`/rooms/${property.id}`} className="text-sm font-semibold underline underline-offset-2">Edit</Link>
               </div>
+              {selectedPackage ? (
+                <div className="mt-4 rounded-2xl border p-4">
+                  <span className="block text-sm font-semibold">Package</span>
+                  <span className="mt-1 block text-sm text-black/65">{selectedPackage.name}</span>
+                  <span className="mt-1 block text-xs text-black/50">{selectedPackage.accessType}</span>
+                </div>
+              ) : null}
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="block rounded-2xl border p-4">
                   <span className="block text-sm font-semibold">Check-in</span>
                   <span className="mt-1 block text-sm text-black/65">{formatDate(checkIn)}</span>
-                  <span className="mt-1 block text-xs text-black/50">Check-in {STANDARD_CHECK_IN_TIME}</span>
+                  <span className="mt-1 block text-xs text-black/50">Check-in {checkInTime}</span>
                   <span className="sr-only">Check-in</span>
                   <input name="checkIn" type="date" defaultValue={checkIn} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
                 </label>
                 <label className="block rounded-2xl border p-4">
                   <span className="block text-sm font-semibold">Check-out</span>
                   <span className="mt-1 block text-sm text-black/65">{formatDate(checkOut)}</span>
-                  <span className="mt-1 block text-xs text-black/50">Check-out {STANDARD_CHECK_OUT_TIME}</span>
+                  <span className="mt-1 block text-xs text-black/50">Check-out {checkOutTime}</span>
                   <span className="sr-only">Check-out</span>
                   <input name="checkOut" type="date" defaultValue={checkOut} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
                 </label>
@@ -120,15 +143,19 @@ export default async function BookingCheckoutPage({
               <label className="mt-4 block rounded-2xl border p-4">
                 <span className="block text-sm font-semibold">Guests</span>
                 <span className="mt-1 block text-sm text-black/65">{guests} guest{guests === 1 ? "" : "s"}</span>
-                <input name="guests" type="number" min={1} max={property.maxGuests} defaultValue={guests} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
+                <input name="guests" type="number" min={1} max={maxGuests} defaultValue={guests} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
               </label>
             </section>
 
             <section className="border-b pb-8">
               <h2 className="text-xl font-semibold">Pay with</h2>
               <div className="mt-4 rounded-2xl border p-4">
-                <p className="font-medium">Payment is recorded after your booking request is created.</p>
-                <p className="mt-1 text-sm text-black/60">For now, you can transfer through GCash or bank transfer outside StayPrimePH, then submit the payment reference from your booking details page.</p>
+                <p className="font-medium">{paidBookingsEnabled ? "Payment is collected after your booking request is created." : "Paid bookings are disabled for launch."}</p>
+                <p className="mt-1 text-sm text-black/60">
+                  {paidBookingsEnabled
+                    ? "You will complete payment through StayPrimePH's verified payment provider from your booking details page."
+                    : "StayPrimePH is not collecting money through the app until a verified payment provider is live."}
+                </p>
               </div>
             </section>
 
@@ -160,7 +187,7 @@ export default async function BookingCheckoutPage({
               By selecting the button below, you agree to the house rules, cancellation policy, and guest refund policy.
             </p>
 
-            <button disabled={unavailable || Boolean(guestOnly)} className="min-h-14 w-full rounded-xl bg-[#083f35] px-6 text-base font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20 sm:w-auto sm:min-w-56">
+            <button disabled={unavailable} className="min-h-14 w-full rounded-xl bg-[#083f35] px-6 text-base font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20 sm:w-auto sm:min-w-56">
               {buttonLabel}
             </button>
           </form>
@@ -187,9 +214,17 @@ export default async function BookingCheckoutPage({
               <h2 className="text-xl font-semibold">Price details</h2>
               <div className="mt-5 space-y-4 text-sm">
                 <div className="flex justify-between gap-4">
-                  <span className="underline decoration-black/25 underline-offset-4">Accommodation</span>
+                  <span className="underline decoration-black/25 underline-offset-4">
+                    {selectedPackage ? `${selectedPackage.name} (${nights} ${unitLabel}${nights === 1 ? "" : "s"})` : "Accommodation"}
+                  </span>
                   <span>{formatCurrency(guestSubtotal)}</span>
                 </div>
+                {selectedPackage && extraGuestFee > 0 ? (
+                  <div className="flex justify-between gap-4 text-black/60">
+                    <span>Extra guest fee included</span>
+                    <span>{formatCurrency(calculateGuestPriceWithMarkup(extraGuestFee))}</span>
+                  </div>
+                ) : null}
                 {discount && guestSavings > 0 ? (
                   <div className="flex justify-between gap-4 text-emerald-700">
                     <span>{discount.label}</span>

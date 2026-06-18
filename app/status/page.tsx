@@ -18,11 +18,13 @@ export default function StatusPage() {
   const hasSentry = Boolean(process.env.SENTRY_DSN && process.env.NEXT_PUBLIC_SENTRY_DSN);
   const hasAnalytics = process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled";
   const hasMonitoring = hasSentry && hasAnalytics;
+  const paymentMode = process.env.PAYMENT_LAUNCH_MODE || "disabled";
+  const paymentsOperational = paymentMode === "stripe";
   const services = [
     ["Web app", "Operational", "Core browsing, search, dashboards, and listing pages."],
     ["Authentication", "Operational", "Login, registration, password reset, and email verification paths are implemented."],
     ["Photo uploads", hasPhotoStorage ? "Operational" : "Configuration needed", "Cloudinary or Vercel Blob is required for hosted production uploads."],
-    ["Payments", "Configuration needed", "Online checkout is disabled while StayPrimePH migrates from Stripe to PayMongo."],
+    ["Payments", paymentsOperational ? "Operational" : "Disabled", paymentsOperational ? "Verified provider checkout is enabled." : "Paid bookings are disabled until StayPrimePH launches a verified payment provider."],
     ["Email", hasResendEmail ? "Operational" : "Configuration needed", "Resend sender/domain must be configured for real delivery."],
     ["Rate limiting", hasRedisRateLimiting ? "Operational" : "Configuration needed", "Upstash Redis is required for distributed abuse protection across deployments."],
     ["Monitoring", hasMonitoring ? "Operational" : "Configuration needed", "Sentry, analytics, and provider alerts must be connected in deployment."],
@@ -47,7 +49,7 @@ export default function StatusPage() {
               </div>
               <span
                 className={`h-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                  status === "Operational" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                  status === "Operational" ? "bg-emerald-50 text-emerald-700" : status === "Disabled" ? "bg-zinc-100 text-zinc-700" : "bg-amber-50 text-amber-700"
                 }`}
               >
                 {status}

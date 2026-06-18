@@ -1,9 +1,10 @@
-import { confirmPaymentAndApproveBooking, rejectBooking, rejectSubmittedPayment } from "@/app/host/bookings/actions";
+import { rejectBooking } from "@/app/host/bookings/actions";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { hostLinks } from "@/lib/navigation";
 import { formatPaymentMethod, getPayments } from "@/lib/payments";
 import { getProperties } from "@/lib/properties";
@@ -12,7 +13,7 @@ import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/
 
 export default async function HostBookingsPage() {
   const user = await getCurrentUser();
-  const [bookings, properties, users, payments] = await Promise.all([getBookings(), getProperties(), getUsers(), getPayments()]);
+  const [bookings, properties, users, payments, csrfToken] = await Promise.all([getBookings(), getProperties(), getUsers(), getPayments(), getCsrfToken()]);
   const hostBookings = bookings.filter((booking) => booking.hostId === user?.id);
 
   return (
@@ -27,6 +28,7 @@ export default async function HostBookingsPage() {
             users.find((item) => item.id === booking.guestId)?.name ?? "Guest",
             properties.find((property) => property.id === booking.propertyId)?.title ?? "Property",
             <div key={`${booking.id}-dates`} className="min-w-48">
+              {booking.bookingPackageName ? <p className="font-semibold">{booking.bookingPackageName}</p> : null}
               <p>{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
               <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
             </div>,
@@ -46,26 +48,9 @@ export default async function HostBookingsPage() {
             </div>,
             <div key={`${booking.id}-actions`} className="flex min-w-56 flex-col gap-2">
               {paymentWaiting ? (
-                <>
-                  <form action={confirmPaymentAndApproveBooking}>
-                    <input type="hidden" name="id" value={booking.id} />
-                    <button className="min-h-10 w-full rounded-full bg-emerald-100 px-3 text-xs font-semibold text-emerald-700">
-                      Confirm payment and approve booking
-                    </button>
-                  </form>
-                  <form action={rejectSubmittedPayment} className="space-y-2">
-                    <input type="hidden" name="id" value={booking.id} />
-                    <input
-                      name="rejectionReason"
-                      placeholder="Reason for rejection"
-                      className="min-h-10 w-full rounded-xl border px-3 text-xs"
-                      required
-                    />
-                    <button className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700">
-                      Reject payment
-                    </button>
-                  </form>
-                </>
+                <span className="rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                  Awaiting platform payment verification
+                </span>
               ) : booking.status === "confirmed" ? (
                 <span className="text-sm font-semibold text-emerald-700">Approved</span>
               ) : booking.status === "cancelled" ? (
@@ -74,6 +59,7 @@ export default async function HostBookingsPage() {
                 <>
                   <span className="text-sm text-black/55">Waiting for guest payment</span>
                   <form action={rejectBooking}>
+                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="id" value={booking.id} />
                     <button className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700">
                       Reject booking

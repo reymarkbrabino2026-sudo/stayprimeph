@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
-import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
+import { calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, getBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import {
@@ -27,8 +27,10 @@ export function RoomReservationCard({
   rating: string;
   unavailableStays?: UnavailableStay[];
 }) {
-  const { checkIn, checkOut, guests, setCheckIn, setCheckOut, setGuests } = useReservationStore();
+  const { checkIn, checkOut, guests, packageId, setCheckIn, setCheckOut, setGuests, setPackageId } = useReservationStore();
   const instantBook = property.rules.includes("Instant book enabled");
+  const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
+  const selectedPackage = useMemo(() => getBookingPackageById(property, packageId), [packageId, property]);
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const effectiveStay = useMemo(() => {
@@ -47,18 +49,32 @@ export function RoomReservationCard({
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
   }, [bookedNightSet, checkIn, checkOut]);
-  const { nights, validStay, total } = computePrice(property.pricePerNight, effectiveStay.checkIn, effectiveStay.checkOut);
-  const guestNightlyPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
+  const { nights, weekdayNights, weekendNights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id);
+  const packageWeekdayRate = selectedPackage?.weekdayRate ?? property.pricePerNight;
+  const packageWeekendRate = selectedPackage ? (selectedPackage.weekendRate > 0 ? selectedPackage.weekendRate : selectedPackage.weekdayRate) : property.weekendPrice ?? calculateDefaultWeekendPrice(property.pricePerNight);
+  const guestNightlyPrice = calculateGuestPriceWithMarkup(packageWeekdayRate);
+  const guestWeekendPrice = calculateGuestPriceWithMarkup(packageWeekendRate);
   const headlinePrice = validStay ? total : guestNightlyPrice;
-  const headlinePriceLabel = validStay ? ` for ${nights} night${nights === 1 ? "" : "s"}` : " / night";
+  const unitName = selectedPackage?.unit === "day" ? "day" : "night";
+  const headlinePriceLabel = validStay ? ` for ${nights} ${unitName}${nights === 1 ? "" : "s"}` : ` / ${unitName}`;
+  const rateSummary = formatRateSummary({ guestNightlyPrice, guestWeekendPrice, weekdayNights, weekendNights, nights });
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
-  const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests) : "#";
-  const changeGuests = (next: number) => setGuests(Math.min(property.maxGuests, Math.max(1, next)));
+  const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id) : "#";
+  const maxGuests = selectedPackage?.maxGuests ?? property.maxGuests;
+  const changeGuests = (next: number) => setGuests(Math.min(maxGuests, Math.max(1, next)));
   const [activeField, setActiveField] = useState<"checkIn" | "checkOut">("checkIn");
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn || TODAY));
   const calendarMonth = useMemo(() => buildCalendarMonth(visibleMonth.year, visibleMonth.month), [visibleMonth]);
+
+  useEffect(() => {
+    if (!bookingPackages.length) {
+      if (packageId) setPackageId(null);
+      return;
+    }
+    if (!selectedPackage) setPackageId(bookingPackages[0].id);
+  }, [bookingPackages, packageId, selectedPackage, setPackageId]);
 
   function moveMonth(offset: number) {
     const next = new Date(visibleMonth.year, visibleMonth.month + offset, 1);
@@ -88,39 +104,61 @@ export function RoomReservationCard({
   }
 
   return (
-    <div className="scroll-mt-28 rounded-[1.75rem] border border-black/10 bg-white p-5 shadow-[0_24px_70px_rgb(8_63_53_/_0.16)] sm:p-6">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-3xl font-semibold tracking-[-0.03em] text-[#083f35]">
+    <div className="scroll-mt-24 rounded-[1.35rem] border border-black/10 bg-white p-4 shadow-[0_20px_54px_rgb(8_63_53_/_0.14)] min-[390px]:rounded-[1.75rem] sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-2xl font-semibold tracking-normal text-[#083f35] min-[390px]:text-3xl">
             {formatCurrency(headlinePrice)}
-            <span className="text-base font-medium text-black/50">{headlinePriceLabel}</span>
+            <span className="ml-1 text-sm font-medium text-black/50 min-[390px]:text-base">{headlinePriceLabel}</span>
           </p>
-          <p className="mt-1 text-sm text-black/55">Up to {property.maxGuests} guests &middot; {property.bedrooms} bedrooms</p>
+          <p className="mt-1 text-sm text-black/55">Up to {maxGuests} guests &middot; {property.bedrooms} bedrooms</p>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#f6f1e9] px-3 py-1.5 text-sm font-semibold text-[#083f35]">
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f6f1e9] px-2.5 py-1.5 text-xs font-semibold text-[#083f35] min-[390px]:px-3 min-[390px]:text-sm">
           <Star size={14} fill="currentColor" /> {rating}
         </span>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-black/15">
+      {bookingPackages.length ? (
+        <div className="mt-4 grid gap-2">
+          {bookingPackages.map((item) => {
+            const active = selectedPackage?.id === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setPackageId(item.id)}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${active ? "border-[#083f35] bg-[#083f35] text-white" : "border-black/10 bg-black/[0.02] hover:border-[#083f35]"}`}
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="font-semibold">{item.name}</span>
+                  <span className={active ? "text-white/80" : "text-black/55"}>{formatCurrency(calculateGuestPriceWithMarkup(item.weekdayRate))}</span>
+                </span>
+                <span className={`mt-1 block text-xs ${active ? "text-white/70" : "text-black/50"}`}>{item.accessType}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <div className="mt-4 overflow-hidden rounded-[1.15rem] border border-black/15 min-[390px]:mt-5 min-[390px]:rounded-2xl">
         <div className="grid grid-cols-2 divide-x divide-black/10">
           <DateField
             active={activeField === "checkIn"}
             label="Check-in"
-            time={STANDARD_CHECK_IN_TIME}
+            time={selectedPackage?.checkInTime ?? STANDARD_CHECK_IN_TIME}
             value={effectiveStay.checkIn}
             onClick={() => setActiveField("checkIn")}
           />
           <DateField
             active={activeField === "checkOut"}
             label="Check-out"
-            time={STANDARD_CHECK_OUT_TIME}
+            time={selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME}
             value={effectiveStay.checkOut}
             onClick={() => setActiveField("checkOut")}
           />
         </div>
 
-        <div className="border-t border-black/10 p-3">
+        <div className="border-t border-black/10 p-2.5 min-[390px]:p-3">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -148,7 +186,7 @@ export function RoomReservationCard({
               <div key={day}>{day}</div>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-7 gap-1">
+          <div className="mt-2 grid grid-cols-7 gap-0.5 min-[390px]:gap-1">
             {calendarMonth.cells.map((cell, index) =>
               cell ? (
                 <CalendarDateButton
@@ -161,7 +199,7 @@ export function RoomReservationCard({
                   onSelect={selectDate}
                 />
               ) : (
-                <div key={`blank-${index}`} className="min-h-12 rounded-lg" />
+                <div key={`blank-${index}`} className="min-h-11 rounded-lg min-[390px]:min-h-12" />
               ),
             )}
           </div>
@@ -182,7 +220,7 @@ export function RoomReservationCard({
               type="button"
               onClick={() => changeGuests(guests - 1)}
               disabled={guests <= 1}
-              className="grid size-8 place-items-center rounded-full border border-black/15 text-[#083f35] transition hover:bg-black/[0.04] disabled:opacity-30"
+              className="grid size-10 place-items-center rounded-full border border-black/15 text-[#083f35] transition hover:bg-black/[0.04] disabled:opacity-30"
               aria-label="Remove guest"
             >
               <Minus size={15} />
@@ -191,8 +229,8 @@ export function RoomReservationCard({
             <button
               type="button"
               onClick={() => changeGuests(guests + 1)}
-              disabled={guests >= property.maxGuests}
-              className="grid size-8 place-items-center rounded-full border border-black/15 text-[#083f35] transition hover:bg-black/[0.04] disabled:opacity-30"
+              disabled={guests >= maxGuests}
+              className="grid size-10 place-items-center rounded-full border border-black/15 text-[#083f35] transition hover:bg-black/[0.04] disabled:opacity-30"
               aria-label="Add guest"
             >
               <Plus size={15} />
@@ -227,14 +265,14 @@ export function RoomReservationCard({
       {validStay && !selectedHasUnavailableNight ? (
         <div className="mt-5 space-y-3 border-t border-black/10 pt-5 text-sm">
           <div className="flex justify-between text-black/70">
-            <span className="underline decoration-black/20 underline-offset-4">
-              {formatCurrency(guestNightlyPrice)} x {nights} night{nights === 1 ? "" : "s"}
+            <span className="min-w-0 pr-3 leading-5 underline decoration-black/20 underline-offset-4">
+              {rateSummary}
             </span>
-            <span>{formatCurrency(total)}</span>
+            <span className="shrink-0 font-medium">{formatCurrency(total)}</span>
           </div>
-          <div className="flex justify-between border-t border-black/10 pt-3 text-base font-semibold text-[#083f35]">
+          <div className="flex justify-between gap-4 border-t border-black/10 pt-3 text-base font-semibold text-[#083f35]">
             <span>Total before taxes</span>
-            <span>{formatCurrency(total)}</span>
+            <span className="shrink-0">{formatCurrency(total)}</span>
           </div>
         </div>
       ) : null}
@@ -256,13 +294,13 @@ function DateField({ active, label, time, value, onClick }: { active: boolean; l
     <button
       type="button"
       onClick={onClick}
-      className={`block px-4 py-3 text-left transition ${active ? "bg-[#083f35]/[0.06]" : "hover:bg-black/[0.03]"}`}
+      className={`block min-h-20 px-3 py-3 text-left transition min-[390px]:px-4 ${active ? "bg-[#083f35]/[0.06]" : "hover:bg-black/[0.03]"}`}
     >
-      <span className="flex items-center gap-1.5 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-black/50">
+      <span className="flex items-center gap-1 text-[0.62rem] font-bold uppercase tracking-[0.06em] text-black/50 min-[390px]:gap-1.5 min-[390px]:text-[0.68rem]">
         <CalendarDays size={12} /> {label}
       </span>
-      <span className="mt-1 block text-sm font-semibold text-[#1f1f1f]">{value ? formatDisplayDate(value) : "Add date"}</span>
-      <span className="mt-1 block text-xs text-black/50">{time}</span>
+      <span className="mt-1 block text-[0.8rem] font-semibold leading-snug text-[#1f1f1f] min-[390px]:text-sm">{value ? formatDisplayDate(value) : "Add date"}</span>
+      <span className="mt-1 block text-[0.68rem] leading-snug text-black/50 min-[390px]:text-xs">{time}</span>
     </button>
   );
 }
@@ -311,14 +349,14 @@ function CalendarDateButton({
       onClick={() => onSelect(cell.dateKey)}
       aria-label={`${formatDisplayDate(cell.dateKey)} ${unavailable ? "unavailable" : "available"}`}
       className={cx(
-        "min-h-12 rounded-lg border p-1 text-left text-xs transition",
+        "min-h-11 rounded-md border p-1 text-left text-[0.7rem] transition min-[390px]:min-h-12 min-[390px]:rounded-lg min-[390px]:text-xs",
         toneClass,
         disabled && "cursor-not-allowed hover:border-black/10",
         isPast && !selected && "opacity-35",
       )}
     >
       <span className="block font-semibold">{cell.day}</span>
-      <span className={cx("mt-1 block truncate text-[0.6rem] font-semibold", unavailable && !selected && "line-through")}>
+      <span className={cx("mt-0.5 block truncate text-[0.56rem] font-semibold min-[390px]:mt-1 min-[390px]:text-[0.6rem]", unavailable && !selected && "line-through")}>
         {statusLabel}
       </span>
     </button>
@@ -368,6 +406,27 @@ function getMonthCursor(dateKey: string) {
 
 function formatDisplayDate(dateKey: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(parseDateKey(dateKey));
+}
+
+function formatRateSummary({
+  guestNightlyPrice,
+  guestWeekendPrice,
+  weekdayNights,
+  weekendNights,
+  nights,
+}: {
+  guestNightlyPrice: number;
+  guestWeekendPrice: number;
+  weekdayNights: number;
+  weekendNights: number;
+  nights: number;
+}) {
+  if (weekendNights > 0 && weekdayNights > 0 && guestWeekendPrice !== guestNightlyPrice) {
+    return `${formatCurrency(guestNightlyPrice)} weekday / ${formatCurrency(guestWeekendPrice)} weekend`;
+  }
+
+  const displayedRate = weekendNights > 0 && weekdayNights === 0 ? guestWeekendPrice : guestNightlyPrice;
+  return `${formatCurrency(displayedRate)} x ${nights} night${nights === 1 ? "" : "s"}`;
 }
 
 function cx(...classes: Array<string | false | undefined>) {

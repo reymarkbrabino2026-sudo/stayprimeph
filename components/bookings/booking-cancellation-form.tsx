@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { X } from "lucide-react";
 import { cancelGuestBooking, type CancellationActionState } from "@/app/guest/bookings/actions";
+import { csrfFieldName } from "@/lib/csrf-fields";
 import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 const initialState: CancellationActionState = {};
@@ -12,6 +13,7 @@ export function BookingCancellationForm({
   propertyTitle,
   checkIn,
   checkOut,
+  csrfToken,
   totalPrice,
   requiresReview,
 }: {
@@ -19,6 +21,7 @@ export function BookingCancellationForm({
   propertyTitle: string;
   checkIn: string;
   checkOut: string;
+  csrfToken: string;
   totalPrice: number;
   requiresReview: boolean;
 }) {
@@ -86,6 +89,7 @@ export function BookingCancellationForm({
             </p>
 
             <form action={formAction} className="mt-5 space-y-4">
+              <input type="hidden" name={csrfFieldName} value={csrfToken} />
               <input type="hidden" name="bookingId" value={bookingId} />
               <label className="block">
                 <span className="text-sm font-semibold">Reason for cancellation</span>

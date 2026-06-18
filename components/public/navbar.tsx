@@ -7,7 +7,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
-export function Navbar({ transparentOnTop = false }: { transparentOnTop?: boolean }) {
+export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { transparentOnTop?: boolean; hideBottomNav?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [session, setSession] = useState<{ loaded: boolean; user: { role: string } | null }>({ loaded: false, user: null });
 
@@ -88,7 +88,7 @@ export function Navbar({ transparentOnTop = false }: { transparentOnTop?: boolea
           <TravellerMenu />
         </div>
       </header>
-      <PublicBottomNav />
+      {hideBottomNav ? null : <PublicBottomNav />}
     </>
   );
 }

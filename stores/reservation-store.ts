@@ -1,7 +1,16 @@
 "use client";
 
 import { create } from "zustand";
-import { calculateStayprimeMarkup, STAYPRIME_MARKUP_RATE } from "@/lib/pricing";
+import {
+  calculateNightlySubtotal,
+  calculatePackageSubtotal,
+  calculateStayprimeMarkup,
+  getBookingPackageById,
+  nightsBetweenDateKeys,
+  STAYPRIME_MARKUP_RATE,
+  type NightlyRates,
+} from "@/lib/pricing";
+import type { Property } from "@/lib/types";
 
 export const SERVICE_FEE_RATE = STAYPRIME_MARKUP_RATE;
 export const TODAY = toDateKey(new Date());
@@ -23,39 +32,46 @@ function addDaysToDateKey(value: string, days: number) {
 }
 
 export function nightsBetween(checkIn: string, checkOut: string) {
-  const checkInTime = new Date(checkIn).getTime();
-  const checkOutTime = new Date(checkOut).getTime();
-  if (!Number.isFinite(checkInTime) || !Number.isFinite(checkOutTime)) return 0;
-  return Math.round((checkOutTime - checkInTime) / 86400000);
+  return nightsBetweenDateKeys(checkIn, checkOut);
 }
 
 export interface PriceBreakdown {
   nights: number;
+  weekdayNights: number;
+  weekendNights: number;
   validStay: boolean;
   subtotal: number;
   serviceFee: number;
   total: number;
 }
 
-export function computePrice(pricePerNight: number, checkIn: string, checkOut: string): PriceBreakdown {
-  const nights = nightsBetween(checkIn, checkOut);
+export function computePrice(rates: NightlyRates | Property | number, checkIn: string, checkOut: string, guests = 1, packageId?: string | null): PriceBreakdown {
+  const bookingPackage = typeof rates === "object" && "bookingPackages" in rates ? getBookingPackageById(rates, packageId) : null;
+  const nightlyRates = typeof rates === "number" ? { pricePerNight: rates } : rates;
+  const nightlySubtotal = bookingPackage
+    ? calculatePackageSubtotal(bookingPackage, checkIn, checkOut, guests)
+    : calculateNightlySubtotal(nightlyRates, checkIn, checkOut);
+  const { nights, weekdayNights, weekendNights, subtotal } = nightlySubtotal;
   const validStay = nights >= 1;
-  const subtotal = pricePerNight * Math.max(nights, 0);
   const serviceFee = validStay ? calculateStayprimeMarkup(subtotal) : 0;
-  return { nights, validStay, subtotal, serviceFee, total: subtotal + serviceFee };
+  return { nights, weekdayNights, weekendNights, validStay, subtotal, serviceFee, total: subtotal + serviceFee };
 }
 
-export function buildReserveHref(propertyId: string, checkIn: string, checkOut: string, guests: number) {
-  return `/bookings/checkout/${propertyId}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`;
+export function buildReserveHref(propertyId: string, checkIn: string, checkOut: string, guests: number, packageId?: string | null) {
+  const params = new URLSearchParams({ checkIn, checkOut, guests: String(guests) });
+  if (packageId) params.set("packageId", packageId);
+  return `/bookings/checkout/${propertyId}?${params.toString()}`;
 }
 
 interface ReservationState {
   checkIn: string;
   checkOut: string;
   guests: number;
+  packageId: string | null;
   setCheckIn: (value: string) => void;
   setCheckOut: (value: string) => void;
   setGuests: (value: number) => void;
+  setPackageId: (value: string | null) => void;
   reset: () => void;
 }
 
@@ -63,8 +79,10 @@ export const useReservationStore = create<ReservationState>((set) => ({
   checkIn: DEFAULT_CHECK_IN,
   checkOut: DEFAULT_CHECK_OUT,
   guests: 1,
+  packageId: null,
   setCheckIn: (checkIn) => set({ checkIn }),
   setCheckOut: (checkOut) => set({ checkOut }),
   setGuests: (guests) => set({ guests: Math.max(1, guests) }),
-  reset: () => set({ checkIn: DEFAULT_CHECK_IN, checkOut: DEFAULT_CHECK_OUT, guests: 1 }),
+  setPackageId: (packageId) => set({ packageId }),
+  reset: () => set({ checkIn: DEFAULT_CHECK_IN, checkOut: DEFAULT_CHECK_OUT, guests: 1, packageId: null }),
 }));

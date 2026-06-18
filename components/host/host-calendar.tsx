@@ -3,6 +3,8 @@
 import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Trash2, Users } from "lucide-react";
 import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { csrfFieldName } from "@/lib/csrf-fields";
+import { calculateDefaultWeekendPrice, isWeekendDayIndex } from "@/lib/pricing";
 import { formatCurrency, formatStayTimeRange } from "@/lib/utils";
 import type { AvailabilityBlockReason, BookingStatus, ListingStatus, PaymentStatus } from "@/lib/types";
 
@@ -53,12 +55,13 @@ type HostCalendarProps = {
   bookings: HostCalendarBooking[];
   availabilityBlocks: HostAvailabilityBlock[];
   blockAvailabilityAction: (state: AvailabilityFormState, formData: FormData) => Promise<AvailabilityFormState>;
+  csrfToken: string;
   removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
 };
 
 const initialAvailabilityState: AvailabilityFormState = { status: "idle", message: "" };
 
-export function HostCalendar({ listings, bookings, availabilityBlocks, blockAvailabilityAction, removeAvailabilityBlockAction }: HostCalendarProps) {
+export function HostCalendar({ listings, bookings, availabilityBlocks, blockAvailabilityAction, csrfToken, removeAvailabilityBlockAction }: HostCalendarProps) {
   const scrollerRef = useRef<HTMLElement>(null);
   const monthRefs = useRef<Array<HTMLElement | null>>([]);
   const [activeMonthIndex, setActiveMonthIndex] = useState(0);
@@ -259,10 +262,11 @@ export function HostCalendar({ listings, bookings, availabilityBlocks, blockAvai
 
       <aside className="fixed inset-x-0 bottom-0 z-30 max-h-44 overflow-y-auto rounded-t-lg border-t border-black/10 bg-white px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgb(0_0_0_/_0.10)] sm:max-h-44 sm:px-6 lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-l lg:border-t-0 lg:px-10 lg:py-14 lg:shadow-none">
         <div className="lg:sticky lg:top-8">
-          <SelectedDatePanel dateKey={selectedDate} bookings={selectedDayBookings} availabilityBlocks={selectedDayBlocks} removeAvailabilityBlockAction={removeAvailabilityBlockAction} />
+          <SelectedDatePanel dateKey={selectedDate} bookings={selectedDayBookings} availabilityBlocks={selectedDayBlocks} csrfToken={csrfToken} removeAvailabilityBlockAction={removeAvailabilityBlockAction} />
           <AvailabilityBlockForm
             key={`${selectedDate}-${selectedListingId}`}
             dateKey={selectedDate}
+            csrfToken={csrfToken}
             listings={listings}
             selectedListingId={selectedListingId}
             action={availabilityFormAction}
@@ -494,11 +498,13 @@ function SelectedDatePanel({
   dateKey,
   bookings,
   availabilityBlocks,
+  csrfToken,
   removeAvailabilityBlockAction,
 }: {
   dateKey: string;
   bookings: HostCalendarBooking[];
   availabilityBlocks: HostAvailabilityBlock[];
+  csrfToken: string;
   removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
 }) {
   const hasBlocks = availabilityBlocks.length > 0;
@@ -538,6 +544,7 @@ function SelectedDatePanel({
                     {block.note ? <p className="mt-1 text-sm text-black/65">{block.note}</p> : null}
                   </div>
                   <form action={removeAvailabilityBlockAction}>
+                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="blockId" value={block.id} />
                     <button type="submit" className="grid size-9 place-items-center rounded-full text-black/45 transition hover:bg-black/[0.06] hover:text-black" aria-label="Remove availability block">
                       <Trash2 size={16} />
@@ -558,9 +565,11 @@ function AvailabilityBlockForm({
   listings,
   selectedListingId,
   action,
+  csrfToken,
   state,
 }: {
   dateKey: string;
+  csrfToken: string;
   listings: HostCalendarListing[];
   selectedListingId: string;
   action: (formData: FormData) => void;
@@ -579,6 +588,7 @@ function AvailabilityBlockForm({
         </div>
       </div>
       <form action={action} className="mt-4 space-y-3">
+        <input type="hidden" name={csrfFieldName} value={csrfToken} />
         {selectedListing ? (
           <>
             <input type="hidden" name="propertyId" value={selectedListing.id} />
@@ -686,7 +696,7 @@ function buildMonth(year: number, zeroBasedMonth: number) {
     ...Array.from({ length: daysInMonth }, (_, index) => {
       const day = index + 1;
       const dayOfWeek = new Date(displayYear, displayMonth, day).getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isWeekend = isWeekendDayIndex(dayOfWeek);
 
       return {
         dateKey: toDateKey(new Date(displayYear, displayMonth, day)),
@@ -768,7 +778,7 @@ function getAverageNightlyPrice(listings: HostCalendarListing[]) {
 
 function getAverageWeekendNightlyPrice(listings: HostCalendarListing[]) {
   if (listings.length === 0) return 0;
-  return Math.round(listings.reduce((sum, listing) => sum + (listing.weekendPrice ?? listing.pricePerNight), 0) / listings.length);
+  return Math.round(listings.reduce((sum, listing) => sum + (listing.weekendPrice ?? calculateDefaultWeekendPrice(listing.pricePerNight)), 0) / listings.length);
 }
 
 function formatCompactPrice(value: number) {

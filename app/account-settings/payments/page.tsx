@@ -13,7 +13,7 @@ export default async function PaymentsPage() {
     <AccountSettingsShell active="Payments">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Payments</h2>
       <PaymentTabs active="Payments" />
-      <PaymentSettings initialFinancial={accountSettings.financial} />
+      <PaymentSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} />
       <div className="mt-8 flex gap-5 rounded-2xl border border-black/15 p-6"><CircleDollarSign className="text-[#083f35]" /><p><strong>Make all payments through StayPrimePH</strong><br /><span className="text-sm text-black/65">Always pay and communicate through StayPrimePH to ensure you&apos;re protected under our terms and safeguards.</span></p></div>
     </AccountSettingsShell>
   );

@@ -71,7 +71,7 @@ export function RoomHeroSlideshow({ images, alt }: { images: Slide[]; alt: strin
       ) : null}
 
       {slides.length > 1 ? (
-        <div className="absolute inset-x-0 bottom-44 z-10 px-3 md:bottom-36 md:px-5">
+        <div className="absolute inset-x-0 bottom-16 z-10 px-3 sm:bottom-40 md:bottom-36 md:px-5">
           <div className="mx-auto flex max-w-[88rem] justify-center gap-2 px-5 md:justify-end md:px-8">
             {slides.map((slide, slideIndex) => (
               <button
