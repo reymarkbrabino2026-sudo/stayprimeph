@@ -5,6 +5,7 @@ import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-w
 
 const legacyStorageKey = "stayprimeph-host-wizard";
 const storageVersion = 1;
+const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
 
 const defaultBookingPackages = [
   {
@@ -56,6 +57,7 @@ type StoredHostWizardDraft = {
   ownerEmail: string;
   currentStep: WizardStepId;
   draft: Partial<HostListingDraft>;
+  updatedAt?: string;
 };
 
 interface HostWizardState {
@@ -104,19 +106,30 @@ function userStorageKey(userId: string) {
   return `stayprimeph-host-wizard:${encodeURIComponent(userId)}`;
 }
 
+function expiredDraft(updatedAt: string | undefined) {
+  if (!updatedAt) return false;
+  const timestamp = new Date(updatedAt).getTime();
+  return Number.isFinite(timestamp) && Date.now() - timestamp > draftRetentionMs;
+}
+
 function readStoredDraft(user: WizardOwner): Pick<HostWizardState, "currentStep" | "draft"> {
   if (typeof window === "undefined") return { currentStep: "address", draft: createInitialDraft() };
 
   window.localStorage.removeItem(legacyStorageKey);
 
-  const storedValue = window.localStorage.getItem(userStorageKey(user.id));
+  const storageKey = userStorageKey(user.id);
+  const storedValue = window.localStorage.getItem(storageKey);
   if (!storedValue) return { currentStep: "address", draft: createInitialDraft() };
 
   try {
     const stored = JSON.parse(storedValue) as Partial<StoredHostWizardDraft>;
-    if (stored.ownerUserId !== user.id) {
-      window.localStorage.removeItem(userStorageKey(user.id));
+    if (stored.ownerUserId !== user.id || expiredDraft(stored.updatedAt)) {
+      window.localStorage.removeItem(storageKey);
       return { currentStep: "address", draft: createInitialDraft() };
+    }
+
+    if (!stored.updatedAt) {
+      window.localStorage.setItem(storageKey, JSON.stringify({ ...stored, updatedAt: new Date().toISOString() }));
     }
 
     return {
@@ -124,7 +137,7 @@ function readStoredDraft(user: WizardOwner): Pick<HostWizardState, "currentStep"
       draft: mergeDraft(stored.draft),
     };
   } catch {
-    window.localStorage.removeItem(userStorageKey(user.id));
+    window.localStorage.removeItem(storageKey);
     return { currentStep: "address", draft: createInitialDraft() };
   }
 }
@@ -138,6 +151,7 @@ function persistState(state: HostWizardState) {
     ownerEmail: state.ownerEmail,
     currentStep: state.currentStep,
     draft: state.draft,
+    updatedAt: new Date().toISOString(),
   };
 
   window.localStorage.setItem(userStorageKey(state.ownerUserId), JSON.stringify(stored));

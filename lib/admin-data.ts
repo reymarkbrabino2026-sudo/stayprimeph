@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 import { readStoredCancellations } from "@/lib/cancellation-store";
+import { enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { readStoredPayments } from "@/lib/payment-store";
 import { readStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
@@ -24,6 +25,7 @@ export async function getAdminReviews(): Promise<Review[]> {
 }
 
 export async function getAdminReports(): Promise<Report[]> {
+  await enforceDataRetentionOncePerDay();
   if (!usesPrismaPersistence()) return [];
 
   const reports = await prisma.report.findMany({ orderBy: { createdAt: "desc" } });

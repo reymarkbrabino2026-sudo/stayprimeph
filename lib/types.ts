@@ -1,5 +1,5 @@
 export type UserRole = "guest" | "host" | "admin";
-export type ListingStatus = "approved" | "pending" | "rejected";
+export type ListingStatus = "approved" | "pending" | "rejected" | "draft";
 export type BookingStatus = "confirmed" | "pending" | "cancelled" | "completed";
 export type PaymentMethod = "stripe" | "gcash" | "bank_transfer" | "other";
 export type PaymentStatus = "paid" | "pending" | "submitted" | "rejected" | "refunded";
