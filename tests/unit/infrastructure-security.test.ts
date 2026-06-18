@@ -18,6 +18,8 @@ describe("infrastructure security controls", () => {
     expect(workflow).toContain("npm run test:unit");
     expect(workflow).toContain("npx prisma validate");
     expect(workflow).toContain("npm run prod:check");
+    expect(workflow).toContain("actions/dependency-review-action@v4");
+    expect(workflow).toContain("fail-on-severity: high");
     expect(workflow).toContain("npm audit --audit-level=high");
     expect(workflow).toContain("Reject committed local secret files");
   });
