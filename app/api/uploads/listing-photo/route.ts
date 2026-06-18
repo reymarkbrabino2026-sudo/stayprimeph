@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
+import { validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhotoStorage } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
@@ -13,31 +14,6 @@ import { checkDistributedRateLimit } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import { cloudinaryListingUploadFolder, extensionFromContentType, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
-
-const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-const acceptedExtensionsByType = new Map([
-  ["image/jpeg", new Set(["jpg", "jpeg"])],
-  ["image/png", new Set(["png"])],
-  ["image/webp", new Set(["webp"])],
-]);
-const maxUploadBytes = 4 * 1024 * 1024;
-
-function hasAcceptedFileExtension(fileName: string, type: string) {
-  const extension = path.extname(fileName).toLowerCase().replace(".", "");
-  return Boolean(extension && acceptedExtensionsByType.get(type)?.has(extension));
-}
-
-function hasExpectedImageSignature(bytes: Buffer, type: string) {
-  if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (type === "image/png") {
-    const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    return bytes.length >= pngSignature.length && bytes.subarray(0, pngSignature.length).equals(pngSignature);
-  }
-  if (type === "image/webp") {
-    return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
-  }
-  return false;
-}
 
 async function requireListingUploadScope(userId: string, value: FormDataEntryValue | null) {
   const listingId = normalizeUploadScopeId(String(value ?? ""), "");
@@ -87,17 +63,19 @@ export async function POST(request: Request) {
   }
 
   const file = formData.get("file");
-  if (!(file instanceof File) || !acceptedTypes.has(file.type) || !hasAcceptedFileExtension(file.name, file.type)) {
+  if (!(file instanceof File)) {
     return NextResponse.json({ error: "Upload a JPG, PNG, or WebP image." }, { status: 400 });
   }
 
-  if (file.size > maxUploadBytes) {
-    return NextResponse.json({ error: "Upload an image smaller than 4 MB, or use Vercel Blob direct upload." }, { status: 413 });
+  const metadataValidation = validateListingPhotoMetadata(file);
+  if (!metadataValidation.ok) {
+    return NextResponse.json({ error: metadataValidation.error }, { status: metadataValidation.status });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  if (!hasExpectedImageSignature(bytes, file.type)) {
-    return NextResponse.json({ error: "The uploaded file does not match its image type." }, { status: 400 });
+  const byteValidation = validateListingPhotoBytes(bytes, file.type);
+  if (!byteValidation.ok) {
+    return NextResponse.json({ error: byteValidation.error }, { status: byteValidation.status });
   }
 
   const uploadPath = serverGeneratedListingUploadPath({
@@ -142,6 +120,8 @@ export async function POST(request: Request) {
       const blob = await put(uploadPath, bytes, {
         access: "public",
         contentType: file.type,
+        addRandomSuffix: false,
+        allowOverwrite: false,
         token,
       });
 

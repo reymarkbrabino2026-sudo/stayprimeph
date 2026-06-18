@@ -228,7 +228,7 @@ Code fix: Updated E2E locators and redirect wait.
 1. Persistent audit logs are incomplete. `AdminLog` exists in Prisma but most events only use `logger`. Persist login, logout, failed login, registration, password reset, listing approval, booking actions, payment decisions, permission changes, and admin actions without passwords, tokens, card data, or full PII.
 2. Add database-level booking conflict enforcement. The new serializable transaction reduces the race, but PostgreSQL range/exclusion constraints or per-night availability holds would make double booking prevention stronger and easier to prove.
 3. Add explicit CSRF/origin validation to custom POST APIs and high-risk server actions. SameSite cookies and Next server-action protections help, but payment, upload, admin, and account mutations should reject unexpected origins.
-4. Add server-side verification for direct Vercel Blob uploads after completion. The direct upload path currently restricts content type, extension, path, and size, but does not re-read bytes to verify image signatures after upload.
+4. Direct Vercel Blob browser uploads are disabled for listing photos. Keep listing photo uploads on the server-mediated route so MIME type, extension, size, and magic-byte checks run before public storage writes.
 
 ### Medium Priority
 
