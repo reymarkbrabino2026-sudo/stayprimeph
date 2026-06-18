@@ -2,6 +2,8 @@
 
 This app is code-ready when `npm.cmd run lint`, `npm.cmd run test`, `npm.cmd run test:e2e`, and `npm.cmd run build` pass. Public launch still needs real provider accounts, production secrets, and a hosted smoke test.
 
+Launch rule: do not expose StayPrimePH to real users, public marketing traffic, real bookings, or real payments until every blocker in `docs/project-checklist.md` is closed and the verification checklist passes on the production or production-like environment.
+
 ## 1. Create production providers
 
 - PostgreSQL: create a managed Postgres database with TLS. Use the pooled connection string for `DATABASE_URL` and the direct connection string for `DIRECT_URL`.
@@ -82,4 +84,4 @@ On the deployed preview URL, manually verify:
 
 ## 5. Go live
 
-Point the production domain at the deployment, set `NEXT_PUBLIC_APP_URL` to the final `https://` domain, redeploy, and rerun the hosted smoke test. Keep Stripe in test mode until the entire hosted flow is clean, then switch Stripe keys and webhook secret to live mode.
+Point the production domain at the deployment only after the launch rule is satisfied. Set `NEXT_PUBLIC_APP_URL` to the final `https://` domain, redeploy, and rerun the hosted smoke test. Keep Stripe in test mode until the entire hosted flow is clean, then switch Stripe keys and webhook secret to live mode.

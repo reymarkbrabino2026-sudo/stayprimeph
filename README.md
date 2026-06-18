@@ -163,6 +163,7 @@ The Docker image uses Next.js standalone output for a smaller production runtime
 
 ## Deployment checklist
 
+- Enforce the launch gate in `docs/project-checklist.md`: no real users, public marketing traffic, real bookings, or real payments until every blocker is closed and verification passes
 - Set production environment variables in your hosting provider
 - Use a managed PostgreSQL database in production
 - Store production secrets in the provider vault, not checked-in files

@@ -2,6 +2,10 @@
 
 Use this as the active tracker for what is done, what is configured, and what still needs work before real public bookings/payments.
 
+## Launch gate
+
+Do not expose StayPrimePH to real users, public marketing traffic, real bookings, or real payments until every launch blocker in this checklist is closed and the full verification checklist passes on the production or production-like environment. A ready Vercel deployment is not enough by itself.
+
 ## Status key
 
 - [x] Done
@@ -181,4 +185,4 @@ Use this as the active tracker for what is done, what is configured, and what st
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-The app is live-preview ready and the latest local audit passed lint, type-check, unit/integration tests, E2E tests, production build, npm audit, and production-style security probes. Recent security fixes cover public listing visibility, host email privacy, email HTML escaping, manual payment amount validation, booking race reduction, security headers, geocode validation, account email validation, and E2E stability. The remaining blockers are at least one approved production listing for public search/listing/checkout QA, live Stripe account activation/keys/webhook/payment test, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, physical real-device QA, final confirmation-email telemetry, and the security hardening items above before real public bookings/payments.
+Launch remains blocked for real users until the launch gate above is satisfied. The latest verification confirmed lint, type-check, unit/integration tests, dependency audit, hosted smoke checks, security headers, no committed secrets, and distributed Upstash rate limiting. Remaining blockers include fixing the production database migration drift seen during failed-login/demo-credential checks, updating E2E coverage for the current email-verification and strong-password flows, at least one approved production listing for public search/listing/checkout QA, live Stripe account activation/keys/webhook/payment test or paid-booking disablement confirmation, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, physical real-device QA, final confirmation-email telemetry, and the security hardening items above before real public bookings/payments.
