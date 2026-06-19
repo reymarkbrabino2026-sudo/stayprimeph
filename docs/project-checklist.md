@@ -2,6 +2,8 @@
 
 Use this as the active tracker for what is done, what is configured, and what still needs work before real public bookings/payments.
 
+Last updated: 2026-06-19.
+
 ## Launch gate
 
 Do not expose StayPrimePH to real users, public marketing traffic, real bookings, or real payments until every launch blocker in this checklist is closed and the full verification checklist passes on the production or production-like environment. A ready Vercel deployment is not enough by itself.
@@ -13,6 +15,16 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [ ] Needs manual provider/account setup
 - [ ] Needs product/code work
 
+## Current launch blockers
+
+- [x] Apply and verify all production Prisma migrations; failed-login and demo-credential checks return normal auth errors, not the app error page.
+- [ ] Update E2E tests for the current email-verification, strong-password, and no-auto-login signup flows, then make `npm run test:e2e` pass.
+- [ ] Re-run the full verification checklist after E2E fixes.
+- [x] Verify seeded/demo credentials do not authenticate and do not trigger server errors.
+- [ ] Create or approve at least one production listing for public search, listing detail, booking, checkout, and email QA.
+- [ ] Decide payment launch mode: keep paid bookings disabled or complete live provider payment/webhook/refund verification.
+- [ ] Complete qualified legal/privacy review, privacy contact confirmation, real-device QA, and final monitoring/email telemetry checks.
+
 ## Live site and deployment
 
 - [x] `stayprimeph.com` returns `200 OK`
@@ -21,16 +33,20 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Vercel framework set to Next.js
 - [x] Production domain connected
 - [x] Latest production deployment is Ready
+- [x] Latest production deployment with Prisma migrations is Ready and aliased to `stayprimeph.com`
 
 ## Automated checks
 
 - [x] `npm run lint` passed
 - [x] `npm run type-check` passed
-- [x] `npm run test` passed: 24 tests
-- [x] `npm run test:e2e` passed: 38 tests
-- [x] `npm run build` passed
-- [x] `npm audit --audit-level=low` found 0 vulnerabilities
-- [x] Local production DAST-style probes passed for auth redirects, unauthenticated API rejection, geocode validation, and HSTS
+- [x] `npm run test` passed: 219 tests across 51 files
+- [ ] `npm run test:e2e` currently needs updates: latest run had 27 passed, 8 failed, and 8 skipped because older specs still expect auto-login after signup and weak host passwords
+- [x] Vercel production build/deploy passed for the latest committed launch-gate update
+- [x] `npm audit --omit=dev` found 0 vulnerabilities
+- [x] Hosted production smoke checks passed for public pages, protected-route redirects, unauthenticated API rejection, and security headers
+- [x] Distributed rate limiting verified on production: 35 parallel `/api/geocode` requests returned 30 validation responses and 5 `429` responses
+- [x] Secret scan of tracked files and Git history found placeholders/examples only; real `.env*`, `.vercel`, `.next`, logs, `node_modules`, and test results are not tracked
+- [x] Demo credential verification passed after production migrations: `guest@stayprimeph.com`, `host@stayprimeph.com`, and `admin@stayprimeph.com` all return normal auth errors and do not authenticate
 - [x] `robots.txt` works
 - [x] `sitemap.xml` works
 - [x] `manifest.webmanifest` works
@@ -43,8 +59,8 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] `DIRECT_URL` configured in Vercel
 - [x] `PERSISTENCE_DRIVER=prisma` configured in production
 - [x] Production is no longer using JSON/demo persistence
-- [x] Prisma migrations run before Vercel production build
-- [x] Prisma migrations applied successfully in production
+- [x] Production Prisma migration drift recovered through Vercel production build using Prisma `migrate resolve` for pre-existing tables and `migrate deploy` for pending migrations
+- [x] All production Prisma migrations applied successfully through `20260618175000_immutable_listing_audit_logs`
 - [x] `/search` returns `200 OK` with Prisma persistence enabled
 
 ## Provider setup and integration tests
@@ -176,7 +192,8 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Confirm booking appears for host
 - [x] Confirm payment appears in admin
 - [ ] Confirm confirmation emails are delivered
-- [ ] Confirm Sentry, analytics, logs, and rate-limit telemetry show activity
+- [x] Confirm production rate-limit telemetry through live `429` behavior
+- [ ] Confirm Sentry, analytics, logs, and email telemetry show expected smoke-test activity
 
 ## Current launch verdict
 
@@ -185,4 +202,4 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-Launch remains blocked for real users until the launch gate above is satisfied. The latest verification confirmed lint, type-check, unit/integration tests, dependency audit, hosted smoke checks, security headers, no committed secrets, and distributed Upstash rate limiting. Remaining blockers include fixing the production database migration drift seen during failed-login/demo-credential checks, updating E2E coverage for the current email-verification and strong-password flows, at least one approved production listing for public search/listing/checkout QA, live Stripe account activation/keys/webhook/payment test or paid-booking disablement confirmation, Meta app icon upload/publishing, qualified legal/privacy review, data privacy contact confirmation, physical real-device QA, final confirmation-email telemetry, and the security hardening items above before real public bookings/payments.
+Launch remains blocked for real users until the launch gate and all remaining launch blockers above are satisfied. The latest verification confirmed production Prisma migrations, normal failed-login behavior, demo credential rejection, lint, type-check, unit/integration tests, dependency audit, hosted smoke checks, security headers, no committed secrets, production deployment health, and distributed Upstash rate limiting. Remaining release blockers include stale E2E expectations around email verification, strong passwords, and signup login behavior; production listing/search/checkout QA; payment launch-mode confirmation; qualified legal/privacy review; real-device QA; and final monitoring/email telemetry checks.
