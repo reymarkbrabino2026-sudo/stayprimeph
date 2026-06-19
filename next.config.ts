@@ -21,6 +21,7 @@ const imgSrc = [
   "https://a.tile.openstreetmap.org",
   "https://b.tile.openstreetmap.org",
   "https://c.tile.openstreetmap.org",
+  "https://*.basemaps.cartocdn.com",
 ].join(" ");
 
 const contentSecurityPolicy = [
