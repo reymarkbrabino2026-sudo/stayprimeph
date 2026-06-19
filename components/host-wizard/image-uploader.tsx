@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
-const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
+const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 const maxClientUploadBytes = 4 * 1024 * 1024;
 const uploadTimeoutMs = 90_000;
 
@@ -134,7 +134,7 @@ export function ImageUploader() {
           </div>
         </div>
       )}
-      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(event) => handleFiles(event.target.files)} />
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" multiple className="hidden" onChange={(event) => handleFiles(event.target.files)} />
       {uploading ? (
         <div className="mt-3" aria-live="polite">
           <div className="mb-2 flex items-center justify-between text-sm text-black/60">

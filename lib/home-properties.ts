@@ -1,15 +1,14 @@
-﻿import type { Property } from "@/lib/types";
+import type { PublicListingSummary } from "@/lib/types";
 
 export interface PropertyRail {
   title: string;
-  items: Property[];
+  items: PublicListingSummary[];
 }
 
-export function buildHomePropertyRails(properties: Property[]): PropertyRail[] {
-  const approved = properties.filter((property) => property.status === "approved");
-  const byCity = new Map<string, Property[]>();
+export function buildHomePropertyRails(properties: PublicListingSummary[]): PropertyRail[] {
+  const byCity = new Map<string, PublicListingSummary[]>();
 
-  for (const property of approved) {
+  for (const property of properties) {
     const cityProperties = byCity.get(property.city) ?? [];
     cityProperties.push(property);
     byCity.set(property.city, cityProperties);
@@ -20,7 +19,7 @@ export function buildHomePropertyRails(properties: Property[]): PropertyRail[] {
     .slice(0, 3)
     .map(([city, items]) => ({ title: `Homes in ${city}`, items }));
 
-  const newest = [...approved]
+  const newest = [...properties]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 8);
 

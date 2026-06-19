@@ -3,15 +3,14 @@ import { PropertyRail } from "@/components/home/property-rail";
 import { SiteFooter } from "@/components/home/site-footer";
 import { HomeHeader } from "@/components/public/home-header";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
 import { buildHomePropertyRails } from "@/lib/home-properties";
-import { getProperties } from "@/lib/properties";
+import { getPublicListingSummaries } from "@/lib/properties";
+
+export const revalidate = 60;
 
 export default async function HomePage() {
-  const [currentUser, properties] = await Promise.all([getCurrentUser(), getProperties()]);
+  const properties = await getPublicListingSummaries();
   const propertyRails = buildHomePropertyRails(properties);
-  const showHostCta = !currentUser || currentUser.role === "guest";
-  const hostCtaHref = currentUser?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";
 
   return (
     <div className="bg-white">
@@ -22,7 +21,7 @@ export default async function HomePage() {
       <main className="w-full space-y-10 px-4 pb-24 pt-8 sm:px-6 md:pb-12 md:pt-12 lg:px-9 2xl:px-10">
         {propertyRails.length > 0 ? (
           propertyRails.map((rail) => (
-            <PropertyRail key={rail.title} title={rail.title} items={rail.items} isAuthenticated={Boolean(currentUser)} />
+            <PropertyRail key={rail.title} title={rail.title} items={rail.items} isAuthenticated={false} />
           ))
         ) : (
           <section className="mx-auto flex min-h-64 max-w-3xl flex-col items-center justify-center py-10 text-center">
@@ -37,11 +36,9 @@ export default async function HomePage() {
               <Link href="/search" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
                 Explore destinations
               </Link>
-              {showHostCta ? (
-                <Link href={hostCtaHref} className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 font-semibold transition hover:border-black">
-                  Become a host
-                </Link>
-              ) : null}
+              <Link href="/register?role=host" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/15 px-6 font-semibold transition hover:border-black">
+                Become a host
+              </Link>
             </div>
           </section>
         )}

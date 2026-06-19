@@ -13,7 +13,7 @@ import { readStoredProperties, writeStoredProperties } from "@/lib/property-stor
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { logger } from "@/lib/logger";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
-import { getPropertyById } from "@/lib/properties";
+import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
 import type { Property } from "@/lib/types";
@@ -344,8 +344,8 @@ export async function createListing(formData: FormData) {
     const storedProperties = await readStoredProperties();
     await writeStoredProperties([property, ...storedProperties]);
   }
+  revalidatePublicListingSummaries();
   revalidatePath("/host/listings");
-  revalidatePath("/search");
   redirect("/host/listings");
 }
 
@@ -405,10 +405,9 @@ export async function updateListing(formData: FormData) {
     await writeStoredProperties(storedProperties.map((property) => property.id === nextProperty.id && property.hostId === user.id ? nextProperty : property));
   }
 
-  revalidatePath("/");
+  revalidatePublicListingSummaries();
   revalidatePath("/host/listings");
   revalidatePath(`/host/listings/${nextProperty.id}`);
-  revalidatePath("/search");
   revalidatePath(`/property/${nextProperty.slug}`);
   redirect(`/host/listings/${nextProperty.id}?updated=1`);
 }
@@ -534,7 +533,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     return { status: "error" as const, error: "We couldn't save your listing yet. Please try again in a moment." };
   }
 
+  revalidatePublicListingSummaries();
   revalidatePath("/host/listings");
-  revalidatePath("/search");
   return { status: "published" as const };
 }

@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-const acceptedListingPhotoExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const acceptedListingPhotoExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 const listingPhotoExtensionByContentType = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
   ["image/webp", ".webp"],
+  ["image/avif", ".avif"],
 ]);
 
 function safePathSegment(value: string) {

@@ -1,4 +1,4 @@
-import type { Property } from "@/lib/types";
+import type { Property, PublicListingSummary } from "@/lib/types";
 
 export type Coordinates = [number, number];
 
@@ -61,7 +61,7 @@ export function resolveLocationCoordinates(location?: string) {
   return cityCoordinates[normalized] ?? null;
 }
 
-export function resolvePropertyCoordinates(property: Property): Coordinates | null {
+export function resolvePropertyCoordinates(property: Property | PublicListingSummary): Coordinates | null {
   if (hasPropertyCoordinates(property)) return [property.latitude!, property.longitude!];
 
   const fullLocation = [

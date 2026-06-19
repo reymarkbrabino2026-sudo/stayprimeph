@@ -2,7 +2,7 @@ import { defaultMapCenter, hasPropertyCoordinates, resolvePropertyCoordinates } 
 import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
-import type { Property } from "@/lib/types";
+import type { PublicListingSummary } from "@/lib/types";
 
 export type SearchMapMarker = {
   id: string;
@@ -25,7 +25,7 @@ function markerOffset(index: number) {
   return offsets[index % offsets.length];
 }
 
-export function getListingMarkers(properties: Property[]): SearchMapMarker[] {
+export function getListingMarkers(properties: PublicListingSummary[]): SearchMapMarker[] {
   return properties.slice(0, 18).map((property, index) => {
     const exact = hasPropertyCoordinates(property);
     const base = resolvePropertyCoordinates(property) ?? defaultMapCenter;

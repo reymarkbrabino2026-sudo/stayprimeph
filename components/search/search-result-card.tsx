@@ -4,7 +4,7 @@ import { Star } from "lucide-react";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import { formatPropertyLocation } from "@/lib/property-location";
-import type { Property } from "@/lib/types";
+import type { PublicListingSummary } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 function isRenderableImage(src?: string) {
@@ -16,7 +16,7 @@ export function SearchResultCard({
   isAuthenticated,
   priority = false,
 }: {
-  property: Property;
+  property: PublicListingSummary;
   isAuthenticated: boolean;
   priority?: boolean;
 }) {

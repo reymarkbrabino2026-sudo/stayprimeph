@@ -25,6 +25,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
 vi.mock("@/lib/admin-mfa", () => ({
@@ -110,6 +111,7 @@ vi.mock("@/lib/pricing", () => ({
 
 vi.mock("@/lib/properties", () => ({
   getPropertyById: vi.fn(),
+  revalidatePublicListingSummaries: vi.fn(),
 }));
 
 vi.mock("@/lib/property-store", () => ({

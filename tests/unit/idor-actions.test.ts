@@ -14,6 +14,7 @@ const authState = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -153,6 +154,7 @@ vi.mock("@/lib/pricing", () => ({
 vi.mock("@/lib/properties", () => ({
   getPropertyById: vi.fn(),
   getProperties: vi.fn(async () => []),
+  revalidatePublicListingSummaries: vi.fn(),
 }));
 
 vi.mock("@/lib/property-store", () => ({
@@ -225,7 +227,7 @@ import { cancelBookingByGuest, getBookingById, getBookings, hasDateConflict } fr
 import { calculatePackageSubtotal, getBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
 import { savePersonalInfo } from "@/lib/account-settings";
 import { createMessage } from "@/lib/messages";
-import { getProperties, getPropertyById } from "@/lib/properties";
+import { getProperties, getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
@@ -561,7 +563,7 @@ describe("IDOR protections", () => {
       }),
     ]);
     expect(revalidatePath).toHaveBeenCalledWith(`/host/listings/${property.id}`);
-    expect(revalidatePath).toHaveBeenCalledWith("/search");
+    expect(revalidatePublicListingSummaries).toHaveBeenCalled();
   });
 
   it("blocks a host from editing another host's listing", async () => {
@@ -684,7 +686,7 @@ describe("IDOR protections", () => {
       expect.objectContaining({ id: savedDraft.id, status: "draft" }),
     ]));
     expect(revalidatePath).toHaveBeenCalledWith("/host/listings");
-    expect(revalidatePath).toHaveBeenCalledWith("/search");
+    expect(revalidatePublicListingSummaries).toHaveBeenCalled();
   });
 
   it("saves wizard progress as a draft listing for the signed-in host", async () => {

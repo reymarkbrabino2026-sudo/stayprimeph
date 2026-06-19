@@ -1,10 +1,11 @@
 import { Navbar } from "@/components/public/navbar";
 import { SearchBar } from "@/components/public/search-bar";
-import { RealMap } from "@/components/search/real-map";
+import { DeferredRealMap } from "@/components/search/deferred-real-map";
 import { SearchResultCard } from "@/components/search/search-result-card";
-import { getCurrentUser } from "@/lib/auth";
-import { getProperties } from "@/lib/properties";
+import { getPublicListingSummaries } from "@/lib/properties";
 import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
+
+export const revalidate = 60;
 
 export default async function SearchPage({
   searchParams,
@@ -12,8 +13,7 @@ export default async function SearchPage({
   searchParams: Promise<{ location?: string; guests?: string }>;
 }) {
   const query = await searchParams;
-  const [currentUser, properties] = await Promise.all([getCurrentUser(), getProperties()]);
-  const approved = properties.filter((property) => property.status === "approved");
+  const approved = await getPublicListingSummaries();
   const requestedGuests = Number(query.guests ?? 0);
   const location = normalizePropertyLocationSearchQuery(query.location);
   const locationLabel = formatSearchLocationLabel(query.location);
@@ -51,14 +51,14 @@ export default async function SearchPage({
 
           <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
             {results.map((property, index) => (
-              <SearchResultCard key={property.id} property={property} isAuthenticated={Boolean(currentUser)} priority={index < 2} />
+              <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
             ))}
           </div>
         </section>
 
         <aside className="hidden border-l lg:block">
           <div className="sticky top-0 h-screen p-6">
-            <RealMap properties={results} location={query.location} />
+            <DeferredRealMap properties={results} location={query.location} />
           </div>
         </aside>
       </main>

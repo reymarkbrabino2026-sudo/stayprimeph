@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { updatePropertyStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { sendListingReviewEmail } from "@/lib/email";
-import { getPropertyById } from "@/lib/properties";
+import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
 import { getUserById } from "@/lib/users";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { isHostScopedListingPhotoUrl } from "@/lib/upload-paths";
@@ -69,11 +69,10 @@ async function updateListingStatus(formData: FormData, status: ListingStatus) {
     });
   }
   logger.info("listing_status_updated", { listingId: id, status, adminId: user.id });
-  revalidatePath("/");
+  revalidatePublicListingSummaries();
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/listings");
   revalidatePath("/host/listings");
-  revalidatePath("/search");
 }
 
 export async function approveListing(formData: FormData) {

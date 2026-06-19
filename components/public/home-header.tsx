@@ -106,7 +106,7 @@ export function HomeHeader() {
                 Become a host
               </Link>
             ) : null}
-            <NotificationBell variant={collapsed ? "dark" : "light"} />
+            {session.user ? <NotificationBell variant={collapsed ? "dark" : "light"} /> : null}
             <TravellerMenu />
           </div>
         </div>

@@ -5,13 +5,13 @@ import { headers } from "next/headers";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
-import { sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
+import { sanitizeListingPhotoImage, type OptimizedListingPhotoVariant, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
-import { cloudinaryListingUploadFolder, extensionFromContentType, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
+import { cloudinaryListingUploadFolder, normalizeUploadScopeId, serverGeneratedListingBlobPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
 
 async function requireListingUploadScope(userId: string, value: FormDataEntryValue | null) {
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Upload a JPG, PNG, or WebP image." }, { status: 400 });
+    return NextResponse.json({ error: "Upload a JPG, PNG, WebP, or AVIF image." }, { status: 400 });
   }
 
   const metadataValidation = validateListingPhotoMetadata(file);
@@ -88,10 +88,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: sanitizedImage.error }, { status: sanitizedImage.status });
   }
 
-  const uploadPath = serverGeneratedListingUploadPath({
+  const uploadBasePath = serverGeneratedListingBlobPath({
     userId: user.id,
     listingId,
-    extension: extensionFromContentType(file.type),
   });
 
   if (hasCloudinaryConfig()) {
@@ -102,22 +101,52 @@ export async function POST(request: Request) {
         api_secret: env.CLOUDINARY_API_SECRET,
         secure: true,
       });
-      const uploaded = await new Promise<{ secure_url: string; public_id: string; bytes: number }>((resolve, reject) => {
+      const folder = cloudinaryListingUploadFolder(user.id, listingId);
+      const publicIdBase = path.basename(uploadBasePath);
+      const uploadVariant = (variant: OptimizedListingPhotoVariant) => new Promise<{
+        format: OptimizedListingPhotoVariant["format"];
+        url: string;
+        id: string;
+        bytes: number;
+        width: number;
+        height: number;
+        contentType: string;
+      }>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            folder: cloudinaryListingUploadFolder(user.id, listingId),
-            public_id: path.basename(uploadPath, path.extname(uploadPath)),
+            folder,
+            public_id: `${publicIdBase}-${variant.format}`,
             overwrite: false,
+            format: variant.format,
             resource_type: "image",
           },
           (error, result) => {
             if (error || !result) reject(error ?? new Error("Upload failed."));
-            else resolve({ secure_url: result.secure_url, public_id: result.public_id, bytes: result.bytes });
+            else resolve({
+              format: variant.format,
+              url: result.secure_url,
+              id: result.public_id,
+              bytes: result.bytes,
+              width: variant.width,
+              height: variant.height,
+              contentType: variant.contentType,
+            });
           },
         );
-        stream.end(sanitizedImage.bytes);
+        stream.end(variant.bytes);
       });
-      return NextResponse.json({ id: uploaded.public_id, url: uploaded.secure_url, bytes: uploaded.bytes });
+      const uploadedVariants = await Promise.all(sanitizedImage.variants.map(uploadVariant));
+      const primary = uploadedVariants.find((variant) => variant.format === sanitizedImage.primary.format) ?? uploadedVariants[0];
+      return NextResponse.json({
+        id: primary.id,
+        url: primary.url,
+        bytes: primary.bytes,
+        width: primary.width,
+        height: primary.height,
+        contentType: primary.contentType,
+        storage: "cloudinary",
+        variants: uploadedVariants,
+      });
     } catch (error) {
       logger.error("cloudinary_listing_photo_upload_failed", { userId: user.id, error });
       return NextResponse.json({ error: "Cloudinary upload failed. Check the storage credentials and try again." }, { status: 502 });
@@ -127,19 +156,35 @@ export async function POST(request: Request) {
   if (hasVercelBlobConfig()) {
     try {
       const token = getPhotoBlobReadWriteToken();
-      const blob = await put(uploadPath, sanitizedImage.bytes, {
-        access: "public",
-        contentType: file.type,
-        addRandomSuffix: false,
-        allowOverwrite: false,
-        token,
-      });
+      const uploadedVariants = await Promise.all(sanitizedImage.variants.map(async (variant) => {
+        const blob = await put(`${uploadBasePath}${variant.extension}`, variant.bytes, {
+          access: "public",
+          contentType: variant.contentType,
+          addRandomSuffix: false,
+          allowOverwrite: false,
+          token,
+        });
+        return {
+          format: variant.format,
+          url: blob.url,
+          id: blob.pathname,
+          bytes: variant.bytes.length,
+          width: variant.width,
+          height: variant.height,
+          contentType: variant.contentType,
+        };
+      }));
+      const primary = uploadedVariants.find((variant) => variant.format === sanitizedImage.primary.format) ?? uploadedVariants[0];
 
       return NextResponse.json({
-        id: blob.pathname,
-        url: blob.url,
-        bytes: sanitizedImage.bytes.length,
+        id: primary.id,
+        url: primary.url,
+        bytes: primary.bytes,
+        width: primary.width,
+        height: primary.height,
+        contentType: primary.contentType,
         storage: "vercel-blob",
+        variants: uploadedVariants,
       });
     } catch (error) {
       logger.error("vercel_blob_listing_photo_upload_failed", { userId: user.id, error });

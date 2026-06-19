@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { PropertyImage } from "@/lib/types";
 
-const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
+const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 const maxClientUploadBytes = 4 * 1024 * 1024;
 const maxPhotos = 20;
 const uploadTimeoutMs = 90_000;
@@ -97,7 +97,7 @@ export function ImageUploader({
     if (!listingId || !files) return;
     const accepted = Array.from(files).filter((file) => acceptedTypes.includes(file.type));
     if (!accepted.length) {
-      setError("Upload JPG, PNG, or WebP photos.");
+      setError("Upload JPG, PNG, WebP, or AVIF photos.");
       return;
     }
     if (photos.length + accepted.length > maxPhotos) {
@@ -206,7 +206,7 @@ export function ImageUploader({
       {photos.map((photo) => (
         <input key={`photo-url-${photo.id}-${photo.url}`} type="hidden" name="photoUrls" value={photo.url} />
       ))}
-      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(event) => handleFiles(event.target.files)} />
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" multiple className="hidden" onChange={(event) => handleFiles(event.target.files)} />
 
       {uploading ? (
         <div className="mt-4" aria-live="polite">

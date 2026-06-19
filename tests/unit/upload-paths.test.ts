@@ -29,6 +29,7 @@ describe("listing upload paths", () => {
     expect(extensionFromRequestedPath("photo.JPG")).toBe(".jpg");
     expect(extensionFromRequestedPath("photo.png")).toBe(".png");
     expect(extensionFromRequestedPath("photo.webp")).toBe(".webp");
+    expect(extensionFromRequestedPath("photo.avif")).toBe(".avif");
     expect(() => extensionFromRequestedPath("photo.svg")).toThrow("Invalid upload path.");
     expect(() => extensionFromRequestedPath("photo")).toThrow("Invalid upload path.");
   });
@@ -37,6 +38,7 @@ describe("listing upload paths", () => {
     expect(extensionFromContentType("image/jpeg")).toBe(".jpg");
     expect(extensionFromContentType("image/png")).toBe(".png");
     expect(extensionFromContentType("image/webp")).toBe(".webp");
+    expect(extensionFromContentType("image/avif")).toBe(".avif");
     expect(() => extensionFromContentType("image/svg+xml")).toThrow("Invalid upload content type.");
   });
 
@@ -65,6 +67,7 @@ describe("listing upload paths", () => {
 
     expect(isIntendedListingPhotoUrl("/uploads/listings/host-1/draft-1/photo.jpg", scope)).toBe(true);
     expect(isIntendedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-1/photo.webp", scope)).toBe(true);
+    expect(isIntendedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-1/photo.avif", scope)).toBe(true);
     expect(isIntendedListingPhotoUrl("https://res.cloudinary.com/stayprime-cloud/image/upload/v123/stayprimeph/uploads/listings/host-1/draft-1/photo.png", scope)).toBe(true);
 
     expect(isIntendedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-2/draft-1/photo.webp", scope)).toBe(false);

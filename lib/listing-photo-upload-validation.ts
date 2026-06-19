@@ -1,16 +1,37 @@
 import path from "node:path";
 import sharp from "sharp";
 
-export const listingPhotoAcceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+export const listingPhotoAcceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 export const maxListingPhotoUploadBytes = 4 * 1024 * 1024;
 const maxListingPhotoPixels = 24_000_000;
 const maxListingPhotoDimension = 8_000;
+export const maxOptimizedListingPhotoDimension = 1600;
 
 const acceptedExtensionsByType = new Map([
   ["image/jpeg", new Set(["jpg", "jpeg"])],
   ["image/png", new Set(["png"])],
   ["image/webp", new Set(["webp"])],
+  ["image/avif", new Set(["avif"])],
 ]);
+
+export type OptimizedListingPhotoFormat = "webp" | "avif";
+
+export type OptimizedListingPhotoVariant = {
+  format: OptimizedListingPhotoFormat;
+  contentType: `image/${OptimizedListingPhotoFormat}`;
+  extension: `.${OptimizedListingPhotoFormat}`;
+  bytes: Buffer;
+  width: number;
+  height: number;
+};
+
+export type OptimizedListingPhotoImage = {
+  primary: OptimizedListingPhotoVariant;
+  variants: OptimizedListingPhotoVariant[];
+  bytes: Buffer;
+  width: number;
+  height: number;
+};
 
 export function hasAcceptedListingPhotoExtension(fileName: string, type: string) {
   const extension = path.extname(fileName).toLowerCase().replace(".", "");
@@ -19,7 +40,7 @@ export function hasAcceptedListingPhotoExtension(fileName: string, type: string)
 
 export function validateListingPhotoMetadata(input: { name: string; type: string; size: number }) {
   if (!listingPhotoAcceptedTypes.has(input.type) || !hasAcceptedListingPhotoExtension(input.name, input.type)) {
-    return { ok: false as const, error: "Upload a JPG, PNG, or WebP image.", status: 400 };
+    return { ok: false as const, error: "Upload a JPG, PNG, WebP, or AVIF image.", status: 400 };
   }
 
   if (input.size > maxListingPhotoUploadBytes) {
@@ -38,6 +59,9 @@ export function hasExpectedListingPhotoSignature(bytes: Buffer, type: string) {
   if (type === "image/webp") {
     return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
   }
+  if (type === "image/avif") {
+    return bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp" && bytes.toString("ascii", 8, 12) === "avif";
+  }
   return false;
 }
 
@@ -53,6 +77,7 @@ function expectedSharpFormat(type: string) {
   if (type === "image/jpeg") return "jpeg";
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
+  if (type === "image/avif") return "heif";
   return null;
 }
 
@@ -77,17 +102,50 @@ async function reencodeListingPhoto(bytes: Buffer, type: string) {
     throw new Error("Unsupported image payload.");
   }
 
-  if (type === "image/jpeg") return image.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
-  if (type === "image/png") return image.png({ compressionLevel: 9, palette: false }).toBuffer();
-  if (type === "image/webp") return image.webp({ quality: 85 }).toBuffer();
+  const normalized = image.resize({
+    width: maxOptimizedListingPhotoDimension,
+    height: maxOptimizedListingPhotoDimension,
+    fit: "inside",
+    withoutEnlargement: true,
+  });
 
-  throw new Error("Unsupported image payload.");
+  const [webp, avif] = await Promise.all([
+    normalized.clone().webp({ quality: 82, effort: 4 }).toBuffer({ resolveWithObject: true }),
+    normalized.clone().avif({ quality: 58, effort: 4 }).toBuffer({ resolveWithObject: true }),
+  ]);
+
+  const variants: OptimizedListingPhotoVariant[] = [
+    {
+      format: "webp",
+      contentType: "image/webp",
+      extension: ".webp",
+      bytes: webp.data,
+      width: webp.info.width,
+      height: webp.info.height,
+    },
+    {
+      format: "avif",
+      contentType: "image/avif",
+      extension: ".avif",
+      bytes: avif.data,
+      width: avif.info.width,
+      height: avif.info.height,
+    },
+  ];
+
+  return {
+    primary: variants[0],
+    variants,
+    bytes: variants[0].bytes,
+    width: variants[0].width,
+    height: variants[0].height,
+  } satisfies OptimizedListingPhotoImage;
 }
 
 export async function sanitizeListingPhotoImage(bytes: Buffer, type: string) {
   try {
-    const sanitizedBytes = await reencodeListingPhoto(bytes, type);
-    return { ok: true as const, bytes: sanitizedBytes };
+    const optimizedImage = await reencodeListingPhoto(bytes, type);
+    return { ok: true as const, ...optimizedImage };
   } catch {
     return { ok: false as const, error: "The uploaded image could not be safely processed.", status: 400 };
   }

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostExpense, HostMonthlyReport, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, Review, User } from "@/lib/types";
+import type { AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostExpense, HostMonthlyReport, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, PublicListingSummary, Review, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -339,6 +339,24 @@ type DatabaseProperty = Prisma.PropertyGetPayload<{
     pricing: true;
   };
 }>;
+type DatabasePublicListingSummary = Prisma.PropertyGetPayload<{
+  select: {
+    id: true;
+    slug: true;
+    title: true;
+    address: true;
+    city: true;
+    country: true;
+    pricePerNight: true;
+    bedrooms: true;
+    maxGuests: true;
+    propertyType: true;
+    rating: true;
+    createdAt: true;
+    images: { take: 1 };
+    location: true;
+  };
+}>;
 
 function groupBookingPackages(packages: DatabaseBookingPackage[]) {
   return packages.reduce<Record<string, BookingPackage[]>>((groups, item) => {
@@ -383,6 +401,30 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
   };
 }
 
+function toPublicListingSummary(property: DatabasePublicListingSummary): PublicListingSummary {
+  return {
+    id: property.id,
+    slug: property.slug,
+    title: property.title,
+    address: property.address,
+    city: property.city,
+    country: property.country,
+    pricePerNight: property.pricePerNight,
+    bedrooms: property.bedrooms,
+    maxGuests: property.maxGuests,
+    propertyType: property.propertyType,
+    rating: property.rating,
+    createdAt: property.createdAt.toISOString().slice(0, 10),
+    images: property.images.map(toPropertyImage),
+    latitude: property.location?.latitude,
+    longitude: property.location?.longitude,
+    barangay: property.location?.barangay ?? undefined,
+    province: property.location?.province ?? undefined,
+    zipCode: property.location?.zipCode ?? undefined,
+    preciseLocation: property.location?.preciseLocation,
+  };
+}
+
 export async function listPropertiesFromDatabase(): Promise<Property[]> {
   await ensureListingBookingPackageTable();
   const properties = await prisma.property.findMany({
@@ -404,6 +446,31 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
   const packagesByProperty = groupBookingPackages(packages);
 
   return properties.map((property) => toProperty(property, packagesByProperty));
+}
+
+export async function listPublicListingSummariesFromDatabase(): Promise<PublicListingSummary[]> {
+  const properties = await prisma.property.findMany({
+    where: { status: "approved" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      address: true,
+      city: true,
+      country: true,
+      pricePerNight: true,
+      bedrooms: true,
+      maxGuests: true,
+      propertyType: true,
+      rating: true,
+      createdAt: true,
+      images: { take: 1 },
+      location: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return properties.map(toPublicListingSummary);
 }
 
 export async function findPropertyByIdFromDatabase(id: string): Promise<Property | null> {

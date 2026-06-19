@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import { defaultMapCenter, resolveLocationCoordinates } from "@/lib/property-map";
 import { getListingMarkers } from "@/lib/search-map";
-import type { Property } from "@/lib/types";
+import type { PublicListingSummary } from "@/lib/types";
 import { formatSearchLocationLabel, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
 
 function averageCoordinates(markers: Array<{ coords: [number, number] }>) {
@@ -31,7 +31,7 @@ function getDestinationMarker(location: string | undefined, markers: Array<{ coo
   };
 }
 
-export function RealMap({ properties, location }: { properties: Property[]; location?: string }) {
+export function RealMap({ properties, location }: { properties: PublicListingSummary[]; location?: string }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
   const markers = useMemo(() => getListingMarkers(properties), [properties]);

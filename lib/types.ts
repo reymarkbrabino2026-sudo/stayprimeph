@@ -7,6 +7,27 @@ export type AvailabilityBlockReason = "booked_elsewhere" | "owner_use" | "mainte
 
 export interface User { id: string; name: string; email: string; role: UserRole; avatar: string; phone: string; createdAt: string; passwordHash?: string; emailVerifiedAt?: string; passwordChangedAt?: string; }
 export interface PropertyImage { id: string; propertyId: string; imageUrl: string; tone: string; }
+export interface PublicListingSummary {
+  id: string;
+  slug: string;
+  title: string;
+  address?: string;
+  city: string;
+  country: string;
+  pricePerNight: number;
+  bedrooms: number;
+  maxGuests: number;
+  propertyType: string;
+  rating: number;
+  createdAt: string;
+  images: PropertyImage[];
+  latitude?: number;
+  longitude?: number;
+  barangay?: string;
+  province?: string;
+  zipCode?: string;
+  preciseLocation?: boolean;
+}
 export interface ListingDiscounts { newListing: boolean; lastMinute: boolean; weekly: boolean; monthly: boolean; }
 export type BookingPackageUnit = "night" | "day";
 export interface BookingPackage {
