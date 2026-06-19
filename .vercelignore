@@ -3,3 +3,5 @@
 *.log
 test-results
 .codex-worktrees
+live-room-smoke.png
+proof-admin-resend-code-fixed.png
