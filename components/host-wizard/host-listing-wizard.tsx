@@ -10,8 +10,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
-import { publishWizardListing } from "@/app/host/listings/actions";
+import { publishWizardListing, saveWizardListingDraft } from "@/app/host/listings/actions";
 import { AmenityCard, CounterInput, OptionCard } from "@/components/host-wizard/cards";
 import { DescriptionInput, ListingPreviewCard } from "@/components/host-wizard/content";
 import { ImageUploader, UploadCard } from "@/components/host-wizard/image-uploader";
@@ -105,8 +106,18 @@ function formatAddressValues(values: AddressValues) {
     .join(", ");
 }
 
+function isNextRedirectError(error: unknown) {
+  const digest = typeof error === "object" && error !== null && "digest" in error
+    ? String((error as { digest?: unknown }).digest ?? "")
+    : "";
+
+  return digest.startsWith("NEXT_REDIRECT") || error instanceof Error && error.message.includes("NEXT_REDIRECT");
+}
+
 export function HostListingWizard({ user, csrfToken, freshStart = false }: { user: { id: string; email: string }; csrfToken: string; freshStart?: boolean }) {
+  const router = useRouter();
   const { ownerUserId, initialized, currentStep, draft, initializeForUser, setStep, updateDraft, toggleAmenity } = useHostWizardStore();
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
   const step = hostWizardSteps.find((item) => item.id === currentStep) ?? hostWizardSteps[0];
@@ -136,6 +147,22 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const titleRemaining = 50 - draft.title.length;
   const selectedAmenities = useMemo(() => new Set(draft.amenityIds), [draft.amenityIds]);
 
+  async function saveAndExit() {
+    if (isSavingDraft) return;
+
+    setPublishError("");
+    setIsSavingDraft(true);
+    try {
+      await saveWizardListingDraft({ ...draft, status: "draft" }, csrfToken);
+      router.push("/host/listings");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "We couldn't save your draft. Please try again.";
+      setIsSavingDraft(false);
+      setPublishError(message);
+      alert(message);
+    }
+  }
+
   async function submitListing() {
     if (isPublishing) return;
     setPublishError("");
@@ -152,6 +179,8 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     try {
       await publishWizardListing(parsed.data, csrfToken);
     } catch (error) {
+      if (isNextRedirectError(error)) throw error;
+
       const message = error instanceof Error ? error.message : "We couldn't publish your listing. Please try again.";
       setIsPublishing(false);
       setPublishError(message);
@@ -190,7 +219,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   }
 
   return (
-    <StepLayout>
+    <StepLayout onSaveAndExit={saveAndExit} isSavingDraft={isSavingDraft}>
       <StepTransition stepKey={currentStep}>
         {currentStep === "address" ? (
           <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_28rem]">

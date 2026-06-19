@@ -331,76 +331,76 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
   }));
 }
 
-export async function createPropertyInDatabase(property: Property) {
+async function propertyCreateData(db: Pick<Prisma.TransactionClient, "amenity">, property: Property) {
   const hasCoordinates = Number.isFinite(property.latitude) && Number.isFinite(property.longitude);
 
-  await prisma.property.create({
-    data: {
-      id: property.id,
-      hostId: property.hostId,
-      slug: property.slug,
-      title: property.title,
-      description: property.description,
-      address: property.address,
-      city: property.city,
-      country: property.country,
-      pricePerNight: property.pricePerNight,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      maxGuests: property.maxGuests,
-      propertyType: property.propertyType,
-      status: property.status,
-      rating: property.rating,
-      rules: JSON.stringify(property.rules),
-      createdAt: new Date(property.createdAt),
-      ...(hasCoordinates ? {
-        location: {
-          create: {
-            id: `location-${property.id}`,
-            latitude: property.latitude!,
-            longitude: property.longitude!,
-            barangay: property.barangay,
-            province: property.province,
-            zipCode: property.zipCode,
-            preciseLocation: property.preciseLocation ?? false,
-          },
+  return {
+    id: property.id,
+    hostId: property.hostId,
+    slug: property.slug,
+    title: property.title,
+    description: property.description,
+    address: property.address,
+    city: property.city,
+    country: property.country,
+    pricePerNight: property.pricePerNight,
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    maxGuests: property.maxGuests,
+    propertyType: property.propertyType,
+    status: property.status,
+    rating: property.rating,
+    rules: JSON.stringify(property.rules),
+    createdAt: new Date(property.createdAt),
+    ...(hasCoordinates ? {
+      location: {
+        create: {
+          id: `location-${property.id}`,
+          latitude: property.latitude!,
+          longitude: property.longitude!,
+          barangay: property.barangay,
+          province: property.province,
+          zipCode: property.zipCode,
+          preciseLocation: property.preciseLocation ?? false,
         },
-      } : {}),
-      ...(Number.isFinite(property.weekendPrice) ? {
-        pricing: {
-          create: {
-            id: `pricing-${property.id}`,
-            weekendPrice: property.weekendPrice!,
-            cleaningFee: property.cleaningFee ?? 0,
-            securityDeposit: property.securityDeposit ?? 0,
-            currency: property.currency ?? "PHP",
-          },
+      },
+    } : {}),
+    ...(Number.isFinite(property.weekendPrice) ? {
+      pricing: {
+        create: {
+          id: `pricing-${property.id}`,
+          weekendPrice: property.weekendPrice!,
+          cleaningFee: property.cleaningFee ?? 0,
+          securityDeposit: property.securityDeposit ?? 0,
+          currency: property.currency ?? "PHP",
         },
-      } : {}),
-      images: {
-        create: property.images.map((image) => ({
-          id: image.id,
-          imageUrl: image.imageUrl,
-          tone: image.tone,
-        })),
       },
-      amenities: {
-        create: await Promise.all(property.amenities.map(async (name) => {
-          const amenity = await prisma.amenity.upsert({
-            where: { name },
-            update: {},
-            create: { id: `amenity-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name },
-          });
-          return { amenityId: amenity.id };
-        })),
-      },
+    } : {}),
+    images: {
+      create: property.images.map((image) => ({
+        id: image.id,
+        imageUrl: image.imageUrl,
+        tone: image.tone,
+      })),
     },
-  });
+    amenities: {
+      create: await Promise.all(property.amenities.map(async (name) => {
+        const amenity = await db.amenity.upsert({
+          where: { name },
+          update: {},
+          create: { id: `amenity-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name },
+        });
+        return { amenityId: amenity.id };
+      })),
+    },
+  };
+}
 
+async function insertPropertyBookingPackages(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Property) {
   if (property.bookingPackages?.length) {
-    await ensureListingBookingPackageTable();
-    await prisma.$transaction(
-      property.bookingPackages.map((bookingPackage) => prisma.$executeRaw`
+    await ensureListingBookingPackageTable(db);
+    await Promise.all(
+      property.bookingPackages.map((bookingPackage) => db.$executeRaw`
         INSERT INTO "ListingBookingPackage" (
           "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
           "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
@@ -414,6 +414,23 @@ export async function createPropertyInDatabase(property: Property) {
       `),
     );
   }
+}
+
+export async function createPropertyInDatabase(property: Property) {
+  await prisma.$transaction(async (tx) => {
+    await tx.property.create({ data: await propertyCreateData(tx, property) });
+    await insertPropertyBookingPackages(tx, property);
+  });
+}
+
+export async function upsertDraftPropertyInDatabase(property: Property) {
+  if (property.status !== "draft") throw new Error("Only draft listings can be saved through this path.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.property.deleteMany({ where: { id: property.id, hostId: property.hostId, status: "draft" } });
+    await tx.property.create({ data: await propertyCreateData(tx, property) });
+    await insertPropertyBookingPackages(tx, property);
+  });
 }
 
 export async function updatePropertyStatusInDatabase(id: string, status: Property["status"]) {

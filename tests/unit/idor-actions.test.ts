@@ -186,6 +186,7 @@ vi.mock("@/lib/repositories", () => ({
   listPaymentsFromDatabase: vi.fn(async () => []),
   recordStripeCheckoutSessionInDatabase: vi.fn(),
   recordManualPaymentInDatabase: vi.fn(),
+  upsertDraftPropertyInDatabase: vi.fn(),
   updateBookingStatusInDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),
 }));
@@ -210,7 +211,7 @@ import { savePersonalInfoAction } from "@/app/account-settings/actions";
 import { cancelGuestBooking } from "@/app/guest/bookings/actions";
 import { sendHostMessage } from "@/app/guest/messages/actions";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
-import { createListing, publishWizardListing } from "@/app/host/listings/actions";
+import { createListing, publishWizardListing, saveWizardListingDraft } from "@/app/host/listings/actions";
 import { acceptBooking } from "@/app/host/bookings/actions";
 import { createExternalReservation } from "@/app/host/erp/[section]/actions";
 import { sendGuestMessage } from "@/app/host/messages/actions";
@@ -527,6 +528,51 @@ describe("IDOR protections", () => {
     ]);
     expect(revalidatePath).toHaveBeenCalledWith("/host/listings");
     expect(revalidatePath).toHaveBeenCalledWith("/search");
+  });
+
+  it("saves wizard progress as a draft listing for the signed-in host", async () => {
+    authState.currentUser = hostUser;
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([property]);
+
+    await saveWizardListingDraft({
+      uploadScopeId: "draft-1",
+      street: "42 Draft Lane",
+      barangay: "Barangay",
+      city: "Tagaytay",
+      province: "Cavite",
+      country: "Philippines",
+      zipCode: "4120",
+      propertyType: "Villa",
+      guests: 8,
+      bedrooms: 2,
+      bathrooms: 2,
+      amenityIds: ["wifi"],
+      basePrice: 2800,
+      weekendPrice: 3200,
+    }, "csrf-test-token");
+
+    expect(writeStoredProperties).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: expect.stringMatching(/^draft-/),
+        slug: expect.stringMatching(/^draft-/),
+        hostId: hostUser.id,
+        status: "draft",
+        title: "Untitled draft",
+        address: "42 Draft Lane, Barangay",
+        city: "Tagaytay",
+        province: "Cavite",
+        zipCode: "4120",
+        propertyType: "Villa",
+        pricePerNight: 2800,
+        weekendPrice: 3200,
+        maxGuests: 8,
+        images: [
+          expect.objectContaining({ imageUrl: "pending-upload" }),
+        ],
+      }),
+      property,
+    ]);
+    expect(revalidatePath).toHaveBeenCalledWith("/host/listings");
   });
 
   it("does not publish a wizard listing with another host's uploaded image", async () => {

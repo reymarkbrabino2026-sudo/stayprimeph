@@ -9,6 +9,13 @@ describe("host draft cleanup wiring", () => {
     expect(source).toContain('redirect("/host/listings?published=1")');
   });
 
+  test("wizard publish client preserves Next redirect signals", async () => {
+    const source = await readFile("components/host-wizard/host-listing-wizard.tsx", "utf8");
+
+    expect(source).toContain("function isNextRedirectError");
+    expect(source).toContain("if (isNextRedirectError(error)) throw error;");
+  });
+
   test("host listings page clears the draft after a successful wizard publish", async () => {
     const source = await readFile("app/host/listings/page.tsx", "utf8");
 
