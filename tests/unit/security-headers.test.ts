@@ -37,4 +37,11 @@ describe("security headers", () => {
     expect(proxy).toContain(hstsHeader);
     expect(proxy).toContain(hstsPolicy);
   });
+
+  test("allows configured listing photo hosts for next image optimization", async () => {
+    const config = await fs.readFile(path.join(process.cwd(), "next.config.ts"), "utf8");
+
+    expect(config).toContain('hostname: "res.cloudinary.com"');
+    expect(config).toContain('hostname: "**.public.blob.vercel-storage.com"');
+  });
 });
