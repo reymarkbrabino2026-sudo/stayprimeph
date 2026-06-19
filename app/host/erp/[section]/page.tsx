@@ -229,7 +229,9 @@ function customerInitials(name: string) {
 }
 
 function displayDate(value: string) {
-  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00Z`));
+  const date = new Date(`${value}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return value || "Date unavailable";
+  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 function dateRangeLabel(month: string) {
@@ -241,11 +243,38 @@ function dateRangeLabel(month: string) {
 }
 
 function compactDate(value: string) {
-  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(new Date(`${value}T00:00:00Z`));
+  const date = new Date(`${value}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return value || "Date unavailable";
+  return new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(date);
+}
+
+function parseClockTime(value: string) {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] ?? "0");
+  const period = match[3]?.toUpperCase();
+
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || minutes < 0 || minutes > 59) return null;
+  if (period) {
+    if (hours < 1 || hours > 12) return null;
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+  } else if (hours < 0 || hours > 23) {
+    return null;
+  }
+
+  return { hours, minutes };
 }
 
 function displayTime(value: string) {
-  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(new Date(`2026-01-01T${value}:00Z`));
+  const parsed = parseClockTime(value);
+  if (!parsed) return value.trim() || "Time unavailable";
+  return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(
+    new Date(Date.UTC(2026, 0, 1, parsed.hours, parsed.minutes)),
+  );
 }
 
 function bookingCheckInTime(booking: Booking, properties: Property[]) {

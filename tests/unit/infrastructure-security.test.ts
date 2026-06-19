@@ -86,6 +86,15 @@ describe("infrastructure security controls", () => {
     expect(repositories).toMatch(/export async function listBookingsFromDatabase\(\): Promise<Booking\[]> {\s+await ensureBookingPackageColumns\(\);/);
   });
 
+  test("keeps ERP date and time formatting tolerant of legacy listing data", async () => {
+    const erpPage = await readRepoFile("app/host/erp/[section]/page.tsx");
+
+    expect(erpPage).toContain("function parseClockTime(value: string)");
+    expect(erpPage).toContain("AM|PM");
+    expect(erpPage).toContain('return value.trim() || "Time unavailable";');
+    expect(erpPage).toContain('return value || "Date unavailable";');
+  });
+
   test("configures API CORS through an explicit allowlist", async () => {
     const [cors, proxy, productionEnv] = await Promise.all([
       readRepoFile("lib/cors.ts"),
