@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hostListingAddressSchema } from "@/lib/host-wizard-schema";
 import { canAdvanceFromStep } from "@/lib/host-wizard-validation";
 import type { HostListingDraft } from "@/lib/host-wizard-types";
 
@@ -51,6 +52,19 @@ function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
 }
 
 describe("host wizard location validation", () => {
+  it("validates address fields without deriving from the refined publish schema", () => {
+    const parsed = hostListingAddressSchema.safeParse({
+      country: "Philippines",
+      street: "123 Prime Street",
+      barangay: "Mamacao",
+      city: "Santa Maria",
+      province: "Davao Occidental",
+      zipCode: "8011",
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
   it("requires a confirmed pin before leaving the location step", () => {
     expect(canAdvanceFromStep("location", draft({ locationConfirmed: false }))).toBe(false);
     expect(canAdvanceFromStep("location", draft())).toBe(true);

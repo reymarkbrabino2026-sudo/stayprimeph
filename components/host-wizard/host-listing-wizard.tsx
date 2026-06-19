@@ -18,7 +18,7 @@ import { ImageUploader, UploadCard } from "@/components/host-wizard/image-upload
 import { MapSelector } from "@/components/host-wizard/map-selector";
 import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout";
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
-import { hostListingSchema } from "@/lib/host-wizard-schema";
+import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import type { HostBookingPackageDraft } from "@/lib/host-wizard-types";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
@@ -96,7 +96,7 @@ function HighlightPicker() {
   );
 }
 
-const addressSchema = hostListingSchema.pick({ country: true, street: true, barangay: true, city: true, province: true, zipCode: true });
+const addressSchema = hostListingAddressSchema;
 type AddressValues = z.infer<typeof addressSchema>;
 
 function formatAddressValues(values: AddressValues) {

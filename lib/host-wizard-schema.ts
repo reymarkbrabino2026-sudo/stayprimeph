@@ -20,9 +20,20 @@ const bookingPackageSchema = z.object({
   path: ["maxGuests"],
 });
 
+const hostListingAddressFields = {
+  country: z.string().min(1).max(80),
+  street: z.string().min(3).max(160),
+  barangay: z.string().min(1).max(80),
+  city: z.string().min(1).max(80),
+  province: z.string().min(1).max(80),
+  zipCode: z.string().min(3).max(16),
+};
+
+export const hostListingAddressSchema = z.object(hostListingAddressFields);
+
 export const hostListingSchema = z.object({
   uploadScopeId: z.string().min(1).max(120),
-  country: z.string().min(1).max(80), street: z.string().min(3).max(160), barangay: z.string().min(1).max(80), city: z.string().min(1).max(80), province: z.string().min(1).max(80), zipCode: z.string().min(3).max(16),
+  ...hostListingAddressFields,
   latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), locationConfirmed: z.literal(true), locationConfirmedAddress: z.string().min(1).max(600), propertyType: z.string().min(1).max(80), privacyType: z.string().min(1).max(80), preciseLocation: z.boolean(),
   guests: z.number().int().min(1).max(50), bedrooms: z.number().int().min(0).max(50), beds: z.number().int().min(1).max(100), bathrooms: z.number().min(1).max(50), amenityIds: z.array(z.string().max(80)).min(1).max(50),
   photos: z.array(z.object({ id: z.string().min(1).max(160), url: z.string().min(1).max(2048), name: z.string().max(180), size: z.number().int().min(0).max(10 * 1024 * 1024), isCover: z.boolean() })).min(5).max(20),
