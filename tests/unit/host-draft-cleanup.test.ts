@@ -16,6 +16,13 @@ describe("host draft cleanup wiring", () => {
     expect(source).toContain("if (isNextRedirectError(error)) throw error;");
   });
 
+  test("fresh wizard URL marker is removed after initialization", async () => {
+    const source = await readFile("components/host-wizard/host-listing-wizard.tsx", "utf8");
+
+    expect(source).toContain('url.searchParams.delete("new")');
+    expect(source).toContain("window.history.replaceState");
+  });
+
   test("host listings page clears the draft after a successful wizard publish", async () => {
     const source = await readFile("app/host/listings/page.tsx", "utf8");
 

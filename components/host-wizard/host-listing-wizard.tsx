@@ -124,6 +124,11 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
 
   useEffect(() => {
     initializeForUser(user, { fresh: freshStart });
+    if (freshStart && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("new");
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
   }, [freshStart, initializeForUser, user]);
 
   useEffect(() => {
