@@ -197,7 +197,7 @@ async function seedFixtures() {
     DELETE FROM "Payment" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Message" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Review" WHERE "id" LIKE 'rls-%';
-    DELETE FROM "Wishlist" WHERE "id" LIKE 'rls-%';
+    DELETE FROM "Wishlist" WHERE "id" LIKE 'rls-%' OR "id" LIKE 'rlscheck-%';
     DELETE FROM "Booking" WHERE "id" LIKE 'rls-%';
     DELETE FROM "ListingBookingPackage" WHERE "id" LIKE 'rls-%';
     DELETE FROM "AvailabilityBlock" WHERE "id" LIKE 'rls-%';
@@ -210,7 +210,7 @@ async function seedFixtures() {
     DELETE FROM "HostMonthlyReport" WHERE "id" LIKE 'rls-%';
     DELETE FROM "PlatformLedgerEntry" WHERE "id" LIKE 'rls-%';
     DELETE FROM "HostProfile" WHERE "id" LIKE 'rls-%';
-    DELETE FROM "Property" WHERE "id" LIKE 'rls-%';
+    DELETE FROM "Property" WHERE "id" LIKE 'rls-%' OR "id" LIKE 'rlscheck-%';
     DELETE FROM "AccountSettings" WHERE "id" LIKE 'rls-%';
     DELETE FROM "User" WHERE "id" LIKE 'supabase-${uuidFor("guest").slice(0, 8)}%' OR "id" IN (${Object.values(users).map(sqlString).join(", ")});
 
@@ -228,6 +228,7 @@ async function seedFixtures() {
     )
     VALUES
       ('rls-approved-property', ${sqlString(users.host)}, 'rls-approved-property', 'Approved RLS Property', 'Visible approved listing', 'Address', 'City', 'PH', 1000, 1, 1, 2, 'room', 'approved', 'Rules'),
+      ('rlscheck-approved-property', ${sqlString(users.host)}, 'rlscheck-approved-property', 'Approved RLS Insert Property', 'Approved listing for insert checks', 'Address', 'City', 'PH', 1000, 1, 1, 2, 'room', 'approved', 'Rules'),
       ('rls-pending-property', ${sqlString(users.host)}, 'rls-pending-property', 'Pending RLS Property', 'Host-only pending listing', 'Address', 'City', 'PH', 1000, 1, 1, 2, 'room', 'pending', 'Rules'),
       ('rls-other-pending-property', ${sqlString(users.otherHost)}, 'rls-other-pending-property', 'Other Pending RLS Property', 'Other host pending listing', 'Address', 'City', 'PH', 1000, 1, 1, 2, 'room', 'pending', 'Rules');
 
@@ -388,8 +389,8 @@ const checks = [
   ["guest cannot read admin logs", countCheck(contexts.guest, "AdminLog", `"id" LIKE 'rls-%'`, 0)],
   ["guest cannot read audit logs", countCheck(contexts.guest, "AuditLog", `"id" LIKE 'rls-%'`, 0)],
   ["guest cannot read platform ledger", countCheck(contexts.guest, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 0)],
-  ["guest can insert own wishlist", () => canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rls-temp-wishlist', ${sqlString(users.guest)}, 'rls-approved-property')`)],
-  ["guest cannot insert wishlist for another user", async () => !(await canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rls-temp-bad-wishlist', ${sqlString(users.otherGuest)}, 'rls-approved-property')`))],
+  ["guest can insert own wishlist", () => canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rlscheck-temp-wishlist', ${sqlString(users.guest)}, 'rlscheck-approved-property')`)],
+  ["guest cannot insert wishlist for another user", async () => !(await canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rlscheck-temp-bad-wishlist', ${sqlString(users.otherGuest)}, 'rlscheck-approved-property')`))],
 
   ["host sees own pending and approved listings", countCheck(contexts.host, "Property", `"id" LIKE 'rls-%'`, 2)],
   ["host does not see other host pending listing", countCheck(contexts.host, "Property", `"id" = 'rls-other-pending-property'`, 0)],
