@@ -19,7 +19,7 @@ function formatDraftAddress(draft: ReturnType<typeof useHostWizardStore.getState
 }
 
 export function MapSelector() {
-  const { draft, updateDraft } = useHostWizardStore();
+  const { currentStep, draft, setStep, updateDraft } = useHostWizardStore();
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
@@ -189,6 +189,7 @@ export function MapSelector() {
     });
     setStatus("ready");
     setError("");
+    if (currentStep === "location") setStep("visibility");
   }
 
   const visibleAddress = resolvedAddress || addressQuery || "Enter an address to place the pin";

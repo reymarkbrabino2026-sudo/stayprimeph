@@ -23,6 +23,12 @@ describe("host draft cleanup wiring", () => {
     expect(source).toContain("window.history.replaceState");
   });
 
+  test("map pin confirmation advances from location step", async () => {
+    const source = await readFile("components/host-wizard/map-selector.tsx", "utf8");
+
+    expect(source).toContain('if (currentStep === "location") setStep("visibility");');
+  });
+
   test("host listings page clears the draft after a successful wizard publish", async () => {
     const source = await readFile("app/host/listings/page.tsx", "utf8");
 
