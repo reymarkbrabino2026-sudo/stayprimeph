@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { readdir } from "node:fs/promises";
@@ -82,7 +83,7 @@ function sqlString(value) {
 }
 
 function uuidFor(label) {
-  const hex = Buffer.from(`stayprimeph-rls-${label}`).toString("hex").padEnd(32, "0").slice(0, 32);
+  const hex = createHash("sha256").update(`stayprimeph-rls-${label}`).digest("hex").slice(0, 32);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
