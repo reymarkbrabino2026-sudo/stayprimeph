@@ -331,7 +331,29 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
   }));
 }
 
-async function propertyCreateData(db: Pick<Prisma.TransactionClient, "amenity">, property: Property) {
+function amenityIdForName(name: string) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return `amenity-${slug || randomUUID()}`;
+}
+
+async function ensureAmenitiesForProperty(db: Pick<Prisma.TransactionClient, "amenity">, amenities: string[]) {
+  const names = Array.from(new Set(amenities.map((name) => name.trim()).filter(Boolean)));
+  if (!names.length) return [];
+
+  await db.amenity.createMany({
+    data: names.map((name) => ({ id: amenityIdForName(name), name })),
+    skipDuplicates: true,
+  });
+
+  const records = await db.amenity.findMany({
+    where: { name: { in: names } },
+    select: { id: true, name: true },
+  });
+  const idByName = new Map(records.map((amenity) => [amenity.name, amenity.id]));
+  return names.map((name) => idByName.get(name)).filter((id): id is string => Boolean(id));
+}
+
+function propertyCreateData(property: Property, amenityIds: string[]) {
   const hasCoordinates = Number.isFinite(property.latitude) && Number.isFinite(property.longitude);
 
   return {
@@ -384,14 +406,7 @@ async function propertyCreateData(db: Pick<Prisma.TransactionClient, "amenity">,
       })),
     },
     amenities: {
-      create: await Promise.all(property.amenities.map(async (name) => {
-        const amenity = await db.amenity.upsert({
-          where: { name },
-          update: {},
-          create: { id: `amenity-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, name },
-        });
-        return { amenityId: amenity.id };
-      })),
+      create: amenityIds.map((amenityId) => ({ amenityId })),
     },
   };
 }
@@ -418,9 +433,10 @@ async function insertPropertyBookingPackages(db: Pick<Prisma.TransactionClient, 
 
 export async function createPropertyInDatabase(property: Property) {
   await prisma.$transaction(async (tx) => {
-    await tx.property.create({ data: await propertyCreateData(tx, property) });
+    const amenityIds = await ensureAmenitiesForProperty(tx, property.amenities);
+    await tx.property.create({ data: propertyCreateData(property, amenityIds) });
     await insertPropertyBookingPackages(tx, property);
-  });
+  }, { maxWait: 10000, timeout: 15000 });
 }
 
 export async function upsertDraftPropertyInDatabase(property: Property) {
@@ -428,9 +444,10 @@ export async function upsertDraftPropertyInDatabase(property: Property) {
 
   await prisma.$transaction(async (tx) => {
     await tx.property.deleteMany({ where: { id: property.id, hostId: property.hostId, status: "draft" } });
-    await tx.property.create({ data: await propertyCreateData(tx, property) });
+    const amenityIds = await ensureAmenitiesForProperty(tx, property.amenities);
+    await tx.property.create({ data: propertyCreateData(property, amenityIds) });
     await insertPropertyBookingPackages(tx, property);
-  });
+  }, { maxWait: 10000, timeout: 15000 });
 }
 
 export async function deleteDraftPropertyInDatabase(hostId: string, propertyId: string) {
