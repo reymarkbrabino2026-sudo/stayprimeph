@@ -8,7 +8,7 @@ import {
   Puzzle, ShieldAlert, Snowflake, Sofa, Sparkles, Sun, Target, TentTree, Tractor, TreePine, Tv, Umbrella, Users,
   UtensilsCrossed, WashingMachine, Waves, Wifi,
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { publishWizardListing } from "@/app/host/listings/actions";
@@ -107,6 +107,8 @@ function formatAddressValues(values: AddressValues) {
 
 export function HostListingWizard({ user, csrfToken, freshStart = false }: { user: { id: string; email: string }; csrfToken: string; freshStart?: boolean }) {
   const { ownerUserId, initialized, currentStep, draft, initializeForUser, setStep, updateDraft, toggleAmenity } = useHostWizardStore();
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
   const step = hostWizardSteps.find((item) => item.id === currentStep) ?? hostWizardSteps[0];
 
   useEffect(() => {
@@ -135,12 +137,26 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const selectedAmenities = useMemo(() => new Set(draft.amenityIds), [draft.amenityIds]);
 
   async function submitListing() {
+    if (isPublishing) return;
+    setPublishError("");
+
     const parsed = hostListingSchema.safeParse({ ...draft, status: "pending" });
     if (!parsed.success) {
-      alert(draft.locationConfirmed ? "Please finish the missing steps before publishing your listing." : "Please confirm the map pin before publishing your listing.");
+      const message = draft.locationConfirmed ? "Please finish the missing steps before publishing your listing." : "Please confirm the map pin before publishing your listing.";
+      setPublishError(message);
+      alert(message);
       return;
     }
-    await publishWizardListing(parsed.data, csrfToken);
+
+    setIsPublishing(true);
+    try {
+      await publishWizardListing(parsed.data, csrfToken);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "We couldn't publish your listing. Please try again.";
+      setIsPublishing(false);
+      setPublishError(message);
+      alert(message);
+    }
   }
 
   function updateBookingPackage(id: string, patch: Partial<HostBookingPackageDraft>) {
@@ -513,8 +529,28 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <div className="mt-8">
               <p className="font-semibold">Are you hosting as a business?</p>
               <div className="mt-3 grid grid-cols-2 gap-3">
-                <button onClick={() => updateDraft({ hostAsBusiness: true })} className={`min-h-14 rounded-2xl border ${draft.hostAsBusiness === true ? "border-2 border-black" : ""}`}>Yes</button>
-                <button onClick={() => updateDraft({ hostAsBusiness: false })} className={`min-h-14 rounded-2xl border ${draft.hostAsBusiness === false ? "border-2 border-black" : ""}`}>No</button>
+                {[
+                  [true, "Yes"],
+                  [false, "No"],
+                ].map(([value, label]) => {
+                  const selected = draft.hostAsBusiness === value;
+
+                  return (
+                    <button
+                      key={label as string}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => updateDraft({ hostAsBusiness: value as boolean })}
+                      className={`min-h-14 rounded-2xl border px-4 font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 active:scale-[0.98] ${
+                        selected
+                          ? "border-black bg-black text-white shadow-[0_12px_28px_rgba(0,0,0,0.16)]"
+                          : "border-black/10 bg-white text-black hover:-translate-y-0.5 hover:border-black/30 hover:bg-black/[0.03] hover:shadow-[0_10px_24px_rgba(0,0,0,0.08)]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -544,7 +580,18 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-rose-50 text-4xl">?</div>
             <h1 className="mt-6 text-4xl font-semibold">{step.title}</h1>
             <p className="mt-3 text-black/60">{step.description}</p>
-            <button onClick={submitListing} className="mt-8 min-h-14 rounded-2xl bg-[#083f35] px-8 font-semibold text-white">Publish listing</button>
+            <button
+              type="button"
+              onClick={submitListing}
+              disabled={isPublishing}
+              aria-busy={isPublishing}
+              className="mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#083f35] px-8 font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-[#083f35]/70"
+            >
+              {isPublishing ? <span className="size-5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" /> : null}
+              {isPublishing ? "Publishing..." : "Publish listing"}
+            </button>
+            {isPublishing ? <p className="mt-3 text-sm text-black/55" role="status">Submitting your listing for approval...</p> : null}
+            {publishError ? <p className="mx-auto mt-3 max-w-md text-sm font-medium text-rose-700" role="alert">{publishError}</p> : null}
           </section>
         ) : null}
       </StepTransition>

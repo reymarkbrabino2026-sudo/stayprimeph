@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { Plus } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { HostDraftCleaner } from "@/components/host-wizard/host-draft-cleaner";
@@ -12,6 +13,8 @@ import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function HostListingsPage({ searchParams }: { searchParams: Promise<{ published?: string }> }) {
+  noStore();
+
   const [user, query] = await Promise.all([getCurrentUser(), searchParams]);
   const properties = (await getProperties()).filter((property) => property.hostId === user?.id);
 

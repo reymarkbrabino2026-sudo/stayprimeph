@@ -59,34 +59,37 @@ function draft(): HostListingDraft {
   };
 }
 
-describe("host wizard local storage minimization", () => {
+describe("host wizard local storage", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  test("removes sensitive host draft fields before localStorage persistence", () => {
+  test("keeps publish-required draft fields for refresh recovery", () => {
     const stored = sanitizeHostWizardDraftForStorage(draft());
     const serialized = JSON.stringify(stored);
 
     expect(stored).toMatchObject({
       uploadScopeId: "draft-1",
+      street: "123 Prime Street",
+      barangay: "Mamacao",
       city: "Santa Maria",
       province: "Davao Occidental",
+      zipCode: "8011",
+      latitude: 6.5801,
+      longitude: 125.4574,
+      locationConfirmed: true,
+      locationConfirmedAddress: "123 Prime Street, Mamacao, Santa Maria, Davao Occidental, Philippines, 8011",
+      preciseLocation: true,
       title: "Prime stay",
+      residentialAddress: {
+        street: "456 Residential Street",
+        barangay: "Sensitive Barangay",
+      },
+      hostAsBusiness: true,
     });
-    expect(stored).not.toHaveProperty("street");
-    expect(stored).not.toHaveProperty("barangay");
-    expect(stored).not.toHaveProperty("zipCode");
-    expect(stored).not.toHaveProperty("latitude");
-    expect(stored).not.toHaveProperty("longitude");
-    expect(stored).not.toHaveProperty("locationConfirmedAddress");
-    expect(stored).not.toHaveProperty("lastAutoGeocodeAddress");
-    expect(stored).not.toHaveProperty("preciseLocation");
-    expect(stored).not.toHaveProperty("residentialAddress");
-    expect(stored).not.toHaveProperty("hostAsBusiness");
-    expect(serialized).not.toContain("123 Prime Street");
-    expect(serialized).not.toContain("456 Residential Street");
-    expect(serialized).not.toContain("Sensitive Barangay");
+    expect(serialized).toContain("123 Prime Street");
+    expect(serialized).toContain("456 Residential Street");
+    expect(serialized).toContain("Sensitive Barangay");
   });
 
   test("scopes stored draft keys by encoded user id", () => {

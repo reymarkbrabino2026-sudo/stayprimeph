@@ -229,6 +229,7 @@ import { readHostMonthlyReports, removeHostMonthlyReport } from "@/lib/host-repo
 import { hostListingSchema } from "@/lib/host-wizard-schema";
 import { confirmManualPaymentInDatabase } from "@/lib/repositories";
 import { getUserById } from "@/lib/users";
+import { revalidatePath } from "next/cache";
 
 const hostUser = {
   id: "host-1",
@@ -440,6 +441,92 @@ describe("IDOR protections", () => {
     expect(writeStoredProperties).not.toHaveBeenCalledWith([
       expect.objectContaining({ hostId: "host-2" }),
     ]);
+  });
+
+  it("publishes a completed wizard listing for the signed-in host", async () => {
+    authState.currentUser = hostUser;
+    const uploadedPhotos = Array.from({ length: 5 }, (_, index) => ({
+      id: `photo-${index + 1}`,
+      url: `/uploads/listings/host-1/draft-1/photo-${index + 1}.jpg`,
+      name: `photo-${index + 1}.jpg`,
+      size: 100,
+      isCover: index === 0,
+    }));
+    const listing = {
+      uploadScopeId: "draft-1",
+      country: "Philippines",
+      street: "123 Street",
+      barangay: "Barangay",
+      city: "Manila",
+      province: "Metro Manila",
+      zipCode: "1000",
+      latitude: 14.5995,
+      longitude: 120.9842,
+      locationConfirmed: true,
+      locationConfirmedAddress: "123 Street, Barangay, Manila, Metro Manila, Philippines, 1000",
+      propertyType: "House",
+      privacyType: "entire",
+      preciseLocation: true,
+      guests: 6,
+      bedrooms: 2,
+      beds: 3,
+      bathrooms: 2,
+      amenityIds: ["wifi"],
+      photos: uploadedPhotos,
+      title: "Wizard Listing",
+      highlights: ["peaceful"],
+      description: "A complete listing drafted through the host wizard.",
+      bookingMode: "request",
+      pricingMode: "simple",
+      basePrice: 3500,
+      weekendPrice: 4200,
+      weekendPremium: 20,
+      cleaningFee: 500,
+      securityDeposit: 1000,
+      currency: "PHP",
+      cancellationPolicy: "flexible",
+      discounts: { newListing: true, lastMinute: true, weekly: true, monthly: false },
+      safetyDisclosures: { exteriorCamera: false, noiseMonitor: false, weapons: false },
+      residentialAddress: {
+        unit: "",
+        building: "",
+        street: "123 Host Street",
+        barangay: "Barangay",
+        city: "Manila",
+        zipCode: "1000",
+        province: "Metro Manila",
+      },
+      hostAsBusiness: false,
+      status: "pending",
+      bookingPackages: [],
+    };
+    vi.mocked(hostListingSchema.safeParse).mockReturnValueOnce({ success: true, data: listing } as never);
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([property]);
+
+    await expect(publishWizardListing(listing as never, "csrf-test-token")).rejects.toThrow(
+      "NEXT_REDIRECT:/host/listings?published=1",
+    );
+
+    expect(writeStoredProperties).toHaveBeenCalledWith([
+      expect.objectContaining({
+        hostId: hostUser.id,
+        title: "Wizard Listing",
+        status: "pending",
+        address: "123 Street, Barangay",
+        city: "Manila",
+        province: "Metro Manila",
+        zipCode: "1000",
+        pricePerNight: 3500,
+        weekendPrice: 4200,
+        maxGuests: 6,
+        images: expect.arrayContaining([
+          expect.objectContaining({ imageUrl: "/uploads/listings/host-1/draft-1/photo-1.jpg" }),
+        ]),
+      }),
+      property,
+    ]);
+    expect(revalidatePath).toHaveBeenCalledWith("/host/listings");
+    expect(revalidatePath).toHaveBeenCalledWith("/search");
   });
 
   it("does not publish a wizard listing with another host's uploaded image", async () => {
