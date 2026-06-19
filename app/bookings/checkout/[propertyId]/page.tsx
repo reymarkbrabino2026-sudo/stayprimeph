@@ -8,7 +8,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { arePaidBookingsEnabled } from "@/lib/payments";
-import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages } from "@/lib/pricing";
+import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency, formatDate } from "@/lib/utils";
@@ -59,10 +59,15 @@ export default async function BookingCheckoutPage({
   const today = todayDateKey();
   const requestedCheckIn = validDateParam(query.checkIn);
   const checkIn = requestedCheckIn && requestedCheckIn >= today ? requestedCheckIn : today;
-  const requestedCheckOut = validDateParam(query.checkOut);
-  const checkOut = requestedCheckOut && new Date(requestedCheckOut) > new Date(checkIn) ? requestedCheckOut : addDays(checkIn, 5);
   const bookingPackages = getEnabledBookingPackages(property);
-  const selectedPackage = bookingPackages.length ? getBookingPackageById(property, query.packageId) : null;
+  const requestedPackage = bookingPackages.length ? getBookingPackageById(property, query.packageId) : null;
+  const fullAccessPackage = getFullAccessBookingPackage(bookingPackages);
+  const requestedCheckOut = validDateParam(query.checkOut);
+  const dayCheckout = addDays(checkIn, 1);
+  const requestedCheckOutIsMultiDay = Boolean(requestedCheckOut && requestedCheckOut > dayCheckout);
+  const selectedPackage = requestedPackage?.unit === "day" && requestedCheckOutIsMultiDay && fullAccessPackage ? fullAccessPackage : requestedPackage;
+  const isDayPackage = selectedPackage?.unit === "day";
+  const checkOut = isDayPackage ? dayCheckout : requestedCheckOut && new Date(requestedCheckOut) > new Date(checkIn) ? requestedCheckOut : addDays(checkIn, 5);
   const requestedGuests = Number(query.guests ?? 1);
   const maxGuests = selectedPackage?.maxGuests ?? property.maxGuests;
   const guests = Number.isInteger(requestedGuests) ? Math.min(maxGuests, Math.max(1, requestedGuests)) : 1;
@@ -88,6 +93,7 @@ export default async function BookingCheckoutPage({
   const checkInTime = selectedPackage?.checkInTime ?? STANDARD_CHECK_IN_TIME;
   const checkOutTime = selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME;
   const unitLabel = selectedPackage?.unit === "day" ? "daytime booking" : "night";
+  const visibleCheckOutDate = isDayPackage ? checkIn : checkOut;
 
   return (
     <div className="min-h-screen bg-white">
@@ -111,6 +117,12 @@ export default async function BookingCheckoutPage({
             <input type="hidden" name={csrfFieldName} value={csrfToken} />
             <input type="hidden" name="propertyId" value={property.id} />
             {selectedPackage ? <input type="hidden" name="packageId" value={selectedPackage.id} /> : null}
+            {isDayPackage ? (
+              <>
+                <input type="hidden" name="checkIn" value={checkIn} />
+                <input type="hidden" name="checkOut" value={checkOut} />
+              </>
+            ) : null}
 
             <section className="border-b pb-8">
               <div className="flex items-start justify-between gap-4">
@@ -126,18 +138,26 @@ export default async function BookingCheckoutPage({
               ) : null}
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="block rounded-2xl border p-4">
-                  <span className="block text-sm font-semibold">Check-in</span>
+                  <span className="block text-sm font-semibold">{isDayPackage ? "Date" : "Check-in"}</span>
                   <span className="mt-1 block text-sm text-black/65">{formatDate(checkIn)}</span>
-                  <span className="mt-1 block text-xs text-black/50">Check-in {checkInTime}</span>
-                  <span className="sr-only">Check-in</span>
-                  <input name="checkIn" type="date" defaultValue={checkIn} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
+                  <span className="mt-1 block text-xs text-black/50">{isDayPackage ? "Starts" : "Check-in"} {checkInTime}</span>
+                  {!isDayPackage ? (
+                    <>
+                      <span className="sr-only">Check-in</span>
+                      <input name="checkIn" type="date" defaultValue={checkIn} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
+                    </>
+                  ) : null}
                 </label>
                 <label className="block rounded-2xl border p-4">
-                  <span className="block text-sm font-semibold">Check-out</span>
-                  <span className="mt-1 block text-sm text-black/65">{formatDate(checkOut)}</span>
-                  <span className="mt-1 block text-xs text-black/50">Check-out {checkOutTime}</span>
-                  <span className="sr-only">Check-out</span>
-                  <input name="checkOut" type="date" defaultValue={checkOut} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
+                  <span className="block text-sm font-semibold">{isDayPackage ? "Ends" : "Check-out"}</span>
+                  <span className="mt-1 block text-sm text-black/65">{formatDate(visibleCheckOutDate)}</span>
+                  <span className="mt-1 block text-xs text-black/50">{isDayPackage ? "Ends" : "Check-out"} {checkOutTime}</span>
+                  {!isDayPackage ? (
+                    <>
+                      <span className="sr-only">Check-out</span>
+                      <input name="checkOut" type="date" defaultValue={checkOut} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
+                    </>
+                  ) : null}
                 </label>
               </div>
               <label className="mt-4 block rounded-2xl border p-4">

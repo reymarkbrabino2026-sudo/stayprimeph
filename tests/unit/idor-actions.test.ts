@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Booking, Property, User } from "@/lib/types";
+import type { Booking, BookingPackage, Property, User } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/audit-logs", () => ({
@@ -147,6 +147,7 @@ vi.mock("@/lib/pricing", () => ({
   getBestDiscount: vi.fn(() => null),
   getBookingPackageById: vi.fn(() => null),
   getEnabledBookingPackages: vi.fn(() => []),
+  getFullAccessBookingPackage: vi.fn((packages: BookingPackage[]) => packages.find((item) => item.unit === "night") ?? null),
 }));
 
 vi.mock("@/lib/properties", () => ({
@@ -221,6 +222,7 @@ import { sendGuestMessage } from "@/app/host/messages/actions";
 import { deleteHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
 import { POST as createPaymentCheckout } from "@/app/api/payments/checkout/route";
 import { cancelBookingByGuest, getBookingById, getBookings, hasDateConflict } from "@/lib/bookings";
+import { calculatePackageSubtotal, getBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
 import { savePersonalInfo } from "@/lib/account-settings";
 import { createMessage } from "@/lib/messages";
 import { getProperties, getPropertyById } from "@/lib/properties";
@@ -305,6 +307,40 @@ const property = {
   images: [],
 } satisfies Property;
 
+const dayPackage = {
+  id: "daytime",
+  name: "Daytime Ground Floor & Outdoor",
+  accessType: "Ground floor and outdoor area only",
+  unit: "day",
+  weekdayRate: 4300,
+  weekendRate: 4300,
+  holidayRate: 4300,
+  includedGuests: 10,
+  maxGuests: 20,
+  additionalGuestFee: 0,
+  extensionHourlyFee: 0,
+  checkInTime: "2:00 PM",
+  checkOutTime: "10:00 PM",
+  enabled: true,
+} satisfies BookingPackage;
+
+const fullAccessPackage = {
+  id: "overnight-full-access",
+  name: "Overnight Full Access",
+  accessType: "Full access",
+  unit: "night",
+  weekdayRate: 8600,
+  weekendRate: 8600,
+  holidayRate: 8600,
+  includedGuests: 10,
+  maxGuests: 20,
+  additionalGuestFee: 0,
+  extensionHourlyFee: 0,
+  checkInTime: "2:00 PM",
+  checkOutTime: "10:00 PM",
+  enabled: true,
+} satisfies BookingPackage;
+
 function draftPropertyId(hostId: string, uploadScopeId: string) {
   return `draft-${createHash("sha256").update(`${hostId}:${uploadScopeId}`).digest("hex").slice(0, 18)}`;
 }
@@ -372,6 +408,33 @@ describe("IDOR protections", () => {
     ).rejects.toThrow("Those dates are no longer available.");
 
     expect(writeStoredBookings).not.toHaveBeenCalled();
+  });
+
+  it("promotes a multi-day daytime request to full access", async () => {
+    authState.currentUser = guestUser;
+    vi.mocked(getPropertyById).mockResolvedValueOnce({ ...property, bookingPackages: [dayPackage, fullAccessPackage] });
+    vi.mocked(getBookings).mockResolvedValueOnce([]);
+    vi.mocked(getEnabledBookingPackages).mockReturnValueOnce([dayPackage, fullAccessPackage]);
+    vi.mocked(getBookingPackageById).mockReturnValueOnce(dayPackage);
+
+    await expect(
+      createBooking(formData({
+        propertyId: property.id,
+        checkIn: "2026-07-10",
+        checkOut: "2026-07-15",
+        guests: "2",
+        packageId: dayPackage.id,
+      })),
+    ).rejects.toThrow(`NEXT_REDIRECT:/guest/bookings/`);
+
+    expect(calculatePackageSubtotal).toHaveBeenCalledWith(fullAccessPackage, "2026-07-10", "2026-07-15", 2);
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingPackageId: fullAccessPackage.id,
+        bookingPackageName: fullAccessPackage.name,
+        bookingPackageUnit: "night",
+      }),
+    ]);
   });
 
   it("requires admin review even when an admin records an external manual payment", async () => {

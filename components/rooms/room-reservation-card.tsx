@@ -5,7 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star
 import { useEffect, useMemo, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
-import { calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, getBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
+import { calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, getBookingPackageById, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import {
@@ -31,15 +31,17 @@ export function RoomReservationCard({
   const instantBook = property.rules.includes("Instant book enabled");
   const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
   const selectedPackage = useMemo(() => getBookingPackageById(property, packageId), [packageId, property]);
+  const fullAccessPackage = useMemo(() => getFullAccessBookingPackage(bookingPackages), [bookingPackages]);
   const selectedIsDayPackage = selectedPackage?.unit === "day";
+  const dayCheckout = checkIn ? addDays(checkIn, 1) : "";
+  const activePackage = selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout ? fullAccessPackage : selectedPackage;
+  const activeIsDayPackage = activePackage?.unit === "day";
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const effectiveStay = useMemo(() => {
-    const expectedDayCheckout = checkIn ? addDays(checkIn, 1) : "";
     const selectedStayNeedsRepair =
       checkIn < TODAY ||
       checkOut <= checkIn ||
-      (selectedIsDayPackage && Boolean(checkIn) && checkOut !== expectedDayCheckout) ||
       bookedNightSet.has(checkIn) ||
       hasBookedNightInRange(checkIn, checkOut, bookedNightSet);
 
@@ -51,26 +53,26 @@ export function RoomReservationCard({
       bookedNightKeys: bookedNightSet,
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
-  }, [bookedNightSet, checkIn, checkOut, selectedIsDayPackage]);
-  const { nights, weekdayNights, weekendNights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id);
-  const packageWeekdayRate = selectedPackage?.weekdayRate ?? property.pricePerNight;
-  const packageWeekendRate = selectedPackage ? (selectedPackage.weekendRate > 0 ? selectedPackage.weekendRate : selectedPackage.weekdayRate) : property.weekendPrice ?? calculateDefaultWeekendPrice(property.pricePerNight);
+  }, [bookedNightSet, checkIn, checkOut]);
+  const { nights, weekdayNights, weekendNights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id);
+  const packageWeekdayRate = activePackage?.weekdayRate ?? property.pricePerNight;
+  const packageWeekendRate = activePackage ? (activePackage.weekendRate > 0 ? activePackage.weekendRate : activePackage.weekdayRate) : property.weekendPrice ?? calculateDefaultWeekendPrice(property.pricePerNight);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(packageWeekdayRate);
   const guestWeekendPrice = calculateGuestPriceWithMarkup(packageWeekendRate);
   const headlinePrice = validStay ? total : guestNightlyPrice;
-  const unitName = selectedPackage?.unit === "day" ? "day" : "night";
+  const unitName = activePackage?.unit === "day" ? "day" : "night";
   const headlinePriceLabel = validStay ? ` for ${nights} ${unitName}${nights === 1 ? "" : "s"}` : ` / ${unitName}`;
   const rateSummary = formatRateSummary({ guestNightlyPrice, guestWeekendPrice, weekdayNights, weekendNights, nights, unitName });
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
-  const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id) : "#";
-  const maxGuests = selectedPackage?.maxGuests ?? property.maxGuests;
+  const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id) : "#";
+  const maxGuests = activePackage?.maxGuests ?? property.maxGuests;
   const changeGuests = (next: number) => setGuests(Math.min(maxGuests, Math.max(1, next)));
   const [activeField, setActiveField] = useState<"checkIn" | "checkOut">("checkIn");
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn || TODAY));
   const calendarMonth = useMemo(() => buildCalendarMonth(visibleMonth.year, visibleMonth.month), [visibleMonth]);
-  const calendarActiveField = selectedIsDayPackage ? "checkIn" : activeField;
+  const calendarActiveField = activeField;
 
   useEffect(() => {
     if (!bookingPackages.length) {
@@ -81,11 +83,8 @@ export function RoomReservationCard({
   }, [bookingPackages, packageId, selectedPackage, setPackageId]);
 
   useEffect(() => {
-    if (!selectedIsDayPackage || !effectiveStay.checkIn) return;
-
-    const dayCheckout = addDays(effectiveStay.checkIn, 1);
-    if (checkOut !== dayCheckout) setCheckOut(dayCheckout);
-  }, [checkOut, effectiveStay.checkIn, selectedIsDayPackage, setCheckOut]);
+    if (selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout) setPackageId(fullAccessPackage.id);
+  }, [checkOut, dayCheckout, fullAccessPackage, selectedIsDayPackage, setPackageId]);
 
   function moveMonth(offset: number) {
     const next = new Date(visibleMonth.year, visibleMonth.month + offset, 1);
@@ -95,11 +94,19 @@ export function RoomReservationCard({
   function selectDate(dateKey: string) {
     if (dateKey < TODAY) return;
 
+    if (selectedIsDayPackage && activeField === "checkOut" && effectiveStay.checkIn && dateKey > effectiveStay.checkIn) {
+      if (hasBookedNightInRange(effectiveStay.checkIn, dateKey, bookedNightSet)) return;
+      if (fullAccessPackage && dateKey > addDays(effectiveStay.checkIn, 1)) setPackageId(fullAccessPackage.id);
+      setCheckOut(dateKey);
+      setActiveField("checkIn");
+      return;
+    }
+
     if (selectedIsDayPackage) {
-      const dayCheckout = addDays(dateKey, 1);
-      if (bookedNightSet.has(dateKey) || hasBookedNightInRange(dateKey, dayCheckout, bookedNightSet)) return;
+      const nextDayCheckout = addDays(dateKey, 1);
+      if (bookedNightSet.has(dateKey) || hasBookedNightInRange(dateKey, nextDayCheckout, bookedNightSet)) return;
       setCheckIn(dateKey);
-      setCheckOut(dayCheckout);
+      setCheckOut(nextDayCheckout);
       setActiveField("checkIn");
       return;
     }
@@ -141,12 +148,18 @@ export function RoomReservationCard({
       {bookingPackages.length ? (
         <div className="mt-4 grid gap-2">
           {bookingPackages.map((item) => {
-            const active = selectedPackage?.id === item.id;
+            const active = activePackage?.id === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setPackageId(item.id)}
+                onClick={() => {
+                  setPackageId(item.id);
+                  if (item.unit === "day") {
+                    setCheckOut(addDays(effectiveStay.checkIn, 1));
+                    setActiveField("checkIn");
+                  }
+                }}
                 className={`rounded-2xl border px-4 py-3 text-left transition ${active ? "border-[#083f35] bg-[#083f35] text-white" : "border-black/10 bg-black/[0.02] hover:border-[#083f35]"}`}
               >
                 <span className="flex items-center justify-between gap-3">
@@ -164,17 +177,17 @@ export function RoomReservationCard({
         <div className="grid grid-cols-2 divide-x divide-black/10">
           <DateField
             active={calendarActiveField === "checkIn"}
-            label={selectedIsDayPackage ? "Date" : "Check-in"}
-            time={selectedPackage?.checkInTime ?? STANDARD_CHECK_IN_TIME}
+            label={activeIsDayPackage ? "Date" : "Check-in"}
+            time={activePackage?.checkInTime ?? STANDARD_CHECK_IN_TIME}
             value={effectiveStay.checkIn}
             onClick={() => setActiveField("checkIn")}
           />
           <DateField
-            active={activeField === "checkOut" && !selectedIsDayPackage}
-            label={selectedIsDayPackage ? "Ends" : "Check-out"}
-            time={selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME}
-            value={selectedIsDayPackage ? effectiveStay.checkIn : effectiveStay.checkOut}
-            onClick={() => setActiveField(selectedIsDayPackage ? "checkIn" : "checkOut")}
+            active={calendarActiveField === "checkOut"}
+            label={activeIsDayPackage ? "Ends" : "Check-out"}
+            time={activePackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME}
+            value={activeIsDayPackage ? effectiveStay.checkIn : effectiveStay.checkOut}
+            onClick={() => setActiveField("checkOut")}
           />
         </div>
 
@@ -216,7 +229,7 @@ export function RoomReservationCard({
                   checkIn={effectiveStay.checkIn}
                   checkOut={effectiveStay.checkOut}
                   bookedNightSet={bookedNightSet}
-                  singleDayPackage={selectedIsDayPackage}
+                  singleDayPackage={activeIsDayPackage && activeField !== "checkOut"}
                   onSelect={selectDate}
                 />
               ) : (

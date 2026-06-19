@@ -16,7 +16,7 @@ import { sendBookingConfirmedEmail, sendBookingReceivedEmail, sendBookingRequest
 import { arePaidBookingsEnabled } from "@/lib/payments";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { getUserById } from "@/lib/users";
-import { calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages } from "@/lib/pricing";
+import { calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import type { Booking, Property, User } from "@/lib/types";
 
@@ -30,6 +30,12 @@ function isIsoDate(value: string) {
 
 function dateTime(value: string) {
   return new Date(`${value}T00:00:00.000Z`).getTime();
+}
+
+function addDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function checkoutPath(propertyId: string, checkIn: string, checkOut: string, guests: number, packageId?: string | null, error?: string) {
@@ -106,7 +112,12 @@ export async function createBooking(formData: FormData) {
   if (!property) throw new Error("Please complete your booking details.");
   if (property.status !== "approved") throw new Error("This listing is not available for booking.");
   if (!Number.isFinite(property.pricePerNight) || property.pricePerNight <= 0) throw new Error("This listing is missing valid pricing.");
-  const bookingPackage = getEnabledBookingPackages(property).length ? getBookingPackageById(property, packageId) : null;
+  const enabledPackages = getEnabledBookingPackages(property);
+  let bookingPackage = enabledPackages.length ? getBookingPackageById(property, packageId) : null;
+  if (bookingPackage?.unit === "day" && checkOut !== addDays(checkIn, 1)) {
+    bookingPackage = getFullAccessBookingPackage(enabledPackages);
+    if (!bookingPackage) throw new Error("Full access is required for multi-day bookings.");
+  }
   const maxGuests = bookingPackage?.maxGuests ?? property.maxGuests;
   if (!Number.isInteger(maxGuests) || guests > maxGuests) throw new Error("Guest count exceeds this listing's capacity.");
   const today = new Date();

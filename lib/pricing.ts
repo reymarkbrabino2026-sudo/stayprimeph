@@ -133,6 +133,15 @@ export function getBookingPackageById(property: Pick<Property, "bookingPackages"
   return packages.find((item) => item.id === packageId) ?? packages[0];
 }
 
+export function getFullAccessBookingPackage(packages: BookingPackage[]) {
+  const fullAccessPackage = packages.find((item) => {
+    const label = `${item.name} ${item.accessType}`.toLowerCase();
+    return item.unit === "night" && label.includes("full access");
+  });
+
+  return fullAccessPackage ?? packages.find((item) => item.unit === "night") ?? null;
+}
+
 export function calculatePackageSubtotal(pkg: BookingPackage, checkIn: string, checkOut: string, guests: number, extensionHours = 0): PackageSubtotal {
   const { nights, weekdayNights, weekendNights, subtotal } = calculateNightlySubtotal({
     pricePerNight: pkg.weekdayRate,
