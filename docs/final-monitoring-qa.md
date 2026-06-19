@@ -1,20 +1,16 @@
 # Final monitoring QA
 
-Last updated: June 7, 2026
+Last updated: June 19, 2026
 
 This checklist verifies the final monitoring surface before public launch. It separates checks that can be verified from the live app from checks that must be confirmed inside provider dashboards.
 
 ## Live app checks completed
 
 - [x] `https://stayprimeph.com/status` loads successfully.
-- [x] Status page shows Web app as Operational.
-- [x] Status page shows Authentication as Operational.
-- [x] Status page shows Photo uploads as Operational.
-- [x] Status page shows Payments as Operational.
-- [x] Status page shows Email as Operational.
-- [x] Status page shows Rate limiting as Operational.
-- [x] Status page shows Monitoring as Operational.
+- [x] Public status page shows generic platform, guest experience, host tools, and support availability as Operational.
+- [x] Public status page no longer exposes internal provider readiness, credentials, or launch configuration.
 - [x] Vercel production logs can be fetched for `stayprimeph.com`.
+- [x] Recent production smoke-test traffic is visible in Vercel logs.
 
 ## Confirmation email telemetry
 
@@ -25,7 +21,7 @@ These checks must be done inside Resend after a real production booking flow or 
 | Booking confirmation email appears in Resend logs | Not confirmed | Check for subject containing `Booking received for` |
 | Guest recipient delivery is marked delivered, not bounced | Not confirmed | Confirm recipient address and delivery status |
 | Host recipient delivery is marked delivered, not bounced | Not confirmed | Confirm recipient address and delivery status |
-| No recent `email_send_failed` events appear in Vercel logs | Not confirmed | Search Vercel logs after the email test |
+| No recent `email_send_failed` events appear in Vercel logs | Not confirmed | Search Vercel logs after the booking email test |
 | Support inbox receives any expected replies/bounces | Not confirmed | Check `support@stayprimeph.com` |
 
 ## Provider telemetry
@@ -36,7 +32,7 @@ These checks must be done in each provider dashboard.
 | --- | --- | --- | --- |
 | Sentry | Recent production page/error test appears | Not confirmed | Confirm latest production deployment and no unhandled critical issue |
 | Vercel Analytics | Recent page views appear for `stayprimeph.com` | Not confirmed | Visit home/search/status, then confirm analytics activity |
-| Vercel Logs | Recent production requests visible | Confirmed | `vercel logs stayprimeph.com --limit 20` returned recent legal-page requests |
+| Vercel Logs | Recent production requests visible | Confirmed | `vercel logs stayprimeph.com --limit 20` returned recent smoke-test requests on June 19, 2026 |
 | Upstash Redis | Recent rate-limit analytics/activity visible | Not confirmed | Check database analytics for `stayprimeph` prefix |
 | Stripe | Webhook/checkout logs visible after payment test | Not confirmed | Needed when switching to live payments |
 | Resend | Email logs visible after booking email test | Not confirmed | Needed for final confirmation email signoff |
@@ -53,4 +49,4 @@ These checks must be done in each provider dashboard.
 
 ## Current verdict
 
-The app-side monitoring configuration is active, and Vercel production logs are accessible. Final provider-dashboard telemetry is not fully signed off until Resend delivery, Sentry activity, Vercel Analytics activity, and Upstash rate-limit telemetry are confirmed in their dashboards.
+The app-side monitoring configuration is active, the public status page is intentionally generic, and Vercel production logs are accessible. Final provider-dashboard telemetry is not fully signed off until Resend delivery, Sentry activity, Vercel Analytics activity, and Upstash rate-limit telemetry are confirmed in their dashboards.

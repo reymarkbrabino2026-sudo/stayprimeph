@@ -1,13 +1,31 @@
 import { expect, test } from "@playwright/test";
+import { cleanupUserByEmail, expectNoSignedInSession, markUserEmailVerified } from "./helpers/auth";
+
+const guestPassword = "IslandTrip#2026";
 
 async function signInAsGuest(page: import("@playwright/test").Page) {
   const email = `guest-${Date.now()}-${Math.round(Math.random() * 100000)}@example.com`;
-  await page.goto("/register", { waitUntil: "domcontentloaded" });
-  await page.getByPlaceholder("Full name").fill("E2E Guest");
-  await page.getByPlaceholder("Email").fill(email);
-  await page.getByPlaceholder("Password").fill("Guest123!");
-  await page.getByRole("button", { name: "Register" }).click();
-  await expect(page).toHaveURL(/\/guest\/dashboard$/);
+  try {
+    await page.goto("/register", { waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder("Full name").fill("E2E Guest");
+    await page.getByPlaceholder("Email").fill(email);
+    await page.getByPlaceholder("Password").fill(guestPassword);
+    await page.getByRole("button", { name: "Register" }).click();
+    await expect(page).toHaveURL(/\/register\?message=/, { timeout: 30000 });
+    await expectNoSignedInSession(page);
+
+    await markUserEmailVerified(email);
+
+    await page.goto("/login?role=guest", { waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder("Email").fill(email);
+    await page.getByPlaceholder("Password").fill(guestPassword);
+    await page.getByRole("button", { name: "Log in" }).click();
+    await expect(page).toHaveURL(/\/guest\/dashboard$/, { timeout: 30000 });
+  } catch (error) {
+    await cleanupUserByEmail(email);
+    throw error;
+  }
+  return email;
 }
 
 const guestScreens = [

@@ -18,12 +18,12 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 ## Current launch blockers
 
 - [x] Apply and verify all production Prisma migrations; failed-login and demo-credential checks return normal auth errors, not the app error page.
-- [ ] Update E2E tests for the current email-verification, strong-password, and no-auto-login signup flows, then make `npm run test:e2e` pass.
-- [ ] Re-run the full verification checklist after E2E fixes.
+- [x] Update E2E tests for the current email-verification, strong-password, and no-auto-login signup flows, then make `npm run test:e2e` pass.
+- [x] Re-run the full verification checklist after the E2E fixes.
 - [x] Verify seeded/demo credentials do not authenticate and do not trigger server errors.
-- [ ] Create or approve at least one production listing for public search, listing detail, booking, checkout, and email QA.
-- [ ] Decide payment launch mode: keep paid bookings disabled or complete live provider payment/webhook/refund verification.
-- [ ] Complete qualified legal/privacy review, privacy contact confirmation, real-device QA, and final monitoring/email telemetry checks.
+- [x] Create or approve at least one production listing for public search, listing detail, booking, checkout, and email QA.
+- [x] Decide payment launch mode: keep paid bookings disabled until live provider payment, webhook, refund, and reconciliation verification are completed.
+- [ ] Complete external launch signoffs: qualified legal/privacy counsel, named privacy contact or DPO, physical real-device QA, confirmation-email delivery, and provider-dashboard telemetry. App-side legal/status/device/log checks were refreshed on 2026-06-19.
 
 ## Live site and deployment
 
@@ -39,12 +39,13 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 
 - [x] `npm run lint` passed
 - [x] `npm run type-check` passed
-- [x] `npm run test` passed: 219 tests across 51 files
-- [ ] `npm run test:e2e` currently needs updates: latest run had 27 passed, 8 failed, and 8 skipped because older specs still expect auto-login after signup and weak host passwords
+- [x] `npm run test` passed: 224 tests across 51 files
+- [x] `npm run test:e2e` passed: 36 passed, 8 skipped
+- [x] `npm run build:prod` passed with sanitized build-time placeholders
 - [x] Vercel production build/deploy passed for the latest committed launch-gate update
 - [x] `npm audit --omit=dev` found 0 vulnerabilities
 - [x] Hosted production smoke checks passed for public pages, protected-route redirects, unauthenticated API rejection, and security headers
-- [x] Distributed rate limiting verified on production: 35 parallel `/api/geocode` requests returned 30 validation responses and 5 `429` responses
+- [x] Distributed rate limiting verified on production: latest 35 parallel `/api/geocode` requests returned 30 validation responses and 5 `429` responses
 - [x] Secret scan of tracked files and Git history found placeholders/examples only; real `.env*`, `.vercel`, `.next`, logs, `node_modules`, and test results are not tracked
 - [x] Demo credential verification passed after production migrations: `guest@stayprimeph.com`, `host@stayprimeph.com`, and `admin@stayprimeph.com` all return normal auth errors and do not authenticate
 - [x] `robots.txt` works
@@ -71,9 +72,10 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Stripe test keys configured in Vercel Production
 - [x] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
 - [x] Stripe webhook signature check verified in production
-- [x] `/status` shows Payments as `Operational`
+- [x] Public `/status` page shows generic platform availability as `Operational`; paid bookings remain disabled until live payment verification is complete
 - [x] Stripe sandbox checkout tested end to end
 - [x] Stripe live-mode runbook prepared in `docs/stripe-live-mode.md`
+- [x] Production payment launch mode decided: paid bookings remain disabled; live checkout and webhook endpoints return `503` instead of accepting real payments
 - [ ] Stripe account activated for live charges
 - [ ] Stripe live publishable key configured in Vercel Production
 - [ ] Stripe live secret or restricted key configured in Vercel Production
@@ -83,7 +85,7 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [ ] First live payment refunded or reconciled, if it was only a launch test
 - [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
-- [x] `/status` shows Email as `Operational`
+- [x] Email provider configuration and transactional email flows have been tested; public `/status` no longer exposes internal email readiness
 - [x] Welcome email tested
 - [x] Email verification tested
 - [x] Password reset email tested
@@ -144,9 +146,10 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Real-device QA runbook prepared in `docs/real-device-qa.md`
 - [x] Automated production device-emulation QA completed and documented in `docs/automated-device-qa-report.md`
 - [x] Final monitoring QA runbook prepared in `docs/final-monitoring-qa.md`
-- [x] Live `/status` page shows Email, Rate limiting, and Monitoring as Operational
+- [x] Live `/status` page is generic and shows platform, guest, host, and support availability as Operational
 - [x] Vercel production logs access verified
-- [ ] Production search has at least one approved public listing available for listing-detail, booking, and checkout QA
+- [x] Automated production device-emulation QA refreshed on 2026-06-19 across iPhone 13, Pixel 5, and desktop profiles with 30 checks and 0 failures
+- [x] Production search has at least one approved public listing available for listing-detail, booking, and checkout QA: 3 public listings are visible on `stayprimeph.com/search`; checkout handoff verified for listing `46d34c9c-ae54-4ca5-9286-1ec6452b58c1`
 
 ## Security hardening still needed
 
@@ -184,15 +187,16 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Create a host account on production
 - [x] Create a listing with real hosted photos
 - [x] Approve the listing in admin
-- [ ] Search for the approved listing on production
-- [ ] Open listing details on production
-- [ ] Start checkout from a production listing
+- [x] Search for the approved listing on production
+- [x] Open listing details on production
+- [x] Start checkout from a production listing
 - [x] Complete Stripe sandbox payment
 - [x] Confirm booking appears for guest
 - [x] Confirm booking appears for host
 - [x] Confirm payment appears in admin
 - [ ] Confirm confirmation emails are delivered
 - [x] Confirm production rate-limit telemetry through live `429` behavior
+- [x] Confirm Vercel production logs show recent smoke-test activity
 - [ ] Confirm Sentry, analytics, logs, and email telemetry show expected smoke-test activity
 
 ## Current launch verdict
@@ -202,4 +206,4 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [ ] Ready for real payments
 - [ ] Ready for public marketing launch
 
-Launch remains blocked for real users until the launch gate and all remaining launch blockers above are satisfied. The latest verification confirmed production Prisma migrations, normal failed-login behavior, demo credential rejection, lint, type-check, unit/integration tests, dependency audit, hosted smoke checks, security headers, no committed secrets, production deployment health, and distributed Upstash rate limiting. Remaining release blockers include stale E2E expectations around email verification, strong passwords, and signup login behavior; production listing/search/checkout QA; payment launch-mode confirmation; qualified legal/privacy review; real-device QA; and final monitoring/email telemetry checks.
+Launch remains blocked for real users until the launch gate and all remaining launch blockers above are satisfied. The latest verification confirmed production Prisma migrations, normal failed-login behavior, demo credential rejection, lint, type-check, unit/integration tests, E2E coverage for current signup/auth flows, dependency audit, hosted smoke checks, security headers, no committed secrets, production deployment health, distributed Upstash rate limiting, production listing/search/detail/checkout handoff readiness, paid bookings disabled as the current payment launch mode, refreshed public legal/status/support checks, refreshed device-emulation QA, and Vercel log visibility. Remaining release blockers require external confirmation: qualified legal/privacy review, named privacy contact or DPO, physical real-device QA, confirmation-email delivery QA, and Sentry/analytics/Resend/Upstash provider-dashboard telemetry signoff.

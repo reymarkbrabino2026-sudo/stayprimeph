@@ -1,6 +1,6 @@
 # Automated production device QA report
 
-Run date: June 7, 2026
+Run date: June 19, 2026
 
 Production URL: `https://stayprimeph.com`
 
@@ -10,14 +10,15 @@ This was run with Playwright using iPhone 13 emulation, Pixel 5/Android emulatio
 
 | Target | Result | Notes |
 | --- | --- | --- |
-| iPhone Safari emulation | Partial pass | Public pages, login form, status/legal pages, and protected-route redirects loaded without horizontal overflow. Listing detail/checkout blocked because production search currently has `0 places available`. |
-| Android Chrome emulation | Partial pass | Public pages, login form, status/legal pages, and protected-route redirects loaded without horizontal overflow. Listing detail/checkout blocked because production search currently has `0 places available`. |
-| Desktop Chromium | Partial pass | Public pages, login form, status/legal pages, and protected-route redirects loaded without horizontal overflow. Listing detail/checkout blocked because production search currently has `0 places available`. |
+| iPhone Safari emulation | Pass | Public pages, search, approved listing detail, login, register, legal pages, support, and status loaded without app errors or horizontal overflow. |
+| Android Chrome emulation | Pass | Public pages, search, approved listing detail, login, register, legal pages, support, and status loaded without app errors or horizontal overflow. |
+| Desktop Chromium | Pass | Public pages, search, approved listing detail, login, register, legal pages, support, and status loaded without app errors or horizontal overflow. |
 
 ## Passed checks
 
 - Homepage loads.
 - Search page loads.
+- Approved production listing detail loads: `/rooms/46d34c9c-ae54-4ca5-9286-1ec6452b58c1`.
 - Login page loads and email/password fields are usable.
 - Register/host registration UI loads.
 - Legal pages load:
@@ -25,7 +26,7 @@ This was run with Playwright using iPhone 13 emulation, Pixel 5/Android emulatio
   - `/legal/terms`
   - `/legal/data-deletion`
 - Support page loads.
-- Status page loads.
+- Public status page loads and shows the generic platform, guest, host, and support availability sections.
 - Guest dashboard blocks logged-out access and redirects to login.
 - Host dashboard blocks logged-out access and redirects to login.
 - Admin dashboard blocks logged-out access and redirects to login.
@@ -33,26 +34,20 @@ This was run with Playwright using iPhone 13 emulation, Pixel 5/Android emulatio
 
 ## Blocked checks
 
-- Listing detail from public search: blocked because `/search` currently shows `0 places available`.
-- Checkout start: blocked because there is no public listing to open from search.
 - Guest dashboard hands-on QA: blocked because production demo credentials are not accepted.
 - Host dashboard hands-on QA: blocked because production demo credentials are not accepted.
 - Admin dashboard hands-on QA: blocked because production demo credentials are not accepted.
 - Photo upload from iPhone/Android gallery: blocked because physical devices are required.
 
-## Important production finding
+## Current production listing finding
 
-Production search currently reports `0 places available`, including for:
+Production search currently shows 3 public listings. Listing detail and checkout handoff were verified separately for:
 
-- `/search`
-- `/search?location=Tagaytay`
-- `/search?location=Baguio`
-
-Known demo listing URLs such as `/rooms/p5` and `/rooms/42b8ae68-c9df-45f6-80c4-93a31e935c66` return the app's stay-not-found page in production. Before public launch, at least one approved public listing should exist so search, listing detail, booking, and checkout can be tested end to end.
+- `/rooms/46d34c9c-ae54-4ca5-9286-1ec6452b58c1`
 
 ## Evidence files
 
-Generated screenshots and JSON report:
+Generated screenshots and JSON report from the earlier June 7 pre-check:
 
 - `test-results/production-device-qa/iphone-final.png`
 - `test-results/production-device-qa/android-final.png`
@@ -63,10 +58,9 @@ These files are local QA artifacts and are not committed.
 
 ## Current verdict
 
-Automated device-emulation QA is partially passed for public browsing and protected-route behavior. Real-device QA and full booking/checkout device QA remain open until:
+Automated device-emulation QA passes for public browsing, legal/support/status pages, search, and an approved listing detail page. Real-device QA and authenticated dashboard/upload checks remain open until:
 
 - Physical iPhone Safari is tested.
 - Physical Android Chrome is tested.
 - Desktop browser is tested hands-on.
-- At least one approved production listing exists.
 - Real guest/host/admin accounts or dedicated QA accounts are available for dashboard testing.

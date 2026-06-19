@@ -1,6 +1,6 @@
 # Legal and privacy launch review
 
-Last reviewed: June 7, 2026
+Last reviewed: June 19, 2026
 
 This is an internal product/legal-readiness pass for StayPrimePH. It is not a substitute for review by qualified legal counsel, a privacy officer, tax adviser, or the business owner.
 
@@ -26,6 +26,13 @@ This is an internal product/legal-readiness pass for StayPrimePH. It is not a su
   - Privacy: `https://stayprimeph.com/legal/privacy`
   - Terms: `https://stayprimeph.com/legal/terms`
   - Data deletion: `https://stayprimeph.com/legal/data-deletion`
+
+## June 19, 2026 live recheck
+
+- `https://stayprimeph.com/legal/privacy` returns `200 OK`.
+- `https://stayprimeph.com/support` returns `200 OK`.
+- Public legal copy still includes `support@stayprimeph.com` and `privacy@stayprimeph.com`.
+- Qualified counsel approval, named privacy-owner/DPO confirmation, NPC registration assessment, and final retention/tax/receipt signoff remain external launch requirements.
 
 ## Official references used
 

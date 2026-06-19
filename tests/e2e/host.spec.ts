@@ -1,22 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { cleanupUserByEmail, expectNoSignedInSession, markUserEmailVerified } from "./helpers/auth";
 
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-
-const dataDir = path.join(process.cwd(), "data");
-
-async function cleanupHostByEmail(email: string) {
-  const usersPath = path.join(dataDir, "users.json");
-  const tokensPath = path.join(dataDir, "auth-tokens.json");
-  const users = JSON.parse(await readFile(usersPath, "utf8")) as Array<{ id: string; email: string }>;
-  const user = users.find((item) => item.email === email);
-  if (!user) return;
-
-  await writeFile(usersPath, `${JSON.stringify(users.filter((item) => item.id !== user.id), null, 2)}\n`);
-
-  const tokens = JSON.parse(await readFile(tokensPath, "utf8")) as Array<{ userId: string }>;
-  await writeFile(tokensPath, `${JSON.stringify(tokens.filter((item) => item.userId !== user.id), null, 2)}\n`);
-}
+const hostPassword = "PrimeStay2026!";
 
 async function signInAsHost(page: import("@playwright/test").Page) {
   const email = `host-${Date.now()}-${Math.round(Math.random() * 100000)}@example.com`;
@@ -25,17 +10,25 @@ async function signInAsHost(page: import("@playwright/test").Page) {
   await page.getByPlaceholder("Last name").fill("Host");
   await page.getByLabel("Date of birth").fill("1990-01-01");
   await page.getByPlaceholder("Email").fill(email);
-  await page.getByPlaceholder("Create a password").fill("Host123!");
+  await page.getByPlaceholder("Create a password").fill(hostPassword);
   await page.getByRole("button", { name: "Agree and continue" }).click();
   await expect(page.getByRole("heading", { name: "Everyone belongs here" })).toBeVisible();
   await page.getByRole("button", { name: "Agree and continue" }).click();
+  await expect(page).toHaveURL(/\/register\?message=.*role=host$/, { timeout: 30000 });
+  await expectNoSignedInSession(page);
+  await markUserEmailVerified(email);
+
+  await page.goto("/login?role=host", { waitUntil: "domcontentloaded" });
+  await page.getByPlaceholder("Email").fill(email);
+  await page.getByPlaceholder("Password").fill(hostPassword);
+  await page.getByRole("button", { name: "Log in" }).click();
   await expect(page).toHaveURL(/\/host\/dashboard$/, { timeout: 30000 });
   return email;
 }
 
 const hostScreens = [
   ["/host/dashboard", "Host Overview"],
-  ["/host/erp", "Host Reports"],
+  ["/host/erp", "ERP Hospitality Management"],
   ["/host/reports", "Host Reports"],
   ["/host/listings", "My Listings"],
   ["/host/bookings", "Booking Requests"],
@@ -140,10 +133,18 @@ test("listing draft is isolated between host accounts after logout", async ({ pa
     await page.getByPlaceholder("Last name").fill("Host");
     await page.getByLabel("Date of birth").fill("1990-01-01");
     await page.getByPlaceholder("Email").fill(secondHostEmail);
-    await page.getByPlaceholder("Create a password").fill("Host123!");
+    await page.getByPlaceholder("Create a password").fill(hostPassword);
     await page.getByRole("button", { name: "Agree and continue" }).click();
     await expect(page.getByRole("heading", { name: "Everyone belongs here" })).toBeVisible();
     await page.getByRole("button", { name: "Agree and continue" }).click();
+
+    await expect(page).toHaveURL(/\/register\?message=.*role=host$/, { timeout: 30000 });
+    await expectNoSignedInSession(page);
+    await markUserEmailVerified(secondHostEmail);
+    await page.goto("/login?role=host", { waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder("Email").fill(secondHostEmail);
+    await page.getByPlaceholder("Password").fill(hostPassword);
+    await page.getByRole("button", { name: "Log in" }).click();
     await expect(page).toHaveURL(/\/host\/dashboard$/, { timeout: 30000 });
 
     await page.goto("/become-a-host/setup", { waitUntil: "domcontentloaded" });
@@ -156,6 +157,6 @@ test("listing draft is isolated between host accounts after logout", async ({ pa
     const data = (await session.json()) as { user: { email: string } | null };
     expect(data.user?.email).toBe(secondHostEmail);
   } finally {
-    await cleanupHostByEmail(secondHostEmail);
+    await cleanupUserByEmail(secondHostEmail);
   }
 });
