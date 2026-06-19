@@ -78,6 +78,14 @@ describe("infrastructure security controls", () => {
     expect(dockerfile).not.toContain("sk_live_");
   });
 
+  test("self-heals additive booking package schema before raw ERP queries", async () => {
+    const repositories = await readRepoFile("lib/repositories.ts");
+
+    expect(repositories).toMatch(/export async function listPropertiesFromDatabase\(\): Promise<Property\[]> {\s+await ensureListingBookingPackageTable\(\);/);
+    expect(repositories).toMatch(/export async function findPropertyByIdFromDatabase\(id: string\): Promise<Property \| null> {\s+await ensureListingBookingPackageTable\(\);/);
+    expect(repositories).toMatch(/export async function listBookingsFromDatabase\(\): Promise<Booking\[]> {\s+await ensureBookingPackageColumns\(\);/);
+  });
+
   test("configures API CORS through an explicit allowlist", async () => {
     const [cors, proxy, productionEnv] = await Promise.all([
       readRepoFile("lib/cors.ts"),

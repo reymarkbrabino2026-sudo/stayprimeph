@@ -3,6 +3,7 @@ export const guestLinks = [
   { label: "My Bookings", href: "/guest/bookings" },
   { label: "Wishlist", href: "/guest/wishlist" },
   { label: "Messages", href: "/guest/messages" },
+  { label: "Notifications", href: "/guest/notifications" },
   { label: "Reviews", href: "/guest/reviews" },
   { label: "Profile Settings", href: "/guest/profile" },
 ];
@@ -18,12 +19,14 @@ export const hostLinks = [
   { label: "Earnings", href: "/host/earnings" },
   { label: "Payout Settings", href: "/host/payouts" },
   { label: "Messages", href: "/host/messages" },
+  { label: "Notifications", href: "/host/notifications" },
   { label: "Reviews", href: "/host/reviews" },
   { label: "Host Profile", href: "/host/profile" },
 ];
 
 export const adminLinks = [
   { label: "Overview", href: "/admin/dashboard" },
+  { label: "Notifications", href: "/admin/notifications" },
   { label: "Support Inbox", href: "/admin/support" },
   { label: "Host ERP", href: "/host/erp" },
   { label: "Host Reports", href: "/host/reports" },

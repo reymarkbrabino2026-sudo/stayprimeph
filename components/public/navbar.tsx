@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BriefcaseBusiness, Home, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
@@ -85,6 +86,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
               Become a host
             </Link>
           ) : null}
+          <NotificationBell variant={transparent ? "light" : "dark"} />
           <TravellerMenu />
         </div>
       </header>

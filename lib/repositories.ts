@@ -74,6 +74,39 @@ export async function appendAuditLogInDatabase(auditLog: AuditLog) {
   await insertAuditLog(prisma, auditLog);
 }
 
+type DatabaseAuditLog = {
+  id: string;
+  actorId: string;
+  actorRole: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: Prisma.JsonValue | null;
+  createdAt: Date;
+};
+
+export async function listAuditLogsFromDatabase(limit = 50): Promise<AuditLog[]> {
+  const logs = await prisma.$queryRaw<DatabaseAuditLog[]>`
+    SELECT "id", "actorId", "actorRole", "action", "entityType", "entityId", "metadata", "createdAt"
+    FROM "AuditLog"
+    ORDER BY "createdAt" DESC
+    LIMIT ${limit}
+  `;
+
+  return logs.map((log) => ({
+    id: log.id,
+    actorId: log.actorId,
+    actorRole: log.actorRole as AuditLog["actorRole"],
+    action: log.action as AuditLogAction,
+    entityType: log.entityType,
+    entityId: log.entityId,
+    metadata: log.metadata && typeof log.metadata === "object" && !Array.isArray(log.metadata)
+      ? log.metadata as Record<string, unknown>
+      : undefined,
+    createdAt: log.createdAt.toISOString(),
+  }));
+}
+
 function auditLogData({
   actorId,
   actorRole,
@@ -347,6 +380,7 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
 }
 
 export async function listPropertiesFromDatabase(): Promise<Property[]> {
+  await ensureListingBookingPackageTable();
   const properties = await prisma.property.findMany({
     include: {
       images: true,
@@ -369,6 +403,7 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
 }
 
 export async function findPropertyByIdFromDatabase(id: string): Promise<Property | null> {
+  await ensureListingBookingPackageTable();
   const property = await prisma.property.findUnique({
     where: { id },
     include: {
@@ -575,6 +610,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
 }
 
 export async function listBookingsFromDatabase(): Promise<Booking[]> {
+  await ensureBookingPackageColumns();
   const bookings = await prisma.booking.findMany({ orderBy: { createdAt: "desc" } });
   const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
     SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"

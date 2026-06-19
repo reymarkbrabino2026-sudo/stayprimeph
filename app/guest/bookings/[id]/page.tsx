@@ -11,7 +11,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
 import { getCsrfToken } from "@/lib/csrf";
 import { guestLinks } from "@/lib/navigation";
-import { arePaidBookingsEnabled, getPaymentByBookingId, isStripeCheckoutEnabled } from "@/lib/payments";
+import { getPaymentByBookingId } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { canReviewBooking, getReviewForBooking } from "@/lib/reviews";
@@ -32,8 +32,6 @@ export default async function BookingDetailsPage({
     : [null, null];
 
   if (!booking || !property || booking.guestId !== user?.id) notFound();
-  const paidBookingsEnabled = arePaidBookingsEnabled();
-  const stripeReady = isStripeCheckoutEnabled();
   const existingReview = await getReviewForBooking(booking);
   const reviewEligible = canReviewBooking(booking);
   const checkInDate = new Date(`${booking.checkIn}T00:00:00`);
@@ -52,6 +50,11 @@ export default async function BookingDetailsPage({
         {query.payment === "processing" && booking.paymentStatus !== "paid" ? (
           <p className="mb-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
             Payment is processing. This booking will show as paid only after provider webhook confirmation.
+          </p>
+        ) : null}
+        {query.payment === "manual-submitted" ? (
+          <p className="mb-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+            Payment details submitted. StayPrimePH will review the reference before this booking is marked as paid.
           </p>
         ) : null}
         {query.review === "posted" ? (
@@ -110,17 +113,13 @@ export default async function BookingDetailsPage({
           <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             Payment confirmed. Your booking is approved.
           </p>
-        ) : !paidBookingsEnabled ? (
-          <p className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-            Paid bookings are disabled until StayPrimePH launches a verified payment provider. No payment is due through the app right now.
-          </p>
         ) : (
           <PayNowButton
             booking={booking}
             propertyTitle={property.title}
             propertyLocation={formatPropertyLocation(property)}
             payment={payment}
-            stripeReady={stripeReady}
+            csrfToken={csrfToken}
           />
         )}
         {canCancelBooking ? (

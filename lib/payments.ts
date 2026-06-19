@@ -11,10 +11,11 @@ import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import {
   confirmManualPaymentInDatabase,
   listPaymentsFromDatabase,
+  recordManualPaymentInDatabase,
   rejectManualPaymentInDatabase,
   usesPrismaPersistence,
 } from "@/lib/repositories";
-import type { Booking, PaymentMethod } from "@/lib/types";
+import type { Booking, Payment, PaymentMethod } from "@/lib/types";
 
 const paidBookingsDisabledMessage = "Paid bookings are disabled until StayPrimePH launches a verified payment provider.";
 
@@ -103,10 +104,53 @@ export async function submitManualPayment({
   booking: Booking;
   paymentInput: ReturnType<typeof readManualPaymentInput>;
 }) {
-  void guestId;
-  void booking;
-  void paymentInput;
-  throw new Error(paidBookingsDisabledMessage);
+  if (paymentInput.bookingId !== booking.id) throw new Error("Payment does not match this booking.");
+  if (booking.guestId !== guestId) throw new Error("Booking request not found.");
+  if (booking.status === "cancelled") throw new Error("Cancelled bookings cannot be paid.");
+  if (booking.status === "completed") throw new Error("Completed bookings cannot accept new payment details.");
+  if (booking.paymentStatus === "paid") throw new Error("This booking is already paid.");
+  if (paymentInput.amount !== booking.totalPrice) throw new Error("Submitted payment amount does not match the booking total.");
+
+  const existingPayment = await getPaymentByBookingId(booking.id);
+  if (existingPayment && existingPayment.paymentStatus !== "rejected") {
+    throw new Error("Payment details are already submitted for this booking.");
+  }
+
+  if (usesPrismaPersistence()) {
+    await recordManualPaymentInDatabase(booking, paymentInput);
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const [payments, bookings] = await Promise.all([readStoredPayments(), readStoredBookings()]);
+  assertUniquePaymentReference(payments, {
+    bookingId: booking.id,
+    paymentMethod: paymentInput.paymentMethod,
+    transactionId: paymentInput.transactionId,
+  });
+
+  const payment: Payment = {
+    id: existingPayment?.id ?? `payment-${booking.id}`,
+    bookingId: booking.id,
+    guestId: booking.guestId,
+    hostId: booking.hostId,
+    amount: paymentInput.amount,
+    paymentMethod: paymentInput.paymentMethod,
+    paymentStatus: "submitted",
+    transactionId: paymentInput.transactionId,
+    notes: paymentInput.notes,
+    submittedAt: now,
+    createdAt: existingPayment?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  await writeStoredPayments(existingPayment
+    ? payments.map((item) => (item.id === existingPayment.id ? payment : item))
+    : [payment, ...payments]);
+  await writeStoredBookings(updateBookingPaymentState(bookings, booking.id, {
+    status: "pending",
+    paymentStatus: "submitted",
+  }));
 }
 
 export async function confirmManualPayment({ booking, hostId }: { booking: Booking; hostId: string }) {

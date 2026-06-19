@@ -65,25 +65,36 @@ describe("submitManualPayment", () => {
     envState.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = undefined;
   });
 
-  it("rejects manual payments while paid bookings are disabled", async () => {
-    await expect(
-      submitManualPayment({
-        guestId: "guest-1",
-        booking,
-        paymentInput: {
-          bookingId: booking.id,
-          paymentMethod: "gcash",
-          amount: booking.totalPrice,
-          transactionId: "reference",
-          notes: undefined,
-        },
-      }),
-    ).rejects.toThrow("Paid bookings are disabled");
+  it("records manual payment details for platform verification", async () => {
+    vi.mocked(readStoredBookings).mockResolvedValueOnce([booking]);
 
-    expect(readStoredPayments).not.toHaveBeenCalled();
-    expect(writeStoredPayments).not.toHaveBeenCalled();
-    expect(readStoredBookings).not.toHaveBeenCalled();
-    expect(writeStoredBookings).not.toHaveBeenCalled();
+    await submitManualPayment({
+      guestId: "guest-1",
+      booking,
+      paymentInput: {
+        bookingId: booking.id,
+        paymentMethod: "gcash",
+        amount: booking.totalPrice,
+        transactionId: "reference",
+        notes: undefined,
+      },
+    });
+
+    expect(writeStoredPayments).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        paymentMethod: "gcash",
+        paymentStatus: "submitted",
+        transactionId: "reference",
+      }),
+    ]);
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: booking.id,
+        status: "pending",
+        paymentStatus: "submitted",
+      }),
+    ]);
   });
 });
 

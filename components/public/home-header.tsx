@@ -4,6 +4,7 @@ import { BriefcaseBusiness, Home, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
@@ -105,6 +106,7 @@ export function HomeHeader() {
                 Become a host
               </Link>
             ) : null}
+            <NotificationBell variant={collapsed ? "dark" : "light"} />
             <TravellerMenu />
           </div>
         </div>
