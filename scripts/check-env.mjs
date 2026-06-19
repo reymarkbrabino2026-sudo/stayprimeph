@@ -2,9 +2,8 @@ import nextEnv from "@next/env";
 
 const { loadEnvConfig } = nextEnv;
 
-loadEnvConfig(process.cwd());
-
 const environment = process.argv[2] ?? process.env.NODE_ENV ?? "development";
+loadEnvConfig(process.cwd(), environment !== "production");
 
 function optionalEnv(value) {
   const trimmed = value?.trim();
@@ -18,7 +17,7 @@ const directUrl = optionalEnv(process.env.DIRECT_URL) ?? optionalEnv(process.env
 const requiredByEnvironment = {
   development: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
   test: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
-  production: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
+  production: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET"],
 };
 
 const required = requiredByEnvironment[environment] ?? requiredByEnvironment.development;
@@ -41,8 +40,9 @@ if (process.env.AUTH_SECRET && process.env.AUTH_SECRET.length < 32) {
 }
 
 if (environment === "production") {
-  if (process.env.PERSISTENCE_DRIVER !== "prisma") {
-    console.error("PERSISTENCE_DRIVER must be prisma in production.");
+  const persistenceDriver = optionalEnv(process.env.PERSISTENCE_DRIVER) ?? "prisma";
+  if (persistenceDriver !== "prisma") {
+    console.error("PERSISTENCE_DRIVER must be prisma when set in production.");
     process.exit(1);
   }
   if (!databaseUrl?.startsWith("postgresql://") && !databaseUrl?.startsWith("postgres://")) {

@@ -68,6 +68,7 @@ Current required variables:
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary signing secret |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token for hosted listing photo uploads when Cloudinary is not configured |
+| `JSON_STORE_BLOB_READ_WRITE_TOKEN` | Optional Vercel Blob token for JSON persistence; leave blank unless intentionally using Blob as the JSON store |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL for Google and Facebook login |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase browser-safe publishable key for Google and Facebook login |
 
@@ -81,7 +82,8 @@ For the shortest production launch path, see `docs/launch-asap.md`.
 ## External integrations
 
 - Paid bookings are disabled by default. Set `PAYMENT_LAUNCH_MODE=stripe` with live Stripe keys and webhook secret only when real provider payments are approved for launch.
-- Listing photos now use Cloudinary when configured, Vercel Blob when `BLOB_READ_WRITE_TOKEN` is present, and a local development fallback under `public/uploads/listings`.
+- Listing photos use Cloudinary when configured or Vercel Blob when `PHOTO_BLOB_READ_WRITE_TOKEN`/`BLOB_READ_WRITE_TOKEN` is present. Local filesystem uploads are disabled.
+- JSON persistence uses local files by default and uses Vercel Blob only when `JSON_STORE_BLOB_READ_WRITE_TOKEN` is set.
 - Resend now sends welcome, verification, password-reset, booking, and listing-review emails.
 - Email verification and password reset use expiring one-time tokens.
 - Google and Facebook login use Supabase Auth providers. Enable both providers in Supabase and add `/auth/callback` as the redirect path for your app URL.

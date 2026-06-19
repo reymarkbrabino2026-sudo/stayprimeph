@@ -15,8 +15,18 @@ type CacheEntry<T> = {
 
 const readCache = new Map<string, CacheEntry<unknown>>();
 
+function optionalEnv(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "\"\"" || trimmed === "''") return undefined;
+  return trimmed;
+}
+
+function jsonBlobToken() {
+  return optionalEnv(process.env.JSON_STORE_BLOB_READ_WRITE_TOKEN);
+}
+
 function hasBlobStore() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return Boolean(jsonBlobToken());
 }
 
 function blobPath(fileName: string) {
@@ -68,7 +78,7 @@ export async function readJsonStore<T>(fileName: string): Promise<T[]> {
   if (cached?.expiresAt && cached.expiresAt > Date.now()) return cached.items;
 
   try {
-    const blob = await get(blobPath(fileName), { access: "private", useCache: false });
+    const blob = await get(blobPath(fileName), { access: "private", token: jsonBlobToken(), useCache: false });
     if (blob?.statusCode === 200 && blob.stream) {
       const raw = await new Response(blob.stream).text();
       const items = parseJsonArray<T>(raw);
@@ -100,6 +110,7 @@ export async function writeJsonStore<T>(fileName: string, items: T[]) {
     allowOverwrite: true,
     contentType: "application/json",
     cacheControlMaxAge: 60,
+    token: jsonBlobToken(),
   });
   readCache.set(fileName, { items, expiresAt: Date.now() + blobCacheMs });
 }

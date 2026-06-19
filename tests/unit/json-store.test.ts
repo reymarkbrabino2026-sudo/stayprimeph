@@ -11,7 +11,8 @@ describe("readJsonStore", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test_store_token";
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.JSON_STORE_BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test_store_token";
   });
 
   it("falls back to bundled data when blob reads fail", async () => {
@@ -30,5 +31,15 @@ describe("readJsonStore", () => {
 
     await expect(readJsonStore("host-expenses.json")).resolves.toEqual([]);
     expect(blob.put).toHaveBeenCalled();
+  });
+
+  it("does not use the listing photo blob token for JSON persistence", async () => {
+    delete process.env.JSON_STORE_BLOB_READ_WRITE_TOKEN;
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_photo_token";
+
+    const { readJsonStore } = await import("@/lib/json-store");
+
+    await expect(readJsonStore("host-expenses.json")).resolves.toEqual([]);
+    expect(blob.get).not.toHaveBeenCalled();
   });
 });
