@@ -1,4 +1,5 @@
 import { confirmPaymentAndApproveBooking, rejectBooking, rejectSubmittedPayment } from "@/app/host/bookings/actions";
+import { BookingActionSubmitButton } from "@/app/host/bookings/booking-action-submit-button";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -55,9 +56,11 @@ export default async function HostBookingsPage() {
                   <form action={confirmPaymentAndApproveBooking}>
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="id" value={booking.id} />
-                    <button className="min-h-10 w-full rounded-full bg-emerald-100 px-3 text-xs font-semibold text-emerald-700">
-                      Confirm payment & approve
-                    </button>
+                    <BookingActionSubmitButton
+                      label="Confirm payment & approve"
+                      pendingLabel="Approving..."
+                      className="min-h-10 w-full rounded-full bg-emerald-100 px-3 text-xs font-semibold text-emerald-700 transition disabled:cursor-wait disabled:bg-emerald-50 disabled:text-emerald-700/60"
+                    />
                   </form>
                   <form action={rejectSubmittedPayment} className="space-y-2">
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
@@ -68,9 +71,11 @@ export default async function HostBookingsPage() {
                       className="min-h-10 w-full rounded-xl border px-3 text-xs"
                       required
                     />
-                    <button className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700">
-                      Reject payment
-                    </button>
+                    <BookingActionSubmitButton
+                      label="Reject payment"
+                      pendingLabel="Rejecting..."
+                      className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700 transition disabled:cursor-wait disabled:bg-rose-50 disabled:text-rose-700/60"
+                    />
                   </form>
                 </div>
               ) : booking.status === "confirmed" ? (
@@ -83,9 +88,11 @@ export default async function HostBookingsPage() {
                   <form action={rejectBooking}>
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="id" value={booking.id} />
-                    <button className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700">
-                      Reject booking
-                    </button>
+                    <BookingActionSubmitButton
+                      label="Reject booking"
+                      pendingLabel="Rejecting..."
+                      className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700 transition disabled:cursor-wait disabled:bg-rose-50 disabled:text-rose-700/60"
+                    />
                   </form>
                 </>
               )}
