@@ -107,8 +107,8 @@ vi.mock("@/lib/users", () => ({
   getUsers: vi.fn(async () => []),
 }));
 
-import { requestPasswordReset, resetPassword, signIn, signOutAllDevices, verifyAdminMfa } from "@/app/auth/actions";
-import { createPendingAdminMfaChallenge, readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
+import { requestPasswordReset, resendAdminMfa, resetPassword, signIn, signOutAllDevices, verifyAdminMfa } from "@/app/auth/actions";
+import { clearPendingAdminMfaChallenge, createPendingAdminMfaChallenge, readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, createSession, requireUser, verifyPassword } from "@/lib/auth";
 import { consumeAuthToken, getAuthToken, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
@@ -226,6 +226,40 @@ describe("admin MFA sign-in", () => {
     expect(getAuthToken).toHaveBeenCalledWith("mfa-token", "admin_mfa");
     expect(consumeAuthToken).toHaveBeenCalledWith("mfa-token", "admin_mfa");
     expect(createSession).toHaveBeenCalledWith(adminUser.id);
+  });
+
+  it("resends a fresh admin MFA code without creating a session", async () => {
+    vi.mocked(readPendingAdminMfaChallenge).mockResolvedValueOnce("mfa-token");
+    vi.mocked(getAuthToken).mockResolvedValueOnce(adminMfaToken);
+    vi.mocked(getUserById).mockResolvedValueOnce(adminUser);
+    vi.mocked(issueAuthToken).mockResolvedValueOnce("fresh-mfa-token");
+
+    const formData = new FormData();
+    formData.set("next", "/admin/payments");
+
+    await expect(resendAdminMfa(formData)).rejects.toThrow("NEXT_REDIRECT:/admin/login?mfa=1");
+
+    expect(getAuthToken).toHaveBeenCalledWith("mfa-token", "admin_mfa");
+    expect(issueAuthToken).toHaveBeenCalledWith(adminUser.id, "admin_mfa");
+    expect(createPendingAdminMfaChallenge).toHaveBeenCalledWith("fresh-mfa-token");
+    expect(sendAdminMfaEmail).toHaveBeenCalledWith({
+      to: adminUser.email,
+      name: adminUser.name,
+      code: "123456",
+    });
+    expect(createSession).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("message=We+sent+a+new+admin+code."));
+    expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("next=%2Fadmin%2Fpayments"));
+  });
+
+  it("does not resend an expired admin MFA challenge", async () => {
+    vi.mocked(readPendingAdminMfaChallenge).mockResolvedValueOnce("mfa-token");
+    vi.mocked(getAuthToken).mockResolvedValueOnce(null);
+
+    await expect(resendAdminMfa(new FormData())).rejects.toThrow("NEXT_REDIRECT:/admin/login?error=Admin sign-in challenge expired. Log in again.");
+
+    expect(sendAdminMfaEmail).not.toHaveBeenCalled();
+    expect(clearPendingAdminMfaChallenge).toHaveBeenCalled();
   });
 
   it("revokes every session for the current user when logging out all devices", async () => {

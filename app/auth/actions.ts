@@ -252,6 +252,47 @@ export async function verifyAdminMfa(formData: FormData) {
   redirect(nextPath?.startsWith("/admin") ? nextPath : roleHome(user.role));
 }
 
+export async function resendAdminMfa(formData: FormData) {
+  const headerStore = await headers();
+  const rawToken = await readPendingAdminMfaChallenge();
+  const ip = clientIp(headerStore);
+
+  if (!isTrustedRequestOrigin(headerStore)) {
+    logger.warn("admin_mfa_resend_untrusted_origin");
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  if (!rawToken) {
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  const pendingToken = await getAuthToken(rawToken, "admin_mfa");
+  if (!pendingToken) {
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  const rateLimit = await checkDistributedRateLimit(`admin-mfa-resend:${ip}:${pendingToken.userId}`, 3, 10 * 60_000);
+  if (rateLimit.limited) {
+    logger.warn("admin_mfa_resend_rate_limited", { userId: pendingToken.userId });
+    redirect(adminMfaTarget("error", "Too many resend requests. Please wait before requesting another code.", formData));
+  }
+
+  const user = await getUserById(pendingToken.userId);
+  if (!user || user.role !== "admin") {
+    await consumeAuthToken(rawToken, "admin_mfa");
+    await clearPendingAdminMfaChallenge();
+    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+  }
+
+  const freshToken = await issueAuthToken(user.id, "admin_mfa");
+  await createPendingAdminMfaChallenge(freshToken);
+  await sendAdminMfaEmail({ to: user.email, name: user.name, code: createAdminMfaCode(freshToken) });
+  logger.info("admin_mfa_code_resent", { userId: user.id });
+  redirect(adminMfaTarget("message", "We sent a new admin code.", formData));
+}
+
 export async function signUp(formData: FormData) {
   await assertTrustedRequestOrigin();
 

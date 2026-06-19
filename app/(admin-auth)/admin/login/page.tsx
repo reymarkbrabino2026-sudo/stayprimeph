@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { signIn, verifyAdminMfa } from "@/app/auth/actions";
+import { resendAdminMfa, signIn, verifyAdminMfa } from "@/app/auth/actions";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { AuthForm } from "@/components/forms/auth-form";
 import { AuthSubmitButton } from "@/components/forms/auth-submit-button";
@@ -57,8 +57,12 @@ export default async function AdminLoginPage({
               />
               <AuthSubmitButton label="Verify code" />
             </form>
-            <p className="mt-5 text-sm text-black/55">
-              Need a new code?{" "}
+            <form action={resendAdminMfa} className="mt-3">
+              <input type="hidden" name="next" value={nextPath} />
+              <AuthSubmitButton label="Resend code" pendingLabel="Resending code" variant="secondary" />
+            </form>
+            <p className="mt-4 text-sm text-black/55">
+              Still having trouble?{" "}
               <Link className="font-semibold text-[#a8431f]" href={`/admin/login?next=${encodeURIComponent(nextPath)}`}>
                 Sign in again
               </Link>
