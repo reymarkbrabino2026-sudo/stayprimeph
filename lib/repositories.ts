@@ -252,6 +252,31 @@ export async function listUsersFromDatabase(): Promise<User[]> {
   }));
 }
 
+export async function findUserByIdFromDatabase(id: string): Promise<User | null> {
+  const users = await prisma.$queryRaw<DatabaseUser[]>`
+    SELECT
+      "id", "name", "email", "password", "role", "avatar", "phone",
+      "emailVerifiedAt", "passwordChangedAt", "createdAt"
+    FROM "User"
+    WHERE "id" = ${id}
+    LIMIT 1
+  `;
+  const user = users[0];
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role as User["role"],
+    avatar: user.avatar ?? "",
+    phone: user.phone ?? "",
+    createdAt: user.createdAt.toISOString().slice(0, 10),
+    passwordHash: user.password ?? undefined,
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
+    passwordChangedAt: user.passwordChangedAt?.toISOString(),
+  };
+}
+
 export async function createUserInDatabase(user: User) {
   await prisma.user.create({
     data: {
@@ -269,6 +294,14 @@ export async function createUserInDatabase(user: User) {
 }
 
 type DatabaseBookingPackage = BookingPackage & { propertyId: string };
+type DatabaseProperty = Prisma.PropertyGetPayload<{
+  include: {
+    images: true;
+    amenities: { include: { amenity: true } };
+    location: true;
+    pricing: true;
+  };
+}>;
 
 function groupBookingPackages(packages: DatabaseBookingPackage[]) {
   return packages.reduce<Record<string, BookingPackage[]>>((groups, item) => {
@@ -278,26 +311,8 @@ function groupBookingPackages(packages: DatabaseBookingPackage[]) {
   }, {});
 }
 
-export async function listPropertiesFromDatabase(): Promise<Property[]> {
-  const properties = await prisma.property.findMany({
-    include: {
-      images: true,
-      amenities: { include: { amenity: true } },
-      location: true,
-      pricing: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
-    SELECT
-      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
-      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
-    FROM "ListingBookingPackage"
-    ORDER BY "name" ASC
-  `;
-  const packagesByProperty = groupBookingPackages(packages);
-
-  return properties.map((property) => ({
+function toProperty(property: DatabaseProperty, packagesByProperty: Record<string, BookingPackage[]>): Property {
+  return {
     id: property.id,
     hostId: property.hostId,
     slug: property.slug,
@@ -328,7 +343,53 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     province: property.location?.province ?? undefined,
     zipCode: property.location?.zipCode ?? undefined,
     preciseLocation: property.location?.preciseLocation,
-  }));
+  };
+}
+
+export async function listPropertiesFromDatabase(): Promise<Property[]> {
+  const properties = await prisma.property.findMany({
+    include: {
+      images: true,
+      amenities: { include: { amenity: true } },
+      location: true,
+      pricing: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
+    SELECT
+      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
+      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+    FROM "ListingBookingPackage"
+    ORDER BY "name" ASC
+  `;
+  const packagesByProperty = groupBookingPackages(packages);
+
+  return properties.map((property) => toProperty(property, packagesByProperty));
+}
+
+export async function findPropertyByIdFromDatabase(id: string): Promise<Property | null> {
+  const property = await prisma.property.findUnique({
+    where: { id },
+    include: {
+      images: true,
+      amenities: { include: { amenity: true } },
+      location: true,
+      pricing: true,
+    },
+  });
+  if (!property) return null;
+
+  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
+    SELECT
+      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
+      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+    FROM "ListingBookingPackage"
+    WHERE "propertyId" = ${id}
+    ORDER BY "name" ASC
+  `;
+
+  return toProperty(property, groupBookingPackages(packages));
 }
 
 function amenityIdForName(name: string) {

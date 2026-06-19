@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from
 import { compareSync, hashSync } from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { createSessionInDatabase, deleteSessionFromDatabase, deleteSessionsForUserFromDatabase, findSessionFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredSessions, writeStoredSessions } from "@/lib/session-store";
 import { getUserById } from "@/lib/users";
@@ -113,7 +114,7 @@ export async function clearSession() {
   cookieStore.set(sessionCookieName, "", sessionCookieOptions(0));
 }
 
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   const cookieStore = await cookies();
   const token = readSessionToken(cookieStore.get(sessionCookieName)?.value);
   if (!token) return null;
@@ -123,7 +124,7 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!user) return null;
   const passwordChangedAt = user.passwordChangedAt ? new Date(user.passwordChangedAt).getTime() : 0;
   return passwordChangedAt && new Date(session.createdAt).getTime() < passwordChangedAt ? null : user;
-}
+});
 
 type RequireUserOptions = {
   redirectTo?: string;

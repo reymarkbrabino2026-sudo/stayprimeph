@@ -31,12 +31,15 @@ export function RoomReservationCard({
   const instantBook = property.rules.includes("Instant book enabled");
   const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
   const selectedPackage = useMemo(() => getBookingPackageById(property, packageId), [packageId, property]);
+  const selectedIsDayPackage = selectedPackage?.unit === "day";
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const effectiveStay = useMemo(() => {
+    const expectedDayCheckout = checkIn ? addDays(checkIn, 1) : "";
     const selectedStayNeedsRepair =
       checkIn < TODAY ||
       checkOut <= checkIn ||
+      (selectedIsDayPackage && Boolean(checkIn) && checkOut !== expectedDayCheckout) ||
       bookedNightSet.has(checkIn) ||
       hasBookedNightInRange(checkIn, checkOut, bookedNightSet);
 
@@ -48,7 +51,7 @@ export function RoomReservationCard({
       bookedNightKeys: bookedNightSet,
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
-  }, [bookedNightSet, checkIn, checkOut]);
+  }, [bookedNightSet, checkIn, checkOut, selectedIsDayPackage]);
   const { nights, weekdayNights, weekendNights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id);
   const packageWeekdayRate = selectedPackage?.weekdayRate ?? property.pricePerNight;
   const packageWeekendRate = selectedPackage ? (selectedPackage.weekendRate > 0 ? selectedPackage.weekendRate : selectedPackage.weekdayRate) : property.weekendPrice ?? calculateDefaultWeekendPrice(property.pricePerNight);
@@ -57,7 +60,7 @@ export function RoomReservationCard({
   const headlinePrice = validStay ? total : guestNightlyPrice;
   const unitName = selectedPackage?.unit === "day" ? "day" : "night";
   const headlinePriceLabel = validStay ? ` for ${nights} ${unitName}${nights === 1 ? "" : "s"}` : ` / ${unitName}`;
-  const rateSummary = formatRateSummary({ guestNightlyPrice, guestWeekendPrice, weekdayNights, weekendNights, nights });
+  const rateSummary = formatRateSummary({ guestNightlyPrice, guestWeekendPrice, weekdayNights, weekendNights, nights, unitName });
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
@@ -67,6 +70,7 @@ export function RoomReservationCard({
   const [activeField, setActiveField] = useState<"checkIn" | "checkOut">("checkIn");
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn || TODAY));
   const calendarMonth = useMemo(() => buildCalendarMonth(visibleMonth.year, visibleMonth.month), [visibleMonth]);
+  const calendarActiveField = selectedIsDayPackage ? "checkIn" : activeField;
 
   useEffect(() => {
     if (!bookingPackages.length) {
@@ -76,6 +80,13 @@ export function RoomReservationCard({
     if (!selectedPackage) setPackageId(bookingPackages[0].id);
   }, [bookingPackages, packageId, selectedPackage, setPackageId]);
 
+  useEffect(() => {
+    if (!selectedIsDayPackage || !effectiveStay.checkIn) return;
+
+    const dayCheckout = addDays(effectiveStay.checkIn, 1);
+    if (checkOut !== dayCheckout) setCheckOut(dayCheckout);
+  }, [checkOut, effectiveStay.checkIn, selectedIsDayPackage, setCheckOut]);
+
   function moveMonth(offset: number) {
     const next = new Date(visibleMonth.year, visibleMonth.month + offset, 1);
     setVisibleMonth({ year: next.getFullYear(), month: next.getMonth() });
@@ -83,6 +94,15 @@ export function RoomReservationCard({
 
   function selectDate(dateKey: string) {
     if (dateKey < TODAY) return;
+
+    if (selectedIsDayPackage) {
+      const dayCheckout = addDays(dateKey, 1);
+      if (bookedNightSet.has(dateKey) || hasBookedNightInRange(dateKey, dayCheckout, bookedNightSet)) return;
+      setCheckIn(dateKey);
+      setCheckOut(dayCheckout);
+      setActiveField("checkIn");
+      return;
+    }
 
     if (activeField === "checkOut" && effectiveStay.checkIn && dateKey > effectiveStay.checkIn) {
       if (hasBookedNightInRange(effectiveStay.checkIn, dateKey, bookedNightSet)) return;
@@ -143,18 +163,18 @@ export function RoomReservationCard({
       <div className="mt-4 overflow-hidden rounded-[1.15rem] border border-black/15 min-[390px]:mt-5 min-[390px]:rounded-2xl">
         <div className="grid grid-cols-2 divide-x divide-black/10">
           <DateField
-            active={activeField === "checkIn"}
-            label="Check-in"
+            active={calendarActiveField === "checkIn"}
+            label={selectedIsDayPackage ? "Date" : "Check-in"}
             time={selectedPackage?.checkInTime ?? STANDARD_CHECK_IN_TIME}
             value={effectiveStay.checkIn}
             onClick={() => setActiveField("checkIn")}
           />
           <DateField
-            active={activeField === "checkOut"}
-            label="Check-out"
+            active={activeField === "checkOut" && !selectedIsDayPackage}
+            label={selectedIsDayPackage ? "Ends" : "Check-out"}
             time={selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME}
-            value={effectiveStay.checkOut}
-            onClick={() => setActiveField("checkOut")}
+            value={selectedIsDayPackage ? effectiveStay.checkIn : effectiveStay.checkOut}
+            onClick={() => setActiveField(selectedIsDayPackage ? "checkIn" : "checkOut")}
           />
         </div>
 
@@ -192,10 +212,11 @@ export function RoomReservationCard({
                 <CalendarDateButton
                   key={cell.dateKey}
                   cell={cell}
-                  activeField={activeField}
+                  activeField={calendarActiveField}
                   checkIn={effectiveStay.checkIn}
                   checkOut={effectiveStay.checkOut}
                   bookedNightSet={bookedNightSet}
+                  singleDayPackage={selectedIsDayPackage}
                   onSelect={selectDate}
                 />
               ) : (
@@ -311,6 +332,7 @@ function CalendarDateButton({
   checkIn,
   checkOut,
   bookedNightSet,
+  singleDayPackage,
   onSelect,
 }: {
   cell: CalendarDay;
@@ -318,6 +340,7 @@ function CalendarDateButton({
   checkIn: string;
   checkOut: string;
   bookedNightSet: Set<string>;
+  singleDayPackage: boolean;
   onSelect: (dateKey: string) => void;
 }) {
   const isPast = cell.dateKey < TODAY;
@@ -329,11 +352,11 @@ function CalendarDateButton({
     cell.dateKey > checkIn &&
     !hasBookedNightInRange(checkIn, cell.dateKey, bookedNightSet);
   const isStart = Boolean(checkIn) && cell.dateKey === checkIn;
-  const isEnd = Boolean(checkOut) && cell.dateKey === checkOut;
-  const inRange = Boolean(checkIn && checkOut) && cell.dateKey > checkIn && cell.dateKey < checkOut;
+  const isEnd = !singleDayPackage && Boolean(checkOut) && cell.dateKey === checkOut;
+  const inRange = !singleDayPackage && Boolean(checkIn && checkOut) && cell.dateKey > checkIn && cell.dateKey < checkOut;
   const selected = isStart || isEnd;
   const disabled = !selected && (activeField === "checkIn" || !checkIn ? unavailable : !canSelectCheckout);
-  const statusLabel = isStart ? "Check-in" : isEnd ? "Check-out" : unavailable ? "Booked" : "Open";
+  const statusLabel = isStart ? (singleDayPackage ? "Selected" : "Check-in") : isEnd ? "Check-out" : unavailable ? "Booked" : "Open";
   const toneClass = selected
     ? "border-[#083f35] bg-[#083f35] text-white"
     : inRange && !unavailable
@@ -414,19 +437,21 @@ function formatRateSummary({
   weekdayNights,
   weekendNights,
   nights,
+  unitName,
 }: {
   guestNightlyPrice: number;
   guestWeekendPrice: number;
   weekdayNights: number;
   weekendNights: number;
   nights: number;
+  unitName: "day" | "night";
 }) {
   if (weekendNights > 0 && weekdayNights > 0 && guestWeekendPrice !== guestNightlyPrice) {
     return `${formatCurrency(guestNightlyPrice)} weekday / ${formatCurrency(guestWeekendPrice)} weekend`;
   }
 
   const displayedRate = weekendNights > 0 && weekdayNights === 0 ? guestWeekendPrice : guestNightlyPrice;
-  return `${formatCurrency(displayedRate)} x ${nights} night${nights === 1 ? "" : "s"}`;
+  return `${formatCurrency(displayedRate)} x ${nights} ${unitName}${nights === 1 ? "" : "s"}`;
 }
 
 function cx(...classes: Array<string | false | undefined>) {

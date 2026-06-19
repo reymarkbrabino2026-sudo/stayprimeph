@@ -1,9 +1,9 @@
-import { approveListing, rejectListing } from "@/app/admin/listings/actions";
+import { ListingReviewActions } from "@/components/admin/listing-review-actions";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getBookings } from "@/lib/bookings";
-import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
+import { getCsrfToken } from "@/lib/csrf";
 import { adminLinks } from "@/lib/navigation";
 import { getProperties } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
@@ -53,18 +53,7 @@ export default async function AdminDashboardPage() {
                   <span className="rounded-full bg-black/[0.04] px-3 py-1">{property.bedrooms} bedrooms</span>
                   <span className="rounded-full bg-black/[0.04] px-3 py-1">₱{property.pricePerNight.toLocaleString()}/night</span>
                 </div>
-                <div className="mt-5 flex gap-2">
-                  <form action={approveListing} className="flex-1">
-                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
-                    <input type="hidden" name="id" value={property.id} />
-                    <button className="min-h-11 w-full rounded-full bg-black px-4 font-semibold text-white transition hover:bg-black/85">Approve</button>
-                  </form>
-                  <form action={rejectListing} className="flex-1">
-                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
-                    <input type="hidden" name="id" value={property.id} />
-                    <button className="min-h-11 w-full rounded-full border border-black/10 px-4 font-semibold transition hover:border-black/30 hover:bg-black/[0.02]">Reject</button>
-                  </form>
-                </div>
+                <ListingReviewActions listingId={property.id} csrfToken={csrfToken} />
               </article>
             ))}
           </div>
