@@ -19,6 +19,7 @@ import { ImageUploader, UploadCard } from "@/components/host-wizard/image-upload
 import { MapSelector } from "@/components/host-wizard/map-selector";
 import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout";
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
+import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import type { HostBookingPackageDraft } from "@/lib/host-wizard-types";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
@@ -196,6 +197,16 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   function updateBookingPackage(id: string, patch: Partial<HostBookingPackageDraft>) {
     updateDraft({
       bookingPackages: draft.bookingPackages.map((item) => item.id === id ? { ...item, ...patch } : item),
+    });
+  }
+
+  function bookingPackagesForPrices(nextBasePrice: number, nextWeekendPrice: number) {
+    return syncedBookingPackagesForPricing({
+      packages: draft.bookingPackages,
+      previousBasePrice: draft.basePrice,
+      previousWeekendPrice: draft.weekendPrice,
+      nextBasePrice,
+      nextWeekendPrice,
     });
   }
 
@@ -397,7 +408,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
               </button>
               <button
                 type="button"
-                onClick={() => updateDraft({ pricingMode: "packages" })}
+                onClick={() => updateDraft({ pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })}
                 className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
               >
                 <span className="block font-semibold">Booking packages</span>
@@ -406,7 +417,20 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             </div>
             <div className="mt-10 text-center">
               <div className="text-6xl font-semibold sm:text-7xl">PHP {draft.basePrice.toLocaleString()}</div>
-              <input aria-label="Base price" type="range" min="500" max="20000" step="100" value={draft.basePrice} onChange={(event) => updateDraft({ basePrice: Number(event.target.value) })} className="mt-10 w-full" />
+              <input
+                aria-label="Base price"
+                type="range"
+                min="500"
+                max="20000"
+                step="100"
+                value={draft.basePrice}
+                onChange={(event) => {
+                  const basePrice = Number(event.target.value);
+                  const weekendPrice = Math.round(basePrice * (1 + draft.weekendPremium / 100));
+                  updateDraft({ basePrice, weekendPrice, bookingPackages: bookingPackagesForPrices(basePrice, weekendPrice) });
+                }}
+                className="mt-10 w-full"
+              />
             </div>
           </section>
         ) : null}
@@ -426,7 +450,8 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                 value={draft.weekendPremium}
                 onChange={(event) => {
                   const weekendPremium = Number(event.target.value);
-                  updateDraft({ weekendPremium, weekendPrice: Math.round(draft.basePrice * (1 + weekendPremium / 100)) });
+                  const weekendPrice = Math.round(draft.basePrice * (1 + weekendPremium / 100));
+                  updateDraft({ weekendPremium, weekendPrice, bookingPackages: bookingPackagesForPrices(draft.basePrice, weekendPrice) });
                 }}
                 className="w-full"
               />
