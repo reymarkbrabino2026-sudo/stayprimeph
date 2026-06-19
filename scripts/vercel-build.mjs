@@ -12,6 +12,13 @@ function enabled(value) {
   return ["1", "true", "yes"].includes((value ?? "").trim().toLowerCase());
 }
 
+function migrationNames(value) {
+  return (optionalEnv(value) ?? "")
+    .split(/[,\s]+/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 function run(command, args, env) {
   const result = spawnSync(command, args, {
     env,
@@ -42,12 +49,19 @@ function deployPrismaMigrationsIfEnabled() {
     process.exit(1);
   }
 
-  console.log("Running Prisma production migrations before the sanitized Vercel build.");
-  run("npx", ["prisma", "migrate", "deploy"], {
+  const migrateEnv = {
     ...process.env,
     DATABASE_URL: databaseUrl,
     DIRECT_URL: directUrl,
-  });
+  };
+
+  for (const migrationName of migrationNames(process.env.PRISMA_MIGRATE_RESOLVE_APPLIED)) {
+    console.log(`Marking production Prisma migration as applied: ${migrationName}`);
+    run("npx", ["prisma", "migrate", "resolve", "--applied", migrationName], migrateEnv);
+  }
+
+  console.log("Running Prisma production migrations before the sanitized Vercel build.");
+  run("npx", ["prisma", "migrate", "deploy"], migrateEnv);
 }
 
 const buildTimeEnv = {
