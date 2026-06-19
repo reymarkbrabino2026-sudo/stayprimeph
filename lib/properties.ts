@@ -1,9 +1,7 @@
-import { enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { listPropertiesFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties } from "@/lib/property-store";
 
 export async function getProperties() {
-  await enforceDataRetentionOncePerDay();
   if (usesPrismaPersistence()) return listPropertiesFromDatabase();
   return readStoredProperties();
 }

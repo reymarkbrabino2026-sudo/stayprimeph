@@ -279,7 +279,6 @@ function groupBookingPackages(packages: DatabaseBookingPackage[]) {
 }
 
 export async function listPropertiesFromDatabase(): Promise<Property[]> {
-  await ensureListingBookingPackageTable();
   const properties = await prisma.property.findMany({
     include: {
       images: true,
@@ -422,7 +421,6 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 }
 
 export async function listBookingsFromDatabase(): Promise<Booking[]> {
-  await ensureBookingPackageColumns();
   const bookings = await prisma.booking.findMany({ orderBy: { createdAt: "desc" } });
   const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
     SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"

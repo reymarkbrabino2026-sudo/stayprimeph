@@ -19,7 +19,7 @@ vi.mock("@/lib/json-store", () => ({
   writeJsonStore: vi.fn(),
 }));
 
-import { enforceDataRetention } from "@/lib/data-retention";
+import { enforceDataRetention, enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
 function storeData() {
@@ -91,5 +91,14 @@ describe("data retention", () => {
       "audit-fresh",
     ]);
     expect(writes.get("properties.json")?.map((item) => item.id)).toEqual(["pending-old", "draft-fresh"]);
+  });
+
+  it("does not retry failed retention on every request for the same day", async () => {
+    vi.mocked(readJsonStore).mockRejectedValue(new Error("database unavailable"));
+
+    await expect(enforceDataRetentionOncePerDay(new Date("2026-06-19T00:00:00.000Z"))).resolves.toBeNull();
+    await expect(enforceDataRetentionOncePerDay(new Date("2026-06-19T12:00:00.000Z"))).resolves.toBeNull();
+
+    expect(readJsonStore).toHaveBeenCalledTimes(6);
   });
 });

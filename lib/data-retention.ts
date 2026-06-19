@@ -242,7 +242,6 @@ export async function enforceDataRetentionOncePerDay(now = new Date()) {
   try {
     return await enforceDataRetention(now);
   } catch (error) {
-    lastRetentionRunKey = null;
     logger.warn("data_retention_failed", {
       error: error instanceof Error ? error.message : "Unknown retention error",
     });
