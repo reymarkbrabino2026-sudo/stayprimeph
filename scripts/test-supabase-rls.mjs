@@ -323,6 +323,10 @@ async function countAs(context, tableName, whereSql = "true") {
   }
 }
 
+function countCheck(context, tableName, whereSql, expected) {
+  return async () => (await countAs(context, tableName, whereSql)) === expected;
+}
+
 async function canInsertAs(context, tableName, insertSql) {
   const db = prisma();
   try {
@@ -369,41 +373,41 @@ const checks = [
     },
   ],
 
-  ["anon sees only approved listings", () => countAs(contexts.anon, "Property", `"id" LIKE 'rls-%'`) === 1],
-  ["anon cannot read bookings", () => countAs(contexts.anon, "Booking", `"id" LIKE 'rls-%'`) === 0],
-  ["anon cannot read payments", () => countAs(contexts.anon, "Payment", `"id" LIKE 'rls-%'`) === 0],
-  ["anon cannot read auth sessions", () => countAs(contexts.anon, "AuthSession", `"id" LIKE 'rls-%'`) === 0],
+  ["anon sees only approved listings", countCheck(contexts.anon, "Property", `"id" LIKE 'rls-%'`, 1)],
+  ["anon cannot read bookings", countCheck(contexts.anon, "Booking", `"id" LIKE 'rls-%'`, 0)],
+  ["anon cannot read payments", countCheck(contexts.anon, "Payment", `"id" LIKE 'rls-%'`, 0)],
+  ["anon cannot read auth sessions", countCheck(contexts.anon, "AuthSession", `"id" LIKE 'rls-%'`, 0)],
 
-  ["guest sees approved listing only", () => countAs(contexts.guest, "Property", `"id" LIKE 'rls-%'`) === 1],
-  ["guest sees own booking only", () => countAs(contexts.guest, "Booking", `"id" LIKE 'rls-%'`) === 1],
-  ["guest sees own payment only", () => countAs(contexts.guest, "Payment", `"id" LIKE 'rls-%'`) === 1],
-  ["guest sees own message only", () => countAs(contexts.guest, "Message", `"id" LIKE 'rls-%'`) === 1],
-  ["guest sees own wishlist only", () => countAs(contexts.guest, "Wishlist", `"id" LIKE 'rls-%'`) === 1],
-  ["guest sees own account settings", () => countAs(contexts.guest, "AccountSettings", `"id" LIKE 'rls-%'`) === 1],
-  ["guest cannot read auth tokens", () => countAs(contexts.guest, "AuthToken", `"id" LIKE 'rls-%'`) === 0],
-  ["guest cannot read admin logs", () => countAs(contexts.guest, "AdminLog", `"id" LIKE 'rls-%'`) === 0],
-  ["guest cannot read audit logs", () => countAs(contexts.guest, "AuditLog", `"id" LIKE 'rls-%'`) === 0],
-  ["guest cannot read platform ledger", () => countAs(contexts.guest, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`) === 0],
+  ["guest sees approved listing only", countCheck(contexts.guest, "Property", `"id" LIKE 'rls-%'`, 1)],
+  ["guest sees own booking only", countCheck(contexts.guest, "Booking", `"id" LIKE 'rls-%'`, 1)],
+  ["guest sees own payment only", countCheck(contexts.guest, "Payment", `"id" LIKE 'rls-%'`, 1)],
+  ["guest sees own message only", countCheck(contexts.guest, "Message", `"id" LIKE 'rls-%'`, 1)],
+  ["guest sees own wishlist only", countCheck(contexts.guest, "Wishlist", `"id" LIKE 'rls-%'`, 1)],
+  ["guest sees own account settings", countCheck(contexts.guest, "AccountSettings", `"id" LIKE 'rls-%'`, 1)],
+  ["guest cannot read auth tokens", countCheck(contexts.guest, "AuthToken", `"id" LIKE 'rls-%'`, 0)],
+  ["guest cannot read admin logs", countCheck(contexts.guest, "AdminLog", `"id" LIKE 'rls-%'`, 0)],
+  ["guest cannot read audit logs", countCheck(contexts.guest, "AuditLog", `"id" LIKE 'rls-%'`, 0)],
+  ["guest cannot read platform ledger", countCheck(contexts.guest, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 0)],
   ["guest can insert own wishlist", () => canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rls-temp-wishlist', ${sqlString(users.guest)}, 'rls-approved-property')`)],
   ["guest cannot insert wishlist for another user", async () => !(await canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rls-temp-bad-wishlist', ${sqlString(users.otherGuest)}, 'rls-approved-property')`))],
 
-  ["host sees own pending and approved listings", () => countAs(contexts.host, "Property", `"id" LIKE 'rls-%'`) === 2],
-  ["host does not see other host pending listing", () => countAs(contexts.host, "Property", `"id" = 'rls-other-pending-property'`) === 0],
-  ["host sees bookings for own listing", () => countAs(contexts.host, "Booking", `"id" LIKE 'rls-%'`) === 2],
-  ["host sees payments for own listing", () => countAs(contexts.host, "Payment", `"id" LIKE 'rls-%'`) === 2],
-  ["host sees own host expense", () => countAs(contexts.host, "HostExpense", `"id" LIKE 'rls-%'`) === 1],
-  ["host sees own monthly report", () => countAs(contexts.host, "HostMonthlyReport", `"id" LIKE 'rls-%'`) === 1],
-  ["host sees disabled package for own listing", () => countAs(contexts.host, "ListingBookingPackage", `"id" = 'rls-disabled-package'`) === 1],
-  ["host cannot read platform ledger", () => countAs(contexts.host, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`) === 0],
+  ["host sees own pending and approved listings", countCheck(contexts.host, "Property", `"id" LIKE 'rls-%'`, 2)],
+  ["host does not see other host pending listing", countCheck(contexts.host, "Property", `"id" = 'rls-other-pending-property'`, 0)],
+  ["host sees bookings for own listing", countCheck(contexts.host, "Booking", `"id" LIKE 'rls-%'`, 2)],
+  ["host sees payments for own listing", countCheck(contexts.host, "Payment", `"id" LIKE 'rls-%'`, 2)],
+  ["host sees own host expense", countCheck(contexts.host, "HostExpense", `"id" LIKE 'rls-%'`, 1)],
+  ["host sees own monthly report", countCheck(contexts.host, "HostMonthlyReport", `"id" LIKE 'rls-%'`, 1)],
+  ["host sees disabled package for own listing", countCheck(contexts.host, "ListingBookingPackage", `"id" = 'rls-disabled-package'`, 1)],
+  ["host cannot read platform ledger", countCheck(contexts.host, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 0)],
 
-  ["admin sees all RLS listings", () => countAs(contexts.admin, "Property", `"id" LIKE 'rls-%'`) === 3],
-  ["admin sees all bookings", () => countAs(contexts.admin, "Booking", `"id" LIKE 'rls-%'`) === 2],
-  ["admin sees all payments", () => countAs(contexts.admin, "Payment", `"id" LIKE 'rls-%'`) === 2],
-  ["admin sees admin logs", () => countAs(contexts.admin, "AdminLog", `"id" LIKE 'rls-%'`) === 1],
-  ["admin sees audit logs", () => countAs(contexts.admin, "AuditLog", `"id" LIKE 'rls-%'`) === 1],
-  ["admin sees platform ledger", () => countAs(contexts.admin, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`) === 1],
-  ["admin cannot read auth sessions through client role", () => countAs(contexts.admin, "AuthSession", `"id" LIKE 'rls-%'`) === 0],
-  ["admin cannot read auth tokens through client role", () => countAs(contexts.admin, "AuthToken", `"id" LIKE 'rls-%'`) === 0],
+  ["admin sees all RLS listings", countCheck(contexts.admin, "Property", `"id" LIKE 'rls-%'`, 3)],
+  ["admin sees all bookings", countCheck(contexts.admin, "Booking", `"id" LIKE 'rls-%'`, 2)],
+  ["admin sees all payments", countCheck(contexts.admin, "Payment", `"id" LIKE 'rls-%'`, 2)],
+  ["admin sees admin logs", countCheck(contexts.admin, "AdminLog", `"id" LIKE 'rls-%'`, 1)],
+  ["admin sees audit logs", countCheck(contexts.admin, "AuditLog", `"id" LIKE 'rls-%'`, 1)],
+  ["admin sees platform ledger", countCheck(contexts.admin, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 1)],
+  ["admin cannot read auth sessions through client role", countCheck(contexts.admin, "AuthSession", `"id" LIKE 'rls-%'`, 0)],
+  ["admin cannot read auth tokens through client role", countCheck(contexts.admin, "AuthToken", `"id" LIKE 'rls-%'`, 0)],
 ];
 
 async function runChecks() {
