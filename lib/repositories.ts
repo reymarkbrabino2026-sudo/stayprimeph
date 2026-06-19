@@ -263,39 +263,7 @@ type DatabaseUser = {
   createdAt: Date;
 };
 
-export async function listUsersFromDatabase(): Promise<User[]> {
-  const users = await prisma.$queryRaw<DatabaseUser[]>`
-    SELECT
-      "id", "name", "email", "password", "role", "avatar", "phone",
-      "emailVerifiedAt", "passwordChangedAt", "createdAt"
-    FROM "User"
-    ORDER BY "createdAt" DESC
-  `;
-  return users.map((user) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role as User["role"],
-    avatar: user.avatar ?? "",
-    phone: user.phone ?? "",
-    createdAt: user.createdAt.toISOString().slice(0, 10),
-    passwordHash: user.password ?? undefined,
-    emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
-    passwordChangedAt: user.passwordChangedAt?.toISOString(),
-  }));
-}
-
-export async function findUserByIdFromDatabase(id: string): Promise<User | null> {
-  const users = await prisma.$queryRaw<DatabaseUser[]>`
-    SELECT
-      "id", "name", "email", "password", "role", "avatar", "phone",
-      "emailVerifiedAt", "passwordChangedAt", "createdAt"
-    FROM "User"
-    WHERE "id" = ${id}
-    LIMIT 1
-  `;
-  const user = users[0];
-  if (!user) return null;
+function toUser(user: DatabaseUser): User {
   return {
     id: user.id,
     name: user.name,
@@ -308,6 +276,42 @@ export async function findUserByIdFromDatabase(id: string): Promise<User | null>
     emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
     passwordChangedAt: user.passwordChangedAt?.toISOString(),
   };
+}
+
+export async function listUsersFromDatabase(): Promise<User[]> {
+  const users = await prisma.$queryRaw<DatabaseUser[]>`
+    SELECT
+      "id", "name", "email", "password", "role", "avatar", "phone",
+      "emailVerifiedAt", "passwordChangedAt", "createdAt"
+    FROM "User"
+    ORDER BY "createdAt" DESC
+  `;
+  return users.map(toUser);
+}
+
+export async function findUserByIdFromDatabase(id: string): Promise<User | null> {
+  const users = await prisma.$queryRaw<DatabaseUser[]>`
+    SELECT
+      "id", "name", "email", "password", "role", "avatar", "phone",
+      "emailVerifiedAt", "passwordChangedAt", "createdAt"
+    FROM "User"
+    WHERE "id" = ${id}
+    LIMIT 1
+  `;
+  const user = users[0];
+  return user ? toUser(user) : null;
+}
+
+export async function listUsersByIdsFromDatabase(ids: string[]): Promise<User[]> {
+  if (!ids.length) return [];
+  const users = await prisma.$queryRaw<DatabaseUser[]>`
+    SELECT
+      "id", "name", "email", "password", "role", "avatar", "phone",
+      "emailVerifiedAt", "passwordChangedAt", "createdAt"
+    FROM "User"
+    WHERE "id" IN (${Prisma.join(ids)})
+  `;
+  return users.map(toUser);
 }
 
 export async function createUserInDatabase(user: User) {
@@ -609,23 +613,15 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
   }, { maxWait: 10000, timeout: 15000 });
 }
 
-export async function listBookingsFromDatabase(): Promise<Booking[]> {
-  await ensureBookingPackageColumns();
-  const bookings = await prisma.booking.findMany({ orderBy: { createdAt: "desc" } });
-  const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
-    SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
-    FROM "Booking"
-  `;
-  const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
-  return bookings.map((booking) => ({
-    ...(() => {
-      const selectedPackage = packageByBookingId.get(booking.id);
-      return {
-        bookingPackageId: selectedPackage?.bookingPackageId ?? undefined,
-        bookingPackageName: selectedPackage?.bookingPackageName ?? undefined,
-        bookingPackageUnit: selectedPackage?.bookingPackageUnit === "day" ? "day" as const : selectedPackage?.bookingPackageUnit === "night" ? "night" as const : undefined,
-      };
-    })(),
+function toBooking(
+  booking: Awaited<ReturnType<typeof prisma.booking.findMany>>[number],
+  packageByBookingId: Map<string, { id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>,
+): Booking {
+  const selectedPackage = packageByBookingId.get(booking.id);
+  return {
+    bookingPackageId: selectedPackage?.bookingPackageId ?? undefined,
+    bookingPackageName: selectedPackage?.bookingPackageName ?? undefined,
+    bookingPackageUnit: selectedPackage?.bookingPackageUnit === "day" ? "day" : selectedPackage?.bookingPackageUnit === "night" ? "night" : undefined,
     id: booking.id,
     propertyId: booking.propertyId,
     guestId: booking.guestId,
@@ -637,12 +633,54 @@ export async function listBookingsFromDatabase(): Promise<Booking[]> {
     status: booking.status as Booking["status"],
     paymentStatus: booking.paymentStatus as Booking["paymentStatus"],
     createdAt: booking.createdAt.toISOString().slice(0, 10),
-  }));
+  };
+}
+
+export async function listBookingsFromDatabase(): Promise<Booking[]> {
+  await ensureBookingPackageColumns();
+  const bookings = await prisma.booking.findMany({ orderBy: { createdAt: "desc" } });
+  const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
+    SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
+    FROM "Booking"
+  `;
+  const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
+  return bookings.map((booking) => toBooking(booking, packageByBookingId));
+}
+
+export async function listBookingsForPropertyFromDatabase(propertyId: string): Promise<Booking[]> {
+  await ensureBookingPackageColumns();
+  const bookings = await prisma.booking.findMany({
+    where: { propertyId },
+    orderBy: { createdAt: "desc" },
+  });
+  const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
+    SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
+    FROM "Booking"
+    WHERE "propertyId" = ${propertyId}
+  `;
+  const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
+  return bookings.map((booking) => toBooking(booking, packageByBookingId));
 }
 
 export async function listAvailabilityBlocksFromDatabase(): Promise<AvailabilityBlock[]> {
   const blocks = await prisma.availabilityBlock.findMany({
     where: { available: false },
+    orderBy: { date: "asc" },
+  });
+
+  return blocks.map((block) => ({
+    id: block.id,
+    propertyId: block.propertyId,
+    date: block.date.toISOString().slice(0, 10),
+    reason: (block.reason ?? "other") as AvailabilityBlock["reason"],
+    note: block.note ?? undefined,
+    createdAt: block.createdAt.toISOString(),
+  }));
+}
+
+export async function listAvailabilityBlocksForPropertyFromDatabase(propertyId: string): Promise<AvailabilityBlock[]> {
+  const blocks = await prisma.availabilityBlock.findMany({
+    where: { propertyId, available: false },
     orderBy: { date: "asc" },
   });
 
@@ -1028,6 +1066,21 @@ export async function resolveCancellationReviewInDatabase({
 
 export async function listReviewsFromDatabase(): Promise<Review[]> {
   const reviews = await prisma.review.findMany({ orderBy: { createdAt: "desc" } });
+  return reviews.map((review) => ({
+    id: review.id,
+    propertyId: review.propertyId,
+    guestId: review.guestId,
+    rating: review.rating,
+    comment: review.comment,
+    createdAt: review.createdAt.toISOString().slice(0, 10),
+  }));
+}
+
+export async function listReviewsForPropertyFromDatabase(propertyId: string): Promise<Review[]> {
+  const reviews = await prisma.review.findMany({
+    where: { propertyId },
+    orderBy: { createdAt: "desc" },
+  });
   return reviews.map((review) => ({
     id: review.id,
     propertyId: review.propertyId,

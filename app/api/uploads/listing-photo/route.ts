@@ -1,4 +1,3 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
@@ -8,7 +7,7 @@ import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
 import { sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
-import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhotoStorage } from "@/lib/photo-storage";
+import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
@@ -148,17 +147,5 @@ export async function POST(request: Request) {
     }
   }
 
-  if (requiresConfiguredPhotoStorage()) {
-    return NextResponse.json({ error: "Photo storage is not configured. Add Cloudinary or Vercel Blob environment variables in Vercel." }, { status: 503 });
-  }
-
-  const uploadDir = path.join(process.cwd(), "public", path.dirname(uploadPath));
-  await fs.mkdir(uploadDir, { recursive: true });
-  await fs.writeFile(path.join(process.cwd(), "public", uploadPath), sanitizedImage.bytes);
-  return NextResponse.json({
-    id: uploadPath,
-    url: `/${uploadPath}`,
-    bytes: sanitizedImage.bytes.length,
-    storage: "local-dev",
-  });
+  return NextResponse.json({ error: "Photo storage is not configured. Add Cloudinary or Vercel Blob environment variables before uploading photos." }, { status: 503 });
 }

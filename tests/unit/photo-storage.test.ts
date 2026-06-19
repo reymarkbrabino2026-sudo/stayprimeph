@@ -6,12 +6,12 @@ describe("requiresConfiguredPhotoStorage", () => {
     vi.unstubAllEnvs();
   });
 
-  it("allows local fallback for production builds served on localhost", () => {
+  it("requires configured storage for local builds", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
     vi.stubEnv("VERCEL", "");
 
-    expect(requiresConfiguredPhotoStorage()).toBe(false);
+    expect(requiresConfiguredPhotoStorage()).toBe(true);
   });
 
   it("requires configured storage for hosted production URLs", () => {

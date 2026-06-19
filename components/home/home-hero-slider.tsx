@@ -45,17 +45,15 @@ export function HomeHeroSlider() {
 
   return (
     <section className="relative h-[51svh] min-h-[23rem] overflow-hidden bg-[#053f34] text-white md:h-[51vh] md:min-h-0">
-      {slides.map((slide, index) => (
-        <Image
-          key={slide.src}
-          src={slide.src}
-          alt={slide.alt}
-          fill
-          priority={index === 0}
-          sizes="100vw"
-          className={`object-cover transition-opacity duration-1000 ease-out ${index === active ? "opacity-100" : "opacity-0"}`}
-        />
-      ))}
+      <Image
+        key={slides[active].src}
+        src={slides[active].src}
+        alt={slides[active].alt}
+        fill
+        priority={active === 0}
+        sizes="100vw"
+        className="object-cover"
+      />
 
       <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-black/10" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />

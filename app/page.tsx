@@ -8,8 +8,7 @@ import { buildHomePropertyRails } from "@/lib/home-properties";
 import { getProperties } from "@/lib/properties";
 
 export default async function HomePage() {
-  const currentUser = await getCurrentUser();
-  const properties = await getProperties();
+  const [currentUser, properties] = await Promise.all([getCurrentUser(), getProperties()]);
   const propertyRails = buildHomePropertyRails(properties);
   const showHostCta = !currentUser || currentUser.role === "guest";
   const hostCtaHref = currentUser?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";

@@ -1,12 +1,18 @@
 import { getAdminReviews } from "@/lib/admin-data";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
-import { createReviewInDatabase, updateBookingStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { createReviewInDatabase, listReviewsForPropertyFromDatabase, updateBookingStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredReviews, writeStoredReviews } from "@/lib/review-store";
 import type { Booking, Review } from "@/lib/types";
 
 export async function getReviews(): Promise<Review[]> {
   return getAdminReviews().catch(() => []);
+}
+
+export async function getReviewsForProperty(propertyId: string): Promise<Review[]> {
+  if (usesPrismaPersistence()) return listReviewsForPropertyFromDatabase(propertyId);
+  const reviews = await readStoredReviews();
+  return reviews.filter((review) => review.propertyId === propertyId);
 }
 
 export function hasStayEnded(booking: Pick<Booking, "checkOut">, now = new Date()) {

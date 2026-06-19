@@ -134,6 +134,7 @@ async function applySupabaseMigrations() {
     .sort();
 
   for (const file of migrationFiles) {
+    console.log(`Applying Supabase migration ${file}`);
     const sql = readFileSync(path.join(migrationsDir, file), "utf8");
     executeScript(sql);
   }
@@ -158,6 +159,7 @@ const users = {
 async function seedFixtures() {
   executeScript(`
     DELETE FROM "AdminLog" WHERE "id" LIKE 'rls-%';
+    DELETE FROM "AuditLog" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Report" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Payout" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Cancellation" WHERE "id" LIKE 'rls-%';
@@ -239,6 +241,9 @@ async function seedFixtures() {
     INSERT INTO "AdminLog" ("id", "adminId", "action", "entityType", "entityId")
     VALUES ('rls-admin-log', ${sqlString(users.admin)}, 'rls_test', 'Property', 'rls-approved-property');
 
+    INSERT INTO "AuditLog" ("id", "actorId", "actorRole", "action", "entityType", "entityId", "metadata")
+    VALUES ('rls-audit-log', ${sqlString(users.admin)}, 'admin', 'listing.approved', 'Property', 'rls-approved-property', '{"source":"rls-test"}');
+
     INSERT INTO "PlatformLedgerEntry" ("id", "bookingId", "paymentId", "amount", "source", "destination", "status")
     VALUES ('rls-ledger', 'rls-booking', 'rls-payment', 1000, 'manual_payment', 'stayprime_bank', 'banked');
 
@@ -308,7 +313,33 @@ async function canInsertAs(context, tableName, insertSql) {
   }
 }
 
+async function publicTablesWithoutRls() {
+  const rows = await query(`
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind = 'r'
+      AND c.relname <> '_prisma_migrations'
+      AND NOT c.relrowsecurity
+    ORDER BY c.relname
+  `);
+
+  return rows.map((row) => row.relname);
+}
+
 const checks = [
+  [
+    "all public app tables have RLS enabled",
+    async () => {
+      const tables = await publicTablesWithoutRls();
+      if (tables.length > 0) {
+        console.error(`Public tables without RLS: ${tables.join(", ")}`);
+      }
+      return tables.length === 0;
+    },
+  ],
+
   ["anon sees only approved listings", () => countAs(contexts.anon, "Property", `"id" LIKE 'rls-%'`) === 1],
   ["anon cannot read bookings", () => countAs(contexts.anon, "Booking", `"id" LIKE 'rls-%'`) === 0],
   ["anon cannot read payments", () => countAs(contexts.anon, "Payment", `"id" LIKE 'rls-%'`) === 0],
@@ -322,6 +353,7 @@ const checks = [
   ["guest sees own account settings", () => countAs(contexts.guest, "AccountSettings", `"id" LIKE 'rls-%'`) === 1],
   ["guest cannot read auth tokens", () => countAs(contexts.guest, "AuthToken", `"id" LIKE 'rls-%'`) === 0],
   ["guest cannot read admin logs", () => countAs(contexts.guest, "AdminLog", `"id" LIKE 'rls-%'`) === 0],
+  ["guest cannot read audit logs", () => countAs(contexts.guest, "AuditLog", `"id" LIKE 'rls-%'`) === 0],
   ["guest cannot read platform ledger", () => countAs(contexts.guest, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`) === 0],
   ["guest can insert own wishlist", () => canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rls-temp-wishlist', ${sqlString(users.guest)}, 'rls-approved-property')`)],
   ["guest cannot insert wishlist for another user", async () => !(await canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rls-temp-bad-wishlist', ${sqlString(users.otherGuest)}, 'rls-approved-property')`))],
@@ -339,6 +371,7 @@ const checks = [
   ["admin sees all bookings", () => countAs(contexts.admin, "Booking", `"id" LIKE 'rls-%'`) === 2],
   ["admin sees all payments", () => countAs(contexts.admin, "Payment", `"id" LIKE 'rls-%'`) === 2],
   ["admin sees admin logs", () => countAs(contexts.admin, "AdminLog", `"id" LIKE 'rls-%'`) === 1],
+  ["admin sees audit logs", () => countAs(contexts.admin, "AuditLog", `"id" LIKE 'rls-%'`) === 1],
   ["admin sees platform ledger", () => countAs(contexts.admin, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`) === 1],
   ["admin cannot read auth sessions through client role", () => countAs(contexts.admin, "AuthSession", `"id" LIKE 'rls-%'`) === 0],
   ["admin cannot read auth tokens through client role", () => countAs(contexts.admin, "AuthToken", `"id" LIKE 'rls-%'`) === 0],

@@ -18,12 +18,9 @@ const AUTOPLAY_MS = 4500;
 export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title: string }) {
   const realCount = images.length;
   const loop = realCount > 1;
-  // Triple the slides so there's always a neighbour to scroll into; we silently
-  // recenter into the middle copy whenever the scroll drifts into an outer copy.
-  const slides = loop ? [...images, ...images, ...images] : images;
+  const slides = images;
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [current, setCurrent] = useState(0);
 
   function nearestIndex() {
@@ -55,13 +52,9 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
   }
 
   function go(direction: number) {
-    centerTo(nearestIndex() + direction, true);
+    const next = (nearestIndex() + direction + realCount) % realCount;
+    centerTo(next, true);
   }
-
-  useEffect(() => {
-    if (loop) centerTo(realCount, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (!loop) return;
@@ -72,14 +65,6 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
 
   function handleScroll() {
     setCurrent(nearestIndex());
-    if (!loop) return;
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => {
-      const nearest = nearestIndex();
-      if (nearest < realCount || nearest >= realCount * 2) {
-        centerTo(realCount + (nearest % realCount), false);
-      }
-    }, 150);
   }
 
   return (
@@ -104,7 +89,7 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
               {isRenderableImage(slide.imageUrl) ? (
                 <Image
                   src={slide.imageUrl}
-                  alt={`${title} photo ${(index % realCount) + 1}`}
+                  alt={`${title} photo ${index + 1}`}
                   fill
                   sizes="(min-width:1024px) 980px, 90vw"
                   className="object-cover"

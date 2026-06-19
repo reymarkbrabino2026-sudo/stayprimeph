@@ -21,6 +21,8 @@ supabase/migrations/0002_close_rls_gaps.sql
 supabase/migrations/0003_harden_app_security_functions.sql
 supabase/migrations/0004_platform_ledger_rls.sql
 supabase/migrations/0005_secure_recent_app_tables.sql
+supabase/migrations/0006_allow_security_definer_rls_helpers.sql
+supabase/migrations/0007_secure_audit_logs.sql
 ```
 
 Run the normal Prisma migrations first, then apply the Supabase RLS migration:
@@ -38,6 +40,8 @@ supabase/migrations/0002_close_rls_gaps.sql
 supabase/migrations/0003_harden_app_security_functions.sql
 supabase/migrations/0004_platform_ledger_rls.sql
 supabase/migrations/0005_secure_recent_app_tables.sql
+supabase/migrations/0006_allow_security_definer_rls_helpers.sql
+supabase/migrations/0007_secure_audit_logs.sql
 ```
 
 Run them in that order. The first file creates the shared policy helpers and
@@ -47,7 +51,8 @@ Prisma's `_prisma_migrations` metadata table so Supabase Security Advisor stops
 flagging it as public. The third file pins the helper function search paths so
 the functions cannot accidentally resolve objects from an attacker-controlled
 schema. The later files protect the platform ledger, host reports, server-side
-sessions, and listing booking packages added by newer Prisma migrations.
+sessions, listing booking packages, helper lookup-table access, and append-only
+audit logs added by newer Prisma migrations.
 
 ## What the policy protects
 
@@ -68,6 +73,7 @@ The migration:
 - Allows hosts to read only their own host expenses and monthly reports.
 - Keeps payments read-only for the guest, host, or admin.
 - Keeps admin logs visible only to admins.
+- Keeps append-only audit logs visible only to admins.
 
 ## Important production note
 

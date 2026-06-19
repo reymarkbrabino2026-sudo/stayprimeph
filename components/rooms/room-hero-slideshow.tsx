@@ -29,25 +29,15 @@ export function RoomHeroSlideshow({ images, alt }: { images: Slide[]; alt: strin
 
   return (
     <div className="absolute inset-0">
-      {slides.map((slide, slideIndex) => {
-        const active = slideIndex === index;
-        return (
-          <div
-            key={slide.id}
-            aria-hidden={active ? undefined : true}
-            className={`absolute inset-0 transition-opacity duration-[1400ms] ease-in-out ${active ? "opacity-100" : "opacity-0"}`}
-          >
-            <Image
-              src={slide.imageUrl}
-              alt={slideIndex === 0 ? alt : ""}
-              fill
-              priority={slideIndex === 0}
-              sizes="100vw"
-              className={`object-cover transition-transform duration-[6500ms] ease-out ${active ? "scale-110" : "scale-100"}`}
-            />
-          </div>
-        );
-      })}
+      <Image
+        key={slides[index].id}
+        src={slides[index].imageUrl}
+        alt={index === 0 ? alt : ""}
+        fill
+        priority={index === 0}
+        sizes="100vw"
+        className="object-cover transition-transform duration-[6500ms] ease-out scale-110"
+      />
 
       {slides.length > 1 ? (
         <>

@@ -4,6 +4,7 @@ import { readStoredAvailabilityBlocks, writeStoredAvailabilityBlocks } from "@/l
 import {
   createAvailabilityBlocksInDatabase,
   deleteAvailabilityBlockInDatabase,
+  listAvailabilityBlocksForPropertyFromDatabase,
   listAvailabilityBlocksFromDatabase,
   usesPrismaPersistence,
 } from "@/lib/repositories";
@@ -12,6 +13,12 @@ import type { AvailabilityBlock as StoredAvailabilityBlock } from "@/lib/types";
 export async function getAvailabilityBlocks() {
   if (usesPrismaPersistence()) return listAvailabilityBlocksFromDatabase();
   return readStoredAvailabilityBlocks();
+}
+
+export async function getAvailabilityBlocksForProperty(propertyId: string) {
+  if (usesPrismaPersistence()) return listAvailabilityBlocksForPropertyFromDatabase(propertyId);
+  const blocks = await readStoredAvailabilityBlocks();
+  return blocks.filter((block) => block.propertyId === propertyId);
 }
 
 export async function createAvailabilityBlocks(blocks: StoredAvailabilityBlock[]) {

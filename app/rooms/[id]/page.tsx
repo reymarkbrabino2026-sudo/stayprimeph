@@ -32,15 +32,15 @@ import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
-import { getAvailabilityBlocks } from "@/lib/availability";
+import { getAvailabilityBlocksForProperty } from "@/lib/availability";
 import { addDays } from "@/lib/availability-calendar";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { getBookingsForProperty } from "@/lib/bookings";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
-import { getReviews } from "@/lib/reviews";
+import { getReviewsForProperty } from "@/lib/reviews";
 import { formatDate } from "@/lib/utils";
-import { getUsers } from "@/lib/users";
+import { getUserById, getUsersByIds } from "@/lib/users";
 
 function isRenderableImage(src?: string) {
   return Boolean(src && (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://")));
@@ -100,11 +100,16 @@ export default async function RoomPage({
   const canPreviewListing = currentUser?.role === "admin" || currentUser?.id === property.hostId;
   if (property.status !== "approved" && !canPreviewListing) notFound();
 
-  const [users, reviews, bookings, availabilityBlocks] = await Promise.all([getUsers(), getReviews(), getBookings(), getAvailabilityBlocks()]);
-  const host = users.find((user) => user.id === property.hostId);
-  const propertyReviews = reviews.filter((review) => review.propertyId === property.id);
+  const [host, propertyReviews, bookings, availabilityBlocks] = await Promise.all([
+    getUserById(property.hostId),
+    getReviewsForProperty(property.id),
+    getBookingsForProperty(property.id),
+    getAvailabilityBlocksForProperty(property.id),
+  ]);
+  const reviewGuests = await getUsersByIds(propertyReviews.map((review) => review.guestId));
+  const reviewGuestById = new Map(reviewGuests.map((guest) => [guest.id, guest]));
   const unavailableStays = bookings
-    .filter((booking) => booking.propertyId === property.id && booking.status !== "cancelled")
+    .filter((booking) => booking.status !== "cancelled")
     .map((booking) => ({ checkIn: booking.checkIn, checkOut: booking.checkOut }))
     .concat(
       availabilityBlocks
@@ -304,7 +309,7 @@ export default async function RoomPage({
             {propertyReviews.length ? (
               <div className="mt-8 grid gap-5 md:grid-cols-2">
                 {propertyReviews.map((review) => {
-                  const guest = users.find((user) => user.id === review.guestId);
+                  const guest = reviewGuestById.get(review.guestId);
                   return (
                     <article
                       key={review.id}
