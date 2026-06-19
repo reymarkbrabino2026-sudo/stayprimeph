@@ -49,7 +49,22 @@ function prisma() {
   });
 }
 
-function executeScript(sql) {
+function workflowEscape(value) {
+  return String(value).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+}
+
+function emitGithubError(message) {
+  if (process.env.GITHUB_ACTIONS === "true") {
+    console.error(`::error title=RLS context tests::${workflowEscape(message)}`);
+  }
+}
+
+function outputTail(value) {
+  const output = value ? String(value).trim() : "";
+  return output.length > 3500 ? output.slice(-3500) : output;
+}
+
+function executeScript(sql, label = "SQL script") {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "stayprimeph-rls-"));
   const scriptPath = path.join(tempDir, "script.sql");
 
@@ -57,13 +72,18 @@ function executeScript(sql) {
     writeFileSync(scriptPath, sql, "utf8");
     execFileSync(process.execPath, [prismaCli, "db", "execute", "--schema", "prisma/schema.prisma", "--file", scriptPath], {
       cwd: projectRoot,
-      stdio: "inherit",
+      stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         DATABASE_URL: databaseUrl,
         DIRECT_URL: process.env.DIRECT_URL ?? databaseUrl,
       },
     });
+  } catch (error) {
+    const stdout = outputTail(error.stdout);
+    const stderr = outputTail(error.stderr);
+    const details = [stdout && `stdout:\n${stdout}`, stderr && `stderr:\n${stderr}`].filter(Boolean).join("\n\n");
+    throw new Error(`${label} failed${details ? `\n\n${details}` : ""}`, { cause: error });
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -145,7 +165,7 @@ async function applySupabaseMigrations() {
   for (const file of migrationFiles) {
     console.log(`Applying Supabase migration ${file}`);
     const sql = readFileSync(path.join(migrationsDir, file), "utf8");
-    executeScript(sql);
+    executeScript(sql, `Supabase migration ${file}`);
   }
 }
 
@@ -275,7 +295,7 @@ async function seedFixtures() {
     VALUES (
       'rls-account-settings', ${sqlString(users.guest)}, '{}', '{}', '{}', '{}', '{}', '{}', '{}'
     );
-  `);
+  `, "RLS fixture seed");
 }
 
 const contexts = {
@@ -400,6 +420,7 @@ async function runChecks() {
   }
 
   if (failures.length > 0) {
+    emitGithubError(`RLS checks failed: ${failures.join(", ")}`);
     throw new Error(`RLS checks failed: ${failures.join(", ")}`);
   }
 }
@@ -427,6 +448,7 @@ async function main() {
 }
 
 main().catch((error) => {
+  emitGithubError(error instanceof Error ? error.message : String(error));
   console.error(error);
   process.exitCode = 1;
 });
