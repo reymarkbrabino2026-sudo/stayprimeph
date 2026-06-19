@@ -54,7 +54,7 @@ export default async function BookingDetailsPage({
         ) : null}
         {query.payment === "manual-submitted" ? (
           <p className="mb-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
-            Payment details submitted. StayPrimePH will review the reference before this booking is marked as paid.
+            Payment details submitted. Your host will confirm the received payment before this booking is marked as paid.
           </p>
         ) : null}
         {query.review === "posted" ? (

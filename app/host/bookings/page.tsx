@@ -1,4 +1,4 @@
-import { rejectBooking } from "@/app/host/bookings/actions";
+import { confirmPaymentAndApproveBooking, rejectBooking, rejectSubmittedPayment } from "@/app/host/bookings/actions";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -48,9 +48,31 @@ export default async function HostBookingsPage() {
             </div>,
             <div key={`${booking.id}-actions`} className="flex min-w-56 flex-col gap-2">
               {paymentWaiting ? (
-                <span className="rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
-                  Awaiting platform payment verification
-                </span>
+                <div className="space-y-2">
+                  <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                    Guest submitted payment
+                  </p>
+                  <form action={confirmPaymentAndApproveBooking}>
+                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                    <input type="hidden" name="id" value={booking.id} />
+                    <button className="min-h-10 w-full rounded-full bg-emerald-100 px-3 text-xs font-semibold text-emerald-700">
+                      Confirm payment & approve
+                    </button>
+                  </form>
+                  <form action={rejectSubmittedPayment} className="space-y-2">
+                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                    <input type="hidden" name="id" value={booking.id} />
+                    <input
+                      name="rejectionReason"
+                      placeholder="Reason if payment is invalid"
+                      className="min-h-10 w-full rounded-xl border px-3 text-xs"
+                      required
+                    />
+                    <button className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700">
+                      Reject payment
+                    </button>
+                  </form>
+                </div>
               ) : booking.status === "confirmed" ? (
                 <span className="text-sm font-semibold text-emerald-700">Approved</span>
               ) : booking.status === "cancelled" ? (

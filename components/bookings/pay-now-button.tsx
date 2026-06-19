@@ -77,9 +77,9 @@ export function PayNowButton({
   if (isSubmitted && payment) {
     return (
       <section className="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5">
-        <p className="font-semibold text-amber-900">Payment awaiting platform verification</p>
+        <p className="font-semibold text-amber-900">Payment awaiting host confirmation</p>
         <p className="mt-1 text-sm text-amber-900/75">
-          StayPrimePH will review the submitted reference before this booking is marked as paid.
+          Your host will confirm the received payment before this booking is marked as paid.
         </p>
         <PaymentRecord payment={payment} />
       </section>

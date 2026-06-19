@@ -65,7 +65,7 @@ describe("submitManualPayment", () => {
     envState.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = undefined;
   });
 
-  it("records manual payment details for platform verification", async () => {
+  it("records manual payment details for host confirmation", async () => {
     vi.mocked(readStoredBookings).mockResolvedValueOnce([booking]);
 
     await submitManualPayment({
@@ -128,8 +128,8 @@ describe("confirmManualPayment", () => {
     vi.clearAllMocks();
   });
 
-  it("rejects manual payment confirmation while paid bookings are disabled", async () => {
-    vi.mocked(readStoredPayments).mockResolvedValueOnce([
+  it("lets the booking host mark a submitted manual payment as paid", async () => {
+    vi.mocked(readStoredPayments).mockResolvedValue([
       {
         id: "payment-booking-1",
         bookingId: booking.id,
@@ -142,9 +142,43 @@ describe("confirmManualPayment", () => {
         createdAt: "2026-06-01",
       },
     ]);
-    vi.mocked(readStoredBookings).mockResolvedValueOnce([booking]);
+    vi.mocked(readStoredBookings).mockResolvedValue([booking]);
 
-    await expect(confirmManualPayment({ booking, hostId: booking.hostId })).rejects.toThrow("Only platform admins can verify submitted payments.");
+    await confirmManualPayment({ booking, hostId: booking.hostId });
+
+    expect(writeStoredPayments).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        paymentStatus: "paid",
+        confirmedBy: booking.hostId,
+      }),
+    ]);
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: booking.id,
+        status: "confirmed",
+        paymentStatus: "paid",
+      }),
+    ]);
+    expect(writeStoredPlatformLedger).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        amount: 833,
+        source: "manual_payment",
+        destination: "stayprime_bank",
+        status: "banked",
+      }),
+    ]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: booking.hostId,
+      actorRole: "host",
+      action: "payment.approved",
+      entityType: "payment",
+    }));
+  });
+
+  it("rejects manual payment confirmation from another host", async () => {
+    await expect(confirmManualPayment({ booking, hostId: "other-host" })).rejects.toThrow("Booking request not found.");
 
     expect(readStoredPayments).not.toHaveBeenCalled();
     expect(readStoredBookings).not.toHaveBeenCalled();

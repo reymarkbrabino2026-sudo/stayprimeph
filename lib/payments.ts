@@ -153,23 +153,27 @@ export async function submitManualPayment({
   }));
 }
 
-export async function confirmManualPayment({ booking, hostId }: { booking: Booking; hostId: string }) {
-  void booking;
-  void hostId;
-  throw new Error("Only platform admins can verify submitted payments.");
-}
+type ManualPaymentReviewerRole = "admin" | "host";
 
-export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { booking: Booking; adminId: string }) {
+async function confirmSubmittedManualPayment({
+  booking,
+  actorId,
+  actorRole,
+}: {
+  booking: Booking;
+  actorId: string;
+  actorRole: ManualPaymentReviewerRole;
+}) {
   const payment = await getPaymentByBookingId(booking.id);
   if (!payment || payment.paymentStatus !== "submitted") {
-    throw new Error("No submitted payment is waiting for platform verification.");
+    throw new Error("No submitted payment is waiting for verification.");
   }
   if (payment.amount !== booking.totalPrice) {
     throw new Error("Submitted payment amount does not match the booking total.");
   }
 
   if (usesPrismaPersistence()) {
-    await confirmManualPaymentInDatabase(booking.id, adminId);
+    await confirmManualPaymentInDatabase(booking.id, actorId, actorRole);
     return;
   }
 
@@ -184,7 +188,7 @@ export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { book
   await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
     ...item,
     paymentStatus: "paid",
-    confirmedBy: adminId,
+    confirmedBy: actorId,
     confirmedAt: now,
     rejectedAt: undefined,
     rejectionReason: undefined,
@@ -212,8 +216,8 @@ export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { book
       : [entry, ...ledger],
   );
   await appendAuditLog({
-    actorId: adminId,
-    actorRole: "admin",
+    actorId,
+    actorRole,
     action: "payment.approved",
     entityType: "payment",
     entityId: payment.id,
@@ -226,24 +230,35 @@ export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { book
   });
 }
 
-export async function rejectSubmittedPaymentByAdmin({
+export async function confirmManualPayment({ booking, hostId }: { booking: Booking; hostId: string }) {
+  if (booking.hostId !== hostId) throw new Error("Booking request not found.");
+  await confirmSubmittedManualPayment({ booking, actorId: hostId, actorRole: "host" });
+}
+
+export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { booking: Booking; adminId: string }) {
+  await confirmSubmittedManualPayment({ booking, actorId: adminId, actorRole: "admin" });
+}
+
+async function rejectSubmittedManualPayment({
   booking,
-  adminId,
+  actorId,
+  actorRole,
   rejectionReason,
 }: {
   booking: Booking;
-  adminId: string;
+  actorId: string;
+  actorRole: ManualPaymentReviewerRole;
   rejectionReason: string;
 }) {
   if (!rejectionReason.trim()) throw new Error("Please add a rejection reason.");
 
   const payment = await getPaymentByBookingId(booking.id);
   if (!payment || payment.paymentStatus !== "submitted") {
-    throw new Error("No submitted payment is waiting for platform verification.");
+    throw new Error("No submitted payment is waiting for verification.");
   }
 
   if (usesPrismaPersistence()) {
-    await rejectManualPaymentInDatabase(booking.id, rejectionReason.trim(), adminId);
+    await rejectManualPaymentInDatabase(booking.id, rejectionReason.trim(), actorId, actorRole);
     return;
   }
 
@@ -264,8 +279,8 @@ export async function rejectSubmittedPaymentByAdmin({
     paymentStatus: "rejected",
   }));
   await appendAuditLog({
-    actorId: adminId,
-    actorRole: "admin",
+    actorId,
+    actorRole,
     action: "payment.rejected",
     entityType: "payment",
     entityId: rejectedPayment?.id ?? booking.id,
@@ -279,6 +294,18 @@ export async function rejectSubmittedPaymentByAdmin({
   });
 }
 
+export async function rejectSubmittedPaymentByAdmin({
+  booking,
+  adminId,
+  rejectionReason,
+}: {
+  booking: Booking;
+  adminId: string;
+  rejectionReason: string;
+}) {
+  await rejectSubmittedManualPayment({ booking, actorId: adminId, actorRole: "admin", rejectionReason });
+}
+
 export async function rejectManualPayment({
   booking,
   hostId,
@@ -288,8 +315,6 @@ export async function rejectManualPayment({
   hostId: string;
   rejectionReason: string;
 }) {
-  void booking;
-  void hostId;
-  void rejectionReason;
-  throw new Error("Only platform admins can reject submitted payments.");
+  if (booking.hostId !== hostId) throw new Error("Booking request not found.");
+  await rejectSubmittedManualPayment({ booking, actorId: hostId, actorRole: "host", rejectionReason });
 }

@@ -121,7 +121,7 @@ function addGuestBookingNotifications({
       notifications.push({
         id: `booking-payment-submitted:${booking.id}`,
         title: "Payment waiting for review",
-        body: `StayPrimePH support is verifying your payment for ${title}.`,
+        body: `Your host is confirming the received payment for ${title}.`,
         href,
         createdAt: paymentEventTime(payment, booking),
         category: "payment",
@@ -199,7 +199,7 @@ function addHostNotifications({
       notifications.push({
         id: `host-payment-submitted:${booking.id}`,
         title: "Guest submitted payment",
-        body: `Payment for ${title} is waiting for platform verification.`,
+        body: `Payment for ${title} is waiting for your confirmation.`,
         href,
         createdAt: paymentEventTime(payment, booking),
         category: "payment",

@@ -8,7 +8,7 @@ import { getBookingById } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { sendBookingConfirmedEmail } from "@/lib/email";
-import { arePaidBookingsEnabled } from "@/lib/payments";
+import { arePaidBookingsEnabled, confirmManualPayment, rejectManualPayment } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { updateBookingStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
@@ -53,7 +53,7 @@ async function sendBookingConfirmationPair(booking: Booking, host: User) {
 
   await sendBookingConfirmedEmail({
     ...confirmationEmailDetails({
-      booking: { ...booking, status: "confirmed" },
+      booking: { ...booking, status: "confirmed", paymentStatus: "paid" },
       property,
       guest,
       host,
@@ -64,7 +64,7 @@ async function sendBookingConfirmationPair(booking: Booking, host: User) {
   });
   await sendBookingConfirmedEmail({
     ...confirmationEmailDetails({
-      booking: { ...booking, status: "confirmed" },
+      booking: { ...booking, status: "confirmed", paymentStatus: "paid" },
       property,
       guest,
       host,
@@ -121,6 +121,7 @@ async function updateHostBookingStatus(formData: FormData, status: BookingStatus
   revalidatePath(`/guest/bookings/${id}`);
   revalidatePath("/guest/bookings");
   revalidatePath("/admin/bookings");
+  revalidatePath("/admin/payments");
 
   return { booking: { ...booking, status }, user };
 }
@@ -137,13 +138,46 @@ export async function rejectBooking(formData: FormData) {
 export async function confirmPaymentAndApproveBooking(formData: FormData) {
   await assertTrustedRequestOrigin();
   await assertValidCsrfForm(formData);
-  void formData;
-  throw new Error("Only platform admins can verify submitted payments.");
+
+  const user = await requireRole("host", { forbiddenMessage: "Only hosts can approve booking payments." });
+  requireVerifiedEmail(user);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const booking = await getBookingById(id);
+  if (!booking || booking.hostId !== user.id) throw new Error("Booking request not found.");
+
+  await confirmManualPayment({ booking, hostId: user.id });
+  await sendBookingConfirmationPair({ ...booking, status: "confirmed", paymentStatus: "paid" }, user);
+
+  revalidatePath("/host/dashboard");
+  revalidatePath("/host/bookings");
+  revalidatePath("/host/earnings");
+  revalidatePath(`/guest/bookings/${id}`);
+  revalidatePath("/guest/bookings");
+  revalidatePath("/guest/notifications");
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/payments");
 }
 
 export async function rejectSubmittedPayment(formData: FormData) {
   await assertTrustedRequestOrigin();
   await assertValidCsrfForm(formData);
-  void formData;
-  throw new Error("Only platform admins can reject submitted payments.");
+
+  const user = await requireRole("host", { forbiddenMessage: "Only hosts can reject submitted payments." });
+  requireVerifiedEmail(user);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const rejectionReason = String(formData.get("rejectionReason") ?? "").trim();
+  const booking = await getBookingById(id);
+  if (!booking || booking.hostId !== user.id) throw new Error("Booking request not found.");
+
+  await rejectManualPayment({ booking, hostId: user.id, rejectionReason });
+
+  revalidatePath("/host/dashboard");
+  revalidatePath("/host/bookings");
+  revalidatePath(`/guest/bookings/${id}`);
+  revalidatePath("/guest/bookings");
+  revalidatePath("/guest/notifications");
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/payments");
 }

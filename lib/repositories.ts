@@ -1369,14 +1369,14 @@ export async function recordManualPaymentInDatabase(
   });
 }
 
-export async function confirmManualPaymentInDatabase(bookingId: string, confirmedBy: string) {
+export async function confirmManualPaymentInDatabase(bookingId: string, confirmedBy: string, confirmedByRole: "admin" | "host" = "admin") {
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({
       where: { bookingId },
       select: { paymentMethod: true, transactionId: true },
     });
-    if (!payment) throw new Error("No submitted payment is waiting for platform verification.");
+    if (!payment) throw new Error("No submitted payment is waiting for verification.");
 
     const duplicatePayment = await tx.payment.findFirst({
       where: {
@@ -1412,7 +1412,7 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
     });
     await insertAuditLog(tx, auditLogData({
       actorId: confirmedBy,
-      actorRole: "admin",
+      actorRole: confirmedByRole,
       action: "payment.approved",
       entityType: "payment",
       entityId: bookingId,
@@ -1422,7 +1422,12 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
   });
 }
 
-export async function rejectManualPaymentInDatabase(bookingId: string, rejectionReason: string, rejectedBy = "system") {
+export async function rejectManualPaymentInDatabase(
+  bookingId: string,
+  rejectionReason: string,
+  rejectedBy = "system",
+  rejectedByRole: "admin" | "host" | "system" = rejectedBy === "system" ? "system" : "admin",
+) {
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({
@@ -1446,7 +1451,7 @@ export async function rejectManualPaymentInDatabase(bookingId: string, rejection
     `;
     await insertAuditLog(tx, auditLogData({
       actorId: rejectedBy,
-      actorRole: rejectedBy === "system" ? "system" : "admin",
+      actorRole: rejectedByRole,
       action: "payment.rejected",
       entityType: "payment",
       entityId: bookingId,
