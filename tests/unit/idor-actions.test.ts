@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking, Property, User } from "@/lib/types";
 
@@ -183,6 +184,7 @@ vi.mock("@/lib/repositories", () => ({
   confirmManualPaymentInDatabase: vi.fn(),
   createBookingInDatabase: vi.fn(),
   createPropertyInDatabase: vi.fn(),
+  deleteDraftPropertyInDatabase: vi.fn(),
   listPaymentsFromDatabase: vi.fn(async () => []),
   recordStripeCheckoutSessionInDatabase: vi.fn(),
   recordManualPaymentInDatabase: vi.fn(),
@@ -301,6 +303,10 @@ const property = {
   createdAt: "2026-06-18",
   images: [],
 } satisfies Property;
+
+function draftPropertyId(hostId: string, uploadScopeId: string) {
+  return `draft-${createHash("sha256").update(`${hostId}:${uploadScopeId}`).digest("hex").slice(0, 18)}`;
+}
 
 function formData(values: Record<string, string>) {
   const form = new FormData();
@@ -502,7 +508,13 @@ describe("IDOR protections", () => {
       bookingPackages: [],
     };
     vi.mocked(hostListingSchema.safeParse).mockReturnValueOnce({ success: true, data: listing } as never);
-    vi.mocked(readStoredProperties).mockResolvedValueOnce([property]);
+    const savedDraft = {
+      ...property,
+      id: draftPropertyId(hostUser.id, "draft-1"),
+      slug: draftPropertyId(hostUser.id, "draft-1"),
+      status: "draft",
+    } satisfies Property;
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([savedDraft, property]);
 
     await expect(publishWizardListing(listing as never, "csrf-test-token")).rejects.toThrow(
       "NEXT_REDIRECT:/host/listings?published=1",
@@ -521,11 +533,17 @@ describe("IDOR protections", () => {
         weekendPrice: 4200,
         maxGuests: 6,
         images: expect.arrayContaining([
-          expect.objectContaining({ imageUrl: "/uploads/listings/host-1/draft-1/photo-1.jpg" }),
+          expect.objectContaining({
+            id: expect.stringContaining("-photo-1"),
+            imageUrl: "/uploads/listings/host-1/draft-1/photo-1.jpg",
+          }),
         ]),
       }),
       property,
     ]);
+    expect(writeStoredProperties).not.toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ id: savedDraft.id, status: "draft" }),
+    ]));
     expect(revalidatePath).toHaveBeenCalledWith("/host/listings");
     expect(revalidatePath).toHaveBeenCalledWith("/search");
   });

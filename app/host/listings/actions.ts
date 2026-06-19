@@ -8,7 +8,7 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { amenityGroups } from "@/lib/host-wizard-data";
-import { createPropertyInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { createPropertyInDatabase, deleteDraftPropertyInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
@@ -145,7 +145,7 @@ function formatListingAddress(input: Pick<HostListingInput, "street" | "barangay
 function orderedImages(input: Pick<HostListingInput, "photos"> | Pick<HostListingDraftSaveInput, "photos">, propertyId: string) {
   return [...input.photos]
     .sort((a, b) => Number(b.isCover) - Number(a.isCover))
-    .map((photo, index) => ({ id: photo.id || `${propertyId}-photo-${index + 1}`, propertyId, imageUrl: photo.url, tone: "from-rose-100 via-orange-50 to-stone-100" }));
+    .map((photo, index) => ({ id: `${propertyId}-photo-${index + 1}`, propertyId, imageUrl: photo.url, tone: "from-rose-100 via-orange-50 to-stone-100" }));
 }
 
 function enabledBookingPackages(input: Pick<HostListingInput, "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "pricingMode" | "bookingPackages">) {
@@ -367,11 +367,13 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     discounts: listing.discounts,
     bookingPackages,
   };
+  const draftIdentity = draftPropertyIdentity(user.id, listing.uploadScopeId);
   if (usesPrismaPersistence()) {
+    await deleteDraftPropertyInDatabase(user.id, draftIdentity.id);
     await createPropertyInDatabase(property);
   } else {
     const storedProperties = await readStoredProperties();
-    await writeStoredProperties([property, ...storedProperties]);
+    await writeStoredProperties([property, ...storedProperties.filter((item) => item.id !== draftIdentity.id)]);
   }
   revalidatePath("/host/listings");
   revalidatePath("/search");

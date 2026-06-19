@@ -433,6 +433,10 @@ export async function upsertDraftPropertyInDatabase(property: Property) {
   });
 }
 
+export async function deleteDraftPropertyInDatabase(hostId: string, propertyId: string) {
+  await prisma.property.deleteMany({ where: { id: propertyId, hostId, status: "draft" } });
+}
+
 export async function updatePropertyStatusInDatabase(id: string, status: Property["status"]) {
   await prisma.property.update({ where: { id }, data: { status } });
 }
