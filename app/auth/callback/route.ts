@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createSession, roleHome } from "@/lib/auth";
+import { normalizeKnownAppPath } from "@/lib/canonical-paths";
 import { createUserInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
@@ -13,6 +14,11 @@ function initials(name: string) {
 
 function safeRedirectTarget(request: NextRequest, path: string) {
   return new URL(path, request.url);
+}
+
+function safeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+  return normalizeKnownAppPath(value);
 }
 
 async function findOrCreateSocialUser(profile: { id: string; email: string; name: string; provider: string }): Promise<User> {
@@ -69,5 +75,5 @@ export async function GET(request: NextRequest) {
   });
 
   await createSession(appUser.id);
-  return NextResponse.redirect(safeRedirectTarget(request, roleHome(appUser.role)));
+  return NextResponse.redirect(safeRedirectTarget(request, safeNextPath(request.nextUrl.searchParams.get("next")) ?? roleHome(appUser.role)));
 }

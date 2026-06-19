@@ -345,11 +345,15 @@ async function signInWithSocialProvider(provider: SocialProvider, label: string,
     redirect(socialAuthErrorTarget(formData, `${label} login is not configured yet. Add Supabase environment variables first.`));
   }
 
+  const redirectTo = new URL("/auth/callback", env.NEXT_PUBLIC_APP_URL);
+  const nextPath = formData ? safeNextPath(formData.get("next")) : null;
+  if (nextPath) redirectTo.searchParams.set("next", nextPath);
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo: redirectTo.toString(),
       queryParams: provider === "google" ? { access_type: "offline", prompt: "consent" } : undefined,
     },
   });

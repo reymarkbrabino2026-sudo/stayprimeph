@@ -50,7 +50,7 @@ export default async function BookingCheckoutPage({
     Object.entries(query).flatMap(([key, value]) => (value ? [[key, value]] : [])),
   ).toString()}`;
   await requireRole("guest", {
-    redirectTo: `/login?role=guest&next=${encodeURIComponent(nextPath)}`,
+    redirectTo: `/register?role=guest&next=${encodeURIComponent(nextPath)}`,
     forbiddenRedirectTo: "/login?role=guest",
   });
   const [property, csrfToken] = await Promise.all([getPropertyById(propertyId), getCsrfToken()]);

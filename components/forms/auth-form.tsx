@@ -18,6 +18,7 @@ export function AuthForm({
   error,
   message,
   requestedRole,
+  signupRole,
   nextPath,
 }: {
   mode: string;
@@ -34,6 +35,7 @@ export function AuthForm({
   error?: string;
   message?: string;
   requestedRole?: "guest" | "host" | "admin";
+  signupRole?: "guest" | "host";
   nextPath?: string;
 }) {
   return (
@@ -55,6 +57,7 @@ export function AuthForm({
             {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
             {showName && <input name="name" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Full name" required />}
             <input name="email" className="min-h-12 w-full rounded-2xl border p-4" placeholder="Email" type="email" required />
+            {signupRole ? <input type="hidden" name="role" value={signupRole} /> : null}
             {showRole && (
               <select aria-label="Account role" name="role" className="min-h-12 w-full rounded-2xl border p-4">
                 <option value="guest">Guest</option>

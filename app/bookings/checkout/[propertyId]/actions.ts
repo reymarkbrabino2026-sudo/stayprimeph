@@ -99,7 +99,7 @@ export async function createBooking(formData: FormData) {
   const property = await getPropertyById(propertyId);
   const [bookings, availabilityBlocks] = await Promise.all([getBookings(), getAvailabilityBlocks()]);
   const user = await requireRole("guest", {
-    redirectTo: `/login?role=guest&next=${encodeURIComponent(checkoutPath(propertyId, checkIn, checkOut, guests, packageId))}`,
+    redirectTo: `/register?role=guest&next=${encodeURIComponent(checkoutPath(propertyId, checkIn, checkOut, guests, packageId))}`,
     forbiddenRedirectTo: checkoutPath(propertyId, checkIn, checkOut, guests, packageId, "guest-only"),
   });
   requireVerifiedEmail(user);
