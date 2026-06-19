@@ -138,6 +138,9 @@ export async function saveFinancialSettingsAction(financial: FinancialSettingsSt
     revalidatePath("/account-settings/payments/service-fee");
     revalidatePath("/account-settings/payments/donations");
     revalidatePath("/account-settings/taxes");
+    revalidatePath("/host/dashboard");
+    revalidatePath("/host/earnings");
+    revalidatePath("/host/payouts");
     return next;
   });
 }

@@ -15,6 +15,7 @@ import {
   Search,
   Star,
   UserCircle,
+  WalletCards,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -40,6 +41,7 @@ const iconByLabel = {
   "calendar availability": CalendarCheck2,
   "booking requests": CalendarCheck2,
   earnings: ChartNoAxesCombined,
+  "payout settings": WalletCards,
   settings: UserCircle,
 };
 

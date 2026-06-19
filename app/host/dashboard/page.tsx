@@ -3,6 +3,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { getAccountSettings } from "@/lib/account-settings";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { hostLinks } from "@/lib/navigation";
@@ -13,10 +14,15 @@ import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/
 
 export default async function HostDashboardPage() {
   const user = await getCurrentUser();
-  const [bookings, properties] = await Promise.all([getBookings(), getProperties()]);
+  const [bookings, properties, accountSettings] = await Promise.all([
+    getBookings(),
+    getProperties(),
+    user ? getAccountSettings(user) : Promise.resolve(null),
+  ]);
   const hostListings = properties.filter((property) => property.hostId === user?.id);
   const hostBookings = bookings.filter((booking) => booking.hostId === user?.id);
   const upcomingBookings = hostBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
+  const hasPayoutMethod = Boolean(accountSettings?.financial.payoutMethods.length);
   const paidTotal = hostBookings
     .filter((booking) => booking.paymentStatus === "paid")
     .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
@@ -33,6 +39,21 @@ export default async function HostDashboardPage() {
         <StatsCard label="Upcoming bookings" value={String(upcomingBookings.length)} />
         <StatsCard label="Paid earnings" value={formatCurrency(paidTotal)} />
       </div>
+
+      {!hasPayoutMethod ? (
+        <section className="mt-6 rounded-[1.75rem] border border-amber-200 bg-amber-50 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800/70">Payout setup</p>
+              <h2 className="mt-2 text-xl font-bold text-amber-950">Add where StayPrimePH should send your payouts</h2>
+              <p className="mt-1 text-sm text-amber-950/70">Hosts need a payout method before approved earnings can be sent.</p>
+            </div>
+            <Link href="/host/payouts" className="inline-flex min-h-11 w-fit items-center rounded-full bg-[#21170f] px-5 text-sm font-semibold text-white">
+              Set up payout method
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
         <section className="rounded-[1.75rem] bg-white p-5 soft-card">
