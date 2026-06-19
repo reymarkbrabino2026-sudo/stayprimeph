@@ -3,8 +3,27 @@ import { resendAdminMfa, signIn, verifyAdminMfa } from "@/app/auth/actions";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { AuthForm } from "@/components/forms/auth-form";
 import { AuthSubmitButton } from "@/components/forms/auth-submit-button";
+import { readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
 import { getCurrentUser, roleHome } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth-tokens";
+import { normalizeKnownAppPath } from "@/lib/canonical-paths";
 import { redirect } from "next/navigation";
+
+function strictAdminNextPath(value?: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/admin/dashboard";
+
+  const normalized = normalizeKnownAppPath(value);
+  try {
+    const url = new URL(normalized, "http://stayprimeph.local");
+    const pathname = url.pathname.toLowerCase();
+    if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) return "/admin/dashboard";
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) return normalized;
+  } catch {
+    return "/admin/dashboard";
+  }
+
+  return "/admin/dashboard";
+}
 
 export default async function AdminLoginPage({
   searchParams,
@@ -12,11 +31,7 @@ export default async function AdminLoginPage({
   searchParams: Promise<{ error?: string; message?: string; mfa?: string; next?: string }>;
 }) {
   const { error, message, mfa, next } = await searchParams;
-
-  const nextPath =
-    next?.startsWith("/admin") && !next.startsWith("//")
-      ? next
-      : "/admin/dashboard";
+  const nextPath = strictAdminNextPath(next);
 
   const currentUser = await getCurrentUser();
 
@@ -29,6 +44,12 @@ export default async function AdminLoginPage({
   }
 
   if (mfa === "1") {
+    const rawToken = await readPendingAdminMfaChallenge();
+    const pendingToken = rawToken ? await getAuthToken(rawToken, "admin_mfa") : null;
+    if (!pendingToken) {
+      redirect(`/admin/login?error=${encodeURIComponent("Admin sign-in challenge expired. Log in again.")}`);
+    }
+
     return (
       <main className="min-h-dvh bg-[#faf7f4] px-4 py-4 sm:px-6">
         <header className="mx-auto flex w-full max-w-5xl items-center justify-center py-2 sm:py-4">
