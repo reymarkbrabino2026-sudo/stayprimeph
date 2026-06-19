@@ -128,6 +128,7 @@ vi.mock("@/lib/repositories", () => ({
   createPropertyInDatabase: vi.fn(),
   createUserInDatabase: vi.fn(),
   deleteDraftPropertyInDatabase: vi.fn(),
+  updatePropertyDetailsInDatabase: vi.fn(),
   upsertDraftPropertyInDatabase: vi.fn(),
   updatePropertyStatusInDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),

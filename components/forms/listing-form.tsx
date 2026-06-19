@@ -1,45 +1,63 @@
 import { ImageUploader } from "@/components/forms/image-uploader";
-import { createListing } from "@/app/host/listings/actions";
+import { createListing, updateListing } from "@/app/host/listings/actions";
 import { csrfFieldName } from "@/lib/csrf-fields";
+import { amenityGroups, propertyTypes } from "@/lib/host-wizard-data";
+import type { Property } from "@/lib/types";
 
-export function ListingForm({ mode, csrfToken }: { mode: "Create" | "Edit"; csrfToken?: string }) {
+export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "Edit"; property?: Property; csrfToken?: string }) {
   const canCreate = mode === "Create";
+  const fields: Array<{ label: string; name: string; type: "text" | "number"; defaultValue?: string | number }> = [
+    { label: "Title", name: "title", type: "text", defaultValue: property?.title },
+    { label: "Address", name: "address", type: "text", defaultValue: property?.address },
+    { label: "City", name: "city", type: "text", defaultValue: property?.city },
+    { label: "Country", name: "country", type: "text", defaultValue: property?.country },
+    { label: "Price per night", name: "pricePerNight", type: "number", defaultValue: property?.pricePerNight },
+    { label: "Weekend price", name: "weekendPrice", type: "number", defaultValue: property?.weekendPrice ?? property?.pricePerNight },
+    { label: "Cleaning fee", name: "cleaningFee", type: "number", defaultValue: property?.cleaningFee ?? 0 },
+    { label: "Security deposit", name: "securityDeposit", type: "number", defaultValue: property?.securityDeposit ?? 0 },
+  ];
+  const capacityFields: Array<{ label: string; name: string; defaultValue?: number }> = [
+    { label: "Bedrooms", name: "bedrooms", defaultValue: property?.bedrooms },
+    { label: "Bathrooms", name: "bathrooms", defaultValue: property?.bathrooms },
+    { label: "Guests", name: "maxGuests", defaultValue: property?.maxGuests },
+  ];
 
   return (
-    <form action={canCreate ? createListing : undefined} className="grid gap-5 lg:grid-cols-[1fr_320px]">
-      {canCreate && csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
+    <form action={canCreate ? createListing : updateListing} className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      {csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
+      {!canCreate && property ? <input type="hidden" name="id" value={property.id} /> : null}
       <div className="space-y-4 rounded-[1.5rem] bg-white p-5 soft-card">
-        {[
-          ["Title", "title", "text"],
-          ["Description", "description", "text"],
-          ["Address", "address", "text"],
-          ["City", "city", "text"],
-          ["Country", "country", "text"],
-          ["Price per night", "pricePerNight", "number"],
-          ["Weekend price", "weekendPrice", "number"],
-        ].map(([label, name, type]) => (
+        {fields.map(({ label, name, type, defaultValue }) => (
           <label key={name} className="block">
             <span className="mb-2 block text-sm font-medium">{label}</span>
-            <input name={name} type={type} required className="min-h-12 w-full rounded-2xl border p-3" placeholder={label} />
+            <input name={name} type={type} defaultValue={defaultValue} required className="min-h-12 w-full rounded-2xl border p-3" placeholder={label} />
           </label>
         ))}
         <label className="block">
+          <span className="mb-2 block text-sm font-medium">Description</span>
+          <textarea name="description" defaultValue={property?.description} required rows={6} maxLength={1000} className="w-full rounded-2xl border p-3 leading-7" placeholder="Describe what makes this stay special." />
+        </label>
+        <label className="block">
           <span className="mb-2 block text-sm font-medium">Property type</span>
-          <select name="propertyType" defaultValue="House" className="min-h-12 w-full rounded-2xl border p-3">
-            {["House", "Apartment", "Villa", "Cabin", "Condo"].map((item) => (
-              <option key={item}>{item}</option>
+          <select name="propertyType" defaultValue={property?.propertyType ?? "House"} className="min-h-12 w-full rounded-2xl border p-3">
+            {propertyTypes.map((item) => (
+              <option key={item.id} value={item.label}>{item.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">Currency</span>
+          <select name="currency" defaultValue={property?.currency ?? "PHP"} className="min-h-12 w-full rounded-2xl border p-3">
+            {["PHP", "USD"].map((item) => (
+              <option key={item} value={item}>{item}</option>
             ))}
           </select>
         </label>
         <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            ["Bedrooms", "bedrooms"],
-            ["Bathrooms", "bathrooms"],
-            ["Guests", "maxGuests"],
-          ].map(([label, name]) => (
+          {capacityFields.map(({ label, name, defaultValue }) => (
             <label key={name} className="block">
               <span className="mb-2 block text-sm font-medium">{label}</span>
-              <input name={name} type="number" min="0" required className="min-h-12 w-full rounded-2xl border p-3" placeholder="0" />
+              <input name={name} type="number" min="0" defaultValue={defaultValue} required className="min-h-12 w-full rounded-2xl border p-3" placeholder="0" />
             </label>
           ))}
         </div>
@@ -48,15 +66,22 @@ export function ListingForm({ mode, csrfToken }: { mode: "Create" | "Edit"; csrf
         </button>
       </div>
       <div className="space-y-4">
-        <ImageUploader />
+        <ImageUploader listingId={property?.id} initialPhotos={property?.images} />
         <div className="rounded-[1.5rem] bg-white p-5 soft-card">
           <h3 className="font-semibold">Amenities</h3>
-          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            {["Wi-Fi", "Pool", "Kitchen", "Parking", "Workspace"].map((item) => (
-              <label key={item} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2">
-                <input type="checkbox" name="amenities" value={item} className="mr-2" />
-                {item}
-              </label>
+          <div className="mt-4 grid gap-5 text-sm">
+            {amenityGroups.map((group) => (
+              <fieldset key={group.id}>
+                <legend className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-black/45">{group.title}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {group.items.map((item) => (
+                    <label key={item.id} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2">
+                      <input type="checkbox" name="amenities" value={item.label} defaultChecked={property?.amenities.includes(item.label)} className="mr-2" />
+                      {item.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             ))}
           </div>
         </div>

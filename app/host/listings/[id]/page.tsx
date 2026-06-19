@@ -4,13 +4,14 @@ import { ListingForm } from "@/components/forms/listing-form";
 import { ResilientImage } from "@/components/ui/resilient-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
+import { getCsrfToken } from "@/lib/csrf";
 import { hostLinks } from "@/lib/navigation";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
-export default async function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
+export default async function EditListingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ updated?: string }> }) {
+  const [{ id }, query, user, csrfToken] = await Promise.all([params, searchParams, getCurrentUser(), getCsrfToken()]);
   const property = await getPropertyById(id);
   if (!property || property.hostId !== user?.id) notFound();
 
@@ -36,7 +37,12 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
         </section>
 
         <section>
-          <ListingForm mode="Edit" />
+          {query.updated === "1" ? (
+            <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+              Listing updated successfully.
+            </div>
+          ) : null}
+          <ListingForm mode="Edit" property={property} csrfToken={csrfToken} />
         </section>
       </div>
     </DashboardShell>

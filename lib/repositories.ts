@@ -458,6 +458,61 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
   await prisma.property.update({ where: { id }, data: { status } });
 }
 
+export type PropertyDetailsUpdate = Pick<Property,
+  "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
+  "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "amenities" | "images"
+>;
+
+export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
+  await prisma.$transaction(async (tx) => {
+    const amenityIds = await ensureAmenitiesForProperty(tx, property.amenities);
+    await tx.property.update({
+      where: { id: property.id },
+      data: {
+        title: property.title,
+        description: property.description,
+        address: property.address,
+        city: property.city,
+        country: property.country,
+        pricePerNight: property.pricePerNight,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        maxGuests: property.maxGuests,
+        propertyType: property.propertyType,
+        amenities: {
+          deleteMany: {},
+          create: amenityIds.map((amenityId) => ({ amenityId })),
+        },
+        images: {
+          deleteMany: {},
+          create: property.images.map((image) => ({
+            id: image.id,
+            imageUrl: image.imageUrl,
+            tone: image.tone,
+          })),
+        },
+        pricing: {
+          upsert: {
+            create: {
+              id: `pricing-${property.id}`,
+              weekendPrice: property.weekendPrice ?? property.pricePerNight,
+              cleaningFee: property.cleaningFee ?? 0,
+              securityDeposit: property.securityDeposit ?? 0,
+              currency: property.currency ?? "PHP",
+            },
+            update: {
+              weekendPrice: property.weekendPrice ?? property.pricePerNight,
+              cleaningFee: property.cleaningFee ?? 0,
+              securityDeposit: property.securityDeposit ?? 0,
+              currency: property.currency ?? "PHP",
+            },
+          },
+        },
+      },
+    });
+  }, { maxWait: 10000, timeout: 15000 });
+}
+
 export async function listBookingsFromDatabase(): Promise<Booking[]> {
   const bookings = await prisma.booking.findMany({ orderBy: { createdAt: "desc" } });
   const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`

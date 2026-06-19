@@ -188,6 +188,7 @@ vi.mock("@/lib/repositories", () => ({
   listPaymentsFromDatabase: vi.fn(async () => []),
   recordStripeCheckoutSessionInDatabase: vi.fn(),
   recordManualPaymentInDatabase: vi.fn(),
+  updatePropertyDetailsInDatabase: vi.fn(),
   upsertDraftPropertyInDatabase: vi.fn(),
   updateBookingStatusInDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),
@@ -213,7 +214,7 @@ import { savePersonalInfoAction } from "@/app/account-settings/actions";
 import { cancelGuestBooking } from "@/app/guest/bookings/actions";
 import { sendHostMessage } from "@/app/guest/messages/actions";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
-import { createListing, publishWizardListing, saveWizardListingDraft } from "@/app/host/listings/actions";
+import { createListing, publishWizardListing, saveWizardListingDraft, updateListing } from "@/app/host/listings/actions";
 import { acceptBooking } from "@/app/host/bookings/actions";
 import { createExternalReservation } from "@/app/host/erp/[section]/actions";
 import { sendGuestMessage } from "@/app/host/messages/actions";
@@ -448,6 +449,83 @@ describe("IDOR protections", () => {
     expect(writeStoredProperties).not.toHaveBeenCalledWith([
       expect.objectContaining({ hostId: "host-2" }),
     ]);
+  });
+
+  it("lets a host update their own listing price", async () => {
+    authState.currentUser = hostUser;
+    vi.mocked(getPropertyById).mockResolvedValueOnce(property);
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([property]);
+
+    await expect(
+      updateListing(formData({
+        id: property.id,
+        title: property.title,
+        description: property.description,
+        address: property.address,
+        city: property.city,
+        country: property.country,
+        propertyType: property.propertyType,
+        pricePerNight: "3200",
+        weekendPrice: "3900",
+        cleaningFee: "250",
+        securityDeposit: "1000",
+        currency: "PHP",
+        bedrooms: String(property.bedrooms),
+        bathrooms: String(property.bathrooms),
+        maxGuests: String(property.maxGuests),
+        amenities: "Wi-Fi",
+        photoUrls: "/uploads/listings/host-1/property-1/cover.jpg",
+      })),
+    ).rejects.toThrow(`NEXT_REDIRECT:/host/listings/${property.id}?updated=1`);
+
+    expect(writeStoredProperties).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: property.id,
+        hostId: hostUser.id,
+        pricePerNight: 3200,
+        weekendPrice: 3900,
+        cleaningFee: 250,
+        securityDeposit: 1000,
+        currency: "PHP",
+        amenities: ["Wi-Fi"],
+        images: [
+          expect.objectContaining({
+            propertyId: property.id,
+            imageUrl: "/uploads/listings/host-1/property-1/cover.jpg",
+          }),
+        ],
+        status: property.status,
+      }),
+    ]);
+    expect(revalidatePath).toHaveBeenCalledWith(`/host/listings/${property.id}`);
+    expect(revalidatePath).toHaveBeenCalledWith("/search");
+  });
+
+  it("blocks a host from editing another host's listing", async () => {
+    authState.currentUser = hostUser;
+    vi.mocked(getPropertyById).mockResolvedValueOnce({ ...property, hostId: "host-2" });
+
+    await expect(
+      updateListing(formData({
+        id: property.id,
+        title: "Tampered listing",
+        description: property.description,
+        address: property.address,
+        city: property.city,
+        country: property.country,
+        propertyType: property.propertyType,
+        pricePerNight: "999",
+        weekendPrice: "999",
+        cleaningFee: "0",
+        securityDeposit: "0",
+        currency: "PHP",
+        bedrooms: String(property.bedrooms),
+        bathrooms: String(property.bathrooms),
+        maxGuests: String(property.maxGuests),
+      })),
+    ).rejects.toThrow("Listing not found.");
+
+    expect(writeStoredProperties).not.toHaveBeenCalled();
   });
 
   it("publishes a completed wizard listing for the signed-in host", async () => {

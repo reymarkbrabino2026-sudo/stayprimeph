@@ -8,11 +8,12 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { amenityGroups } from "@/lib/host-wizard-data";
-import { createPropertyInDatabase, deleteDraftPropertyInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { createPropertyInDatabase, deleteDraftPropertyInDatabase, updatePropertyDetailsInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { logger } from "@/lib/logger";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
+import { getPropertyById } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
 import type { Property } from "@/lib/types";
@@ -110,14 +111,29 @@ const hostListingDraftSaveSchema = z.object({
   bookingPackages: z.array(draftBookingPackageSchema).max(8).catch([]),
 });
 
+const listingFormSchema = z.object({
+  id: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(1000),
+  address: z.string().trim().min(1).max(240),
+  city: z.string().trim().min(1).max(80),
+  country: z.string().trim().min(1).max(80),
+  propertyType: z.string().trim().min(1).max(80),
+  pricePerNight: z.coerce.number().int().min(1).max(1000000),
+  weekendPrice: z.coerce.number().int().min(0).max(1000000).optional(),
+  cleaningFee: z.coerce.number().int().min(0).max(1000000),
+  securityDeposit: z.coerce.number().int().min(0).max(1000000),
+  currency: z.string().trim().min(1).max(8),
+  bedrooms: z.coerce.number().int().min(0).max(50),
+  bathrooms: z.coerce.number().min(0).max(50),
+  maxGuests: z.coerce.number().int().min(1).max(100),
+  amenities: z.array(z.string().trim().max(80)).max(50).catch([]),
+});
+
 type HostListingDraftSaveInput = z.infer<typeof hostListingDraftSaveSchema>;
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function numberFrom(formData: FormData, key: string) {
-  return Number(formData.get(key) ?? 0);
 }
 
 const amenityLabelById = new Map(
@@ -147,6 +163,31 @@ function orderedImages(input: Pick<HostListingInput, "photos"> | Pick<HostListin
   return [...input.photos]
     .sort((a, b) => Number(b.isCover) - Number(a.isCover))
     .map((photo, index) => ({ id: `${propertyId}-photo-${index + 1}`, propertyId, imageUrl: photo.url, tone: "from-rose-100 via-orange-50 to-stone-100" }));
+}
+
+function readSubmittedImages(formData: FormData, existing: Property, userId: string) {
+  const existingImageUrls = new Set(existing.images.map((image) => image.imageUrl));
+  const submittedUrls = formData.getAll("photoUrls").map(String).map((value) => value.trim()).filter(Boolean);
+  const uniqueUrls = Array.from(new Set(submittedUrls)).slice(0, 20);
+
+  for (const url of uniqueUrls) {
+    const retainedExistingPhoto = existingImageUrls.has(url);
+    const uploadedForThisListing = isIntendedListingPhotoUrl(url, {
+      userId,
+      listingId: existing.id,
+      cloudName: env.CLOUDINARY_CLOUD_NAME,
+    });
+    if (!retainedExistingPhoto && !uploadedForThisListing) {
+      throw new Error("Listing photos must be uploaded through StayPrimePH before saving.");
+    }
+  }
+
+  return uniqueUrls.map((url, index) => ({
+    id: `${existing.id}-photo-${index + 1}`,
+    propertyId: existing.id,
+    imageUrl: url,
+    tone: "from-rose-100 via-orange-50 to-stone-100",
+  }));
 }
 
 function enabledBookingPackages(input: Pick<HostListingInput, "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "pricingMode" | "bookingPackages">) {
@@ -220,12 +261,12 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
   };
 }
 
-async function requireHost() {
+async function requireHost(forbiddenMessage = "Only hosts can create listings.") {
   await assertTrustedRequestOrigin();
 
   const user = await requireRole("host", {
     redirectTo: "/login?role=host",
-    forbiddenMessage: "Only hosts can create listings.",
+    forbiddenMessage,
   });
   requireVerifiedEmail(user);
   return user;
@@ -234,23 +275,44 @@ async function requireHost() {
 export async function createListing(formData: FormData) {
   const user = await requireHost();
   await assertValidCsrfForm(formData);
-  const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const address = String(formData.get("address") ?? "").trim();
-  const city = String(formData.get("city") ?? "").trim();
-  const country = String(formData.get("country") ?? "").trim();
-  const propertyType = String(formData.get("propertyType") ?? "House").trim();
-  const pricePerNight = numberFrom(formData, "pricePerNight");
-  const weekendPriceInput = numberFrom(formData, "weekendPrice");
-  const weekendPrice = weekendPriceInput > 0 ? weekendPriceInput : calculateDefaultWeekendPrice(pricePerNight);
-  const bedrooms = numberFrom(formData, "bedrooms");
-  const bathrooms = numberFrom(formData, "bathrooms");
-  const maxGuests = numberFrom(formData, "maxGuests");
+  const parsed = listingFormSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description"),
+    address: formData.get("address"),
+    city: formData.get("city"),
+    country: formData.get("country"),
+    propertyType: formData.get("propertyType") || "House",
+    pricePerNight: formData.get("pricePerNight"),
+    weekendPrice: formData.get("weekendPrice") || "0",
+    cleaningFee: formData.get("cleaningFee") || "0",
+    securityDeposit: formData.get("securityDeposit") || "0",
+    currency: formData.get("currency") || "PHP",
+    bedrooms: formData.get("bedrooms"),
+    bathrooms: formData.get("bathrooms"),
+    maxGuests: formData.get("maxGuests"),
+    amenities: formData.getAll("amenities"),
+  });
+  if (!parsed.success) throw new Error("Please complete all required listing fields.");
 
-  if (!title || !description || !address || !city || !country) throw new Error("Please complete all required listing fields.");
+  const {
+    title,
+    description,
+    address,
+    city,
+    country,
+    propertyType,
+    pricePerNight,
+    cleaningFee,
+    securityDeposit,
+    currency,
+    bedrooms,
+    bathrooms,
+    maxGuests,
+    amenities,
+  } = parsed.data;
+  const weekendPrice = parsed.data.weekendPrice && parsed.data.weekendPrice > 0 ? parsed.data.weekendPrice : calculateDefaultWeekendPrice(pricePerNight);
 
   const id = randomUUID();
-  const amenityNames = formData.getAll("amenities").map(String).filter(Boolean);
   const property: Property = {
     id,
     hostId: user.id,
@@ -262,13 +324,16 @@ export async function createListing(formData: FormData) {
     country,
     pricePerNight,
     weekendPrice,
+    cleaningFee,
+    securityDeposit,
+    currency,
     bedrooms,
     bathrooms,
     maxGuests,
     propertyType,
     status: "pending",
     rating: 0,
-    amenities: amenityNames,
+    amenities,
     rules: ["No parties"],
     createdAt: new Date().toISOString().slice(0, 10),
     images: [{ id: randomUUID(), propertyId: id, imageUrl: "pending-upload", tone: "from-rose-100 via-orange-50 to-stone-100" }],
@@ -282,6 +347,70 @@ export async function createListing(formData: FormData) {
   revalidatePath("/host/listings");
   revalidatePath("/search");
   redirect("/host/listings");
+}
+
+export async function updateListing(formData: FormData) {
+  const user = await requireHost("Only hosts can edit listings.");
+  await assertValidCsrfForm(formData);
+  const parsed = listingFormSchema.safeParse({
+    id: formData.get("id"),
+    title: formData.get("title"),
+    description: formData.get("description"),
+    address: formData.get("address"),
+    city: formData.get("city"),
+    country: formData.get("country"),
+    propertyType: formData.get("propertyType"),
+    pricePerNight: formData.get("pricePerNight"),
+    weekendPrice: formData.get("weekendPrice") || "0",
+    cleaningFee: formData.get("cleaningFee") || "0",
+    securityDeposit: formData.get("securityDeposit") || "0",
+    currency: formData.get("currency") || "PHP",
+    bedrooms: formData.get("bedrooms"),
+    bathrooms: formData.get("bathrooms"),
+    maxGuests: formData.get("maxGuests"),
+    amenities: formData.getAll("amenities"),
+  });
+  if (!parsed.success || !parsed.data.id) throw new Error("Please complete all required listing fields.");
+
+  const existing = await getPropertyById(parsed.data.id);
+  if (!existing || existing.hostId !== user.id) throw new Error("Listing not found.");
+
+  const weekendPrice = parsed.data.weekendPrice && parsed.data.weekendPrice > 0
+    ? parsed.data.weekendPrice
+    : calculateDefaultWeekendPrice(parsed.data.pricePerNight);
+  const nextProperty = {
+    ...existing,
+    title: parsed.data.title,
+    description: parsed.data.description,
+    address: parsed.data.address,
+    city: parsed.data.city,
+    country: parsed.data.country,
+    propertyType: parsed.data.propertyType,
+    pricePerNight: parsed.data.pricePerNight,
+    weekendPrice,
+    cleaningFee: parsed.data.cleaningFee,
+    securityDeposit: parsed.data.securityDeposit,
+    currency: parsed.data.currency,
+    bedrooms: parsed.data.bedrooms,
+    bathrooms: parsed.data.bathrooms,
+    maxGuests: parsed.data.maxGuests,
+    amenities: parsed.data.amenities,
+    images: readSubmittedImages(formData, existing, user.id),
+  } satisfies Property;
+
+  if (usesPrismaPersistence()) {
+    await updatePropertyDetailsInDatabase(nextProperty);
+  } else {
+    const storedProperties = await readStoredProperties();
+    await writeStoredProperties(storedProperties.map((property) => property.id === nextProperty.id && property.hostId === user.id ? nextProperty : property));
+  }
+
+  revalidatePath("/");
+  revalidatePath("/host/listings");
+  revalidatePath(`/host/listings/${nextProperty.id}`);
+  revalidatePath("/search");
+  revalidatePath(`/property/${nextProperty.slug}`);
+  redirect(`/host/listings/${nextProperty.id}?updated=1`);
 }
 
 export async function saveWizardListingDraft(input: unknown, csrfToken?: string) {
