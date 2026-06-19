@@ -24,6 +24,17 @@ export function checkRateLimit(key: string, limit = 20, windowMs = 60_000) {
   return { limited: entry.count > limit, remaining: Math.max(0, limit - entry.count), resetAt: entry.resetAt };
 }
 
+export function rateLimitKey(scope: string, ...parts: Array<string | null | undefined>) {
+  const normalizedScope = scope.trim().toLowerCase().replace(/[^a-z0-9:._-]/g, "-").slice(0, 80) || "global";
+  const normalizedParts = parts.map((part) => {
+    const value = part?.split(",")[0]?.trim().toLowerCase();
+    if (!value) return "anonymous";
+    return value.replace(/[^a-z0-9:._-]/g, "-").slice(0, 120);
+  });
+
+  return [normalizedScope, ...normalizedParts].join(":");
+}
+
 export function resetRateLimits() {
   buckets.clear();
   loginAttempts.clear();

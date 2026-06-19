@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getStripe, isStripeCheckoutEnabled } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
-import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import {
   beginStripeCheckoutAttempt,
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Verify your email address before starting payment." }, { status: 403 });
   }
 
-  const rateLimit = await checkDistributedRateLimit(`checkout:${user.id}:${headerStore.get("x-forwarded-for") ?? "local"}`, 20);
+  const rateLimit = await checkDistributedRateLimit(rateLimitKey("checkout", user.id, headerStore.get("x-forwarded-for")), 20);
   if (rateLimit.limited) {
     logger.warn("checkout_rate_limited", { userId: user.id });
     return NextResponse.json({ error: "Too many checkout attempts. Please try again later." }, { status: 429 });
@@ -80,7 +80,8 @@ export async function POST(request: Request) {
     if (error instanceof Error && error.message === checkoutInProgressMessage) {
       return NextResponse.json({ error: checkoutInProgressMessage }, { status: 409 });
     }
-    throw error;
+    logger.error("checkout_attempt_lock_failed", { userId: user.id, bookingId, error });
+    return NextResponse.json({ error: "Unable to start checkout. Please try again later." }, { status: 503 });
   }
 
   let session;
@@ -103,7 +104,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     await clearStripeCheckoutAttempt(booking.id);
-    throw error;
+    logger.error("stripe_checkout_session_failed", { userId: user.id, bookingId, error });
+    return NextResponse.json({ error: "Payment provider is unavailable. Please try again later." }, { status: 502 });
   }
 
   if (typeof session.id === "string") {

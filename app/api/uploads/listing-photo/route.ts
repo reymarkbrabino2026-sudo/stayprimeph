@@ -10,7 +10,7 @@ import { sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPh
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig, requiresConfiguredPhotoStorage } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
-import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import { cloudinaryListingUploadFolder, extensionFromContentType, normalizeUploadScopeId, serverGeneratedListingUploadPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
@@ -48,13 +48,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Verify your email address before uploading listing photos." }, { status: 403 });
   }
 
-  const rateLimit = await checkDistributedRateLimit(`listing-upload:${user.id}:${headerStore.get("x-forwarded-for") ?? "local"}`, 30);
+  const rateLimit = await checkDistributedRateLimit(rateLimitKey("listing-upload", user.id, headerStore.get("x-forwarded-for")), 30);
   if (rateLimit.limited) {
     logger.warn("listing_photo_upload_rate_limited", { userId: user.id });
     return NextResponse.json({ error: "Too many upload attempts. Please try again later." }, { status: 429 });
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch (error) {
+    logger.warn("listing_photo_upload_invalid_multipart", { userId: user.id, error });
+    return NextResponse.json({ error: "Upload a valid multipart form." }, { status: 400 });
+  }
   let listingId: string;
   try {
     listingId = await requireListingUploadScope(user.id, formData.get("listingId"));

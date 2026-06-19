@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { fetchWithTimeout, UpstreamTimeoutError } from "@/lib/upstream-http";
 
 interface NominatimReverseResult {
   lat: string;
@@ -9,7 +10,7 @@ interface NominatimReverseResult {
 }
 
 export async function GET(request: Request) {
-  const rateLimit = await checkDistributedRateLimit(`reverse-geocode:${request.headers.get("x-forwarded-for") ?? "local"}`, 30);
+  const rateLimit = await checkDistributedRateLimit(rateLimitKey("reverse-geocode", request.headers.get("x-forwarded-for")), 30);
   if (rateLimit.limited) {
     logger.warn("rate_limited", { route: "/api/geocode/reverse" });
     return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
@@ -36,22 +37,37 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid coordinates." }, { status: 400 });
   }
 
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(parsedLatitude))}&lon=${encodeURIComponent(String(parsedLongitude))}`,
-    {
-      headers: {
-        "User-Agent": "stayprimeph-local-dev/1.0",
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(parsedLatitude))}&lon=${encodeURIComponent(String(parsedLongitude))}`,
+      {
+        headers: {
+          "User-Agent": "StayPrimePH/1.0",
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    },
-  );
+    );
+  } catch (error) {
+    logger.error("reverse_geocode_upstream_unreachable", {
+      error,
+      timedOut: error instanceof UpstreamTimeoutError,
+    });
+    return NextResponse.json({ error: "Reverse geocoding service unavailable." }, { status: 502 });
+  }
 
   if (!response.ok) {
     logger.error("reverse_geocode_upstream_failed", { status: response.status });
     return NextResponse.json({ error: "Reverse geocoding service unavailable." }, { status: 502 });
   }
 
-  const result = (await response.json()) as NominatimReverseResult;
+  let result: NominatimReverseResult;
+  try {
+    result = (await response.json()) as NominatimReverseResult;
+  } catch (error) {
+    logger.error("reverse_geocode_upstream_invalid_json", { error });
+    return NextResponse.json({ error: "Reverse geocoding service unavailable." }, { status: 502 });
+  }
 
   return NextResponse.json({
     latitude: Number(result.lat),

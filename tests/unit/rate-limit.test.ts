@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkDistributedRateLimit, checkLoginLockout, clearFailedLoginAttempts, checkRateLimit, recordFailedLoginAttempt, resetRateLimits } from "@/lib/rate-limit";
+import { checkDistributedRateLimit, checkLoginLockout, clearFailedLoginAttempts, checkRateLimit, rateLimitKey, recordFailedLoginAttempt, resetRateLimits } from "@/lib/rate-limit";
 
 describe("checkRateLimit", () => {
   beforeEach(() => {
@@ -30,6 +30,12 @@ describe("checkRateLimit", () => {
       limited: false,
       remaining: 0,
     });
+  });
+
+  it("normalizes rate limit keys before using request-controlled values", () => {
+    expect(rateLimitKey("Checkout Flow", "USER-1", " 203.0.113.10, 10.0.0.1 ")).toBe("checkout-flow:user-1:203.0.113.10");
+    expect(rateLimitKey("Upload", undefined)).toBe("upload:anonymous");
+    expect(rateLimitKey("../weird scope", "email@example.com")).toBe("..-weird-scope:email-example.com");
   });
 
   it("progressively locks login attempts after repeated failures", async () => {

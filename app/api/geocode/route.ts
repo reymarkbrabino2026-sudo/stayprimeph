@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { checkDistributedRateLimit } from "@/lib/rate-limit";
+import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
+import { fetchWithTimeout, UpstreamTimeoutError } from "@/lib/upstream-http";
 
 interface NominatimSearchResult {
   lat: string;
@@ -9,7 +10,7 @@ interface NominatimSearchResult {
 }
 
 export async function GET(request: Request) {
-  const rateLimit = await checkDistributedRateLimit(`geocode:${request.headers.get("x-forwarded-for") ?? "local"}`, 30);
+  const rateLimit = await checkDistributedRateLimit(rateLimitKey("geocode", request.headers.get("x-forwarded-for")), 30);
   if (rateLimit.limited) {
     logger.warn("rate_limited", { route: "/api/geocode" });
     return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
@@ -36,22 +37,39 @@ export async function GET(request: Request) {
   ].filter(Boolean)));
 
   for (const candidate of candidates) {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=3&countrycodes=ph&q=${encodeURIComponent(candidate)}`,
-      {
-        headers: {
-          "User-Agent": "stayprimeph-local-dev/1.0",
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=3&countrycodes=ph&q=${encodeURIComponent(candidate)}`,
+        {
+          headers: {
+            "User-Agent": "StayPrimePH/1.0",
+          },
+          cache: "no-store",
         },
-        cache: "no-store",
-      },
-    );
+      );
+    } catch (error) {
+      logger.error("geocode_upstream_unreachable", {
+        error,
+        timedOut: error instanceof UpstreamTimeoutError,
+      });
+      return NextResponse.json({ error: "Geocoding service unavailable." }, { status: 502 });
+    }
 
     if (!response.ok) {
       logger.error("geocode_upstream_failed", { status: response.status });
       return NextResponse.json({ error: "Geocoding service unavailable." }, { status: 502 });
     }
 
-    const [result] = (await response.json()) as NominatimSearchResult[];
+    let results: NominatimSearchResult[];
+    try {
+      results = (await response.json()) as NominatimSearchResult[];
+    } catch (error) {
+      logger.error("geocode_upstream_invalid_json", { error });
+      return NextResponse.json({ error: "Geocoding service unavailable." }, { status: 502 });
+    }
+
+    const [result] = results;
 
     if (result) {
       const latitude = Number(result.lat);

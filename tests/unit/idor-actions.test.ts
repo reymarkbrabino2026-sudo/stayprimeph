@@ -117,6 +117,7 @@ vi.mock("@/lib/host-wizard-schema", () => ({
 
 vi.mock("@/lib/logger", () => ({
   logger: {
+    error: vi.fn(),
     warn: vi.fn(),
     info: vi.fn(),
   },
@@ -159,6 +160,7 @@ vi.mock("@/lib/property-store", () => ({
 
 vi.mock("@/lib/rate-limit", () => ({
   checkDistributedRateLimit: vi.fn(async () => ({ limited: false })),
+  rateLimitKey: vi.fn((scope: string, ...parts: string[]) => [scope, ...parts].filter(Boolean).join(":")),
 }));
 
 vi.mock("@/lib/request-safety", () => ({
@@ -648,12 +650,15 @@ describe("IDOR protections", () => {
       .mockResolvedValueOnce([pendingPayment]);
     authState.stripeCheckoutCreate.mockRejectedValueOnce(new Error("Stripe unavailable"));
 
-    await expect(createPaymentCheckout(
+    const response = await createPaymentCheckout(
       new Request("https://example.test/api/payments/checkout", {
         method: "POST",
         body: JSON.stringify({ bookingId: booking.id }),
       }),
-    )).rejects.toThrow("Stripe unavailable");
+    );
+
+    await expect(response.json()).resolves.toEqual({ error: "Payment provider is unavailable. Please try again later." });
+    expect(response.status).toBe(502);
 
     expect(writeStoredPayments).toHaveBeenNthCalledWith(1, [
       expect.objectContaining({
