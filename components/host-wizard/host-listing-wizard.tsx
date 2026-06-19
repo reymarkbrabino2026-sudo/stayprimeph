@@ -107,14 +107,6 @@ function formatAddressValues(values: AddressValues) {
     .join(", ");
 }
 
-function isNextRedirectError(error: unknown) {
-  const digest = typeof error === "object" && error !== null && "digest" in error
-    ? String((error as { digest?: unknown }).digest ?? "")
-    : "";
-
-  return digest.startsWith("NEXT_REDIRECT") || error instanceof Error && error.message.includes("NEXT_REDIRECT");
-}
-
 export function HostListingWizard({ user, csrfToken, freshStart = false }: { user: { id: string; email: string }; csrfToken: string; freshStart?: boolean }) {
   const router = useRouter();
   const { ownerUserId, initialized, currentStep, draft, initializeForUser, setStep, updateDraft, toggleAmenity } = useHostWizardStore();
@@ -183,10 +175,16 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
 
     setIsPublishing(true);
     try {
-      await publishWizardListing(parsed.data, csrfToken);
-    } catch (error) {
-      if (isNextRedirectError(error)) throw error;
+      const result = await publishWizardListing(parsed.data, csrfToken);
+      if (result.status === "published") {
+        router.push("/host/listings?published=1");
+        return;
+      }
 
+      setIsPublishing(false);
+      setPublishError(result.error);
+      alert(result.error);
+    } catch (error) {
       const message = error instanceof Error ? error.message : "We couldn't publish your listing. Please try again.";
       setIsPublishing(false);
       setPublishError(message);

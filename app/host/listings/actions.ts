@@ -11,6 +11,7 @@ import { amenityGroups } from "@/lib/host-wizard-data";
 import { createPropertyInDatabase, deleteDraftPropertyInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
+import { logger } from "@/lib/logger";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
@@ -314,14 +315,24 @@ export async function saveWizardListingDraft(input: unknown, csrfToken?: string)
 }
 
 export async function publishWizardListing(input: HostListingInput, csrfToken?: string) {
-  const user = await requireHost();
-  await assertValidCsrfToken(csrfToken);
+  let user;
+  try {
+    user = await requireHost();
+    await assertValidCsrfToken(csrfToken);
+  } catch (error) {
+    logger.warn("wizard_publish_auth_failed", { error });
+    return { status: "error" as const, error: "Please refresh the page and sign in again before publishing." };
+  }
+
   const parsed = hostListingSchema.safeParse(input);
-  if (!parsed.success) throw new Error("Please complete the required listing details before publishing.");
+  if (!parsed.success) {
+    logger.warn("wizard_publish_validation_failed", { userId: user.id, issues: parsed.error.issues });
+    return { status: "error" as const, error: "Please complete the required listing details before publishing." };
+  }
 
   const listing = parsed.data;
   if (listing.locationConfirmedAddress !== formatListingAddress(listing)) {
-    throw new Error("Please confirm the map pin for the current listing address before publishing.");
+    return { status: "error" as const, error: "Please confirm the map pin for the current listing address before publishing." };
   }
 
   if (!listing.photos.every((photo) => isIntendedListingPhotoUrl(photo.url, {
@@ -329,7 +340,12 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     listingId: listing.uploadScopeId,
     cloudName: env.CLOUDINARY_CLOUD_NAME,
   }))) {
-    throw new Error("Listing photos must be uploaded through StayPrimePH before publishing.");
+    logger.warn("wizard_publish_photo_scope_failed", {
+      userId: user.id,
+      uploadScopeId: listing.uploadScopeId,
+      photoCount: listing.photos.length,
+    });
+    return { status: "error" as const, error: "Listing photos must be uploaded through StayPrimePH before publishing." };
   }
 
   const id = randomUUID();
@@ -368,14 +384,28 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     bookingPackages,
   };
   const draftIdentity = draftPropertyIdentity(user.id, listing.uploadScopeId);
-  if (usesPrismaPersistence()) {
-    await deleteDraftPropertyInDatabase(user.id, draftIdentity.id);
-    await createPropertyInDatabase(property);
-  } else {
-    const storedProperties = await readStoredProperties();
-    await writeStoredProperties([property, ...storedProperties.filter((item) => item.id !== draftIdentity.id)]);
+
+  try {
+    if (usesPrismaPersistence()) {
+      await createPropertyInDatabase(property);
+      await deleteDraftPropertyInDatabase(user.id, draftIdentity.id);
+    } else {
+      const storedProperties = await readStoredProperties();
+      await writeStoredProperties([property, ...storedProperties.filter((item) => item.id !== draftIdentity.id)]);
+    }
+  } catch (error) {
+    logger.error("wizard_publish_persistence_failed", {
+      userId: user.id,
+      propertyId: property.id,
+      uploadScopeId: listing.uploadScopeId,
+      photoCount: listing.photos.length,
+      bookingPackageCount: bookingPackages.length,
+      error,
+    });
+    return { status: "error" as const, error: "We couldn't save your listing yet. Please try again in a moment." };
   }
+
   revalidatePath("/host/listings");
   revalidatePath("/search");
-  redirect("/host/listings?published=1");
+  return { status: "published" as const };
 }

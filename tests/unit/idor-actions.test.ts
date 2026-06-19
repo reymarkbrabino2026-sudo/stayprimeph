@@ -516,9 +516,7 @@ describe("IDOR protections", () => {
     } satisfies Property;
     vi.mocked(readStoredProperties).mockResolvedValueOnce([savedDraft, property]);
 
-    await expect(publishWizardListing(listing as never, "csrf-test-token")).rejects.toThrow(
-      "NEXT_REDIRECT:/host/listings?published=1",
-    );
+    await expect(publishWizardListing(listing as never, "csrf-test-token")).resolves.toEqual({ status: "published" });
 
     expect(writeStoredProperties).toHaveBeenCalledWith([
       expect.objectContaining({
@@ -618,9 +616,10 @@ describe("IDOR protections", () => {
       },
     } as never);
 
-    await expect(publishWizardListing({} as never, "csrf-test-token")).rejects.toThrow(
-      "Listing photos must be uploaded through StayPrimePH before publishing.",
-    );
+    await expect(publishWizardListing({} as never, "csrf-test-token")).resolves.toEqual({
+      status: "error",
+      error: "Listing photos must be uploaded through StayPrimePH before publishing.",
+    });
 
     expect(writeStoredProperties).not.toHaveBeenCalled();
   });

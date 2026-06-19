@@ -2,18 +2,12 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
 
 describe("host draft cleanup wiring", () => {
-  test("wizard publishing redirects with a cleanup marker", async () => {
+  test("wizard publishing keeps the cleanup marker route", async () => {
     const source = await readFile("app/host/listings/actions.ts", "utf8");
+    const wizard = await readFile("components/host-wizard/host-listing-wizard.tsx", "utf8");
 
     expect(source).toContain('export async function publishWizardListing');
-    expect(source).toContain('redirect("/host/listings?published=1")');
-  });
-
-  test("wizard publish client preserves Next redirect signals", async () => {
-    const source = await readFile("components/host-wizard/host-listing-wizard.tsx", "utf8");
-
-    expect(source).toContain("function isNextRedirectError");
-    expect(source).toContain("if (isNextRedirectError(error)) throw error;");
+    expect(wizard).toContain('router.push("/host/listings?published=1")');
   });
 
   test("fresh wizard URL marker is removed after initialization", async () => {
