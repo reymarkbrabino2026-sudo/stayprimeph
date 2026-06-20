@@ -1,5 +1,4 @@
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
-import { cache } from "react";
 import { findPropertyByIdFromDatabase, listPropertiesByStatusFromDatabase, listPropertiesForHostFromDatabase, listPropertiesFromDatabase, listPublicListingSummariesFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties } from "@/lib/property-store";
 import type { Property, PublicListingSummary } from "@/lib/types";
@@ -90,11 +89,21 @@ export function revalidatePublicListingSummaries() {
   revalidatePath("/search", "page");
 }
 
-const getCachedPropertyById = cache(async (id: string) => {
-  if (usesPrismaPersistence()) return findPropertyByIdFromDatabase(id);
-  const properties = await getProperties();
-  return properties.find((property) => property.id === id) ?? null;
-});
+const getCachedPropertyById = unstable_cache(
+  async (id: string) => {
+    if (usesPrismaPersistence()) return findPropertyByIdFromDatabase(id);
+    const properties = await getProperties();
+    return properties.find((property) => property.id === id) ?? null;
+  },
+  ["property-by-id"],
+  {
+    // The property entity changes rarely and excludes live booking availability,
+    // so cache it cross-request. revalidatePublicListingSummaries() shares this
+    // tag, so any listing edit invalidates these entries immediately.
+    revalidate: publicListingSummariesRevalidateSeconds,
+    tags: [publicListingSummariesCacheTag],
+  },
+);
 
 export async function getPropertyById(id: string) {
   return getCachedPropertyById(id);
