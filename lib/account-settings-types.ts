@@ -166,10 +166,11 @@ export type Coupon = {
 
 export type PayoutMethod = {
   id: string;
-  type: "Bank account" | "PayPal" | "GCash";
+  type: "Bank account" | "Digital wallet" | "PayPal" | "GCash" | "Maya";
   accountName: string;
   bankName: string;
-  accountLast4: string;
+  accountNumber: string;
+  accountLast4?: string;
   currency: string;
 };
 

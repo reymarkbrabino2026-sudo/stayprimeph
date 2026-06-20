@@ -128,21 +128,22 @@ describe("sensitive financial identifier protection", () => {
           id: "payout-1",
           type: "GCash",
           accountName: "Tax User",
-          bankName: "09171234567",
-          accountLast4: "4567",
+          bankName: "GCash",
+          accountNumber: "09171234567",
           currency: "PHP",
         },
       ],
     });
 
-    expect(result.payoutMethods[0].accountLast4).toBe("**** 4567");
+    expect(result.payoutMethods[0].accountNumber).toBe("**** 4567");
     const stored = vi.mocked(writeJsonStore).mock.calls.at(-1)?.[1][0] as {
       financial: { payoutMethods: Array<Record<string, string>> };
     };
-    expect(stored.financial.payoutMethods[0].accountLast4).toBe("**** 4567");
-    expect(stored.financial.payoutMethods[0].accountLast4Token).toMatch(/^[a-f0-9]{64}$/);
-    expect(stored.financial.payoutMethods[0].accountLast4Last4).toBe("4567");
-    expect(JSON.stringify(stored)).not.toContain("\"accountLast4\":\"4567\"");
+    expect(stored.financial.payoutMethods[0].accountNumber).toBe("**** 4567");
+    expect(stored.financial.payoutMethods[0].accountNumberToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.financial.payoutMethods[0].accountNumberLast4).toBe("4567");
+    expect(stored.financial.payoutMethods[0].accountLast4).toBeUndefined();
+    expect(JSON.stringify(stored)).not.toContain("09171234567");
   });
 
   it("remediates legacy plaintext payout identifiers on read", async () => {
@@ -167,12 +168,13 @@ describe("sensitive financial identifier protection", () => {
 
     const result = await getAccountSettings(user);
 
-    expect(result.financial.payoutMethods[0].accountLast4).toBe("**** 9876");
+    expect(result.financial.payoutMethods[0].accountNumber).toBe("**** 9876");
     const remediated = vi.mocked(writeJsonStore).mock.calls[0][1][0] as {
       financial: { payoutMethods: Array<Record<string, string>> };
     };
-    expect(remediated.financial.payoutMethods[0].accountLast4).toBe("**** 9876");
-    expect(remediated.financial.payoutMethods[0].accountLast4Token).toMatch(/^[a-f0-9]{64}$/);
+    expect(remediated.financial.payoutMethods[0].accountNumber).toBe("**** 9876");
+    expect(remediated.financial.payoutMethods[0].accountNumberToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(remediated.financial.payoutMethods[0].accountLast4).toBeUndefined();
     expect(JSON.stringify(remediated)).not.toContain("\"accountLast4\":\"9876\"");
   });
 

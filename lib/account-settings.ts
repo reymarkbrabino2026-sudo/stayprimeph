@@ -77,7 +77,7 @@ const workTravelTextFields = ["email", "companyName", "department", "employeeId"
 const localizationFields = ["language", "currency", "region", "measurementUnits", "timeZone"] as const;
 const serviceFeeModes = ["single", "split"] as const;
 const donationApplyToValues = ["Bookings", "Payouts", "Both"] as const;
-const payoutTypes = ["Bank account", "PayPal", "GCash"] as const;
+const payoutTypes = ["Bank account", "Digital wallet", "PayPal", "GCash", "Maya"] as const;
 const providedMarker = "Provided";
 const minimizedIdentityStatuses = new Set(["Verification started", "Verified", "Declined", "Expired"]);
 const personalInfoStorageFields = ["preferredName", "identity", "residentialAddress", "mailingAddress", "emergencyContact"] as const;
@@ -288,9 +288,10 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
         type: typeof method.type === "string" && payoutTypes.includes(method.type as FinancialSettingsState["payoutMethods"][number]["type"]) ? method.type as FinancialSettingsState["payoutMethods"][number]["type"] : "Bank account",
         accountName: normalizeText(method.accountName),
         bankName: normalizeText(method.bankName),
-        accountLast4: publicPayoutIdentifier(method, "accountLast4"),
+        accountNumber: publicPayoutIdentifier(method, "accountNumber") || publicPayoutIdentifier(method, "accountLast4"),
+        accountLast4: publicPayoutIdentifier(method, "accountLast4") || undefined,
         currency: normalizeText(method.currency).toUpperCase() || "PHP",
-      })).filter((method) => method.id && method.accountLast4)
+      })).filter((method) => method.id && method.accountNumber)
       : defaults.payoutMethods,
     taxpayer: isRecord(value.taxpayer) ? {
       legalName: normalizeText(value.taxpayer.legalName),
@@ -346,9 +347,11 @@ function protectFinancialSettingsForStorage(financial: FinancialSettingsState, e
   }));
   const payoutMethods = financial.payoutMethods.map((method) => {
     const existingMethod = existingPayoutMethods.find((item) => isRecord(item) && item.id === method.id);
+    const methodForStorage = { ...method };
+    delete methodForStorage.accountLast4;
     return {
-      ...method,
-      ...protectedPayoutIdentifierFields(method.accountLast4, existingMethod, "accountLast4"),
+      ...methodForStorage,
+      ...protectedPayoutIdentifierFields(method.accountNumber, existingMethod, "accountNumber"),
     };
   });
   const taxpayer = financial.taxpayer
@@ -383,7 +386,7 @@ function financialSettingsNeedProtection(financial: unknown) {
     && normalizeText(financial.taxpayer.address).trim()
     && financial.taxpayer.address !== providedMarker;
   const payoutNeedsProtection = Array.isArray(financial.payoutMethods)
-    && financial.payoutMethods.some((method) => payoutIdentifierNeedsProtection(method, "accountLast4"));
+    && financial.payoutMethods.some((method) => payoutIdentifierNeedsProtection(method, "accountNumber") || payoutIdentifierNeedsProtection(method, "accountLast4"));
   return paymentAddressNeedsMinimization
     || taxpayerAddressNeedsMinimization
     || payoutNeedsProtection

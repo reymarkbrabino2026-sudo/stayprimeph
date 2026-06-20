@@ -23,7 +23,7 @@ export default async function HostEarningsPage() {
   const averageBookingValue = paidBookings.length ? Math.round(paidTotal / paidBookings.length) : 0;
   const payoutMethod = accountSettings?.financial.payoutMethods[0] ?? null;
   const payoutLabel = payoutMethod
-    ? `${payoutMethod.type} ending in ${payoutMethod.accountLast4.replace(/\D/g, "").slice(-4)}`
+    ? `${payoutMethod.bankName || payoutMethod.type} payout account`
     : "No payout method";
 
   return (

@@ -24,9 +24,13 @@ const emptyMethod: Omit<PayoutMethod, "id"> = {
   type: "Bank account",
   accountName: "",
   bankName: "",
-  accountLast4: "",
+  accountNumber: "",
   currency: "PHP",
 };
+
+const bankProviders = ["BDO", "BPI", "Metrobank", "UnionBank", "Land Bank", "Security Bank", "RCBC", "PNB"];
+const digitalWalletProviders = ["GCash", "Maya", "PayPal"];
+const providerOptions = [...bankProviders, ...digitalWalletProviders];
 
 function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
@@ -67,9 +71,14 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
   }
 
   function openMethodForm(method?: PayoutMethod) {
-    setDraft(method ? { type: method.type, accountName: method.accountName, bankName: method.bankName, accountLast4: method.accountLast4.replace(/\D/g, "").slice(-4), currency: method.currency } : emptyMethod);
+    setDraft(method ? { type: method.type, accountName: method.accountName, bankName: method.bankName, accountNumber: method.accountNumber, currency: method.currency } : emptyMethod);
     setEditingId(method?.id ?? null);
     setOpenPanel("method");
+  }
+
+  function updateProvider(provider: string) {
+    const type: PayoutMethod["type"] = bankProviders.includes(provider) ? "Bank account" : provider === "Maya" ? "Maya" : provider === "PayPal" ? "PayPal" : provider === "GCash" ? "GCash" : "Digital wallet";
+    setDraft({ ...draft, type, bankName: provider });
   }
 
   function saveMethod() {
@@ -78,8 +87,8 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
       type: draft.type,
       accountName: draft.accountName.trim(),
       bankName: draft.bankName.trim(),
-      accountLast4: draft.accountLast4.replace(/\D/g, "").slice(-4),
-      currency: draft.currency.trim().toUpperCase() || "PHP",
+      accountNumber: draft.accountNumber.trim(),
+      currency: "PHP",
     };
     const next = editingId ? methods.map((method) => (method.id === editingId ? nextMethod : method)) : [...methods, nextMethod];
     saveMethods(next);
@@ -123,22 +132,25 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
         {openPanel === "method" ? (
           <Panel title={editingId ? "Edit payout method" : "Set up payouts"}>
             <label className="grid gap-2 font-semibold">
-              <span>Payout type</span>
+              <span>Bank or digital wallet</span>
               <select
-                value={draft.type}
-                onChange={(event) => setDraft({ ...draft, type: event.target.value as PayoutMethod["type"] })}
+                value={draft.bankName}
+                onChange={(event) => updateProvider(event.target.value)}
                 className="min-h-12 rounded-xl border border-black/15 bg-white px-4 font-normal outline-none transition focus:border-[#083f35]"
               >
-                <option>Bank account</option>
-                <option>PayPal</option>
-                <option>GCash</option>
+                <option value="">Select a bank or wallet</option>
+                {providerOptions.map((provider) => (
+                  <option key={provider} value={provider}>
+                    {provider}
+                  </option>
+                ))}
+                {draft.bankName && !providerOptions.includes(draft.bankName) ? <option value={draft.bankName}>{draft.bankName}</option> : null}
               </select>
             </label>
-            <TextField label="Account holder name" value={draft.accountName} onChange={(value) => setDraft({ ...draft, accountName: value })} />
-            <TextField label={draft.type === "Bank account" ? "Bank name" : "Provider email or mobile"} value={draft.bankName} onChange={(value) => setDraft({ ...draft, bankName: value })} />
-            <TextField label="Last 4 digits" value={draft.accountLast4} onChange={(value) => setDraft({ ...draft, accountLast4: value.replace(/\D/g, "").slice(0, 4) })} />
-            <TextField label="Currency" value={draft.currency} onChange={(value) => setDraft({ ...draft, currency: value })} />
-            <FormActions onCancel={() => setOpenPanel(null)} onSave={saveMethod} disabled={isPending || !draft.accountName.trim() || !draft.bankName.trim() || draft.accountLast4.replace(/\D/g, "").length !== 4} />
+            <TextField label="Account name" value={draft.accountName} onChange={(value) => setDraft({ ...draft, accountName: value })} />
+            <TextField label="Account number" value={draft.accountNumber} onChange={(value) => setDraft({ ...draft, accountNumber: value })} />
+            <ReadOnlyField label="Currency" value="PHP" />
+            <FormActions onCancel={() => setOpenPanel(null)} onSave={saveMethod} disabled={isPending || !draft.accountName.trim() || !draft.bankName.trim() || !draft.accountNumber.trim()} />
           </Panel>
         ) : null}
       </section>
@@ -197,8 +209,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdit: () => void; onRemove: () => void }) {
-  const Icon = method.type === "Bank account" ? Landmark : method.type === "PayPal" ? WalletCards : Banknote;
-  const last4 = method.accountLast4.replace(/\D/g, "").slice(-4);
+  const Icon = method.type === "Bank account" ? Landmark : method.type === "PayPal" || method.type === "Digital wallet" ? WalletCards : Banknote;
+  const provider = method.bankName || method.type;
+  const accountNumber = method.accountNumber || method.accountLast4 || "Account number saved";
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-black/15 p-4">
@@ -207,15 +220,15 @@ function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdi
           <Icon size={21} />
         </span>
         <div className="min-w-0">
-          <p className="font-semibold">{method.type} ending in {last4}</p>
-          <p className="mt-1 truncate text-sm text-black/60">{method.accountName} - {method.bankName} - {method.currency}</p>
+          <p className="font-semibold">{provider}</p>
+          <p className="mt-1 truncate text-sm text-black/60">{method.accountName} - {accountNumber} - {method.currency}</p>
         </div>
       </div>
       <div className="flex gap-2">
         <button type="button" onClick={onEdit} className="rounded-full border border-black/15 px-4 py-2 text-sm font-semibold transition hover:border-black">
           Edit
         </button>
-        <button type="button" onClick={onRemove} className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.06]" aria-label={`Remove ${method.type} ending in ${last4}`}>
+        <button type="button" onClick={onRemove} className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.06]" aria-label={`Remove ${provider}`}>
           <X size={18} />
         </button>
       </div>
@@ -252,6 +265,19 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="min-h-12 rounded-xl border border-black/15 bg-white px-4 font-normal outline-none transition focus:border-[#083f35]"
+      />
+    </label>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="grid gap-2 font-semibold">
+      <span>{label}</span>
+      <input
+        value={value}
+        readOnly
+        className="min-h-12 rounded-xl border border-black/15 bg-black/[0.03] px-4 font-normal text-black/70 outline-none"
       />
     </label>
   );
