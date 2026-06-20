@@ -23,21 +23,99 @@ const guestRows = [
   ["Pets", "Bringing a service animal?"],
 ] as const;
 
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function startOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function buildMonthCells(year: number, month: number) {
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day += 1) cells.push(new Date(year, month, day));
+  return cells;
+}
+
+function formatShort(date: Date) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function toISODate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export function SearchBar() {
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [location, setLocation] = useState("Search destinations");
-  const [dates, setDates] = useState("Add dates");
+  const [checkIn, setCheckIn] = useState<Date | null>(null);
+  const [checkOut, setCheckOut] = useState<Date | null>(null);
   const [guests, setGuests] = useState([0, 0, 0, 0]);
+
+  const today = useMemo(() => startOfDay(new Date()), []);
+  const months = useMemo(() => {
+    return [0, 1].map((offset) => {
+      const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+      return {
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        cells: buildMonthCells(date.getFullYear(), date.getMonth()),
+      };
+    });
+  }, [today]);
+
+  const datesLabel = checkIn
+    ? checkOut
+      ? `${formatShort(checkIn)} - ${formatShort(checkOut)}`
+      : formatShort(checkIn)
+    : "Add dates";
 
   const guestLabel = useMemo(() => {
     const total = guests[0] + guests[1];
     return total > 0 ? `${total} guest${total === 1 ? "" : "s"}` : "Add guests";
   }, [guests]);
 
+  function selectDate(date: Date) {
+    if (!checkIn || checkOut) {
+      setCheckIn(date);
+      setCheckOut(null);
+      return;
+    }
+    if (date.getTime() <= checkIn.getTime()) {
+      setCheckIn(date);
+      return;
+    }
+    setCheckOut(date);
+    setPanel("who");
+  }
+
+  function isEndpoint(date: Date) {
+    const time = date.getTime();
+    return (checkIn !== null && time === checkIn.getTime()) || (checkOut !== null && time === checkOut.getTime());
+  }
+
+  function isInRange(date: Date) {
+    if (!checkIn || !checkOut) return false;
+    const time = date.getTime();
+    return time > checkIn.getTime() && time < checkOut.getTime();
+  }
+
   function search() {
-    router.push(`/search?location=${encodeURIComponent(location)}&dates=${encodeURIComponent(dates)}&guests=${guests[0] + guests[1]}`);
+    const params = new URLSearchParams();
+    params.set("location", location);
+    params.set("guests", String(guests[0] + guests[1]));
+    if (checkIn) params.set("checkIn", toISODate(checkIn));
+    if (checkOut) params.set("checkOut", toISODate(checkOut));
+    router.push(`/search?${params.toString()}`);
   }
 
   function updateGuest(index: number, delta: number) {
@@ -72,7 +150,7 @@ export function SearchBar() {
         </button>
         <button type="button" onClick={() => setPanel("when")} className={`relative min-h-16 border-b px-5 py-4 text-left transition before:absolute before:left-0 before:top-1/2 before:hidden before:h-8 before:w-px before:-translate-y-1/2 before:bg-black/10 md:rounded-full md:border-b-0 md:px-6 md:before:block ${panel === "when" ? activeSection : inactiveSection} ${panel === "where" || panel === "when" ? "md:before:hidden" : ""}`}>
           <p className="text-xs font-semibold">When</p>
-          <p className="mt-1 text-sm text-black/60">{dates}</p>
+          <p className="mt-1 text-sm text-black/60">{datesLabel}</p>
         </button>
         <button type="button" onClick={() => setPanel("who")} className={`relative min-h-16 px-5 py-4 text-left transition before:absolute before:left-0 before:top-1/2 before:hidden before:h-8 before:w-px before:-translate-y-1/2 before:bg-black/10 md:rounded-full md:px-6 md:before:block ${panel === "who" ? activeSection : inactiveSection} ${panel === "when" || panel === "who" ? "md:before:hidden" : ""}`}>
           <p className="text-xs font-semibold">Who</p>
@@ -115,44 +193,62 @@ export function SearchBar() {
 
       {panel === "when" && (
         <div className="absolute left-1/2 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,38rem)] w-[min(760px,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] md:max-h-none md:p-6">
-          <div className="mx-auto mb-6 grid max-w-xs grid-cols-2 rounded-full bg-black/[0.05] p-1 text-sm">
-            <button className="rounded-full bg-white py-2 font-semibold">Dates</button>
-            <button className="rounded-full py-2">Flexible</button>
-          </div>
+          <p className="mb-6 text-center text-sm text-black/55">
+            {checkIn ? (checkOut ? `${formatShort(checkIn)} - ${formatShort(checkOut)}` : "Select your check-out date") : "Select your check-in date"}
+          </p>
           <div className="grid gap-8 md:grid-cols-2">
-            {["May 2026", "June 2026"].map((month) => (
-              <div key={month}>
-                <p className="mb-4 text-center text-lg font-semibold">{month}</p>
+            {months.map(({ year, month, cells }) => (
+              <div key={`${year}-${month}`}>
+                <p className="mb-4 text-center text-lg font-semibold">{MONTH_NAMES[month]} {year}</p>
                 <div className="grid grid-cols-7 gap-2 text-center text-sm">
-                  {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
-                    <span key={`${month}-${day}`} className="text-black/55">
+                  {WEEKDAYS.map((day, dayIndex) => (
+                    <span key={`${year}-${month}-h${dayIndex}`} className="text-black/55">
                       {day}
                     </span>
                   ))}
-                  {Array.from({ length: 35 }, (_, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => {
-                        setDates("Jun 8 - Jun 13");
-                        setPanel("who");
-                      }}
-                      className={`grid h-9 place-items-center rounded-full ${index === 14 || index === 19 ? "bg-[#083f35] text-white" : "active:bg-black/[0.06] md:hover:bg-black/[0.06]"}`}
-                    >
-                      {index < 4 ? "" : index - 3}
-                    </button>
-                  ))}
+                  {cells.map((date, cellIndex) => {
+                    if (!date) return <span key={`${year}-${month}-b${cellIndex}`} />;
+                    const past = date.getTime() < today.getTime();
+                    const endpoint = isEndpoint(date);
+                    const inRange = isInRange(date);
+                    return (
+                      <button
+                        key={date.getTime()}
+                        type="button"
+                        disabled={past}
+                        onClick={() => selectDate(date)}
+                        className={`grid h-9 place-items-center rounded-full transition ${
+                          past
+                            ? "cursor-not-allowed text-black/25 line-through"
+                            : endpoint
+                              ? "bg-[#083f35] font-semibold text-white"
+                              : inRange
+                                ? "bg-[#083f35]/10 text-[#083f35]"
+                                : "active:bg-black/[0.06] md:hover:bg-black/[0.06]"
+                        }`}
+                      >
+                        {date.getDate()}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-6 flex gap-2 overflow-x-auto">
-            {["Exact dates", "+/- 1 day", "+/- 2 days", "+/- 3 days", "+/- 7 days", "+/- 14 days"].map((item) => (
-              <button key={item} className="min-h-11 shrink-0 rounded-full border px-4 text-sm">
-                {item}
+          {(checkIn || checkOut) && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setCheckIn(null);
+                  setCheckOut(null);
+                }}
+                className="min-h-11 rounded-full px-4 text-sm font-semibold text-[#083f35] underline underline-offset-4"
+              >
+                Clear dates
               </button>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -19,7 +19,7 @@ export default async function SearchPage({
   const locationLabel = formatSearchLocationLabel(query.location);
   const results = approved.filter((property) => {
     const matchesGuests = requestedGuests > 0 ? property.maxGuests >= requestedGuests : true;
-    const matchesLocation = location && location !== "search destinations"
+    const matchesLocation = location && location !== "search destinations" && location !== "nearby"
       ? getPropertyLocationSearchText(property).includes(location)
       : true;
     return matchesGuests && matchesLocation;

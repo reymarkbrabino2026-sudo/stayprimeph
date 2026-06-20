@@ -25,7 +25,7 @@ export function formatSearchLocationLabel(value?: string) {
   const location = cleanPart(value);
   const normalized = normalizePropertyLocationSearchQuery(location);
 
-  if (!location || normalized === "search destinations") return "";
+  if (!location || normalized === "search destinations" || normalized === "nearby") return "";
 
   const withoutCountry = location.replace(/\s*,?\s*philippines\s*$/i, "").trim();
   return withoutCountry.split(",").map(cleanPart).find(Boolean) ?? "";
