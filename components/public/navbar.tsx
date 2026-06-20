@@ -72,7 +72,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
           <BrandLogo variant={transparent ? "white" : "green"} className="h-7 w-auto" priority />
         </Link>
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm md:flex">
-          <Link href="/search" className="flex items-center gap-2 border-b-2 border-current pb-3 font-semibold">
+          <Link href="/search" className="flex items-center gap-2 pb-3 font-semibold">
             <Home size={16} /> Stays
           </Link>
           {POPULAR_CITIES.map((city) => (

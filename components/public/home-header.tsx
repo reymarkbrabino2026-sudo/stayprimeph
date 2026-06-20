@@ -72,7 +72,7 @@ export function HomeHeader() {
           </Link>
 
           <nav className={`absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
-            <Link href="/search" className="flex items-center gap-2 border-b-2 border-current py-6 font-semibold">
+            <Link href="/search" className="flex items-center gap-2 py-6 font-semibold">
               <Home size={24} strokeWidth={1.8} />
               Stays
             </Link>
