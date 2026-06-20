@@ -30,7 +30,13 @@
     "seed": "node prisma/seed.mjs"
   },
   "overrides": {
-    "postcss": "8.5.15"
+    "postcss": "8.5.15",
+    "@vercel/blob": {
+      "undici": "6.27.0"
+    },
+    "jsdom": {
+      "undici": "7.28.0"
+    }
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
