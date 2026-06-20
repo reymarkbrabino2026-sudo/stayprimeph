@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 interface Slide {
@@ -18,16 +18,31 @@ const AUTOPLAY_MS = 4500;
 export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title: string }) {
   const realCount = images.length;
   const loop = realCount > 1;
-  const slides = images;
+
+  // For a seamless infinite carousel we clone the last image before the first
+  // and the first image after the last. Scrolling into a clone is invisibly
+  // snapped back to its real counterpart once the scroll settles.
+  // Extended index map: 0 = clone(last), 1..realCount = real, realCount+1 = clone(first).
+  const slides = loop ? [images[realCount - 1], ...images, images[0]] : images;
+  const firstRealIndex = loop ? 1 : 0;
+
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [current, setCurrent] = useState(0);
 
-  function nearestIndex() {
+  function realIndexFor(extIndex: number) {
+    if (!loop) return extIndex;
+    if (extIndex === 0) return realCount - 1;
+    if (extIndex === realCount + 1) return 0;
+    return extIndex - 1;
+  }
+
+  function nearestExtIndex() {
     const track = trackRef.current;
-    if (!track) return current;
+    if (!track) return firstRealIndex;
     const center = track.scrollLeft + track.clientWidth / 2;
-    let nearest = 0;
+    let nearest = firstRealIndex;
     let minDistance = Infinity;
     slideRefs.current.forEach((element, index) => {
       if (!element) return;
@@ -41,19 +56,24 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
     return nearest;
   }
 
-  function centerTo(index: number, smooth: boolean) {
+  const centerTo = useCallback((extIndex: number, smooth: boolean) => {
     const track = trackRef.current;
-    const element = slideRefs.current[index];
+    const element = slideRefs.current[extIndex];
     if (!track || !element) return;
     track.scrollTo({
       left: element.offsetLeft - (track.clientWidth - element.clientWidth) / 2,
       behavior: smooth ? "smooth" : "auto",
     });
-  }
+  }, []);
+
+  // Start on the first real slide (skip the leading clone) without animation.
+  useEffect(() => {
+    if (loop) centerTo(firstRealIndex, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loop, centerTo]);
 
   function go(direction: number) {
-    const next = (nearestIndex() + direction + realCount) % realCount;
-    centerTo(next, true);
+    centerTo(nearestExtIndex() + direction, true);
   }
 
   useEffect(() => {
@@ -64,7 +84,18 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
   }, [loop]);
 
   function handleScroll() {
-    setCurrent(nearestIndex());
+    const nearest = nearestExtIndex();
+    setCurrent(realIndexFor(nearest));
+    if (!loop) return;
+
+    // After scrolling settles on a clone, jump instantly to the real twin so the
+    // loop continues forever in either direction.
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const settled = nearestExtIndex();
+      if (settled === 0) centerTo(realCount, false);
+      else if (settled === realCount + 1) centerTo(1, false);
+    }, 140);
   }
 
   return (
@@ -75,7 +106,8 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
         className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-[max(1.25rem,calc((100%-980px)/2))] pb-2 sm:gap-5"
       >
         {slides.map((slide, index) => {
-          const active = index === current;
+          const realIndex = realIndexFor(index);
+          const active = realIndex === current;
           return (
             <div
               key={`${slide.id}-${index}`}
@@ -89,7 +121,7 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
               {isRenderableImage(slide.imageUrl) ? (
                 <Image
                   src={slide.imageUrl}
-                  alt={`${title} photo ${index + 1}`}
+                  alt={`${title} photo ${realIndex + 1}`}
                   fill
                   sizes="(min-width:1024px) 980px, 90vw"
                   className="object-cover"
