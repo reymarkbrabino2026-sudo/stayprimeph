@@ -23,6 +23,12 @@ body {
   overscroll-behavior-x: none;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 * {
   border-color: rgb(39 24 11 / 0.08);
 }

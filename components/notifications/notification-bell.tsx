@@ -150,7 +150,7 @@ export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
       {open ? (
         <>
           <button aria-label="Close notifications" onClick={() => setOpen(false)} className="fixed inset-0 z-[590] cursor-default bg-transparent" />
-          <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[600] w-[min(23rem,calc(100vw-2rem))] overflow-hidden rounded-3xl bg-white text-black shadow-[0_18px_60px_rgb(0_0_0_/_0.18)] ring-1 ring-black/5">
+          <div className="fixed left-3 right-3 top-[4.75rem] mx-auto max-w-[24rem] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.75rem)] sm:mx-0 sm:w-[min(23rem,calc(100vw-2rem))] sm:max-w-none z-[600] overflow-hidden rounded-3xl bg-white text-black shadow-[0_18px_60px_rgb(0_0_0_/_0.18)] ring-1 ring-black/5">
             <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-3">
               <div>
                 <p className="text-sm font-bold">Notifications</p>
