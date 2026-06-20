@@ -71,8 +71,8 @@ export function HomeHeader() {
             <BrandLogo variant={collapsed ? "green" : "white"} className="h-7 w-auto" priority />
           </Link>
 
-          <nav className={`absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
-            <Link href="/search" className="flex items-center gap-2 py-6 font-semibold">
+          <nav className={`absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
+            <Link href="/search" className="flex items-center gap-2 py-2 font-semibold">
               <Home size={24} strokeWidth={1.8} />
               Stays
             </Link>
@@ -80,7 +80,7 @@ export function HomeHeader() {
               <Link
                 key={city}
                 href={`/search?location=${encodeURIComponent(city)}`}
-                className="py-6 font-semibold text-current/85 transition hover:text-current"
+                className="py-2 font-semibold text-current/85 transition hover:text-current"
               >
                 {city}
               </Link>
