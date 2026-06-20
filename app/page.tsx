@@ -6,7 +6,10 @@ import Link from "next/link";
 import { buildHomePropertyRails } from "@/lib/home-properties";
 import { getPublicListingSummaries } from "@/lib/properties";
 
-export const revalidate = 60;
+// Render at runtime (against the database) instead of baking the build-time
+// empty data store into the static page. The listing query itself is still
+// cached for 60s via getPublicListingSummaries, so this stays fast.
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const properties = await getPublicListingSummaries();
