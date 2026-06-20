@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { BriefcaseBusiness, Home, Sparkles } from "lucide-react";
+import { Home } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { TravellerMenu } from "@/components/public/traveller-menu";
+
+const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay"];
 
 export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { transparentOnTop?: boolean; hideBottomNav?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
@@ -73,12 +75,15 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
           <Link href="/search" className="flex items-center gap-2 border-b-2 border-current pb-3 font-semibold">
             <Home size={16} /> Stays
           </Link>
-          <Link href="/search?category=local-guides" className="flex items-center gap-2 pb-3 font-semibold text-current/75 transition hover:text-current">
-            <Sparkles size={16} /> Local Guides
-          </Link>
-          <Link href="/search?category=guest-services" className="flex items-center gap-2 pb-3 font-semibold text-current/75 transition hover:text-current">
-            <BriefcaseBusiness size={16} /> Guest Services
-          </Link>
+          {POPULAR_CITIES.map((city) => (
+            <Link
+              key={city}
+              href={`/search?location=${encodeURIComponent(city)}`}
+              className="pb-3 font-semibold text-current/75 transition hover:text-current"
+            >
+              {city}
+            </Link>
+          ))}
         </nav>
         <div className="flex items-center gap-3">
           {showHostCta ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { BriefcaseBusiness, Home, Search, Sparkles } from "lucide-react";
+import { Home, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -8,6 +8,8 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
+
+const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay"];
 
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);
@@ -74,14 +76,15 @@ export function HomeHeader() {
               <Home size={24} strokeWidth={1.8} />
               Stays
             </Link>
-            <Link href="/search?category=local-guides" className="flex items-center gap-2 py-6 font-semibold text-current/85 transition hover:text-current">
-              <Sparkles size={22} strokeWidth={1.8} />
-              Local Guides
-            </Link>
-            <Link href="/search?category=guest-services" className="flex items-center gap-2 py-6 font-semibold text-current/85 transition hover:text-current">
-              <BriefcaseBusiness size={22} strokeWidth={1.8} />
-              Guest Services
-            </Link>
+            {POPULAR_CITIES.map((city) => (
+              <Link
+                key={city}
+                href={`/search?location=${encodeURIComponent(city)}`}
+                className="py-6 font-semibold text-current/85 transition hover:text-current"
+              >
+                {city}
+              </Link>
+            ))}
           </nav>
 
           <Link
