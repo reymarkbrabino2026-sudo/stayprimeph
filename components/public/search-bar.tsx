@@ -56,7 +56,7 @@ export function SearchBar() {
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [location, setLocation] = useState("Search destinations");
+  const [location, setLocation] = useState("");
   const [checkIn, setCheckIn] = useState<Date | null>(null);
   const [checkOut, setCheckOut] = useState<Date | null>(null);
   const [guests, setGuests] = useState([0, 0, 0, 0]);
@@ -83,6 +83,11 @@ export function SearchBar() {
     const total = guests[0] + guests[1];
     return total > 0 ? `${total} guest${total === 1 ? "" : "s"}` : "Add guests";
   }, [guests]);
+
+  const locationQuery = location.trim().toLowerCase();
+  const filteredDestinations = locationQuery
+    ? destinations.filter((destination) => destination.name.toLowerCase().includes(locationQuery))
+    : destinations;
 
   function selectDate(date: Date) {
     if (!checkIn || checkOut) {
@@ -146,7 +151,7 @@ export function SearchBar() {
       <div className={`relative z-[70] grid gap-0 overflow-hidden rounded-[1.75rem] transition md:grid-cols-[1.1fr_.8fr_.8fr_auto] md:rounded-full ${activeShell}`}>
         <button type="button" onClick={() => setPanel("where")} className={`relative min-h-16 border-b px-5 py-4 text-left transition md:rounded-full md:border-b-0 md:px-6 ${panel === "where" ? activeSection : inactiveSection}`}>
           <p className="text-xs font-semibold">Where</p>
-          <p className="mt-1 truncate text-sm text-black/65">{location}</p>
+          <p className="mt-1 truncate text-sm text-black/65">{location || "Search destinations"}</p>
         </button>
         <button type="button" onClick={() => setPanel("when")} className={`relative min-h-16 border-b px-5 py-4 text-left transition before:absolute before:left-0 before:top-1/2 before:hidden before:h-8 before:w-px before:-translate-y-1/2 before:bg-black/10 md:rounded-full md:border-b-0 md:px-6 md:before:block ${panel === "when" ? activeSection : inactiveSection} ${panel === "where" || panel === "when" ? "md:before:hidden" : ""}`}>
           <p className="text-xs font-semibold">When</p>
@@ -166,9 +171,21 @@ export function SearchBar() {
 
       {panel === "where" && (
         <div className="absolute left-0 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,34rem)] w-[min(430px,calc(100vw-2rem))] overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] md:p-6">
-          <p className="text-sm text-black/55">Suggested destinations</p>
+          <input
+            autoFocus
+            type="text"
+            value={location}
+            onChange={(event) => setLocation(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") setPanel("when");
+            }}
+            placeholder="Search destinations"
+            aria-label="Search destinations"
+            className="w-full rounded-2xl border border-black/15 px-4 py-3 text-sm outline-none transition focus:border-[#083f35]"
+          />
+          <p className="mt-5 text-sm text-black/55">{locationQuery ? "Matching destinations" : "Suggested destinations"}</p>
           <div className="mt-4 space-y-3">
-            {destinations.map(({ name, description, icon: Icon }) => (
+            {filteredDestinations.map(({ name, description, icon: Icon }) => (
               <button
                 key={name}
                 type="button"
@@ -187,6 +204,18 @@ export function SearchBar() {
                 </span>
               </button>
             ))}
+            {filteredDestinations.length === 0 && (
+              <button
+                type="button"
+                onClick={() => setPanel("when")}
+                className="flex min-h-14 w-full items-center gap-4 rounded-2xl p-2 text-left active:bg-black/[0.04] md:hover:bg-black/[0.04]"
+              >
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e8f4ef] text-[#083f35]">
+                  <Search size={22} strokeWidth={1.8} />
+                </span>
+                <span className="block font-semibold">Search for &ldquo;{location.trim()}&rdquo;</span>
+              </button>
+            )}
           </div>
         </div>
       )}
