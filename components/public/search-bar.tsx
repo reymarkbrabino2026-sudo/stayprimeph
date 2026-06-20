@@ -149,10 +149,21 @@ export function SearchBar() {
   return (
     <div ref={searchRef} className="relative z-[60] text-black">
       <div className={`relative z-[70] grid gap-0 overflow-hidden rounded-[1.75rem] transition md:grid-cols-[1.1fr_.8fr_.8fr_auto] md:rounded-full ${activeShell}`}>
-        <button type="button" onClick={() => setPanel("where")} className={`relative min-h-16 border-b px-5 py-4 text-left transition md:rounded-full md:border-b-0 md:px-6 ${panel === "where" ? activeSection : inactiveSection}`}>
-          <p className="text-xs font-semibold">Where</p>
-          <p className="mt-1 truncate text-sm text-black/65">{location || "Search destinations"}</p>
-        </button>
+        <label className={`relative flex min-h-16 cursor-text flex-col justify-center border-b px-5 py-4 transition md:rounded-full md:border-b-0 md:px-6 ${panel === "where" ? activeSection : inactiveSection}`}>
+          <span className="text-xs font-semibold">Where</span>
+          <input
+            type="text"
+            value={location}
+            onChange={(event) => setLocation(event.target.value)}
+            onFocus={() => setPanel("where")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") setPanel("when");
+            }}
+            placeholder="Search destinations"
+            aria-label="Where"
+            className="mt-1 w-full truncate bg-transparent text-sm text-black/65 outline-none placeholder:text-black/55"
+          />
+        </label>
         <button type="button" onClick={() => setPanel("when")} className={`relative min-h-16 border-b px-5 py-4 text-left transition before:absolute before:left-0 before:top-1/2 before:hidden before:h-8 before:w-px before:-translate-y-1/2 before:bg-black/10 md:rounded-full md:border-b-0 md:px-6 md:before:block ${panel === "when" ? activeSection : inactiveSection} ${panel === "where" || panel === "when" ? "md:before:hidden" : ""}`}>
           <p className="text-xs font-semibold">When</p>
           <p className="mt-1 text-sm text-black/60">{datesLabel}</p>
@@ -170,20 +181,8 @@ export function SearchBar() {
       {panel && <button aria-label="Close search panel" onClick={() => setPanel(null)} className="fixed inset-0 z-[55] bg-transparent" />}
 
       {panel === "where" && (
-        <div className="absolute left-0 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,34rem)] w-[min(430px,calc(100vw-2rem))] overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] md:p-6">
-          <input
-            autoFocus
-            type="text"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") setPanel("when");
-            }}
-            placeholder="Search destinations"
-            aria-label="Search destinations"
-            className="w-full rounded-2xl border border-black/15 px-4 py-3 text-sm outline-none transition focus:border-[#083f35]"
-          />
-          <p className="mt-5 text-sm text-black/55">{locationQuery ? "Matching destinations" : "Suggested destinations"}</p>
+        <div data-lenis-prevent className="absolute left-0 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,34rem)] w-[min(430px,calc(100vw-2rem))] overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] md:p-6">
+          <p className="text-sm text-black/55">{locationQuery ? "Matching destinations" : "Suggested destinations"}</p>
           <div className="mt-4 space-y-3">
             {filteredDestinations.map(({ name, description, icon: Icon }) => (
               <button
@@ -221,7 +220,7 @@ export function SearchBar() {
       )}
 
       {panel === "when" && (
-        <div className="absolute left-1/2 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,38rem)] w-[min(760px,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] md:max-h-none md:p-6">
+        <div data-lenis-prevent className="absolute left-1/2 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,38rem)] w-[min(760px,calc(100vw-2rem))] -translate-x-1/2 overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] md:max-h-none md:p-6">
           <p className="mb-6 text-center text-sm text-black/55">
             {checkIn ? (checkOut ? `${formatShort(checkIn)} - ${formatShort(checkOut)}` : "Select your check-out date") : "Select your check-in date"}
           </p>
@@ -282,7 +281,7 @@ export function SearchBar() {
       )}
 
       {panel === "who" && (
-        <div className="absolute right-0 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,32rem)] w-[min(430px,calc(100vw-2rem))] overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)]">
+        <div data-lenis-prevent className="absolute right-0 top-[calc(100%+12px)] z-[80] max-h-[min(70vh,32rem)] w-[min(430px,calc(100vw-2rem))] overflow-auto rounded-[2rem] bg-white p-5 text-black shadow-[0_18px_50px_rgb(0_0_0_/_0.22)]">
           <div className="space-y-5">
             {guestRows.map(([label, hint], index) => (
               <div key={label} className="flex items-center justify-between border-b pb-5 last:border-b-0 last:pb-0">
