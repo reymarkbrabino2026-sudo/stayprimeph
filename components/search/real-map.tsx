@@ -67,6 +67,7 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         maxZoom: 19,
         subdomains: "abcd",
+        errorTileUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
       }).addTo(map);
 
       markers.forEach((marker) => {
