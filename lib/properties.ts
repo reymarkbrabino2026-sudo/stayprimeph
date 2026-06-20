@@ -1,6 +1,6 @@
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { cache } from "react";
-import { findPropertyByIdFromDatabase, listPropertiesFromDatabase, listPublicListingSummariesFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { findPropertyByIdFromDatabase, listPropertiesByStatusFromDatabase, listPropertiesForHostFromDatabase, listPropertiesFromDatabase, listPublicListingSummariesFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties } from "@/lib/property-store";
 import type { Property, PublicListingSummary } from "@/lib/types";
 
@@ -43,6 +43,18 @@ function toPublicListingSummary(property: Property): PublicListingSummary {
 export async function getProperties() {
   if (usesPrismaPersistence()) return listPropertiesFromDatabase();
   return readStoredProperties();
+}
+
+export async function getPropertiesForHost(hostId: string) {
+  if (usesPrismaPersistence()) return listPropertiesForHostFromDatabase(hostId);
+  const properties = await readStoredProperties();
+  return properties.filter((property) => property.hostId === hostId);
+}
+
+export async function getPropertiesByStatus(status: Property["status"]) {
+  if (usesPrismaPersistence()) return listPropertiesByStatusFromDatabase(status);
+  const properties = await readStoredProperties();
+  return properties.filter((property) => property.status === status);
 }
 
 export async function getApprovedProperties() {

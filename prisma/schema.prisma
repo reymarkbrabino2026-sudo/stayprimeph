@@ -181,6 +181,7 @@ model Payment {
   booking         Booking   @relation(fields: [bookingId], references: [id])
 
   @@unique([paymentMethod, transactionId])
+  @@index([hostId, paymentStatus, createdAt])
 }
 
 model ListingBookingPackage {
@@ -407,6 +408,7 @@ model AccountSettings {
   bookingPermissions       Json
   workTravel               Json
   professionalHostingTools Json
+  localization             Json     @default("{}")
   financial                Json
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt

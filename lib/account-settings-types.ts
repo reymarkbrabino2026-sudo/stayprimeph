@@ -59,6 +59,10 @@ export type ProfessionalHostingToolId = "professionalTools" | "ruleSets" | "bulk
 
 export type ProfessionalHostingToolState = Record<ProfessionalHostingToolId, boolean>;
 
+export type LocalizationPreferenceField = "language" | "currency" | "region" | "measurementUnits" | "timeZone";
+
+export type LocalizationPreferencesState = Record<LocalizationPreferenceField, string>;
+
 export type AccountSettingsData = {
   personalInfo: PersonalInfoState;
   notifications: Record<NotificationScope, NotificationPreferencesState>;
@@ -66,6 +70,7 @@ export type AccountSettingsData = {
   bookingPermissions: BookingPermissionState;
   workTravel: WorkTravelProfile;
   professionalHostingTools: ProfessionalHostingToolState;
+  localization: LocalizationPreferencesState;
   financial: FinancialSettingsState;
 };
 
@@ -130,6 +135,14 @@ export const defaultProfessionalHostingTools: ProfessionalHostingToolState = {
   professionalTools: true,
   ruleSets: false,
   bulkEditing: false,
+};
+
+export const defaultLocalizationPreferences: LocalizationPreferencesState = {
+  language: "English",
+  currency: "Philippine peso (PHP)",
+  region: "Philippines",
+  measurementUnits: "Metric",
+  timeZone: "Asia/Manila",
 };
 
 export type SavedPaymentMethod = {

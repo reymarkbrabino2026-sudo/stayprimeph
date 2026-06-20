@@ -2,17 +2,16 @@
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { getBookingsForGuest } from "@/lib/bookings";
 import { guestLinks } from "@/lib/navigation";
-import { getProperties } from "@/lib/properties";
+import { getPropertyById } from "@/lib/properties";
 import { formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function GuestDashboardPage() {
   const user = await getCurrentUser();
-  const [bookings, properties] = await Promise.all([getBookings(), getProperties()]);
-  const guestBookings = bookings.filter((booking) => booking.guestId === user?.id);
+  const guestBookings = user ? await getBookingsForGuest(user.id) : [];
   const upcoming = guestBookings.find((booking) => booking.status === "confirmed");
-  const property = properties.find((item) => item.id === upcoming?.propertyId);
+  const property = upcoming ? await getPropertyById(upcoming.propertyId) : null;
   const stats = [
     ["Upcoming trips", String(guestBookings.filter((booking) => booking.status === "confirmed").length)],
     ["Saved homes", "0"],

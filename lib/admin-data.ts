@@ -1,11 +1,13 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
+import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredCancellations } from "@/lib/cancellation-store";
 import { enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { readStoredPayments } from "@/lib/payment-store";
 import { readStoredPlatformLedger } from "@/lib/platform-ledger-store";
-import { listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { readStoredProperties } from "@/lib/property-store";
+import { getAdminDashboardSummaryFromDatabase, listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredReviews } from "@/lib/review-store";
 import type { Dispute, Payment, PlatformLedgerEntry, Report, Review } from "@/lib/types";
 
@@ -22,6 +24,18 @@ export async function getPlatformLedger(): Promise<PlatformLedgerEntry[]> {
 export async function getAdminReviews(): Promise<Review[]> {
   if (!usesPrismaPersistence()) return readStoredReviews();
   return listReviewsFromDatabase();
+}
+
+export async function getAdminDashboardSummary() {
+  if (usesPrismaPersistence()) return getAdminDashboardSummaryFromDatabase();
+
+  const [properties, bookings] = await Promise.all([readStoredProperties(), readStoredBookings()]);
+  return {
+    pendingListings: properties.filter((property) => property.status === "pending").length,
+    approvedListings: properties.filter((property) => property.status === "approved").length,
+    openBookings: bookings.filter((booking) => booking.status === "pending").length,
+    grossBookingValue: bookings.reduce((sum, booking) => sum + booking.totalPrice, 0),
+  };
 }
 
 export async function getAdminReports(): Promise<Report[]> {

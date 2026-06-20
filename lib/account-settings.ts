@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import {
   defaultBookingPermissions,
+  defaultLocalizationPreferences,
   defaultNotificationPreferences,
   defaultDonationPreference,
   defaultFinancialSettings,
@@ -15,6 +16,7 @@ import {
   type BookingPermissionState,
   type DonationPreference,
   type FinancialSettingsState,
+  type LocalizationPreferencesState,
   type NotificationPreferencesState,
   type NotificationScope,
   type PersonalInfoState,
@@ -49,6 +51,7 @@ type StoredAccountSettings = {
   bookingPermissions?: unknown;
   workTravel?: unknown;
   professionalHostingTools?: unknown;
+  localization?: unknown;
   financial?: unknown;
 };
 
@@ -59,6 +62,7 @@ type DatabaseAccountSettings = {
   bookingPermissions: Prisma.JsonValue;
   workTravel: Prisma.JsonValue;
   professionalHostingTools: Prisma.JsonValue;
+  localization?: Prisma.JsonValue;
   financial: Prisma.JsonValue;
 };
 
@@ -70,6 +74,7 @@ const textFields = ["legalName", "preferredName", "email", "phone", "identity", 
 const bookingPermissionFields = ["profilePhoto", "verifiedPhone", "instantBooking", "newGuests"] as const;
 const professionalToolFields = ["professionalTools", "ruleSets", "bulkEditing"] as const;
 const workTravelTextFields = ["email", "companyName", "department", "employeeId"] as const;
+const localizationFields = ["language", "currency", "region", "measurementUnits", "timeZone"] as const;
 const serviceFeeModes = ["single", "split"] as const;
 const donationApplyToValues = ["Bookings", "Payouts", "Both"] as const;
 const payoutTypes = ["Bank account", "PayPal", "GCash"] as const;
@@ -229,6 +234,16 @@ function normalizeProfessionalHostingTools(value: unknown): ProfessionalHostingT
   return next;
 }
 
+function normalizeLocalizationPreferences(value: unknown): LocalizationPreferencesState {
+  const next = { ...defaultLocalizationPreferences };
+  if (!isRecord(value)) return next;
+  for (const field of localizationFields) {
+    const normalized = normalizeText(value[field]).trim();
+    if (normalized) next[field] = normalized;
+  }
+  return next;
+}
+
 function normalizeDonationPreference(value: unknown): DonationPreference {
   if (!isRecord(value)) return defaultDonationPreference;
   const applyTo = typeof value.applyTo === "string" && donationApplyToValues.includes(value.applyTo as DonationPreference["applyTo"]) ? value.applyTo as DonationPreference["applyTo"] : defaultDonationPreference.applyTo;
@@ -384,6 +399,7 @@ function normalizeAccountSettings(user: User, stored?: Partial<StoredAccountSett
     bookingPermissions: normalizeBookingPermissions(stored?.bookingPermissions),
     workTravel: normalizeWorkTravelProfile(stored?.workTravel),
     professionalHostingTools: normalizeProfessionalHostingTools(stored?.professionalHostingTools),
+    localization: normalizeLocalizationPreferences(stored?.localization),
     financial: normalizeFinancialSettings(stored?.financial),
   };
 }
@@ -397,6 +413,7 @@ function fromDatabase(record: DatabaseAccountSettings | null): Partial<StoredAcc
     bookingPermissions: record.bookingPermissions,
     workTravel: record.workTravel,
     professionalHostingTools: record.professionalHostingTools,
+    localization: record.localization,
     financial: record.financial,
   };
 }
@@ -412,6 +429,7 @@ async function readStoredAccountSettings(userId: string) {
         bookingPermissions: true,
         workTravel: true,
         professionalHostingTools: true,
+        localization: true,
         financial: true,
       },
     });
@@ -459,6 +477,7 @@ async function writeStoredAccountSettings(userId: string, next: AccountSettingsD
       bookingPermissions: next.bookingPermissions as Prisma.InputJsonValue,
       workTravel: next.workTravel as Prisma.InputJsonValue,
       professionalHostingTools: next.professionalHostingTools as Prisma.InputJsonValue,
+      localization: next.localization as Prisma.InputJsonValue,
       financial: financial as Prisma.InputJsonValue,
     };
     await prisma.accountSettings.upsert({
@@ -481,6 +500,7 @@ async function writeStoredAccountSettings(userId: string, next: AccountSettingsD
     bookingPermissions: next.bookingPermissions,
     workTravel: next.workTravel,
     professionalHostingTools: next.professionalHostingTools,
+    localization: next.localization,
     financial,
   };
   const existing = records.some((record) => record.userId === userId);
@@ -628,6 +648,14 @@ export async function saveProfessionalHostingTools(user: User, professionalHosti
   const next = { ...current, professionalHostingTools: nextProfessionalHostingTools };
   await writeStoredAccountSettings(user.id, next);
   return nextProfessionalHostingTools;
+}
+
+export async function saveLocalizationPreferences(user: User, localization: LocalizationPreferencesState) {
+  const current = await getAccountSettings(user);
+  const nextLocalization = normalizeLocalizationPreferences(localization);
+  const next = { ...current, localization: nextLocalization };
+  await writeStoredAccountSettings(user.id, next);
+  return nextLocalization;
 }
 
 export async function saveFinancialSettings(user: User, financial: FinancialSettingsState) {

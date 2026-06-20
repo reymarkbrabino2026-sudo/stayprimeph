@@ -5,19 +5,15 @@ import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
 import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { Coupon, FinancialSettingsState, GiftCredit, SavedPaymentMethod } from "@/lib/account-settings-types";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
-type PaymentRecord = {
+export type PaymentHistoryRecord = {
   id: string;
   date: string;
   description: string;
   amount: number;
-  status: "Paid" | "Refunded";
+  status: string;
 };
-
-const seedPayments: PaymentRecord[] = [
-  { id: "PAY-1007", date: "2026-05-18", description: "Tagaytay weekend stay", amount: 184.25, status: "Paid" },
-  { id: "PAY-1003", date: "2026-04-22", description: "Baguio cabin reservation", amount: 92.8, status: "Refunded" },
-];
 
 const emptyMethod: Omit<SavedPaymentMethod, "id"> = {
   cardholder: "",
@@ -27,11 +23,15 @@ const emptyMethod: Omit<SavedPaymentMethod, "id"> = {
   billingZip: "",
 };
 
-function money(value: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
-}
-
-export function PaymentSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
+export function PaymentSettings({
+  initialFinancial,
+  paymentHistory,
+  requiresStepUp = false,
+}: {
+  initialFinancial: FinancialSettingsState;
+  paymentHistory: PaymentHistoryRecord[];
+  requiresStepUp?: boolean;
+}) {
   const [openPanel, setOpenPanel] = useState<"payments" | "method" | "gift" | "coupon" | null>(null);
   const [financial, setFinancial] = useState(initialFinancial);
   const [methodDraft, setMethodDraft] = useState(emptyMethod);
@@ -46,10 +46,10 @@ export function PaymentSettings({ initialFinancial, requiresStepUp = false }: { 
   const coupons = financial.coupons;
 
   const paymentTotals = useMemo(() => {
-    const paid = seedPayments.filter((item) => item.status === "Paid").reduce((sum, item) => sum + item.amount, 0);
-    const refunded = seedPayments.filter((item) => item.status === "Refunded").reduce((sum, item) => sum + item.amount, 0);
+    const paid = paymentHistory.filter((item) => item.status === "Paid").reduce((sum, item) => sum + item.amount, 0);
+    const refunded = paymentHistory.filter((item) => item.status === "Refunded").reduce((sum, item) => sum + item.amount, 0);
     return { paid, refunded };
-  }, []);
+  }, [paymentHistory]);
 
   function saveFinancial(next: FinancialSettingsState, onSaved?: () => void) {
     const previous = financial;
@@ -122,7 +122,7 @@ export function PaymentSettings({ initialFinancial, requiresStepUp = false }: { 
   }
 
   function exportPayments() {
-    const blob = new Blob([JSON.stringify(seedPayments, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(paymentHistory, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -144,23 +144,30 @@ export function PaymentSettings({ initialFinancial, requiresStepUp = false }: { 
         {openPanel === "payments" ? (
           <Panel>
             <div className="grid gap-3 sm:grid-cols-2">
-              <SummaryTile label="Paid" value={money(paymentTotals.paid)} />
-              <SummaryTile label="Refunded" value={money(paymentTotals.refunded)} />
+              <SummaryTile label="Paid" value={formatCurrency(paymentTotals.paid)} />
+              <SummaryTile label="Refunded" value={formatCurrency(paymentTotals.refunded)} />
             </div>
-            <div className="mt-4 space-y-3">
-              {seedPayments.map((payment) => (
-                <div key={payment.id} className="grid gap-2 rounded-xl bg-white p-4 sm:grid-cols-[1fr_auto]">
-                  <div>
-                    <p className="font-semibold">{payment.description}</p>
-                    <p className="mt-1 text-sm text-black/60">
-                      {payment.id} - {new Date(payment.date).toLocaleDateString()} - {payment.status}
-                    </p>
+            {paymentHistory.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {paymentHistory.map((payment) => (
+                  <div key={payment.id} className="grid gap-2 rounded-xl bg-white p-4 sm:grid-cols-[1fr_auto]">
+                    <div>
+                      <p className="font-semibold">{payment.description}</p>
+                      <p className="mt-1 text-sm text-black/60">
+                        {payment.id} - {formatDate(payment.date)} - {payment.status}
+                      </p>
+                    </div>
+                    <p className="font-semibold">{formatCurrency(payment.amount)}</p>
                   </div>
-                  <p className="font-semibold">{money(payment.amount)}</p>
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={exportPayments} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black">
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl bg-white p-4">
+                <p className="font-semibold">No payment history yet</p>
+                <p className="mt-1 text-sm text-black/60">Completed payments and refunds will appear here once you book a stay.</p>
+              </div>
+            )}
+            <button type="button" onClick={exportPayments} disabled={paymentHistory.length === 0} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-50">
               <Download size={18} />
               Download history
             </button>
@@ -200,7 +207,7 @@ export function PaymentSettings({ initialFinancial, requiresStepUp = false }: { 
 
       <section className="mt-12">
         <h3 className="text-2xl font-semibold">StayPrimePH gift credit</h3>
-        {giftCredits.length > 0 ? <CreditList icon={<Gift size={20} />} items={giftCredits.map((credit) => ({ title: credit.code, detail: `${money(credit.amount)} credit` }))} /> : null}
+        {giftCredits.length > 0 ? <CreditList icon={<Gift size={20} />} items={giftCredits.map((credit) => ({ title: credit.code, detail: `${formatCurrency(credit.amount)} credit` }))} /> : null}
         <PrimaryButton onClick={() => setOpenPanel((current) => (current === "gift" ? null : "gift"))}>Add gift card</PrimaryButton>
         {openPanel === "gift" ? (
           <Panel title="Add gift card">

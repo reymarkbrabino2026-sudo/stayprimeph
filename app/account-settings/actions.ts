@@ -10,12 +10,14 @@ import {
   savePrivacySettings,
   saveProfessionalHostingTools,
   saveFinancialSettings,
+  saveLocalizationPreferences,
   saveWorkTravelProfile,
 } from "@/lib/account-settings";
 import type {
   AccountActionResult,
   BookingPermissionState,
   FinancialSettingsState,
+  LocalizationPreferencesState,
   NotificationPreferencesState,
   NotificationScope,
   PersonalInfoState,
@@ -119,6 +121,17 @@ export async function saveProfessionalHostingToolsAction(professionalHostingTool
     const user = await requireUser({ message: "Please sign in again before saving account settings." });
     const next = await saveProfessionalHostingTools(user, professionalHostingTools);
     revalidatePath("/account-settings/professional-hosting-tools");
+    return next;
+  });
+}
+
+export async function saveLocalizationPreferencesAction(localization: LocalizationPreferencesState) {
+  return withAccountAction(async () => {
+    const user = await requireUser({ message: "Please sign in again before saving account settings." });
+    const next = await saveLocalizationPreferences(user, localization);
+    revalidatePath("/account-settings/languages-and-currency");
+    revalidatePath("/search");
+    revalidatePath("/host/dashboard");
     return next;
   });
 }

@@ -4,18 +4,24 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { getBookingsForHost } from "@/lib/bookings";
 import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { hostLinks } from "@/lib/navigation";
-import { formatPaymentMethod, getPayments } from "@/lib/payments";
-import { getProperties } from "@/lib/properties";
-import { getUsers } from "@/lib/users";
+import { formatPaymentMethod, getPaymentsForHost } from "@/lib/payments";
+import { getPropertiesForHost } from "@/lib/properties";
+import { getUsersByIds } from "@/lib/users";
 import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function HostBookingsPage() {
   const user = await getCurrentUser();
-  const [bookings, properties, users, payments, csrfToken] = await Promise.all([getBookings(), getProperties(), getUsers(), getPayments(), getCsrfToken()]);
-  const hostBookings = bookings.filter((booking) => booking.hostId === user?.id);
+  const hostId = user?.id ?? "";
+  const [hostBookings, properties, payments, csrfToken] = await Promise.all([
+    hostId ? getBookingsForHost(hostId) : Promise.resolve([]),
+    hostId ? getPropertiesForHost(hostId) : Promise.resolve([]),
+    hostId ? getPaymentsForHost(hostId) : Promise.resolve([]),
+    getCsrfToken(),
+  ]);
+  const users = await getUsersByIds(hostBookings.map((booking) => booking.guestId));
 
   return (
     <DashboardShell title="Booking Requests" subtitle="Host dashboard" links={hostLinks}>

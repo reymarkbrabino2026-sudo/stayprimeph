@@ -10,6 +10,7 @@ import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platf
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import {
   confirmManualPaymentInDatabase,
+  listPaymentsForHostFromDatabase,
   listPaymentsFromDatabase,
   recordManualPaymentInDatabase,
   rejectManualPaymentInDatabase,
@@ -54,6 +55,12 @@ export function formatPaymentMethod(method: string) {
 export async function getPayments() {
   if (usesPrismaPersistence()) return listPaymentsFromDatabase();
   return readStoredPayments();
+}
+
+export async function getPaymentsForHost(hostId: string) {
+  if (usesPrismaPersistence()) return listPaymentsForHostFromDatabase(hostId);
+  const payments = await readStoredPayments();
+  return payments.filter((payment) => payment.hostId === hostId);
 }
 
 export async function getPaymentByBookingId(bookingId: string) {

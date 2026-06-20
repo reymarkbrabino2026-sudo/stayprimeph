@@ -9,6 +9,7 @@ vi.mock("next/cache", () => ({
 vi.mock("@/lib/account-settings", () => ({
   saveBookingPermissions: vi.fn(),
   saveFinancialSettings: vi.fn(async (_user, financial) => financial),
+  saveLocalizationPreferences: vi.fn(async (_user, localization) => localization),
   saveNotificationSettings: vi.fn(),
   savePersonalInfo: vi.fn(),
   savePrivacySettings: vi.fn(),
@@ -37,9 +38,9 @@ vi.mock("@/lib/request-safety", () => ({
   assertTrustedRequestOrigin: vi.fn(),
 }));
 
-import { requestAccountDeletionAction, requestUserDataExportAction, saveFinancialSettingsAction } from "@/app/account-settings/actions";
-import { defaultFinancialSettings } from "@/lib/account-settings-types";
-import { saveFinancialSettings } from "@/lib/account-settings";
+import { requestAccountDeletionAction, requestUserDataExportAction, saveFinancialSettingsAction, saveLocalizationPreferencesAction } from "@/app/account-settings/actions";
+import { defaultFinancialSettings, defaultLocalizationPreferences } from "@/lib/account-settings-types";
+import { saveFinancialSettings, saveLocalizationPreferences } from "@/lib/account-settings";
 import { requestAccountDeletion } from "@/lib/account-deletion";
 import { requireUser, verifyPassword } from "@/lib/auth";
 import { requestUserDataExport } from "@/lib/user-data-export";
@@ -106,6 +107,26 @@ describe("financial settings step-up auth", () => {
     expect(result).toEqual({ ok: true, data: defaultFinancialSettings });
     expect(verifyPassword).not.toHaveBeenCalled();
     expect(saveFinancialSettings).toHaveBeenCalledWith(guestUser, defaultFinancialSettings);
+  });
+});
+
+describe("localization settings action", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("saves language and currency preferences for the current user", async () => {
+    const localization = {
+      ...defaultLocalizationPreferences,
+      language: "Filipino",
+      currency: "US dollar (USD)",
+    };
+    vi.mocked(requireUser).mockResolvedValueOnce(guestUser);
+
+    const result = await saveLocalizationPreferencesAction(localization);
+
+    expect(result).toEqual({ ok: true, data: localization });
+    expect(saveLocalizationPreferences).toHaveBeenCalledWith(guestUser, localization);
   });
 });
 

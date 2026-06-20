@@ -8,7 +8,7 @@ import { ResilientImage } from "@/components/ui/resilient-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { hostLinks } from "@/lib/navigation";
-import { getProperties } from "@/lib/properties";
+import { getPropertiesForHost } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ export default async function HostListingsPage({ searchParams }: { searchParams:
   noStore();
 
   const [user, query] = await Promise.all([getCurrentUser(), searchParams]);
-  const properties = (await getProperties()).filter((property) => property.hostId === user?.id);
+  const properties = user ? await getPropertiesForHost(user.id) : [];
 
   return (
     <DashboardShell title="My Listings" subtitle="Host dashboard" description="Manage listing status, pricing, and edits." links={hostLinks}>

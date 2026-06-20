@@ -2,21 +2,19 @@ import { ListingReviewActions } from "@/components/admin/listing-review-actions"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getBookings } from "@/lib/bookings";
+import { getAdminDashboardSummary } from "@/lib/admin-data";
 import { getCsrfToken } from "@/lib/csrf";
 import { adminLinks } from "@/lib/navigation";
-import { getProperties } from "@/lib/properties";
+import { getPropertiesByStatus } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 
 export default async function AdminDashboardPage() {
-  const [bookings, properties, csrfToken] = await Promise.all([getBookings(), getProperties(), getCsrfToken()]);
-  const pendingListings = properties.filter((property) => property.status === "pending");
-  const approvedListings = properties.filter((property) => property.status === "approved");
+  const [summary, pendingListings, csrfToken] = await Promise.all([getAdminDashboardSummary(), getPropertiesByStatus("pending"), getCsrfToken()]);
   const stats = [
-    ["Pending listings", String(pendingListings.length)],
-    ["Approved listings", String(approvedListings.length)],
-    ["Open bookings", String(bookings.filter((booking) => booking.status === "pending").length)],
-    ["Gross booking value", `₱${bookings.reduce((sum, booking) => sum + booking.totalPrice, 0).toLocaleString()}`],
+    ["Pending listings", String(summary.pendingListings)],
+    ["Approved listings", String(summary.approvedListings)],
+    ["Open bookings", String(summary.openBookings)],
+    ["Gross booking value", `PHP ${summary.grossBookingValue.toLocaleString()}`],
   ];
 
   return (
@@ -43,7 +41,7 @@ export default async function AdminDashboardPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-semibold">{property.title}</h3>
-                    <p className="mt-1 text-sm text-black/55">{formatPropertyLocation(property)} · {property.propertyType}</p>
+                    <p className="mt-1 text-sm text-black/55">{formatPropertyLocation(property)} - {property.propertyType}</p>
                   </div>
                   <StatusBadge status={property.status} />
                 </div>
@@ -51,7 +49,7 @@ export default async function AdminDashboardPage() {
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-black/55">
                   <span className="rounded-full bg-black/[0.04] px-3 py-1">{property.maxGuests} guests</span>
                   <span className="rounded-full bg-black/[0.04] px-3 py-1">{property.bedrooms} bedrooms</span>
-                  <span className="rounded-full bg-black/[0.04] px-3 py-1">₱{property.pricePerNight.toLocaleString()}/night</span>
+                  <span className="rounded-full bg-black/[0.04] px-3 py-1">PHP {property.pricePerNight.toLocaleString()}/night</span>
                 </div>
                 <ListingReviewActions listingId={property.id} csrfToken={csrfToken} />
               </article>

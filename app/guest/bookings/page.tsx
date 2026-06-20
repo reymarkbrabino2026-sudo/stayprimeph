@@ -4,7 +4,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { getBookingsForGuest } from "@/lib/bookings";
 import { guestLinks } from "@/lib/navigation";
 import { getProperties } from "@/lib/properties";
 import { canReviewBooking, getReviews } from "@/lib/reviews";
@@ -12,8 +12,11 @@ import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/
 
 export default async function GuestBookingsPage() {
   const guest = await getCurrentUser();
-  const [bookings, properties, reviews] = await Promise.all([getBookings(), getProperties(), getReviews()]);
-  const guestBookings = bookings.filter((booking) => booking.guestId === guest?.id);
+  const [guestBookings, properties, reviews] = await Promise.all([
+    guest ? getBookingsForGuest(guest.id) : Promise.resolve([]),
+    getProperties(),
+    getReviews(),
+  ]);
 
   return (
     <DashboardShell title="My Bookings" subtitle="Guest dashboard" description="Track pending, upcoming, completed, and cancelled trips." links={guestLinks}>

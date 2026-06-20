@@ -6,7 +6,7 @@ import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { assertUniquePaymentReference } from "@/lib/payment-references";
 import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import { cancelBookingInDatabase, listBookingsForPropertyFromDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { cancelBookingInDatabase, listBookingsForGuestFromDatabase, listBookingsForHostFromDatabase, listBookingsForPropertyFromDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import type { Booking, Cancellation, Payment } from "@/lib/types";
 
 export async function getBookings() {
@@ -18,6 +18,18 @@ export async function getBookingsForProperty(propertyId: string) {
   if (usesPrismaPersistence()) return listBookingsForPropertyFromDatabase(propertyId);
   const bookings = await readStoredBookings();
   return bookings.filter((booking) => booking.propertyId === propertyId);
+}
+
+export async function getBookingsForHost(hostId: string) {
+  if (usesPrismaPersistence()) return listBookingsForHostFromDatabase(hostId);
+  const bookings = await readStoredBookings();
+  return bookings.filter((booking) => booking.hostId === hostId);
+}
+
+export async function getBookingsForGuest(guestId: string) {
+  if (usesPrismaPersistence()) return listBookingsForGuestFromDatabase(guestId);
+  const bookings = await readStoredBookings();
+  return bookings.filter((booking) => booking.guestId === guestId);
 }
 
 export async function getBookingById(id: string) {

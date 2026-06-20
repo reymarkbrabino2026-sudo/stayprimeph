@@ -5,22 +5,21 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getAccountSettings } from "@/lib/account-settings";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { getBookingsForHost } from "@/lib/bookings";
 import { hostLinks } from "@/lib/navigation";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
-import { getProperties } from "@/lib/properties";
+import { getPropertiesForHost } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
 export default async function HostDashboardPage() {
   const user = await getCurrentUser();
-  const [bookings, properties, accountSettings] = await Promise.all([
-    getBookings(),
-    getProperties(),
+  const hostId = user?.id ?? "";
+  const [hostBookings, hostListings, accountSettings] = await Promise.all([
+    hostId ? getBookingsForHost(hostId) : Promise.resolve([]),
+    hostId ? getPropertiesForHost(hostId) : Promise.resolve([]),
     user ? getAccountSettings(user) : Promise.resolve(null),
   ]);
-  const hostListings = properties.filter((property) => property.hostId === user?.id);
-  const hostBookings = bookings.filter((booking) => booking.hostId === user?.id);
   const upcomingBookings = hostBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
   const hasPayoutMethod = Boolean(accountSettings?.financial.payoutMethods.length);
   const paidTotal = hostBookings
@@ -71,7 +70,7 @@ export default async function HostDashboardPage() {
           ) : (
             <div className="mt-5 space-y-3">
               {upcomingBookings.slice(0, 3).map((booking) => {
-                const property = properties.find((item) => item.id === booking.propertyId);
+                const property = hostListings.find((item) => item.id === booking.propertyId);
                 return (
                   <article key={booking.id} className="rounded-2xl border p-4">
                     <div className="flex items-start justify-between gap-4">

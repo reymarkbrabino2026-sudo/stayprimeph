@@ -125,6 +125,13 @@ function mockExportSources() {
       ruleSets: false,
       bulkEditing: false,
     },
+    localization: {
+      language: "English",
+      currency: "Philippine peso (PHP)",
+      region: "Philippines",
+      measurementUnits: "Metric",
+      timeZone: "Asia/Manila",
+    },
     financial: {
       paymentMethods: [],
       giftCredits: [],

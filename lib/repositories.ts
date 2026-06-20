@@ -436,6 +436,7 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     },
     orderBy: { createdAt: "desc" },
   });
+  if (!properties.length) return [];
   const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
     SELECT
       "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
@@ -443,6 +444,59 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     FROM "ListingBookingPackage"
     ORDER BY "name" ASC
   `;
+  const packagesByProperty = groupBookingPackages(packages);
+
+  return properties.map((property) => toProperty(property, packagesByProperty));
+}
+
+export async function listPropertiesForHostFromDatabase(hostId: string): Promise<Property[]> {
+  await ensureListingBookingPackageTable();
+  const properties = await prisma.property.findMany({
+    where: { hostId },
+    include: {
+      images: true,
+      amenities: { include: { amenity: true } },
+      location: true,
+      pricing: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!properties.length) return [];
+  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
+    SELECT
+      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
+      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+    FROM "ListingBookingPackage"
+    WHERE "propertyId" IN (${Prisma.join(properties.map((property) => property.id))})
+    ORDER BY "name" ASC
+  `;
+  const packagesByProperty = groupBookingPackages(packages);
+
+  return properties.map((property) => toProperty(property, packagesByProperty));
+}
+
+export async function listPropertiesByStatusFromDatabase(status: Property["status"]): Promise<Property[]> {
+  await ensureListingBookingPackageTable();
+  const properties = await prisma.property.findMany({
+    where: { status },
+    include: {
+      images: true,
+      amenities: { include: { amenity: true } },
+      location: true,
+      pricing: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const packages = properties.length
+    ? await prisma.$queryRaw<DatabaseBookingPackage[]>`
+      SELECT
+        "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
+        "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+      FROM "ListingBookingPackage"
+      WHERE "propertyId" IN (${Prisma.join(properties.map((property) => property.id))})
+      ORDER BY "name" ASC
+    `
+    : [];
   const packagesByProperty = groupBookingPackages(packages);
 
   return properties.map((property) => toProperty(property, packagesByProperty));
@@ -724,6 +778,36 @@ export async function listBookingsForPropertyFromDatabase(propertyId: string): P
     SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
     FROM "Booking"
     WHERE "propertyId" = ${propertyId}
+  `;
+  const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
+  return bookings.map((booking) => toBooking(booking, packageByBookingId));
+}
+
+export async function listBookingsForHostFromDatabase(hostId: string): Promise<Booking[]> {
+  await ensureBookingPackageColumns();
+  const bookings = await prisma.booking.findMany({
+    where: { hostId },
+    orderBy: { createdAt: "desc" },
+  });
+  const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
+    SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
+    FROM "Booking"
+    WHERE "hostId" = ${hostId}
+  `;
+  const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
+  return bookings.map((booking) => toBooking(booking, packageByBookingId));
+}
+
+export async function listBookingsForGuestFromDatabase(guestId: string): Promise<Booking[]> {
+  await ensureBookingPackageColumns();
+  const bookings = await prisma.booking.findMany({
+    where: { guestId },
+    orderBy: { createdAt: "desc" },
+  });
+  const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
+    SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
+    FROM "Booking"
+    WHERE "guestId" = ${guestId}
   `;
   const packageByBookingId = new Map(bookingPackages.map((booking) => [booking.id, booking]));
   return bookings.map((booking) => toBooking(booking, packageByBookingId));
@@ -1229,6 +1313,52 @@ export async function listPaymentsFromDatabase(): Promise<Payment[]> {
     createdAt: payment.createdAt.toISOString(),
     updatedAt: payment.updatedAt?.toISOString(),
   }));
+}
+
+export async function listPaymentsForHostFromDatabase(hostId: string): Promise<Payment[]> {
+  const payments = await prisma.$queryRaw<DatabasePayment[]>`
+    SELECT
+      "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
+      "transactionId", "notes", "rejectionReason", "confirmedBy", "submittedAt",
+      "confirmedAt", "rejectedAt", "createdAt", "updatedAt"
+    FROM "Payment"
+    WHERE "hostId" = ${hostId}
+    ORDER BY "createdAt" DESC
+  `;
+  return payments.map((payment) => ({
+    id: payment.id,
+    bookingId: payment.bookingId,
+    guestId: payment.guestId ?? undefined,
+    hostId: payment.hostId ?? undefined,
+    amount: payment.amount,
+    paymentMethod: payment.paymentMethod,
+    paymentStatus: payment.paymentStatus as Payment["paymentStatus"],
+    transactionId: payment.transactionId,
+    notes: payment.notes ?? undefined,
+    rejectionReason: payment.rejectionReason ?? undefined,
+    confirmedBy: payment.confirmedBy ?? undefined,
+    submittedAt: payment.submittedAt?.toISOString(),
+    confirmedAt: payment.confirmedAt?.toISOString(),
+    rejectedAt: payment.rejectedAt?.toISOString(),
+    createdAt: payment.createdAt.toISOString(),
+    updatedAt: payment.updatedAt?.toISOString(),
+  }));
+}
+
+export async function getAdminDashboardSummaryFromDatabase() {
+  const [pendingListings, approvedListings, openBookings, grossBookingValue] = await Promise.all([
+    prisma.property.count({ where: { status: "pending" } }),
+    prisma.property.count({ where: { status: "approved" } }),
+    prisma.booking.count({ where: { status: "pending" } }),
+    prisma.booking.aggregate({ _sum: { totalPrice: true } }),
+  ]);
+
+  return {
+    pendingListings,
+    approvedListings,
+    openBookings,
+    grossBookingValue: grossBookingValue._sum.totalPrice ?? 0,
+  };
 }
 
 type DatabasePlatformLedgerEntry = {
