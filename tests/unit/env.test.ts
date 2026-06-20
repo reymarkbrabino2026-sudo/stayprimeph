@@ -22,6 +22,11 @@ async function loadEnv({
   sentryPublicDsn = "https://public@example.ingest.sentry.io/1",
   upstashRedisRestToken = "ci-upstash-token",
   upstashRedisRestUrl = "https://ci-upstash.example.com",
+  resendApiKey = "re_ci_key",
+  emailFrom = "StayPrimePH <no-reply@stayprimeph.com>",
+  cloudinaryCloudName = "stayprimeph",
+  cloudinaryApiKey = "ci-cloudinary-key",
+  cloudinaryApiSecret = "ci-cloudinary-secret",
 }: {
   blobReadWriteToken?: string;
   buildPhase?: string;
@@ -37,6 +42,11 @@ async function loadEnv({
   sentryPublicDsn?: string;
   upstashRedisRestToken?: string;
   upstashRedisRestUrl?: string;
+  resendApiKey?: string;
+  emailFrom?: string;
+  cloudinaryCloudName?: string;
+  cloudinaryApiKey?: string;
+  cloudinaryApiSecret?: string;
 }) {
   vi.resetModules();
   process.env = {
@@ -53,6 +63,11 @@ async function loadEnv({
     NEXT_PUBLIC_SENTRY_DSN: sentryPublicDsn,
     UPSTASH_REDIS_REST_TOKEN: upstashRedisRestToken,
     UPSTASH_REDIS_REST_URL: upstashRedisRestUrl,
+    RESEND_API_KEY: resendApiKey,
+    EMAIL_FROM: emailFrom,
+    CLOUDINARY_CLOUD_NAME: cloudinaryCloudName,
+    CLOUDINARY_API_KEY: cloudinaryApiKey,
+    CLOUDINARY_API_SECRET: cloudinaryApiSecret,
     STRIPE_SECRET_KEY: stripeSecretKey,
     STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKey,

@@ -23,6 +23,9 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
   CLOUDINARY_API_KEY: z.string().min(1).optional(),
   CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+  PHOTO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  JSON_STORE_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
 });
@@ -39,9 +42,17 @@ const databaseUrl = optionalEnv(process.env.DATABASE_URL);
 const postgresUrlNonPooling = optionalEnv(process.env.POSTGRES_URL_NON_POOLING);
 const directUrl = optionalEnv(process.env.DIRECT_URL) ?? postgresUrlNonPooling;
 const paymentLaunchMode = optionalEnv(process.env.PAYMENT_LAUNCH_MODE) ?? "disabled";
+const resendApiKey = optionalEnv(process.env.RESEND_API_KEY);
+const emailFrom = optionalEnv(process.env.EMAIL_FROM);
 const stripeSecretKey = optionalEnv(process.env.STRIPE_SECRET_KEY);
 const stripeWebhookSecret = optionalEnv(process.env.STRIPE_WEBHOOK_SECRET);
 const stripePublishableKey = optionalEnv(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+const cloudinaryCloudName = optionalEnv(process.env.CLOUDINARY_CLOUD_NAME);
+const cloudinaryApiKey = optionalEnv(process.env.CLOUDINARY_API_KEY);
+const cloudinaryApiSecret = optionalEnv(process.env.CLOUDINARY_API_SECRET);
+const photoBlobReadWriteToken = optionalEnv(process.env.PHOTO_BLOB_READ_WRITE_TOKEN);
+const blobReadWriteToken = optionalEnv(process.env.BLOB_READ_WRITE_TOKEN);
+const jsonStoreBlobReadWriteToken = optionalEnv(process.env.JSON_STORE_BLOB_READ_WRITE_TOKEN);
 
 function isPostgresUrl(value: string | undefined) {
   return Boolean(value?.startsWith("postgresql://") || value?.startsWith("postgres://"));
@@ -65,6 +76,20 @@ if (isProductionRuntime && (!optionalEnv(process.env.UPSTASH_REDIS_REST_URL) || 
 
 if (isProductionRuntime && (!optionalEnv(process.env.SENTRY_DSN) || !optionalEnv(process.env.NEXT_PUBLIC_SENTRY_DSN))) {
   throw new Error("SENTRY_DSN and NEXT_PUBLIC_SENTRY_DSN are required for production monitoring.");
+}
+
+if (isProductionRuntime && (!resendApiKey || !emailFrom)) {
+  throw new Error("RESEND_API_KEY and EMAIL_FROM are required for production email delivery.");
+}
+
+const hasCloudinaryConfig = Boolean(cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret);
+const hasPartialCloudinaryConfig = Boolean(cloudinaryCloudName || cloudinaryApiKey || cloudinaryApiSecret);
+if (isProductionRuntime && hasPartialCloudinaryConfig && !hasCloudinaryConfig) {
+  throw new Error("CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET must be set together.");
+}
+
+if (isProductionRuntime && !hasCloudinaryConfig && !photoBlobReadWriteToken && !blobReadWriteToken) {
+  throw new Error("Configure Cloudinary or PHOTO_BLOB_READ_WRITE_TOKEN/BLOB_READ_WRITE_TOKEN for production photo uploads.");
 }
 
 if (isProductionRuntime && paymentLaunchMode === "stripe") {
@@ -98,16 +123,19 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_SENTRY_DSN: optionalEnv(process.env.NEXT_PUBLIC_SENTRY_DSN),
   NEXT_PUBLIC_VERCEL_ANALYTICS: optionalEnv(process.env.NEXT_PUBLIC_VERCEL_ANALYTICS),
   PAYMENT_LAUNCH_MODE: paymentLaunchMode,
-  RESEND_API_KEY: optionalEnv(process.env.RESEND_API_KEY),
-  EMAIL_FROM: optionalEnv(process.env.EMAIL_FROM),
+  RESEND_API_KEY: resendApiKey,
+  EMAIL_FROM: emailFrom,
   STRIPE_SECRET_KEY: stripeSecretKey,
   STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: stripePublishableKey,
   RETENTION_CRON_SECRET: optionalEnv(process.env.RETENTION_CRON_SECRET),
   CRON_SECRET: optionalEnv(process.env.CRON_SECRET),
-  CLOUDINARY_CLOUD_NAME: optionalEnv(process.env.CLOUDINARY_CLOUD_NAME),
-  CLOUDINARY_API_KEY: optionalEnv(process.env.CLOUDINARY_API_KEY),
-  CLOUDINARY_API_SECRET: optionalEnv(process.env.CLOUDINARY_API_SECRET),
+  CLOUDINARY_CLOUD_NAME: cloudinaryCloudName,
+  CLOUDINARY_API_KEY: cloudinaryApiKey,
+  CLOUDINARY_API_SECRET: cloudinaryApiSecret,
+  PHOTO_BLOB_READ_WRITE_TOKEN: photoBlobReadWriteToken,
+  BLOB_READ_WRITE_TOKEN: blobReadWriteToken,
+  JSON_STORE_BLOB_READ_WRITE_TOKEN: jsonStoreBlobReadWriteToken,
   NEXT_PUBLIC_SUPABASE_URL: optionalEnv(process.env.NEXT_PUBLIC_SUPABASE_URL),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalEnv(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
 });

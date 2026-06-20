@@ -13,6 +13,12 @@ function optionalEnv(value) {
 
 const databaseUrl = optionalEnv(process.env.DATABASE_URL);
 const directUrl = optionalEnv(process.env.DIRECT_URL) ?? optionalEnv(process.env.POSTGRES_URL_NON_POOLING);
+const photoBlobToken = optionalEnv(process.env.PHOTO_BLOB_READ_WRITE_TOKEN) ?? optionalEnv(process.env.BLOB_READ_WRITE_TOKEN);
+const cloudinaryConfig = [
+  optionalEnv(process.env.CLOUDINARY_CLOUD_NAME),
+  optionalEnv(process.env.CLOUDINARY_API_KEY),
+  optionalEnv(process.env.CLOUDINARY_API_SECRET),
+];
 
 const requiredByEnvironment = {
   development: ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "PERSISTENCE_DRIVER"],
@@ -57,7 +63,6 @@ if (environment === "production") {
     ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
     ["SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"],
     ["RESEND_API_KEY", "EMAIL_FROM"],
-    ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY"],
   ];
   for (const [first, second] of integrationPairs) {
     if (!process.env[first] || !process.env[second]) {
@@ -65,8 +70,14 @@ if (environment === "production") {
       process.exit(1);
     }
   }
-  if (!process.env.CLOUDINARY_API_SECRET) {
-    console.error("CLOUDINARY_API_SECRET is required in production.");
+  const hasCloudinary = cloudinaryConfig.every(Boolean);
+  const hasPartialCloudinary = cloudinaryConfig.some(Boolean);
+  if (hasPartialCloudinary && !hasCloudinary) {
+    console.error("CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET must be set together.");
+    process.exit(1);
+  }
+  if (!hasCloudinary && !photoBlobToken) {
+    console.error("Configure Cloudinary or PHOTO_BLOB_READ_WRITE_TOKEN/BLOB_READ_WRITE_TOKEN for production photo uploads.");
     process.exit(1);
   }
 }
