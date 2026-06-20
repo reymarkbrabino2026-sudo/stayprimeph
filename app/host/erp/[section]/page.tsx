@@ -36,12 +36,12 @@ import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookings } from "@/lib/bookings";
+import { getBookings, getBookingsForHost } from "@/lib/bookings";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { adminLinks, hostLinks } from "@/lib/navigation";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
-import { getProperties } from "@/lib/properties";
+import { getProperties, getPropertiesForHost } from "@/lib/properties";
 import type { AvailabilityBlock, Booking, Property, User } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { getUsers } from "@/lib/users";
@@ -1847,16 +1847,19 @@ export default async function HostErpSectionPage({
   const activeTab = erpTabs.find((tab) => tab.id === activeSection)!;
 
   const user = await getCurrentUser();
+  const isAdmin = user?.role === "admin";
+  const hostScopeId = user?.id ?? "";
+  // Hosts only ever see their own rows (the JS scoping below already enforces this),
+  // so fetch host-scoped data at the database level instead of loading the entire
+  // platform's bookings/properties on every ERP page load. Admins still see everything.
   const [bookings, properties, users, reports, expenses, availabilityBlocks] = await Promise.all([
-    getBookings(),
-    getProperties(),
+    isAdmin ? getBookings() : getBookingsForHost(hostScopeId),
+    isAdmin ? getProperties() : getPropertiesForHost(hostScopeId),
     getUsers(),
     readHostMonthlyReports(),
     readHostExpenses(),
     getAvailabilityBlocks(),
   ]);
-
-  const isAdmin = user?.role === "admin";
   const currentMonth = validMonthKey(queryValue(resolvedSearchParams.month)) ?? monthKey();
   const requestedReservationStatus = queryValue(resolvedSearchParams.status) as ReservationFilter | undefined;
   const reservationStatus = reservationFilters.some((filter) => filter.id === requestedReservationStatus) ? requestedReservationStatus! : "all";
