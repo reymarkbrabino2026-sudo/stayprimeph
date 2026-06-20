@@ -9,7 +9,7 @@ import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
-const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay"];
+const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay", "Davao", "Siargao"];
 
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);

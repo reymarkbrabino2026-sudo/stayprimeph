@@ -8,7 +8,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
-const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay"];
+const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay", "Davao", "Siargao"];
 
 export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { transparentOnTop?: boolean; hideBottomNav?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
