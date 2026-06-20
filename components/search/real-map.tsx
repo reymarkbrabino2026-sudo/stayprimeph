@@ -78,7 +78,8 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
           iconAnchor: [0, 0],
         });
 
-        L.marker(marker.coords, { icon })
+        // Keep the informative price pills above the destination dot when they overlap.
+        L.marker(marker.coords, { icon, zIndexOffset: 1000, riseOnHover: true })
           .addTo(map)
           .bindPopup(`<strong>${marker.title}</strong><br>${marker.location}`);
       });
@@ -86,12 +87,13 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
       if (destinationMarker) {
         const destinationIcon = L.divIcon({
           className: "",
-          html: `<div class="grid size-10 place-items-center rounded-full bg-[#083f35] text-white shadow-lg ring-4 ring-white"><span class="size-3 rounded-full bg-white"></span></div>`,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20],
+          html: `<div class="grid size-7 place-items-center rounded-full bg-[#083f35]/85 text-white shadow ring-2 ring-white"><span class="size-2 rounded-full bg-white"></span></div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
         });
 
-        L.marker(destinationMarker.coords, { icon: destinationIcon })
+        // Sits behind the price pills so it never covers a listing's price.
+        L.marker(destinationMarker.coords, { icon: destinationIcon, zIndexOffset: -1000 })
           .addTo(map)
           .bindPopup(`<strong>${destinationMarker.title}</strong>`);
       }
