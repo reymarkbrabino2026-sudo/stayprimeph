@@ -5,7 +5,8 @@ import { getBookings } from "@/lib/bookings";
 import { getMessages } from "@/lib/messages";
 import { getPayments } from "@/lib/payments";
 import { getProperties } from "@/lib/properties";
-import type { AuditLog, Booking, Message, Payment, Property, User } from "@/lib/types";
+import { canReviewBooking, getReviews } from "@/lib/reviews";
+import type { AuditLog, Booking, Message, Payment, Property, Review, User } from "@/lib/types";
 import { getUsers } from "@/lib/users";
 
 export type ActivityNotification = {
@@ -92,12 +93,14 @@ function addGuestBookingNotifications({
   bookings,
   paymentsByBookingId,
   propertiesById,
+  hasReview,
   user,
 }: {
   notifications: ActivityNotification[];
   bookings: Booking[];
   paymentsByBookingId: Map<string, Payment>;
   propertiesById: Map<string, Property>;
+  hasReview: (booking: Booking) => boolean;
   user: User;
 }) {
   for (const booking of bookings) {
@@ -158,6 +161,18 @@ function addGuestBookingNotifications({
         href,
         createdAt: booking.createdAt,
         category: "booking",
+      });
+    }
+
+    // Prompt for feedback once the stay is over and the guest hasn't reviewed yet.
+    if (canReviewBooking(booking) && !hasReview(booking)) {
+      notifications.push({
+        id: `booking-review-request:${booking.id}`,
+        title: "How was your stay?",
+        body: `Share feedback on ${title} and your host to help future guests.`,
+        href: `/guest/bookings/${booking.id}`,
+        createdAt: `${booking.checkOut}T12:00:00`,
+        category: "activity",
       });
     }
   }
@@ -372,13 +387,14 @@ function addAdminNotifications({
 }
 
 export async function getNotificationsForUser(user: User, limit = 25): Promise<ActivityNotification[]> {
-  const [bookings, messages, payments, properties, users, auditLogs] = await Promise.all([
+  const [bookings, messages, payments, properties, users, auditLogs, reviews] = await Promise.all([
     getBookings(),
     getMessages(),
     getPayments(),
     getProperties(),
     getUsers(),
     user.role === "admin" ? getAuditLogs(25) : Promise.resolve([]),
+    user.role === "guest" ? getReviews() : Promise.resolve<Review[]>([]),
   ]);
 
   const notifications: ActivityNotification[] = [];
@@ -386,10 +402,19 @@ export async function getNotificationsForUser(user: User, limit = 25): Promise<A
   const propertiesById = new Map(properties.map((property) => [property.id, property]));
   const usersById = new Map(users.map((item) => [item.id, item]));
 
+  // Match the review lookup used by getReviewForBooking: by bookingId, or by property + guest.
+  const reviewedKeys = new Set<string>();
+  for (const review of reviews) {
+    if (review.bookingId) reviewedKeys.add(`b:${review.bookingId}`);
+    reviewedKeys.add(`p:${review.propertyId}:${review.guestId}`);
+  }
+  const hasReview = (booking: Booking) =>
+    reviewedKeys.has(`b:${booking.id}`) || reviewedKeys.has(`p:${booking.propertyId}:${booking.guestId}`);
+
   addMessageNotifications({ notifications, messages, user, usersById });
 
   if (user.role === "guest") {
-    addGuestBookingNotifications({ notifications, bookings, paymentsByBookingId, propertiesById, user });
+    addGuestBookingNotifications({ notifications, bookings, paymentsByBookingId, propertiesById, hasReview, user });
   }
 
   if (user.role === "host") {
