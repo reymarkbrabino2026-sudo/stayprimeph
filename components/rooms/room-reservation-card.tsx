@@ -292,8 +292,13 @@ export function RoomReservationCard({
           : selectedStartsUnavailable
             ? "Choose an available check-in date."
           : validStay
-            ? "You won't be charged yet"
+            ? "You won't be charged until your host confirms"
             : "Select your check-in and checkout dates."}
+      </p>
+
+      <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-black/45">
+        <ShieldCheck size={13} className="shrink-0" />
+        Protected booking — keep payments and messages inside StayPrimePH.
       </p>
 
       {validStay && !selectedHasUnavailableNight ? (

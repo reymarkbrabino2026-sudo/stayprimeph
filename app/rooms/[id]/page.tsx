@@ -247,7 +247,7 @@ export default async function RoomPage({
             <SectionHeader
               eyebrow="Gallery"
               title="A visual preview of the experience"
-              body="Swipe through the spaces guests move through during the stay."
+              body="A closer look at the spaces you'll enjoy during your stay."
             />
           </div>
           <div className="mt-8">
@@ -262,31 +262,26 @@ export default async function RoomPage({
               <SectionHeader
                 eyebrow="Amenities"
                 title="Resort comforts, home-level control"
-                body="The essentials stay easy to scan, with the premium features brought forward."
+                body="Everything this home comes equipped with for a comfortable stay."
                 light
               />
               <p className="w-full max-w-md text-sm leading-6 text-white/60 lg:justify-self-end lg:text-right">
-                A collection of stay essentials arranged like a luxury amenity menu — bold, calm, and easy to scan.
+                From everyday essentials to standout extras, here&apos;s what&apos;s included with your stay.
               </p>
             </div>
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {property.amenities.map((amenity, index) => {
                 const Icon = amenityIcon(amenity);
                 const accent = index % 3 === 2;
                 return (
                   <div
                     key={amenity}
-                    className={`flex min-h-48 flex-col justify-between rounded-[1.5rem] p-6 shadow-[0_18px_50px_rgb(0_0_0_/_0.22)] ${
+                    className={`flex items-center gap-4 rounded-2xl px-5 py-4 ${
                       accent ? "bg-[#c8f7bf] text-[#053f34]" : "bg-white/[0.06] text-white ring-1 ring-white/10"
                     }`}
                   >
-                    <Icon className={accent ? "text-[#053f34]" : "text-[#f4d7a1]"} size={26} />
-                    <div>
-                      <p className="text-xl font-semibold leading-tight">{amenity}</p>
-                      <p className={`mt-2 text-sm leading-6 ${accent ? "text-[#053f34]/70" : "text-white/55"}`}>
-                        Included with this stay for a more comfortable guest experience.
-                      </p>
-                    </div>
+                    <Icon className={`shrink-0 ${accent ? "text-[#053f34]" : "text-[#f4d7a1]"}`} size={24} />
+                    <p className="text-base font-semibold leading-tight">{amenity}</p>
                   </div>
                 );
               })}
@@ -359,7 +354,7 @@ export default async function RoomPage({
             <SectionHeader
               eyebrow="Your host"
               title={`Hosted by ${host?.name ?? "your host"}`}
-              body="A clear host profile remains part of the booking experience."
+              body="Get to know who you'll be staying with."
             />
             <div className="mt-8 grid gap-6 rounded-[2rem] border border-black/10 bg-white p-6 md:grid-cols-[17rem_1fr] md:p-8">
               <div className="rounded-[1.5rem] bg-[#f6f1e9] p-7 text-center">
@@ -392,7 +387,7 @@ export default async function RoomPage({
             <SectionHeader
               eyebrow="Rules & FAQ"
               title="Know before you book"
-              body="The important vacation rental decision details stay visible."
+              body="House rules, cancellation, and the details worth checking before you reserve."
             />
             <div className="mt-8 grid gap-5 lg:grid-cols-2">
               <div className="rounded-[1.75rem] border border-black/10 bg-white p-7">
