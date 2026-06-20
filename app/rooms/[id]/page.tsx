@@ -156,10 +156,10 @@ export default async function RoomPage({
 
       <main>
         {/* Hero banner */}
-        <section className="relative min-h-[76svh] overflow-hidden bg-[#14120f] text-white sm:min-h-[84svh] md:min-h-screen">
+        <section className="relative min-h-[100svh] overflow-hidden bg-[#14120f] text-white sm:min-h-[84svh] md:min-h-screen">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/75" />
-          <div className="relative z-10 flex min-h-[76svh] flex-col justify-end px-3 pb-[5.5rem] sm:min-h-[84svh] sm:px-5 sm:pb-44 md:min-h-screen md:pb-40">
+          <div className="relative z-10 flex min-h-[100svh] flex-col justify-end px-3 pb-[5.5rem] sm:min-h-[84svh] sm:px-5 sm:pb-44 md:min-h-screen md:pb-40">
             <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
               <p className="mb-2 inline-flex items-center gap-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:gap-2 sm:text-sm sm:tracking-[0.28em]">
                 <MapPin className="size-3 sm:size-[15px]" /> {locationLabel}
