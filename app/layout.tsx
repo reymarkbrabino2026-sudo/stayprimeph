@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
+import { SmoothScroll } from "@/components/smooth-scroll";
 import { env } from "@/lib/env";
 import "./globals.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <SmoothScroll />
         {children}
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled" ? <Analytics /> : null}
       </body>

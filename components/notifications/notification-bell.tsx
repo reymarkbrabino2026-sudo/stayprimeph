@@ -166,7 +166,7 @@ export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
               </button>
             </div>
 
-            <div className="max-h-[min(26rem,70vh)] overflow-y-auto p-2">
+            <div data-lenis-prevent className="max-h-[min(26rem,70vh)] overflow-y-auto p-2">
               {notifications.length === 0 ? (
                 <div className="p-5 text-sm text-black/55">No activity yet. New bookings, messages, payments, and listing updates will appear here.</div>
               ) : (
