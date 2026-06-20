@@ -59,25 +59,6 @@ export function RoomHeroSlideshow({ images, alt }: { images: Slide[]; alt: strin
           </button>
         </>
       ) : null}
-
-      {slides.length > 1 ? (
-        <div className="absolute inset-x-0 bottom-16 z-10 px-3 sm:bottom-40 md:bottom-36 md:px-5">
-          <div className="mx-auto flex max-w-[88rem] justify-center gap-2 px-5 md:justify-end md:px-8">
-            {slides.map((slide, slideIndex) => (
-              <button
-                key={slide.id}
-                type="button"
-                aria-label={`Show photo ${slideIndex + 1}`}
-                aria-current={slideIndex === index ? "true" : undefined}
-                onClick={() => setIndex(slideIndex)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  slideIndex === index ? "w-8 bg-white" : "w-2.5 bg-white/50 hover:bg-white/80"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
