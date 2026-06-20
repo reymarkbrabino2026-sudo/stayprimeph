@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { SearchBar } from "@/components/public/search-bar";
 import { DeferredRealMap } from "@/components/search/deferred-real-map";
@@ -49,11 +50,28 @@ export default async function SearchPage({
             <h1 className="mt-1 text-2xl font-semibold">{locationLabel ? `Stays near ${locationLabel}` : "Available stays"}</h1>
           </div>
 
-          <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
-            {results.map((property, index) => (
-              <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
-            ))}
-          </div>
+          {results.length === 0 ? (
+            <div className="rounded-[2rem] border border-black/10 bg-[#fbf7f2] p-10 text-center">
+              <h2 className="text-xl font-semibold">
+                {locationLabel ? `No stays in ${locationLabel} yet` : "No stays match your search yet"}
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-black/55">
+                We&apos;re adding new homes across the Philippines all the time. Try a nearby city, or browse everything available right now.
+              </p>
+              <Link
+                href="/search"
+                className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#083f35] px-6 text-sm font-semibold text-white transition hover:bg-[#062f28]"
+              >
+                Browse all stays
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
+              {results.map((property, index) => (
+                <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
+              ))}
+            </div>
+          )}
         </section>
 
         <aside className="hidden border-l lg:block">
