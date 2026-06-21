@@ -9,10 +9,10 @@ type BrandLogoProps = {
 export function BrandLogo({ variant = "green", className = "h-7 w-auto", priority = true }: BrandLogoProps) {
   return (
     <Image
-      src={variant === "white" ? "/stayprimeph-logo-white.svg" : "/stayprimeph-logo.svg"}
+      src={variant === "white" ? "/logo/stayprime-logo-white.svg" : "/logo/stayprime-logo-colored.svg"}
       alt="StayPrimePH"
-      width={520}
-      height={96}
+      width={580}
+      height={250}
       className={className}
       preload={priority}
       loading={priority ? "eager" : undefined}
