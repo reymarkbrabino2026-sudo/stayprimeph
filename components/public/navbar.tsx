@@ -71,15 +71,15 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
         <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
           <BrandLogo variant={transparent ? "white" : "green"} className="h-10 w-auto" priority />
         </Link>
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm md:flex">
-          <Link href="/search" className="flex items-center gap-2 pb-3 font-semibold">
+        <nav className="absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm md:flex">
+          <Link href="/search" className="flex items-center gap-2 font-semibold">
             <Home size={16} /> Stays
           </Link>
           {POPULAR_CITIES.map((city) => (
             <Link
               key={city}
               href={`/search?location=${encodeURIComponent(city)}`}
-              className="pb-3 font-semibold text-current/75 transition hover:text-current"
+              className="font-semibold text-current/75 transition hover:text-current"
             >
               {city}
             </Link>
