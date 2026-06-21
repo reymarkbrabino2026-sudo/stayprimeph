@@ -68,7 +68,7 @@ export function HomeHeader() {
       >
         <div className="relative flex h-[72px] items-center justify-between px-4 sm:px-6 lg:px-12">
           <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
-            <BrandLogo variant={collapsed ? "green" : "white"} className="h-7 w-auto" priority />
+            <BrandLogo variant={collapsed ? "green" : "white"} className="h-10 w-auto" priority />
           </Link>
 
           <nav className={`absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>

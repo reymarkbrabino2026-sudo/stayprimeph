@@ -69,7 +69,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
         } ${transparent ? "border-transparent bg-transparent text-white" : "border-black/10 bg-white/95 text-black shadow-[0_2px_14px_rgb(0_0_0_/_0.06)]"}`}
       >
         <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
-          <BrandLogo variant={transparent ? "white" : "green"} className="h-7 w-auto" priority />
+          <BrandLogo variant={transparent ? "white" : "green"} className="h-10 w-auto" priority />
         </Link>
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm md:flex">
           <Link href="/search" className="flex items-center gap-2 pb-3 font-semibold">
