@@ -739,15 +739,12 @@ function ReservationDashboard({
                           <Eye className="size-4" aria-hidden="true" />
                           View
                         </Link>
-                        <details className="relative">
-                          <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-lg border border-black/10 text-black/55" aria-label={`More actions for ${row.code}`}>
-                            <MoreVertical className="size-4" aria-hidden="true" />
-                          </summary>
-                          <div className="absolute right-0 z-20 mt-2 grid w-44 overflow-hidden rounded-xl border border-black/10 bg-white py-2 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)]">
-                            <Link href="/host/messages" className="px-4 py-2 font-semibold text-black/65 hover:bg-black/[0.04]">Message guest</Link>
-                            <Link href="/host/calendar" className="px-4 py-2 font-semibold text-black/65 hover:bg-black/[0.04]">Open calendar</Link>
-                          </div>
-                        </details>
+                        <Link
+                          href="/host/calendar"
+                          className="inline-flex min-h-9 items-center rounded-lg border border-black/10 px-3 text-xs font-bold text-black/70 transition hover:bg-black/[0.04]"
+                        >
+                          Calendar
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -1314,15 +1311,12 @@ function CustomerDashboard({
                           <Eye className="size-4" aria-hidden="true" />
                           View
                         </Link>
-                        <details className="relative">
-                          <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-lg border border-black/10 text-black/55" aria-label={`More actions for ${customer.name}`}>
-                            <MoreVertical className="size-4" aria-hidden="true" />
-                          </summary>
-                          <div className="absolute right-0 z-20 mt-2 grid w-44 overflow-hidden rounded-xl border border-black/10 bg-white py-2 text-sm shadow-[0_18px_50px_rgba(33,23,15,0.16)]">
-                            <Link href={`/host/messages?guest=${encodeURIComponent(customer.id)}`} className="px-4 py-2 font-semibold text-black/65 hover:bg-black/[0.04]">Message guest</Link>
-                            <Link href="/host/bookings" className="px-4 py-2 font-semibold text-black/65 hover:bg-black/[0.04]">View bookings</Link>
-                          </div>
-                        </details>
+                        <Link
+                          href="/host/bookings"
+                          className="inline-flex min-h-9 items-center rounded-lg border border-black/10 px-3 text-xs font-bold text-black/70 transition hover:bg-black/[0.04]"
+                        >
+                          Bookings
+                        </Link>
                       </div>
                     </td>
                   </tr>
