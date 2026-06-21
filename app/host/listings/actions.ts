@@ -8,7 +8,7 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { amenityGroups } from "@/lib/host-wizard-data";
-import { createPropertyInDatabase, deleteDraftPropertyInDatabase, updatePropertyDetailsInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { createPropertyInDatabase, deleteDraftPropertyInDatabase, deletePropertyInDatabase, updatePropertyDetailsInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { logger } from "@/lib/logger";
@@ -410,6 +410,28 @@ export async function updateListing(formData: FormData) {
   revalidatePath(`/host/listings/${nextProperty.id}`);
   revalidatePath(`/property/${nextProperty.slug}`);
   redirect(`/host/listings/${nextProperty.id}?updated=1`);
+}
+
+export async function deleteListing(formData: FormData) {
+  const user = await requireHost("Only hosts can delete listings.");
+  await assertValidCsrfForm(formData);
+
+  const parsedId = z.string().trim().min(1).safeParse(formData.get("id"));
+  if (!parsedId.success) throw new Error("Listing not found.");
+
+  const existing = await getPropertyById(parsedId.data);
+  if (!existing || existing.hostId !== user.id) throw new Error("Listing not found.");
+
+  if (usesPrismaPersistence()) {
+    await deletePropertyInDatabase(user.id, existing.id);
+  } else {
+    const storedProperties = await readStoredProperties();
+    await writeStoredProperties(storedProperties.filter((property) => !(property.id === existing.id && property.hostId === user.id)));
+  }
+
+  revalidatePublicListingSummaries();
+  revalidatePath("/host/listings");
+  redirect("/host/listings");
 }
 
 export async function saveWizardListingDraft(input: unknown, csrfToken?: string) {

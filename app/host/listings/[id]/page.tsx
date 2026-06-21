@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ListingForm } from "@/components/forms/listing-form";
+import { DeleteListingButton } from "@/components/forms/delete-listing-button";
 import { ResilientImage } from "@/components/ui/resilient-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
@@ -44,6 +45,14 @@ export default async function EditListingPage({ params, searchParams }: { params
           ) : null}
           <ListingForm mode="Edit" property={property} csrfToken={csrfToken} />
         </section>
+      </div>
+
+      <div className="mt-6 flex flex-col gap-4 rounded-[1.5rem] border border-red-100 bg-red-50/50 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-semibold text-red-800">Delete this listing</p>
+          <p className="mt-1 text-sm text-red-700/80">Permanently remove this listing. Listings with active bookings can&apos;t be deleted.</p>
+        </div>
+        <DeleteListingButton listingId={property.id} csrfToken={csrfToken} />
       </div>
     </DashboardShell>
   );

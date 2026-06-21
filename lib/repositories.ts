@@ -678,6 +678,22 @@ export async function deleteDraftPropertyInDatabase(hostId: string, propertyId: 
   await prisma.property.deleteMany({ where: { id: propertyId, hostId, status: "draft" } });
 }
 
+export async function deletePropertyInDatabase(hostId: string, propertyId: string) {
+  await prisma.$transaction(async (tx) => {
+    const owned = await tx.property.findFirst({ where: { id: propertyId, hostId }, select: { id: true } });
+    if (!owned) throw new Error("Listing not found.");
+    // Preserve booking and payment history — a listing with bookings can't be hard-deleted.
+    const bookingCount = await tx.booking.count({ where: { propertyId } });
+    if (bookingCount > 0) {
+      throw new Error("This listing has bookings and can't be deleted.");
+    }
+    // Clear the non-financial relations that block deletion, then cascade the rest.
+    await tx.review.deleteMany({ where: { propertyId } });
+    await tx.wishlist.deleteMany({ where: { propertyId } });
+    await tx.property.delete({ where: { id: propertyId } });
+  });
+}
+
 export async function updatePropertyStatusInDatabase(id: string, status: Property["status"]) {
   await prisma.property.update({ where: { id }, data: { status } });
 }
