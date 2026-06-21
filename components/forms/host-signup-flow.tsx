@@ -7,19 +7,6 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { signUpHost } from "@/app/auth/actions";
 import { PasswordInput } from "@/components/forms/password-input";
 
-const posterCards = [
-  ["SIARGAO", "from-emerald-300 to-teal-700"],
-  ["BAGUIO", "from-sky-200 to-indigo-400"],
-  ["CEBU", "from-rose-200 to-red-400"],
-  ["DAVAO", "from-amber-200 to-orange-500"],
-  ["PALAWAN", "from-lime-200 to-emerald-500"],
-  ["MANILA", "from-pink-200 to-rose-500"],
-  ["VIGAN", "from-yellow-200 to-amber-500"],
-  ["TAGAYTAY", "from-cyan-200 to-blue-500"],
-  ["ILOILO", "from-violet-200 to-fuchsia-500"],
-  ["CORON", "from-teal-200 to-cyan-600"],
-];
-
 export function HostSignupFlow({ error, message }: { error?: string; message?: string }) {
   const [step, setStep] = useState<"details" | "commitment">("details");
   const [details, setDetails] = useState({ firstName: "", lastName: "", birthDate: "", email: "", password: "" });
@@ -28,18 +15,14 @@ export function HostSignupFlow({ error, message }: { error?: string; message?: s
     <div className="min-h-dvh bg-white">
       <Navbar />
 
-      <section className="relative min-h-[32rem] overflow-hidden border-b bg-[#f7f7f7]">
-        <div className="absolute inset-0 grid grid-cols-2 gap-4 p-4 opacity-80 sm:grid-cols-3 lg:grid-cols-5">
-          {posterCards.map(([label, tone]) => (
-            <div
-              key={label}
-              className={`grid min-h-36 place-items-center rounded-[1.75rem] bg-gradient-to-br ${tone} p-4 text-center text-2xl font-black tracking-[0.18em] text-white shadow-sm sm:min-h-44`}
-            >
-              {label}
-            </div>
-          ))}
+      <section className="relative min-h-[32rem] overflow-hidden border-b bg-[#06302a]">
+        <div aria-hidden="true" className="absolute inset-0">
+          <div className="absolute -left-28 -top-24 size-[26rem] rounded-full bg-[#0f7a65] opacity-50 blur-[120px]" />
+          <div className="absolute -right-32 top-8 size-[32rem] rounded-full bg-[#1aa088] opacity-40 blur-[130px]" />
+          <div className="absolute -bottom-40 left-1/4 size-[34rem] rounded-full bg-[#c9a15a] opacity-25 blur-[140px]" />
+          <div className="absolute bottom-0 right-1/4 size-[22rem] rounded-full bg-[#0b5d4e] opacity-50 blur-[110px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,255,255,0.10),transparent_55%)]" />
         </div>
-        <div className="absolute inset-0 bg-black/25" />
 
         <div className="relative z-10 flex min-h-[32rem] items-center justify-center p-4 sm:p-6">
           {step === "details" ? (
