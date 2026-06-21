@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { SearchBar } from "@/components/public/search-bar";
@@ -8,6 +9,13 @@ import { getPublicListingSummaries } from "@/lib/properties";
 import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Find Vacation Rentals & Staycations in the Philippines",
+  description:
+    "Search short-term rentals, condo staycations, and private vacation homes across the Philippines. Browse affordable stays near you and book your next getaway.",
+  alternates: { canonical: "/search" },
+};
 
 type LatLng = { lat: number; lng: number };
 

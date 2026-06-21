@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { footerColumns, futureGetaways } from "@/lib/home-data";
+import { seoLocations } from "@/lib/seo-locations";
 
 export function SiteFooter() {
   return (
@@ -15,6 +16,21 @@ export function SiteFooter() {
             >
               <p className="font-medium transition group-hover:underline">{city}</p>
               {type && <p className="text-sm text-white/70">{type}</p>}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-xl font-semibold sm:text-2xl">Popular staycation destinations</h2>
+        <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm">
+          {seoLocations.map((location) => (
+            <Link
+              key={location.slug}
+              href={`/staycation/${location.slug}`}
+              className="text-white/80 transition hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              {location.name} staycations
             </Link>
           ))}
         </div>
