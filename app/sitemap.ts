@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { legalPages } from "@/lib/legal-data";
 import { getProperties } from "@/lib/properties";
 import { seoLocations } from "@/lib/seo-locations";
+import { newsArticles } from "@/lib/newsroom-data";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = env.NEXT_PUBLIC_APP_URL;
@@ -26,6 +27,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.8,
+    })),
+    {
+      url: `${baseUrl}/newsroom`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    },
+    ...newsArticles.map((article) => ({
+      url: `${baseUrl}/newsroom/${article.slug}`,
+      lastModified: new Date(article.date),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
     })),
     ...["support", "hosting", "company", "legal", "trust-and-safety", "status"].map((route) => ({
       url: `${baseUrl}/${route}`,
