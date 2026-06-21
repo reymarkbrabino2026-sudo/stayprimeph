@@ -12,7 +12,9 @@ function formatDate(value: string) {
 export function ArticleCard({ article }: { article: NewsArticle }) {
   return (
     <Link href={`/newsroom/${article.slug}`} className="group block">
-      <div className={`aspect-[1.4] rounded-2xl bg-gradient-to-br ${article.heroTone}`} />
+      <div className={`relative aspect-[1.4] overflow-hidden rounded-2xl bg-gradient-to-br ${article.heroTone}`}>
+        <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('/newsroom/${article.slug}.svg')` }} />
+      </div>
       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8a6a3f]">{article.topic}</p>
       <h3 className="mt-1 font-semibold leading-snug transition group-hover:underline">{article.title}</h3>
       <p className="mt-2 text-sm text-black/55">{formatDate(article.date)}</p>

@@ -53,7 +53,9 @@ export default function NewsroomPage() {
 
         {featured ? (
           <Link href={`/newsroom/${featured.slug}`} className="group mt-10 grid gap-6 overflow-hidden rounded-[2rem] border border-black/10 md:grid-cols-2">
-            <div className={`aspect-[1.6] bg-gradient-to-br md:aspect-auto ${featured.heroTone}`} />
+            <div className={`relative aspect-[1.6] overflow-hidden bg-gradient-to-br md:aspect-auto ${featured.heroTone}`}>
+              <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('/newsroom/${featured.slug}.svg')` }} />
+            </div>
             <div className="flex flex-col justify-center p-6 sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8a6a3f]">{featured.topic} · {formatDate(featured.date)}</p>
               <h2 className="mt-2 text-2xl font-semibold leading-snug transition group-hover:underline sm:text-3xl">{featured.title}</h2>
@@ -69,7 +71,9 @@ export default function NewsroomPage() {
             <div className="mt-6 grid gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-4">
               {latest.map((article) => (
                 <Link key={article.slug} href={`/newsroom/${article.slug}`} className="group block">
-                  <div className={`aspect-[1.4] rounded-2xl bg-gradient-to-br ${article.heroTone}`} />
+                  <div className={`relative aspect-[1.4] overflow-hidden rounded-2xl bg-gradient-to-br ${article.heroTone}`}>
+                    <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('/newsroom/${article.slug}.svg')` }} />
+                  </div>
                   <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8a6a3f]">{article.topic}</p>
                   <h3 className="mt-1 font-semibold leading-snug transition group-hover:underline">{article.title}</h3>
                   <p className="mt-2 text-sm text-black/55">{formatDate(article.date)}</p>

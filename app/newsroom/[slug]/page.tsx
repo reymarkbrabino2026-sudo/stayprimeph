@@ -99,7 +99,9 @@ export default async function NewsArticlePage({ params }: { params: Promise<{ sl
           </aside>
         ) : null}
 
-        <div className={`mt-8 aspect-[2/1] rounded-[1.5rem] bg-gradient-to-br ${article.heroTone}`} />
+        <div className={`relative mt-8 aspect-[2/1] overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${article.heroTone}`}>
+          <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('/newsroom/${article.slug}.svg')` }} />
+        </div>
 
         <article className="mt-8">
           {article.body.map((block, index) => {
@@ -133,7 +135,9 @@ export default async function NewsArticlePage({ params }: { params: Promise<{ sl
           <div className="mt-6 grid gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
             {related.map((entry) => (
               <Link key={entry.slug} href={`/newsroom/${entry.slug}`} className="group block">
-                <div className={`aspect-[1.6] rounded-2xl bg-gradient-to-br ${entry.heroTone}`} />
+                <div className={`relative aspect-[1.6] overflow-hidden rounded-2xl bg-gradient-to-br ${entry.heroTone}`}>
+                  <span className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('/newsroom/${entry.slug}.svg')` }} />
+                </div>
                 <h3 className="mt-3 font-semibold leading-snug transition group-hover:underline">{entry.title}</h3>
                 <p className="mt-2 text-sm text-black/55">{formatDate(entry.date)}</p>
               </Link>

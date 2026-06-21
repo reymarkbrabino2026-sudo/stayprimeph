@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde6c4"/>
+      <stop offset="0.55" stop-color="#f4b67e"/>
+      <stop offset="1" stop-color="#e2885a"/>
+    </linearGradient>
+    <linearGradient id="lake1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f8478"/>
+      <stop offset="1" stop-color="#0f4f48"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#sky1)"/>
+  <circle cx="565" cy="150" r="62" fill="#ffe9b8"/>
+  <circle cx="565" cy="150" r="44" fill="#fff4d8"/>
+  <path d="M0 300 L150 205 L300 292 L430 215 L560 300 L700 232 L800 300 L800 330 L0 330 Z" fill="#84a487" opacity="0.7"/>
+  <path d="M0 332 L180 242 L340 332 L520 252 L680 332 L800 284 L800 360 L0 360 Z" fill="#3f6b53"/>
+  <rect y="332" width="800" height="118" fill="url(#lake1)"/>
+  <rect x="545" y="338" width="40" height="100" fill="#ffe9b8" opacity="0.22"/>
+  <rect x="120" y="362" width="120" height="3" rx="1.5" fill="#ffffff" opacity="0.18"/>
+  <rect x="420" y="388" width="160" height="3" rx="1.5" fill="#ffffff" opacity="0.15"/>
+  <rect x="250" y="414" width="200" height="3" rx="1.5" fill="#ffffff" opacity="0.12"/>
+</svg>

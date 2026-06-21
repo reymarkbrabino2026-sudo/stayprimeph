@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <defs>
+    <linearGradient id="bg4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d2ece8"/>
+      <stop offset="1" stop-color="#7cc3b4"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg4)"/>
+  <circle cx="120" cy="100" r="44" fill="#fff4d8"/>
+  <ellipse cx="640" cy="108" rx="70" ry="26" fill="#ffffff" opacity="0.7"/>
+  <ellipse cx="690" cy="118" rx="50" ry="22" fill="#ffffff" opacity="0.7"/>
+  <rect y="360" width="800" height="90" fill="#0f4f48"/>
+  <rect x="180" y="270" width="160" height="92" rx="5" fill="#e8b04b"/>
+  <path d="M168 272 L260 206 L352 272 Z" fill="#cf8f3e"/>
+  <rect x="240" y="312" width="40" height="50" rx="3" fill="#0f4f48"/>
+  <rect x="205" y="292" width="30" height="30" rx="3" fill="#bfe3dd"/>
+  <rect x="290" y="292" width="30" height="30" rx="3" fill="#bfe3dd"/>
+  <rect x="470" y="150" width="150" height="212" rx="6" fill="#0f7a65"/>
+  <rect x="470" y="150" width="150" height="22" rx="6" fill="#0b5d4e"/>
+  <g fill="#d2ece8">
+    <rect x="488" y="190" width="24" height="22" rx="2"/><rect x="524" y="190" width="24" height="22" rx="2"/><rect x="560" y="190" width="24" height="22" rx="2"/><rect x="596" y="190" width="14" height="22" rx="2"/>
+    <rect x="488" y="224" width="24" height="22" rx="2"/><rect x="524" y="224" width="24" height="22" rx="2"/><rect x="560" y="224" width="24" height="22" rx="2"/><rect x="596" y="224" width="14" height="22" rx="2"/>
+    <rect x="488" y="258" width="24" height="22" rx="2"/><rect x="524" y="258" width="24" height="22" rx="2"/><rect x="560" y="258" width="24" height="22" rx="2"/><rect x="596" y="258" width="14" height="22" rx="2"/>
+    <rect x="488" y="292" width="24" height="22" rx="2"/><rect x="524" y="292" width="24" height="22" rx="2"/><rect x="560" y="292" width="24" height="22" rx="2"/><rect x="596" y="292" width="14" height="22" rx="2"/>
+    <rect x="488" y="326" width="24" height="22" rx="2"/><rect x="524" y="326" width="24" height="22" rx="2"/><rect x="560" y="326" width="24" height="22" rx="2"/><rect x="596" y="326" width="14" height="22" rx="2"/>
+  </g>
+</svg>
