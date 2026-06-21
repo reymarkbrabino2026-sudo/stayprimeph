@@ -106,3 +106,19 @@ export function isIntendedListingPhotoUrl(value: string, input: { userId: string
 export function isHostScopedListingPhotoUrl(value: string, input: { userId: string; cloudName?: string }) {
   return listingPhotoUrlMatchesPrefix(value, `uploads/listings/${normalizeUploadScopeId(input.userId, "user")}/`, input.cloudName);
 }
+
+export function avatarUploadScopePrefix(userId: string) {
+  return `uploads/avatars/${normalizeUploadScopeId(userId, "user")}/`;
+}
+
+export function serverGeneratedAvatarBlobPath(userId: string, uploadId?: string) {
+  return `${avatarUploadScopePrefix(userId)}${uploadId ?? randomUUID()}`;
+}
+
+export function cloudinaryAvatarUploadFolder(userId: string) {
+  return `stayprimeph/${avatarUploadScopePrefix(userId).replace(/\/$/, "")}`;
+}
+
+export function isIntendedAvatarUrl(value: string, input: { userId: string; cloudName?: string }) {
+  return listingPhotoUrlMatchesPrefix(value, avatarUploadScopePrefix(input.userId), input.cloudName);
+}

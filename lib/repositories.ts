@@ -2002,3 +2002,7 @@ export async function updateUserRoleInDatabase(userId: string, role: User["role"
     prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${userId}`,
   ]);
 }
+
+export async function updateUserAvatarInDatabase(userId: string, avatar: string) {
+  await prisma.user.update({ where: { id: userId }, data: { avatar } });
+}
