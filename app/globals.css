@@ -47,6 +47,19 @@ html.lenis body {
   overflow: hidden;
 }
 
+/* Brand loader animation */
+@keyframes loaderBreathe {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
 * {
   border-color: rgb(39 24 11 / 0.08);
 }
