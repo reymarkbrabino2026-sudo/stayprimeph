@@ -11,8 +11,8 @@ export function BrandLogo({ variant = "green", className = "h-7 w-auto", priorit
     <Image
       src={variant === "white" ? "/logo/stayprime-logo-white.svg" : "/logo/stayprime-logo-colored.svg"}
       alt="StayPrimePH"
-      width={580}
-      height={250}
+      width={608}
+      height={232}
       className={className}
       preload={priority}
       loading={priority ? "eager" : undefined}
