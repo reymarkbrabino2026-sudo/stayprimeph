@@ -81,7 +81,7 @@ export function ListingRail({
       </div>
       <div ref={railRef} className="no-scrollbar touch-scroll flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-3 pt-2">
         {items.map(([name, meta, rating, badge, imageId], index) => (
-          <Link href={`/rooms/p${(index % 4) + 1}`} key={`${name}-${imageId}`} className="min-w-0 shrink-0 basis-[72vw] snap-start transition active:scale-[0.985] sm:basis-[calc((100%_-_1rem)/2)] md:basis-[calc((100%_-_3rem)/4)] xl:basis-[calc((100%_-_5rem)/6)] 2xl:basis-[calc((100%_-_6rem)/7)]">
+          <Link href={`/rooms/p${(index % 4) + 1}`} target="_blank" rel="noopener noreferrer" key={`${name}-${imageId}`} className="min-w-0 shrink-0 basis-[72vw] snap-start transition active:scale-[0.985] sm:basis-[calc((100%_-_1rem)/2)] md:basis-[calc((100%_-_3rem)/4)] xl:basis-[calc((100%_-_5rem)/6)] 2xl:basis-[calc((100%_-_6rem)/7)]">
             <div className="relative aspect-[1.08/1] overflow-hidden rounded-[1.25rem] bg-neutral-100 transition duration-300 md:hover:-translate-y-1">
               <Image
                 src="/host-preview-house.jpg"

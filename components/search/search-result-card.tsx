@@ -24,7 +24,7 @@ export function SearchResultCard({
   const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
 
   return (
-    <Link href={`/rooms/${property.id}`} className="group block transition active:scale-[0.985]">
+    <Link href={`/rooms/${property.id}`} target="_blank" rel="noopener noreferrer" className="group block transition active:scale-[0.985]">
       <div className={`relative aspect-[1.05/1] overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
         {isRenderableImage(image) ? (
           <Image

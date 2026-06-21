@@ -37,7 +37,7 @@ export function WishlistGrid({ properties }: { properties: Property[] }) {
         const cover = property.images[0]?.imageUrl;
         const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
         return (
-          <Link key={property.id} href={`/rooms/${property.id}`} className="block rounded-[1.75rem] bg-white p-4 soft-card transition hover:-translate-y-1">
+          <Link key={property.id} href={`/rooms/${property.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-[1.75rem] bg-white p-4 soft-card transition hover:-translate-y-1">
             <div className={`relative aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-gradient-to-br ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
               {isRenderableImage(cover) ? <Image src={cover!} alt={property.title} fill sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw" className="object-cover" /> : null}
             </div>

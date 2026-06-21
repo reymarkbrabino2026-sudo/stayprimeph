@@ -42,6 +42,9 @@ yarn-error.log*
 /test-results/
 /docs/exports/
 
+# local screenshot / proof artifacts at repo root (may contain PII); public/ images still tracked
+/*.png
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example

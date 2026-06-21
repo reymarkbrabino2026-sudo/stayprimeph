@@ -86,7 +86,7 @@ export function PropertyRail({ title, items, isAuthenticated }: { title: string;
           const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
           return (
             <article key={property.id} className="relative min-w-0 shrink-0 basis-[72vw] snap-start sm:basis-[calc((100%_-_1rem)/2)] md:basis-[calc((100%_-_3rem)/4)] xl:basis-[calc((100%_-_5rem)/6)] 2xl:basis-[calc((100%_-_6rem)/7)]">
-              <Link href={`/rooms/${property.id}`} className="group block transition active:scale-[0.985]">
+              <Link href={`/rooms/${property.id}`} target="_blank" rel="noopener noreferrer" className="group block transition active:scale-[0.985]">
                 <div className={`relative aspect-[1.08/1] overflow-hidden rounded-[1.25rem] bg-gradient-to-br transition duration-300 md:group-hover:-translate-y-1 ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
                   {isRenderableImage(image) ? <Image src={image!} alt={property.title} fill sizes="(min-width:1536px) 14vw, (min-width:1280px) 16vw, (min-width:768px) 24vw, 72vw" className="object-cover" draggable={false} /> : null}
                   <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">{property.rating >= 4.8 ? "Guest favorite" : "New"}</span>
