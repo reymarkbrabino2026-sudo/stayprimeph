@@ -69,9 +69,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Reverse geocoding service unavailable." }, { status: 502 });
   }
 
+  const resultLatitude = Number(result.lat);
+  const resultLongitude = Number(result.lon);
+  if (
+    !Number.isFinite(resultLatitude) ||
+    !Number.isFinite(resultLongitude) ||
+    resultLatitude < -90 ||
+    resultLatitude > 90 ||
+    resultLongitude < -180 ||
+    resultLongitude > 180
+  ) {
+    logger.warn("reverse_geocode_upstream_invalid_coordinates");
+    return NextResponse.json({ error: "Reverse geocoding service unavailable." }, { status: 502 });
+  }
+
   return NextResponse.json({
-    latitude: Number(result.lat),
-    longitude: Number(result.lon),
+    latitude: resultLatitude,
+    longitude: resultLongitude,
     displayName: result.display_name,
   });
 }
