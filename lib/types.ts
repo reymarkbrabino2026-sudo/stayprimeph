@@ -81,6 +81,14 @@ export interface PlatformLedgerEntry {
   status: "banked";
   createdAt: string;
 }
+export interface Payout {
+  id: string;
+  hostId: string;
+  amount: number;
+  status: "paid" | "pending";
+  availableOn: string;
+  createdAt: string;
+}
 export interface HostMonthlyReport {
   id: string;
   hostId: string;

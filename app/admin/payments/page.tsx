@@ -1,4 +1,4 @@
-import { rejectSubmittedPayment, verifySubmittedPayment } from "@/app/admin/payments/actions";
+import { recordPayout, rejectSubmittedPayment, verifySubmittedPayment } from "@/app/admin/payments/actions";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { DataTable } from "@/components/ui/data-table";
@@ -7,11 +7,12 @@ import { getAdminPayments, getPlatformLedger } from "@/lib/admin-data";
 import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { adminLinks } from "@/lib/navigation";
 import { formatPaymentMethod } from "@/lib/payments";
+import { getHostPayoutQueue } from "@/lib/payouts";
 import { calculateHostPayoutFromTotal, calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function AdminPaymentsPage() {
-  const [payments, platformLedger, csrfToken] = await Promise.all([getAdminPayments(), getPlatformLedger(), getCsrfToken()]);
+  const [payments, platformLedger, payoutQueue, csrfToken] = await Promise.all([getAdminPayments(), getPlatformLedger(), getHostPayoutQueue(), getCsrfToken()]);
   const stayprimeBalance = platformLedger.reduce((sum, entry) => sum + entry.amount, 0);
   const bankedBalance = platformLedger.filter((entry) => entry.status === "banked").reduce((sum, entry) => sum + entry.amount, 0);
 
@@ -22,6 +23,40 @@ export default async function AdminPaymentsPage() {
         <StatsCard label="Added to bank" value={formatCurrency(bankedBalance)} />
         <StatsCard label="Paid transactions" value={String(payments.filter((payment) => payment.paymentStatus === "paid").length)} />
       </div>
+      <section className="mb-6 overflow-hidden rounded-2xl border border-black/10 bg-white">
+        <div className="flex items-center justify-between gap-3 border-b border-black/10 p-4">
+          <h2 className="font-semibold">Host payouts</h2>
+          <span className="text-sm text-black/50">{payoutQueue.length} host{payoutQueue.length === 1 ? "" : "s"} owed</span>
+        </div>
+        {payoutQueue.length === 0 ? (
+          <p className="p-4 text-sm text-black/55">No host payouts are due right now.</p>
+        ) : (
+          <ul className="divide-y divide-black/[0.06]">
+            {payoutQueue.map((entry) => (
+              <li key={entry.host.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold">{entry.host.name}</p>
+                  <p className="text-sm text-black/50">{entry.host.email}</p>
+                  <p className="mt-1 text-sm text-black/60">
+                    Available {formatCurrency(entry.availableBalance)} · Clearing {formatCurrency(entry.pendingClearance)} · Paid {formatCurrency(entry.totalPaidOut)}
+                  </p>
+                </div>
+                {entry.availableBalance > 0 ? (
+                  <form action={recordPayout} className="flex items-center gap-2">
+                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                    <input type="hidden" name="hostId" value={entry.host.id} />
+                    <input name="amount" type="number" min="1" max={entry.availableBalance} defaultValue={entry.availableBalance} className="min-h-10 w-28 rounded-xl border px-3 text-sm" />
+                    <button className="min-h-10 shrink-0 rounded-full bg-[#083f35] px-4 text-xs font-semibold text-white">Record payout</button>
+                  </form>
+                ) : (
+                  <span className="text-sm text-black/45">Still clearing</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <DataTable
         headers={["Transaction", "Booking", "Method", "Amount", "StayPrimePH", "Host payout", "Status", "Actions"]}
         rows={payments.map((payment) => [

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostExpense, HostMonthlyReport, Message, Payment, PlatformLedgerEntry, Property, PropertyImage, PublicListingSummary, Review, User } from "@/lib/types";
+import type { AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostExpense, HostMonthlyReport, Message, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PublicListingSummary, Review, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -692,6 +692,39 @@ export async function deletePropertyInDatabase(hostId: string, propertyId: strin
     await tx.wishlist.deleteMany({ where: { propertyId } });
     await tx.property.delete({ where: { id: propertyId } });
   });
+}
+
+function toPayout(row: { id: string; hostId: string; amount: number; status: string; availableOn: Date; createdAt: Date }): Payout {
+  return {
+    id: row.id,
+    hostId: row.hostId,
+    amount: row.amount,
+    status: row.status === "pending" ? "pending" : "paid",
+    availableOn: row.availableOn.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export async function createPayoutInDatabase(payout: Payout) {
+  await prisma.payout.create({
+    data: {
+      id: payout.id,
+      hostId: payout.hostId,
+      amount: payout.amount,
+      status: payout.status,
+      availableOn: new Date(payout.availableOn),
+    },
+  });
+}
+
+export async function getPayoutsForHostFromDatabase(hostId: string): Promise<Payout[]> {
+  const rows = await prisma.payout.findMany({ where: { hostId }, orderBy: { createdAt: "desc" } });
+  return rows.map(toPayout);
+}
+
+export async function getAllPayoutsFromDatabase(): Promise<Payout[]> {
+  const rows = await prisma.payout.findMany({ orderBy: { createdAt: "desc" } });
+  return rows.map(toPayout);
 }
 
 export async function updatePropertyStatusInDatabase(id: string, status: Property["status"]) {

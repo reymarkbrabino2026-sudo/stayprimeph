@@ -7,6 +7,7 @@ import { assertValidCsrfForm } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { sendBookingConfirmedEmail } from "@/lib/email";
 import { rejectSubmittedPaymentByAdmin, verifySubmittedPaymentByAdmin } from "@/lib/payments";
+import { recordHostPayout } from "@/lib/payouts";
 import { getPropertyById } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { getUserById } from "@/lib/users";
@@ -101,6 +102,21 @@ export async function verifySubmittedPayment(formData: FormData) {
   await verifySubmittedPaymentByAdmin({ booking, adminId: admin.id });
   await sendBookingConfirmationPair(booking);
   revalidatePaymentReviewPaths(booking.id);
+}
+
+export async function recordPayout(formData: FormData) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
+  const admin = await requireRole("admin", { forbiddenMessage: "Only admins can record payouts." });
+  requireVerifiedEmail(admin);
+
+  const hostId = String(formData.get("hostId") ?? "").trim();
+  const amount = Number(formData.get("amount"));
+  if (!hostId) throw new Error("Host is required.");
+
+  await recordHostPayout(hostId, amount);
+  revalidatePath("/admin/payments");
 }
 
 export async function rejectSubmittedPayment(formData: FormData) {
