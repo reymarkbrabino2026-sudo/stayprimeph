@@ -10,7 +10,7 @@ import { sendSupportMessageEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 import { createMessage } from "@/lib/messages";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
-import { getSupportAdmin } from "@/lib/support";
+import { getSupportAdmin, supportContact } from "@/lib/support";
 import { getUserById } from "@/lib/users";
 
 function cleanMessage(value: FormDataEntryValue | null) {
@@ -62,16 +62,19 @@ export async function sendSupportMessage(formData: FormData) {
     createdAt: new Date().toISOString(),
   });
 
-  try {
-    await sendSupportMessageEmail({
-      to: admin.email,
-      topicLabel: topicLabel(topic),
-      message: body,
-      senderName: user.name,
-      senderEmail: user.email,
-    });
-  } catch (error) {
-    logger.error("support_message_email_failed", { error });
+  const emailRecipients = Array.from(new Set([admin.email, supportContact.email].filter(Boolean)));
+  for (const to of emailRecipients) {
+    try {
+      await sendSupportMessageEmail({
+        to,
+        topicLabel: topicLabel(topic),
+        message: body,
+        senderName: user.name,
+        senderEmail: user.email,
+      });
+    } catch (error) {
+      logger.error("support_message_email_failed", { error, to });
+    }
   }
 
   revalidatePath("/support/help-center");
