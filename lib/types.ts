@@ -18,6 +18,7 @@ export interface PublicListingSummary {
   bedrooms: number;
   maxGuests: number;
   propertyType: string;
+  amenities: string[];
   rating: number;
   createdAt: string;
   images: PropertyImage[];

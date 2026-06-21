@@ -61,7 +61,7 @@ describe("getPublicListingSummaries", () => {
 
     expect(summaries.map((summary) => summary.id)).toEqual(["new", "old"]);
     expect(summaries[0].images).toHaveLength(1);
-    expect(summaries[0]).not.toHaveProperty("amenities");
+    expect(summaries[0].amenities).toEqual(["Kitchen"]);
     expect(summaries[0]).not.toHaveProperty("rules");
     expect(summaries[0]).not.toHaveProperty("bookingPackages");
   });

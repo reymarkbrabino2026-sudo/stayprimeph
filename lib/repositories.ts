@@ -355,6 +355,7 @@ type DatabasePublicListingSummary = Prisma.PropertyGetPayload<{
     createdAt: true;
     images: { take: 1 };
     location: true;
+    amenities: { select: { amenity: { select: { name: true } } } };
   };
 }>;
 
@@ -413,6 +414,7 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
     bedrooms: property.bedrooms,
     maxGuests: property.maxGuests,
     propertyType: property.propertyType,
+    amenities: property.amenities.map((entry) => entry.amenity.name),
     rating: property.rating,
     createdAt: property.createdAt.toISOString().slice(0, 10),
     images: property.images.map(toPropertyImage),
@@ -520,6 +522,7 @@ export async function listPublicListingSummariesFromDatabase(): Promise<PublicLi
       createdAt: true,
       images: { take: 1 },
       location: true,
+      amenities: { select: { amenity: { select: { name: true } } } },
     },
     orderBy: { createdAt: "desc" },
   });

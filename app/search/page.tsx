@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { SearchBar } from "@/components/public/search-bar";
 import { DeferredRealMap } from "@/components/search/deferred-real-map";
+import { SearchFilters } from "@/components/search/search-filters";
 import { SearchResultCard } from "@/components/search/search-result-card";
 import { getPublicListingSummaries } from "@/lib/properties";
 import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
@@ -11,20 +12,42 @@ export const revalidate = 60;
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ location?: string; guests?: string }>;
+  searchParams: Promise<{ location?: string; guests?: string; type?: string; minPrice?: string; maxPrice?: string; beds?: string; amenities?: string }>;
 }) {
   const query = await searchParams;
   const approved = await getPublicListingSummaries();
   const requestedGuests = Number(query.guests ?? 0);
   const location = normalizePropertyLocationSearchQuery(query.location);
   const locationLabel = formatSearchLocationLabel(query.location);
+
+  const typeFilter = query.type ?? "";
+  const minPrice = Number(query.minPrice ?? "");
+  const maxPrice = Number(query.maxPrice ?? "");
+  const beds = Number(query.beds ?? "");
+  const amenityFilter = (query.amenities ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+
   const results = approved.filter((property) => {
     const matchesGuests = requestedGuests > 0 ? property.maxGuests >= requestedGuests : true;
     const matchesLocation = location && location !== "search destinations" && location !== "nearby"
       ? getPropertyLocationSearchText(property).includes(location)
       : true;
-    return matchesGuests && matchesLocation;
+    const matchesType = typeFilter ? property.propertyType === typeFilter : true;
+    const matchesMin = minPrice > 0 ? property.pricePerNight >= minPrice : true;
+    const matchesMax = maxPrice > 0 ? property.pricePerNight <= maxPrice : true;
+    const matchesBeds = beds > 0 ? property.bedrooms >= beds : true;
+    const matchesAmenities = amenityFilter.length ? amenityFilter.every((amenity) => property.amenities.includes(amenity)) : true;
+    return matchesGuests && matchesLocation && matchesType && matchesMin && matchesMax && matchesBeds && matchesAmenities;
   });
+
+  const typeLabels: Record<string, string> = {
+    house: "House", villa: "Villa", resort: "Resort", apartment: "Apartment", condo: "Condo",
+    cabin: "Cabin", "tiny-home": "Tiny home", hotel: "Hotel", farm: "Farm", guesthouse: "Guesthouse",
+  };
+  const availableTypes = Array.from(new Set(approved.map((property) => property.propertyType)))
+    .filter(Boolean)
+    .sort()
+    .map((value) => ({ value, label: typeLabels[value] ?? value.charAt(0).toUpperCase() + value.slice(1) }));
+  const availableAmenities = Array.from(new Set(approved.flatMap((property) => property.amenities))).sort();
 
   return (
     <div className="bg-white">
@@ -37,12 +60,18 @@ export default async function SearchPage({
 
       <main className="grid min-w-0 min-h-[calc(100vh-150px)] pb-24 md:pb-0 lg:grid-cols-2">
         <section className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
-          <div className="no-scrollbar touch-scroll flex min-w-0 gap-2 overflow-x-auto border-b pb-5">
-            {["Filters", "Price", "Type of place", "Rooms and beds", "Amenities", "Booking options"].map((item) => (
-              <button key={item} className="min-h-11 shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition active:border-black md:hover:border-black">
-                {item}
-              </button>
-            ))}
+          <div className="border-b pb-5">
+            <SearchFilters
+              types={availableTypes}
+              amenities={availableAmenities}
+              current={{
+                type: typeFilter,
+                minPrice: query.minPrice ?? "",
+                maxPrice: query.maxPrice ?? "",
+                beds: query.beds ?? "",
+                amenities: amenityFilter,
+              }}
+            />
           </div>
 
           <div className="py-6">

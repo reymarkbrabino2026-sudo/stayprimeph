@@ -27,6 +27,7 @@ function toPublicListingSummary(property: Property): PublicListingSummary {
     bedrooms: property.bedrooms,
     maxGuests: property.maxGuests,
     propertyType: property.propertyType,
+    amenities: property.amenities ?? [],
     rating: property.rating,
     createdAt: property.createdAt,
     images: property.images.slice(0, 1),
