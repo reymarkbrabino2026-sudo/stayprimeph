@@ -43,11 +43,11 @@ export function RoomMap({ property }: { property: Property }) {
       // Keep the zoom control out of the top-left corner where the location card sits.
       L.control.zoom({ position: "topright" }).addTo(map);
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
-        subdomains: "abcd",
+        subdomains: "abc",
         // Show a transparent pixel instead of the browser's broken-image icon if a tile fails.
         errorTileUrl: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
       }).addTo(map);
