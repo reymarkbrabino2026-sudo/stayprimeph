@@ -311,6 +311,26 @@ export async function sendAdminMfaEmail(input: { to: string; name: string; code:
   });
 }
 
+export async function sendSupportMessageEmail(input: {
+  to: string;
+  topicLabel: string;
+  message: string;
+  senderName: string;
+  senderEmail: string;
+}) {
+  await sendEmail({
+    to: input.to,
+    subject: `New support chat: ${input.topicLabel}`,
+    consent: { kind: "essential" },
+    html: simpleEmail({
+      headline: `New ${escapeHtml(input.topicLabel)} support message`,
+      body: `From ${escapeHtml(input.senderName)} (${escapeHtml(input.senderEmail)}): ${escapeHtml(input.message)}`,
+      buttonText: "Open support inbox",
+      buttonUrl: `${env.NEXT_PUBLIC_APP_URL}/admin/support`,
+    }),
+  });
+}
+
 export async function sendPasswordResetEmail(input: { to: string; name: string; token: string }) {
   const url = `${env.NEXT_PUBLIC_APP_URL}/reset-password/${encodeURIComponent(input.token)}`;
   await sendEmail({

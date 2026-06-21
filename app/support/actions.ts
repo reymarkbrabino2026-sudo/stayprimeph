@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole, requireUser, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
+import { sendSupportMessageEmail } from "@/lib/email";
+import { logger } from "@/lib/logger";
 import { createMessage } from "@/lib/messages";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { getSupportAdmin } from "@/lib/support";
@@ -59,6 +61,18 @@ export async function sendSupportMessage(formData: FormData) {
     message: `[${topicLabel(topic)}] ${body}`,
     createdAt: new Date().toISOString(),
   });
+
+  try {
+    await sendSupportMessageEmail({
+      to: admin.email,
+      topicLabel: topicLabel(topic),
+      message: body,
+      senderName: user.name,
+      senderEmail: user.email,
+    });
+  } catch (error) {
+    logger.error("support_message_email_failed", { error });
+  }
 
   revalidatePath("/support/help-center");
   revalidatePath("/admin/support");
