@@ -32,11 +32,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.4,
     })),
-    ...properties.map((property) => ({
-      url: `${baseUrl}/rooms/${property.id}`,
-      lastModified: new Date(property.createdAt ?? new Date()),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    })),
+    ...properties
+      .filter((property) => property.status === "approved")
+      .map((property) => ({
+        url: `${baseUrl}/rooms/${property.id}`,
+        lastModified: new Date(property.createdAt ?? new Date()),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      })),
   ];
 }

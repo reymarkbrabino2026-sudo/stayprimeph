@@ -26,6 +26,9 @@ import {
 } from "lucide-react";
 import { SiteFooter } from "@/components/home/site-footer";
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
+import { JsonLd } from "@/components/seo/json-ld";
+import { env } from "@/lib/env";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
@@ -81,10 +84,19 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: { canonical: `/rooms/${property.id}` },
     openGraph: {
       title,
       description,
+      type: "website",
+      url: `/rooms/${property.id}`,
       images: isRenderableImage(image) ? [{ url: image! }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: isRenderableImage(image) ? [image!] : undefined,
     },
   };
 }
@@ -158,8 +170,52 @@ export default async function RoomPage({
     { label: property.title },
   ];
 
+  const listingUrl = `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`;
+  const listingImages = property.images
+    .map((img) => img.imageUrl)
+    .filter((url) => isRenderableImage(url))
+    .map((url) => (url.startsWith("http") ? url : `${env.NEXT_PUBLIC_APP_URL}${url}`));
+
+  const listingJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: property.title,
+    description: property.description,
+    ...(listingImages.length ? { image: listingImages } : {}),
+    brand: { "@type": "Brand", name: "StayPrime PH" },
+    offers: {
+      "@type": "Offer",
+      price: calculateGuestPriceWithMarkup(property.pricePerNight),
+      priceCurrency: property.currency || "PHP",
+      availability: "https://schema.org/InStock",
+      url: listingUrl,
+    },
+    ...(propertyReviews.length
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: Number(averageRating),
+            reviewCount: propertyReviews.length,
+          },
+        }
+      : {}),
+  };
+
+  const breadcrumbJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.label,
+      ...(item.href ? { item: `${env.NEXT_PUBLIC_APP_URL}${item.href}` } : {}),
+    })),
+  };
+
   return (
     <div className="bg-[#fbfaf7] text-[#1f1f1f]">
+      <JsonLd data={listingJsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
       <Navbar transparentOnTop hideBottomNav />
 
       <main>

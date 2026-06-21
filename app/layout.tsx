@@ -1,8 +1,36 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { SmoothScroll } from "@/components/smooth-scroll";
+import { JsonLd } from "@/components/seo/json-ld";
 import { env } from "@/lib/env";
 import "./globals.css";
+
+const siteUrl = env.NEXT_PUBLIC_APP_URL;
+
+const organizationLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "StayPrime PH",
+  url: siteUrl,
+  logo: `${siteUrl}/icon.svg`,
+  description:
+    "Book affordable staycations, vacation rentals, condos, and short-term stays across the Philippines.",
+};
+
+const websiteLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "StayPrime PH",
+  url: siteUrl,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${siteUrl}/search?location={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
@@ -67,6 +95,8 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <JsonLd data={organizationLd} />
+        <JsonLd data={websiteLd} />
         <SmoothScroll />
         {children}
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled" ? <Analytics /> : null}
