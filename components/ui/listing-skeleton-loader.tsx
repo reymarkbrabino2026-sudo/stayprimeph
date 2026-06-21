@@ -1,71 +1,54 @@
+import { Globe, Menu, Search } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
 const cards = Array.from({ length: 14 }, (_, index) => index);
-const navItems = Array.from({ length: 3 }, (_, index) => index);
-
-function SkeletonBlock({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded-full bg-black/[0.08] ${className}`} />;
-}
 
 function SkeletonCard() {
   return (
     <article className="min-w-0">
-      <div className="aspect-[1.05] rounded-2xl bg-black/[0.08]" />
-      <div className="mt-3 space-y-2">
-        <SkeletonBlock className="h-4 w-3/4" />
-        <SkeletonBlock className="h-4 w-1/2" />
-      </div>
+      <div className="sk-block aspect-[1.03] rounded-2xl" />
+      <div className="sk-block mt-3 h-3.5 w-3/4 rounded-full" />
+      <div className="sk-block mt-2 h-3.5 w-1/2 rounded-full" />
     </article>
   );
 }
 
 export function ListingSkeletonLoader() {
   return (
-    <main className="min-h-screen bg-white text-[#1f1b16]">
-      <header className="border-b border-black/10 px-6 py-6 sm:px-10 lg:px-12">
-        <div className="flex items-center justify-between gap-4">
-          <BrandLogo className="h-7 w-auto" priority />
-          <div className="hidden items-center gap-8 md:flex">
-            {navItems.map((item) => (
-              <div key={item} className="flex items-center gap-3">
-                <SkeletonBlock className="size-9" />
-                <SkeletonBlock className={item === 1 ? "h-4 w-20" : "h-4 w-12"} />
-              </div>
-            ))}
+    <main role="status" aria-label="Loading" className="min-h-screen bg-white text-[#1f1b16]">
+      <span className="sr-only">Loading…</span>
+
+      {/* Solid header — stays real, only the search pill is skeletonized */}
+      <header className="sticky top-0 z-50 border-b border-black/10 bg-white">
+        <div className="flex h-[72px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-12">
+          <BrandLogo className="h-9 w-auto" />
+
+          <div className="hidden h-12 w-[min(24rem,42vw)] items-center gap-3 rounded-full border border-black/10 pl-5 pr-2 shadow-[0_2px_10px_rgb(0_0_0_/_0.08)] md:flex">
+            <span className="sk-block h-3 w-20 rounded-full" />
+            <span className="h-5 w-px bg-black/10" />
+            <span className="sk-block h-3 w-14 rounded-full" />
+            <span className="h-5 w-px bg-black/10" />
+            <span className="sk-block h-3 w-14 rounded-full" />
+            <span className="ml-auto grid size-9 shrink-0 place-items-center rounded-full bg-[#083f35] text-white">
+              <Search size={16} strokeWidth={3} />
+            </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm font-semibold sm:inline">Become a host</span>
-            <SkeletonBlock className="size-10" />
-            <SkeletonBlock className="size-10" />
+
+          <div className="flex items-center gap-2">
+            <span className="hidden text-sm font-medium sm:inline">Become a host</span>
+            <span className="hidden size-10 place-items-center rounded-full border border-black/10 text-black/60 sm:grid">
+              <Globe size={18} />
+            </span>
+            <span className="grid size-10 place-items-center rounded-full border border-black/10 text-black/60">
+              <Menu size={18} />
+            </span>
           </div>
         </div>
-
-        <section className="mx-auto mt-8 max-w-4xl rounded-full bg-white px-5 py-4 shadow-[0_8px_35px_rgb(0_0_0_/_0.16)] ring-1 ring-black/10">
-          <div className="grid items-center gap-4 sm:grid-cols-[1fr_1px_1fr_1px_1fr_auto]">
-            <div className="space-y-2">
-              <SkeletonBlock className="h-4 w-10" />
-              <SkeletonBlock className="h-4 w-44 max-w-full" />
-            </div>
-            <span className="hidden h-9 w-px bg-black/10 sm:block" />
-            <div className="space-y-2">
-              <SkeletonBlock className="h-4 w-10" />
-              <SkeletonBlock className="h-4 w-24" />
-            </div>
-            <span className="hidden h-9 w-px bg-black/10 sm:block" />
-            <div className="space-y-2">
-              <SkeletonBlock className="h-4 w-10" />
-              <SkeletonBlock className="h-4 w-24" />
-            </div>
-            <div className="grid size-12 place-items-center rounded-full bg-[#083f35] text-white">
-              <span className="size-5 animate-pulse rounded-full border-2 border-white/50" />
-            </div>
-          </div>
-        </section>
       </header>
 
-      <section className="px-6 py-10 sm:px-10 lg:px-12">
-        <SkeletonBlock className="mb-4 h-7 w-40 rounded-xl" />
-        <div className="grid gap-x-3 gap-y-12 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+      <section className="px-4 py-8 sm:px-6 lg:px-12">
+        <div className="sk-block mb-6 h-5 w-44 rounded-lg" />
+        <div className="grid gap-x-4 gap-y-9 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
           {cards.map((card) => (
             <SkeletonCard key={card} />
           ))}
