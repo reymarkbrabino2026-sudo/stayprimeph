@@ -7,27 +7,48 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: {
-    default: "StayPrimePH | Homes, stays, and host tools in the Philippines",
-    template: "%s | StayPrimePH",
+    default: "StayPrime PH | Book Staycations, Vacation Rentals & Short-Term Stays in the Philippines",
+    template: "%s | StayPrime PH",
   },
-  description: "Book stays across the Philippines, create host listings, and manage marketplace operations from one modern vacation rental platform.",
-  applicationName: "StayPrimePH",
-  keywords: ["Philippines stays", "Philippines stays", "vacation rentals", "booking marketplace", "host dashboard"],
+  description:
+    "Find affordable staycations, vacation rentals, condos, private homes, and short-term stays across the Philippines. Book your next stay easily with StayPrime PH.",
+  applicationName: "StayPrime PH",
+  keywords: [
+    "vacation rentals Philippines",
+    "staycation Philippines",
+    "short term rentals Philippines",
+    "condo rental Philippines",
+    "affordable staycation Philippines",
+    "private vacation homes",
+    "furnished rentals",
+    "holiday rentals",
+    "monthly rentals",
+    "Airbnb alternative Philippines",
+    "Manila staycation",
+    "Tagaytay staycation",
+    "Cebu vacation rentals",
+    "Boracay vacation rentals",
+    "Baguio staycation",
+    "book a place to stay",
+    "places to stay near me",
+  ],
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "StayPrimePH | Homes, stays, and host tools in the Philippines",
-    description: "Book stays, publish listings, and manage a modern marketplace for guests, hosts, and admins.",
+    title: "StayPrime PH | Book Staycations, Vacation Rentals & Short-Term Stays in the Philippines",
+    description:
+      "Find affordable staycations, vacation rentals, condos, private homes, and short-term stays across the Philippines. Book your next stay easily with StayPrime PH.",
     url: env.NEXT_PUBLIC_APP_URL,
-    siteName: "StayPrimePH",
+    siteName: "StayPrime PH",
     locale: "en_PH",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "StayPrimePH",
-    description: "Vacation rental marketplace for guests, hosts, and admins.",
+    title: "StayPrime PH | Staycations & Vacation Rentals in the Philippines",
+    description:
+      "Affordable staycations, vacation rentals, condos, and short-term stays across the Philippines. Book easily with StayPrime PH.",
   },
   manifest: "/manifest.webmanifest",
 };

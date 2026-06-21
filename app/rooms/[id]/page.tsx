@@ -25,6 +25,7 @@ import {
   Wind,
 } from "lucide-react";
 import { SiteFooter } from "@/components/home/site-footer";
+import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
@@ -150,6 +151,13 @@ export default async function RoomPage({
     ["What is the cancellation policy?", "Free cancellation for 48 hours after booking. After that the host's cancellation rules apply."],
   ];
 
+  const breadcrumbItems: Crumb[] = [
+    { label: property.country || "Philippines", href: "/search" },
+    ...(property.city ? [{ label: property.city, href: `/search?location=${encodeURIComponent(property.city)}` }] : []),
+    ...(property.barangay ? [{ label: property.barangay, href: `/search?location=${encodeURIComponent(property.barangay)}` }] : []),
+    { label: property.title },
+  ];
+
   return (
     <div className="bg-[#fbfaf7] text-[#1f1f1f]">
       <Navbar transparentOnTop hideBottomNav />
@@ -172,6 +180,7 @@ export default async function RoomPage({
         </section>
 
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+          <Breadcrumbs items={breadcrumbItems} className="pt-6 sm:pt-8" />
           {/* Intro */}
           <section id="overview" className="scroll-mt-32 border-b border-black/10 py-16 text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#8a6a3f]">The retreat</p>
