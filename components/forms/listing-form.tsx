@@ -62,7 +62,7 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
           ))}
         </div>
         <button type="submit" className="min-h-12 w-full rounded-2xl bg-[#21170f] px-5 py-3 font-semibold text-white sm:w-auto">
-          {mode} listing
+          {canCreate ? "Create listing" : "Save changes"}
         </button>
       </div>
       <div className="space-y-4">
