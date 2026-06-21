@@ -857,6 +857,7 @@ function OperationsDashboard({
     assignedTo: string;
     department: OperationDepartment;
     due: string;
+    href: string;
     id: string;
     priority: OperationPriority;
     property: string;
@@ -1040,7 +1041,15 @@ function OperationsDashboard({
                         <td className="px-4 py-4 font-semibold">{task.due}</td>
                         <td className="px-4 py-4"><OperationPill label={task.status} tone={operationStatusTone(task.status)} /></td>
                         <td className="px-4 py-4">{task.assignedTo}</td>
-                        <td className="px-4 py-4 text-right"><MoreVertical className="ml-auto size-4 text-black/45" aria-hidden="true" /></td>
+                        <td className="px-4 py-4 text-right">
+                          <Link
+                            href={task.href}
+                            aria-label={`Open ${task.task} in bookings or calendar`}
+                            className="ml-auto grid size-8 place-items-center rounded-lg border border-black/10 text-black/55 transition hover:bg-black/[0.05] hover:text-black/70"
+                          >
+                            <MoreVertical className="size-4" aria-hidden="true" />
+                          </Link>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1048,7 +1057,7 @@ function OperationsDashboard({
               </div>
               <div className="grid gap-3 p-4 md:hidden">
                 {filteredTasks.slice(0, 6).map((task) => (
-                  <article key={`${task.id}-mobile`} className="rounded-2xl border border-black/10 p-4">
+                  <Link key={`${task.id}-mobile`} href={task.href} className="block rounded-2xl border border-black/10 p-4 transition active:bg-black/[0.03]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h4 className="break-words font-bold">{task.task}</h4>
@@ -1062,7 +1071,7 @@ function OperationsDashboard({
                       <div><p className="text-xs text-black/45">Priority</p><OperationPill label={task.priority} tone={operationPriorityTone(task.priority)} /></div>
                       <div><p className="text-xs text-black/45">Assigned</p><p className="font-semibold">{task.assignedTo}</p></div>
                     </div>
-                  </article>
+                  </Link>
                 ))}
               </div>
             </>
@@ -2096,6 +2105,7 @@ export default async function HostErpSectionPage({
       assignedTo: "Unassigned",
       department: "front_office" as OperationDepartment,
       due: displayTime(bookingCheckInTime(booking, scopedProperties)),
+      href: `/host/bookings?booking=${encodeURIComponent(booking.id)}`,
       id: `${booking.id}-arrival`,
       priority: "High" as OperationPriority,
       property: propertyTitle(properties, booking.propertyId),
@@ -2106,6 +2116,7 @@ export default async function HostErpSectionPage({
       assignedTo: "Unassigned",
       department: "housekeeping" as OperationDepartment,
       due: booking.checkOut === today ? displayTime(bookingCheckOutTime(booking, scopedProperties)) : compactDate(booking.checkOut),
+      href: `/host/bookings?booking=${encodeURIComponent(booking.id)}`,
       id: `${booking.id}-cleaning`,
       priority: booking.checkOut === today ? ("High" as OperationPriority) : ("Medium" as OperationPriority),
       property: propertyTitle(properties, booking.propertyId),
@@ -2116,6 +2127,7 @@ export default async function HostErpSectionPage({
       assignedTo: "Unassigned",
       department: "maintenance" as OperationDepartment,
       due: compactDate(block.date),
+      href: `/host/calendar?property=${encodeURIComponent(block.propertyId)}`,
       id: `${block.id}-maintenance`,
       priority: maintenancePriority(block, today, tomorrow),
       property: propertyTitle(properties, block.propertyId),
