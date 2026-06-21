@@ -6,9 +6,17 @@ import { env } from "@/lib/env";
 import { footerPages } from "@/lib/home-data";
 
 export const metadata: Metadata = {
-  title: "Host Hub",
-  description: "Create a listing, learn responsible hosting basics, and manage practical host resources.",
+  title: "List Your Property in the Philippines — Earn From Short-Term Rentals",
+  description:
+    "List your condo, house, or private resort on StayPrime PH and earn from short-term and staycation rentals. A simple property listing platform and Airbnb alternative for hosts in the Philippines.",
   alternates: { canonical: `${env.NEXT_PUBLIC_APP_URL}/hosting` },
+  openGraph: {
+    title: "List Your Property in the Philippines | StayPrime PH",
+    description:
+      "Rent out your condo, house, or resort and earn from short-term rentals. The property listing platform and Airbnb alternative for hosts in the Philippines.",
+    url: `${env.NEXT_PUBLIC_APP_URL}/hosting`,
+    type: "website",
+  },
 };
 
 export default function HostingIndexPage() {
@@ -20,12 +28,14 @@ export default function HostingIndexPage() {
       <main className="mx-auto min-h-[70vh] max-w-6xl px-4 py-10 sm:px-6 md:py-16">
         <section className="grid gap-8 rounded-[2rem] bg-[#f7f7f7] p-6 sm:p-8 md:grid-cols-[1fr_0.8fr] md:p-10">
           <div>
-            <p className="text-sm font-semibold text-rose-600">Hosting</p>
+            <p className="text-sm font-semibold text-rose-600">For hosts</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-              Turn your space into a stay guests can trust.
+              List your property in the Philippines and earn from short-term rentals
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-black/65 sm:text-lg">
-              Build a clear listing, upload useful photos, set pricing, choose rules, and submit for admin approval.
+              Rent out your condo, house, or private resort on StayPrime — a simple property listing platform and Airbnb
+              alternative for hosts in the Philippines. Create a listing, set your pricing, and start earning from staycations
+              and short-term stays.
             </p>
             <Link
               href="/become-a-host/setup"

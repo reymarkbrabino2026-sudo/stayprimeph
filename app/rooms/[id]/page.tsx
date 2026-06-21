@@ -212,10 +212,21 @@ export default async function RoomPage({
     })),
   };
 
+  const faqJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(([question, answer]) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  };
+
   return (
     <div className="bg-[#fbfaf7] text-[#1f1f1f]">
       <JsonLd data={listingJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
+      <JsonLd data={faqJsonLd} />
       <Navbar transparentOnTop hideBottomNav />
 
       <main>
