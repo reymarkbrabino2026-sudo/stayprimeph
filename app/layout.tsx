@@ -79,6 +79,11 @@ export const metadata: Metadata = {
       "Affordable staycations, vacation rentals, condos, and short-term stays across the Philippines. Book easily with StayPrime PH.",
   },
   manifest: "/manifest.webmanifest",
+  verification: {
+    // Set GOOGLE_SITE_VERIFICATION in Vercel to the code from Search Console
+    // ("HTML tag" method) to verify domain ownership. Omitted when unset.
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
 };
 
 export const viewport: Viewport = {
