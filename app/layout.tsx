@@ -80,9 +80,9 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   verification: {
-    // Set GOOGLE_SITE_VERIFICATION in Vercel to the code from Search Console
-    // ("HTML tag" method) to verify domain ownership. Omitted when unset.
-    google: process.env.GOOGLE_SITE_VERIFICATION,
+    // Google Search Console domain verification ("HTML tag" method). The token
+    // is a public meta tag; GOOGLE_SITE_VERIFICATION can override it if rotated.
+    google: process.env.GOOGLE_SITE_VERIFICATION ?? "Owt8FdC5_j7cGkJxf_zcy2ykQkeawtzJQfs1AVx0mpA",
   },
 };
 
