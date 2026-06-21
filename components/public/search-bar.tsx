@@ -60,6 +60,7 @@ export function SearchBar() {
   const [checkIn, setCheckIn] = useState<Date | null>(null);
   const [checkOut, setCheckOut] = useState<Date | null>(null);
   const [guests, setGuests] = useState([0, 0, 0, 0]);
+  const [nearCoords, setNearCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const months = useMemo(() => {
@@ -114,12 +115,27 @@ export function SearchBar() {
     return time > checkIn.getTime() && time < checkOut.getTime();
   }
 
+  function requestNearby() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setNearCoords(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => setNearCoords({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => setNearCoords(null),
+      { timeout: 8000, maximumAge: 60000 },
+    );
+  }
+
   function search() {
     const params = new URLSearchParams();
     params.set("location", location);
     params.set("guests", String(guests[0] + guests[1]));
     if (checkIn) params.set("checkIn", toISODate(checkIn));
     if (checkOut) params.set("checkOut", toISODate(checkOut));
+    if (location === "Nearby" && nearCoords) {
+      params.set("near", `${nearCoords.lat.toFixed(5)},${nearCoords.lng.toFixed(5)}`);
+    }
     router.push(`/search?${params.toString()}`);
   }
 
@@ -190,6 +206,8 @@ export function SearchBar() {
                 type="button"
                 onClick={() => {
                   setLocation(name);
+                  if (name === "Nearby") requestNearby();
+                  else setNearCoords(null);
                   setPanel("when");
                 }}
                 className="flex min-h-14 w-full items-center gap-4 rounded-2xl p-2 text-left active:bg-black/[0.04] md:hover:bg-black/[0.04]"

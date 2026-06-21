@@ -9,10 +9,21 @@ import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizeProp
 
 export const revalidate = 60;
 
+type LatLng = { lat: number; lng: number };
+
+function distanceKm(from: LatLng, property: { latitude?: number; longitude?: number }) {
+  if (!Number.isFinite(property.latitude) || !Number.isFinite(property.longitude)) return Number.POSITIVE_INFINITY;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(property.latitude! - from.lat);
+  const dLng = toRad(property.longitude! - from.lng);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.lat)) * Math.cos(toRad(property.latitude!)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
+
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ location?: string; guests?: string; type?: string; minPrice?: string; maxPrice?: string; beds?: string; amenities?: string }>;
+  searchParams: Promise<{ location?: string; guests?: string; type?: string; minPrice?: string; maxPrice?: string; beds?: string; amenities?: string; near?: string }>;
 }) {
   const query = await searchParams;
   const approved = await getPublicListingSummaries();
@@ -49,6 +60,14 @@ export default async function SearchPage({
     .map((value) => ({ value, label: typeLabels[value] ?? value.charAt(0).toUpperCase() + value.slice(1) }));
   const availableAmenities = Array.from(new Set(approved.flatMap((property) => property.amenities))).sort();
 
+  const nearParts = (query.near ?? "").split(",").map(Number);
+  const nearPoint: LatLng | null = nearParts.length === 2 && nearParts.every(Number.isFinite)
+    ? { lat: nearParts[0], lng: nearParts[1] }
+    : null;
+  const orderedResults = nearPoint
+    ? [...results].sort((a, b) => distanceKm(nearPoint, a) - distanceKm(nearPoint, b))
+    : results;
+
   return (
     <div className="bg-white">
       <div className="border-b">
@@ -76,7 +95,7 @@ export default async function SearchPage({
 
           <div className="py-6">
             <p className="text-sm text-black/55">{results.length} places available</p>
-            <h1 className="mt-1 text-2xl font-semibold">{locationLabel ? `Stays near ${locationLabel}` : "Available stays"}</h1>
+            <h1 className="mt-1 text-2xl font-semibold">{nearPoint ? "Stays near you" : locationLabel ? `Stays near ${locationLabel}` : "Available stays"}</h1>
           </div>
 
           {results.length === 0 ? (
@@ -96,7 +115,7 @@ export default async function SearchPage({
             </div>
           ) : (
             <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
-              {results.map((property, index) => (
+              {orderedResults.map((property, index) => (
                 <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
               ))}
             </div>
@@ -105,7 +124,7 @@ export default async function SearchPage({
 
         <aside className="hidden border-l lg:block">
           <div className="sticky top-0 h-screen p-6">
-            <DeferredRealMap properties={results} location={query.location} />
+            <DeferredRealMap properties={orderedResults} location={query.location} />
           </div>
         </aside>
       </main>
