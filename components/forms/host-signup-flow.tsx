@@ -12,19 +12,18 @@ export function HostSignupFlow({ error, message }: { error?: string; message?: s
   const [details, setDetails] = useState({ firstName: "", lastName: "", birthDate: "", email: "", password: "" });
 
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="flex min-h-dvh flex-col bg-white">
       <Navbar />
 
-      <section className="relative min-h-[32rem] overflow-hidden border-b bg-[#06302a]">
-        <div aria-hidden="true" className="absolute inset-0">
-          <div className="absolute -left-28 -top-24 size-[26rem] rounded-full bg-[#0f7a65] opacity-50 blur-[120px]" />
-          <div className="absolute -right-32 top-8 size-[32rem] rounded-full bg-[#1aa088] opacity-40 blur-[130px]" />
-          <div className="absolute -bottom-40 left-1/4 size-[34rem] rounded-full bg-[#c9a15a] opacity-25 blur-[140px]" />
-          <div className="absolute bottom-0 right-1/4 size-[22rem] rounded-full bg-[#0b5d4e] opacity-50 blur-[110px]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,255,255,0.10),transparent_55%)]" />
-        </div>
+      <section className="relative flex min-h-[44rem] flex-1 items-center justify-center overflow-hidden border-b p-4 sm:p-6">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/become-a-host-bg.webp')" }}
+        />
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-[#06302a]/65 via-[#06302a]/40 to-[#06302a]/75" />
 
-        <div className="relative z-10 flex min-h-[32rem] items-center justify-center p-4 sm:p-6">
+        <div className="relative z-10 w-full max-w-lg">
           {step === "details" ? (
             <div className="max-h-[min(76vh,40rem)] w-full max-w-lg overflow-y-auto rounded-[2rem] bg-white p-5 shadow-[0_18px_60px_rgb(0_0_0_/_0.2)] sm:p-6">
               <div className="flex items-center justify-between">
