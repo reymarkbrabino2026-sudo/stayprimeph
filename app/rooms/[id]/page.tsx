@@ -294,7 +294,7 @@ export default async function RoomPage({
           <section id="reviews" className="scroll-mt-32 py-16">
             <SectionHeader
               eyebrow="Reviews"
-              title={`${averageRating} guest score`}
+              title={propertyReviews.length ? `${averageRating} guest score` : "Be the first to review"}
               body={
                 propertyReviews.length
                   ? `${propertyReviews.length} guest note${propertyReviews.length === 1 ? "" : "s"} from recent stays.`
