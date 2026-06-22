@@ -1676,7 +1676,7 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
   await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({
       where: { bookingId },
-      select: { paymentMethod: true, transactionId: true },
+      select: { paymentMethod: true, transactionId: true, amount: true },
     });
     if (!payment) throw new Error("No submitted payment is waiting for verification.");
 
@@ -1690,14 +1690,19 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
     });
     if (duplicatePayment) throw new Error(duplicatePaymentReferenceMessage);
 
-    const booking = await tx.booking.update({
+    const bookingRow = await tx.booking.findUnique({ where: { id: bookingId }, select: { totalPrice: true } });
+    const totalPrice = bookingRow?.totalPrice ?? payment.amount;
+    const isPartial = payment.amount < totalPrice;
+    const confirmedStatus = isPartial ? "partially_paid" : "paid";
+
+    await tx.booking.update({
       where: { id: bookingId },
-      data: { status: "confirmed", paymentStatus: "paid" },
+      data: { status: "confirmed", paymentStatus: confirmedStatus },
     });
     await tx.$executeRaw`
       UPDATE "Payment"
       SET
-        "paymentStatus" = ${"paid"},
+        "paymentStatus" = ${confirmedStatus},
         "confirmedBy" = ${confirmedBy},
         "confirmedAt" = ${now},
         "rejectionReason" = NULL,
@@ -1705,13 +1710,16 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
         "updatedAt" = ${now}
       WHERE "bookingId" = ${bookingId}
     `;
-    await recordPlatformLedgerEntry(tx, {
-      bookingId,
-      paymentId: `payment-${bookingId}`,
-      totalPrice: booking.totalPrice,
-      source: "manual_payment",
-      createdAt: now,
-    });
+    // Only bank the platform's cut once the booking is paid in full.
+    if (!isPartial) {
+      await recordPlatformLedgerEntry(tx, {
+        bookingId,
+        paymentId: `payment-${bookingId}`,
+        totalPrice,
+        source: "manual_payment",
+        createdAt: now,
+      });
+    }
     await insertAuditLog(tx, auditLogData({
       actorId: confirmedBy,
       actorRole: confirmedByRole,

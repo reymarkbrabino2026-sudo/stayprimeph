@@ -67,6 +67,7 @@ export function PayNowButton({
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(submitManualPaymentDetails, initialState);
+  const [amount, setAmount] = useState(() => (payment?.paymentStatus === "rejected" ? payment.amount : booking.totalPrice));
   const isSubmitted = payment?.paymentStatus === "submitted";
   const isRejected = payment?.paymentStatus === "rejected";
   const defaultPaymentMethod =
@@ -188,16 +189,36 @@ export function PayNowButton({
               </label>
 
               <label className="block">
+                <span className="text-sm font-semibold">Payment option</span>
+                <select
+                  defaultValue="100"
+                  onChange={(event) => setAmount(Math.round((booking.totalPrice * Number(event.target.value)) / 100))}
+                  className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                >
+                  <option value="100">Full payment (100%)</option>
+                  <option value="50">50% downpayment</option>
+                  <option value="30">30% downpayment</option>
+                </select>
+              </label>
+
+              <label className="block">
                 <span className="text-sm font-semibold">Amount paid</span>
                 <input
                   name="amount"
                   type="number"
                   min={1}
+                  max={booking.totalPrice}
                   step={1}
-                  defaultValue={payment?.paymentStatus === "rejected" ? payment.amount : booking.totalPrice}
+                  value={amount}
+                  onChange={(event) => setAmount(Number(event.target.value))}
                   className="mt-2 min-h-12 w-full rounded-xl border px-3"
                   required
                 />
+                {amount > 0 && amount < booking.totalPrice ? (
+                  <span className="mt-2 block text-xs font-medium text-amber-700">
+                    Remaining balance after this payment: {formatCurrency(booking.totalPrice - amount)}
+                  </span>
+                ) : null}
               </label>
 
               <label className="block">

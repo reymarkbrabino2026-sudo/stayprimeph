@@ -2,7 +2,7 @@ export type UserRole = "guest" | "host" | "admin";
 export type ListingStatus = "approved" | "pending" | "rejected" | "draft";
 export type BookingStatus = "confirmed" | "pending" | "cancelled" | "completed";
 export type PaymentMethod = "stripe" | "gcash" | "bank_transfer" | "other";
-export type PaymentStatus = "paid" | "pending" | "submitted" | "rejected" | "refunded";
+export type PaymentStatus = "paid" | "partially_paid" | "pending" | "submitted" | "rejected" | "refunded";
 export type AvailabilityBlockReason = "booked_elsewhere" | "owner_use" | "maintenance" | "other";
 
 export interface User { id: string; name: string; email: string; role: UserRole; avatar: string; phone: string; createdAt: string; passwordHash?: string; emailVerifiedAt?: string; passwordChangedAt?: string; }

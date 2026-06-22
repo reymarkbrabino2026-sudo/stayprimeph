@@ -116,7 +116,7 @@ export async function submitManualPayment({
   if (booking.status === "cancelled") throw new Error("Cancelled bookings cannot be paid.");
   if (booking.status === "completed") throw new Error("Completed bookings cannot accept new payment details.");
   if (booking.paymentStatus === "paid") throw new Error("This booking is already paid.");
-  if (paymentInput.amount !== booking.totalPrice) throw new Error("Submitted payment amount does not match the booking total.");
+  if (paymentInput.amount > booking.totalPrice) throw new Error("Submitted amount cannot exceed the booking total.");
 
   const existingPayment = await getPaymentByBookingId(booking.id);
   if (existingPayment && existingPayment.paymentStatus !== "rejected") {
@@ -175,8 +175,8 @@ async function confirmSubmittedManualPayment({
   if (!payment || payment.paymentStatus !== "submitted") {
     throw new Error("No submitted payment is waiting for verification.");
   }
-  if (payment.amount !== booking.totalPrice) {
-    throw new Error("Submitted payment amount does not match the booking total.");
+  if (payment.amount > booking.totalPrice) {
+    throw new Error("Submitted payment amount cannot exceed the booking total.");
   }
 
   if (usesPrismaPersistence()) {
@@ -191,10 +191,11 @@ async function confirmSubmittedManualPayment({
     paymentMethod: payment.paymentMethod,
     transactionId: payment.transactionId,
   });
-  const platformAmount = calculateStayprimeMarkupFromTotal(booking.totalPrice);
+  const isPartialPayment = payment.amount < booking.totalPrice;
+  const confirmedStatus = isPartialPayment ? "partially_paid" : "paid";
   await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
     ...item,
-    paymentStatus: "paid",
+    paymentStatus: confirmedStatus,
     confirmedBy: actorId,
     confirmedAt: now,
     rejectedAt: undefined,
@@ -203,25 +204,28 @@ async function confirmSubmittedManualPayment({
   } : item));
   await writeStoredBookings(updateBookingPaymentState(bookings, booking.id, {
     status: "confirmed",
-    paymentStatus: "paid",
+    paymentStatus: confirmedStatus,
   }));
 
-  const ledger = await readStoredPlatformLedger();
-  const entry = {
-    id: `platform-${booking.id}`,
-    bookingId: booking.id,
-    paymentId: payment.id,
-    amount: platformAmount,
-    source: "manual_payment" as const,
-    destination: "stayprime_bank" as const,
-    status: "banked" as const,
-    createdAt: now,
-  };
-  await writeStoredPlatformLedger(
-    ledger.some((item) => item.bookingId === booking.id)
-      ? ledger.map((item) => (item.bookingId === booking.id ? entry : item))
-      : [entry, ...ledger],
-  );
+  // Only bank the platform's cut once the booking is paid in full.
+  if (!isPartialPayment) {
+    const ledger = await readStoredPlatformLedger();
+    const entry = {
+      id: `platform-${booking.id}`,
+      bookingId: booking.id,
+      paymentId: payment.id,
+      amount: calculateStayprimeMarkupFromTotal(booking.totalPrice),
+      source: "manual_payment" as const,
+      destination: "stayprime_bank" as const,
+      status: "banked" as const,
+      createdAt: now,
+    };
+    await writeStoredPlatformLedger(
+      ledger.some((item) => item.bookingId === booking.id)
+        ? ledger.map((item) => (item.bookingId === booking.id ? entry : item))
+        : [entry, ...ledger],
+    );
+  }
   await appendAuditLog({
     actorId,
     actorRole,
