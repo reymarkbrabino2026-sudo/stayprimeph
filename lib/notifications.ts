@@ -191,8 +191,24 @@ function addHostNotifications({
   paymentsByBookingId: Map<string, Payment>;
   properties: Property[];
   propertiesById: Map<string, Property>;
+  reviews: Review[];
+  usersById: Map<string, User>;
   user: User;
 }) {
+  for (const review of reviews) {
+    const property = propertiesById.get(review.propertyId);
+    if (!property || property.hostId !== user.id) continue;
+    const guestName = usersById.get(review.guestId)?.name ?? "A guest";
+    notifications.push({
+      id: `host-review:${review.id}`,
+      title: "New guest review",
+      body: `${guestName} left a ${review.rating}-star review on ${property.title}.`,
+      href: `/rooms/${review.propertyId}`,
+      createdAt: review.createdAt,
+      category: "activity",
+    });
+  }
+
   for (const booking of bookings) {
     if (booking.hostId !== user.id) continue;
     const title = propertyTitle(propertiesById, booking.propertyId);
@@ -394,7 +410,7 @@ export async function getNotificationsForUser(user: User, limit = 25): Promise<A
     getProperties(),
     getUsers(),
     user.role === "admin" ? getAuditLogs(25) : Promise.resolve([]),
-    user.role === "guest" ? getReviews() : Promise.resolve<Review[]>([]),
+    user.role === "guest" || user.role === "host" ? getReviews() : Promise.resolve<Review[]>([]),
   ]);
 
   const notifications: ActivityNotification[] = [];
@@ -418,7 +434,7 @@ export async function getNotificationsForUser(user: User, limit = 25): Promise<A
   }
 
   if (user.role === "host") {
-    addHostNotifications({ notifications, bookings, paymentsByBookingId, properties, propertiesById, user });
+    addHostNotifications({ notifications, bookings, paymentsByBookingId, properties, propertiesById, reviews, usersById, user });
   }
 
   if (user.role === "admin") {
