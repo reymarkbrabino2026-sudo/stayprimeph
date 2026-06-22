@@ -128,6 +128,7 @@ export function SearchBar() {
   }
 
   function search() {
+    setPanel(null);
     const params = new URLSearchParams();
     params.set("location", location);
     params.set("guests", String(guests[0] + guests[1]));
