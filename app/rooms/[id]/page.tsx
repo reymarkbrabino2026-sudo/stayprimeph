@@ -398,8 +398,15 @@ export default async function RoomPage({
                             <p className="text-sm text-black/50">{formatDate(review.createdAt)}</p>
                           </div>
                         </div>
-                        <span className="inline-flex items-center gap-1 font-semibold text-[#083f35]">
-                          <Star size={15} fill="currentColor" /> {review.rating}
+                        <span className="inline-flex items-center gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
+                          {Array.from({ length: 5 }, (_, index) => (
+                            <Star
+                              key={index}
+                              size={16}
+                              fill={index < review.rating ? "currentColor" : "none"}
+                              className={index < review.rating ? "text-[#083f35]" : "text-black/20"}
+                            />
+                          ))}
                         </span>
                       </div>
                     </article>
