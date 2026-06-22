@@ -5,6 +5,7 @@ import { SearchBar } from "@/components/public/search-bar";
 import { DeferredRealMap } from "@/components/search/deferred-real-map";
 import { SearchFilters } from "@/components/search/search-filters";
 import { SearchResultCard } from "@/components/search/search-result-card";
+import { SearchResultsLayout } from "@/components/search/search-results-layout";
 import { getPublicListingSummaries } from "@/lib/properties";
 import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
 
@@ -85,58 +86,54 @@ export default async function SearchPage({
         </div>
       </div>
 
-      <main className="flex flex-col lg:min-h-[calc(100vh-150px)] lg:flex-row">
-        {/* Map: at the top on mobile (scroll down for results), sticky sidebar on desktop */}
-        <div className="order-1 border-b lg:order-2 lg:w-[42%] lg:border-b-0 lg:border-l xl:w-[44%]">
-          <div className="h-[45vh] p-3 sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:p-6">
-            <DeferredRealMap properties={orderedResults} location={query.location} />
-          </div>
-        </div>
-
-        <section className="order-2 min-w-0 flex-1 px-4 pb-24 pt-5 sm:px-6 lg:order-1 lg:px-8 lg:pb-10">
-          <div className="border-b pb-5">
-            <SearchFilters
-              types={availableTypes}
-              amenities={availableAmenities}
-              current={{
-                type: typeFilter,
-                minPrice: query.minPrice ?? "",
-                maxPrice: query.maxPrice ?? "",
-                beds: query.beds ?? "",
-                amenities: amenityFilter,
-              }}
-            />
-          </div>
-
-          <div className="py-6">
-            <p className="text-sm text-black/55">{results.length} places available</p>
-            <h1 className="mt-1 text-2xl font-semibold">{nearPoint ? "Stays near you" : locationLabel ? `Stays near ${locationLabel}` : "Available stays"}</h1>
-          </div>
-
-          {results.length === 0 ? (
-            <div className="rounded-[2rem] border border-black/10 bg-[#fbf7f2] p-10 text-center">
-              <h2 className="text-xl font-semibold">
-                {locationLabel ? `No stays in ${locationLabel} yet` : "No stays match your search yet"}
-              </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-black/55">
-                We&apos;re adding new homes across the Philippines all the time. Try a nearby city, or browse everything available right now.
-              </p>
-              <Link
-                href="/search"
-                className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#083f35] px-6 text-sm font-semibold text-white transition hover:bg-[#062f28]"
-              >
-                Browse all stays
-              </Link>
+      <SearchResultsLayout
+        map={<DeferredRealMap properties={orderedResults} location={query.location} />}
+        results={
+          <>
+            <div className="border-b pb-5">
+              <SearchFilters
+                types={availableTypes}
+                amenities={availableAmenities}
+                current={{
+                  type: typeFilter,
+                  minPrice: query.minPrice ?? "",
+                  maxPrice: query.maxPrice ?? "",
+                  beds: query.beds ?? "",
+                  amenities: amenityFilter,
+                }}
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-2">
-              {orderedResults.map((property, index) => (
-                <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
-              ))}
+
+            <div className="py-6">
+              <p className="text-sm text-black/55">{results.length} places available</p>
+              <h1 className="mt-1 text-2xl font-semibold">{nearPoint ? "Stays near you" : locationLabel ? `Stays near ${locationLabel}` : "Available stays"}</h1>
             </div>
-          )}
-        </section>
-      </main>
+
+            {results.length === 0 ? (
+              <div className="rounded-[2rem] border border-black/10 bg-[#fbf7f2] p-10 text-center">
+                <h2 className="text-xl font-semibold">
+                  {locationLabel ? `No stays in ${locationLabel} yet` : "No stays match your search yet"}
+                </h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-black/55">
+                  We&apos;re adding new homes across the Philippines all the time. Try a nearby city, or browse everything available right now.
+                </p>
+                <Link
+                  href="/search"
+                  className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#083f35] px-6 text-sm font-semibold text-white transition hover:bg-[#062f28]"
+                >
+                  Browse all stays
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-2">
+                {orderedResults.map((property, index) => (
+                  <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
+                ))}
+              </div>
+            )}
+          </>
+        }
+      />
     </div>
   );
 }
