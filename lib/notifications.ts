@@ -184,6 +184,8 @@ function addHostNotifications({
   paymentsByBookingId,
   properties,
   propertiesById,
+  reviews,
+  usersById,
   user,
 }: {
   notifications: ActivityNotification[];
