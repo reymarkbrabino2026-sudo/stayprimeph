@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { createBooking } from "@/app/bookings/checkout/[propertyId]/actions";
 import { requireRole } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { CheckoutDates } from "@/components/bookings/checkout-dates";
+import { getAvailabilityBlocksForProperty } from "@/lib/availability";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { arePaidBookingsEnabled } from "@/lib/payments";
@@ -85,6 +87,15 @@ export default async function BookingCheckoutPage({
   const guestSubtotal = calculateGuestPriceWithMarkup(subtotal);
   const guestSavings = guestSubtotal - total;
   const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut);
+  const availabilityBlocks = await getAvailabilityBlocksForProperty(property.id);
+  const unavailableRanges = bookings
+    .filter((item) => item.propertyId === property.id && item.status !== "cancelled")
+    .map((item) => ({ checkIn: item.checkIn, checkOut: item.checkOut }))
+    .concat(
+      availabilityBlocks
+        .filter((block) => block.propertyId === property.id)
+        .map((block) => ({ checkIn: block.date, checkOut: addDays(block.date, 1) })),
+    );
   const image = property.images[0]?.imageUrl;
   const paidBookingsEnabled = arePaidBookingsEnabled();
   const buttonLabel = paidBookingsEnabled && property.rules.includes("Instant book enabled") ? "Confirm and pay" : "Request to book";
@@ -136,30 +147,29 @@ export default async function BookingCheckoutPage({
                   <span className="mt-1 block text-xs text-black/50">{selectedPackage.accessType}</span>
                 </div>
               ) : null}
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <label className="block rounded-2xl border p-4">
-                  <span className="block text-sm font-semibold">{isDayPackage ? "Date" : "Check-in"}</span>
-                  <span className="mt-1 block text-sm text-black/65">{formatDate(checkIn)}</span>
-                  <span className="mt-1 block text-xs text-black/50">{isDayPackage ? "Starts" : "Check-in"} {checkInTime}</span>
-                  {!isDayPackage ? (
-                    <>
-                      <span className="sr-only">Check-in</span>
-                      <input name="checkIn" type="date" defaultValue={checkIn} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
-                    </>
-                  ) : null}
-                </label>
-                <label className="block rounded-2xl border p-4">
-                  <span className="block text-sm font-semibold">{isDayPackage ? "Ends" : "Check-out"}</span>
-                  <span className="mt-1 block text-sm text-black/65">{formatDate(visibleCheckOutDate)}</span>
-                  <span className="mt-1 block text-xs text-black/50">{isDayPackage ? "Ends" : "Check-out"} {checkOutTime}</span>
-                  {!isDayPackage ? (
-                    <>
-                      <span className="sr-only">Check-out</span>
-                      <input name="checkOut" type="date" defaultValue={checkOut} className="mt-3 min-h-11 w-full rounded-xl border px-3" required />
-                    </>
-                  ) : null}
-                </label>
-              </div>
+              {isDayPackage ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <div className="block rounded-2xl border p-4">
+                    <span className="block text-sm font-semibold">Date</span>
+                    <span className="mt-1 block text-sm text-black/65">{formatDate(checkIn)}</span>
+                    <span className="mt-1 block text-xs text-black/50">Starts {checkInTime}</span>
+                  </div>
+                  <div className="block rounded-2xl border p-4">
+                    <span className="block text-sm font-semibold">Ends</span>
+                    <span className="mt-1 block text-sm text-black/65">{formatDate(visibleCheckOutDate)}</span>
+                    <span className="mt-1 block text-xs text-black/50">Ends {checkOutTime}</span>
+                  </div>
+                </div>
+              ) : (
+                <CheckoutDates
+                  initialCheckIn={checkIn}
+                  initialCheckOut={checkOut}
+                  minDate={today}
+                  unavailableRanges={unavailableRanges}
+                  checkInTime={checkInTime}
+                  checkOutTime={checkOutTime}
+                />
+              )}
               <label className="mt-4 block rounded-2xl border p-4">
                 <span className="block text-sm font-semibold">Guests</span>
                 <span className="mt-1 block text-sm text-black/65">{guests} guest{guests === 1 ? "" : "s"}</span>
