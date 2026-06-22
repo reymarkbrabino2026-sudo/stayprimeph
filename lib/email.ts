@@ -7,7 +7,7 @@ import { isNotificationEmailAllowed, type NotificationEmailKind } from "@/lib/no
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME } from "@/lib/utils";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
-const brandColor = "#ff385c";
+const brandColor = "#083f35";
 const ctaColor = "#004236";
 const textColor = "#222222";
 const mutedColor = "#717171";
@@ -63,7 +63,7 @@ function emailShell(content: string, preview = "StayPrimePH update") {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;">
                 <tr>
                   <td style="padding:0 0 58px;">
-                    <div style="font-size:34px;font-weight:800;color:${brandColor};letter-spacing:-0.2px;">StayPrimePH</div>
+                    <img src="${env.NEXT_PUBLIC_APP_URL}/email-logo.png" width="190" alt="StayPrime PH" style="display:block;height:auto;border:0;outline:none;text-decoration:none;" />
                   </td>
                 </tr>
                 ${content}
