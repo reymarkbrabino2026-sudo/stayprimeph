@@ -130,18 +130,9 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
   }, [markers, destinationMarker]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-[#e9f0ea]">
+    <div className="relative h-full w-full overflow-hidden rounded-none bg-[#e9f0ea] lg:rounded-[2rem]">
       <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0_42%,rgb(255_255_255_/_0.55)_42%_44%,transparent_44%_100%),linear-gradient(25deg,transparent_0_52%,rgb(255_255_255_/_0.5)_52%_54%,transparent_54%_100%),radial-gradient(circle_at_28%_30%,rgb(76_156_111_/_0.32),transparent_16%),radial-gradient(circle_at_70%_58%,rgb(33_150_180_/_0.24),transparent_18%),radial-gradient(circle_at_44%_76%,rgb(232_190_93_/_0.26),transparent_13%)]" />
       <div ref={mapRef} data-lenis-prevent className="relative z-10 h-full w-full" />
-      <div className="pointer-events-none absolute left-4 top-4 z-[400] max-w-[calc(100%-5.5rem)] rounded-2xl bg-white/95 px-4 py-3 text-sm shadow-sm sm:left-6 sm:top-6">
-        <p className="font-semibold">Explore stays on the map</p>
-        <p className="mt-1 text-black/55">
-          {destinationMarker ? destinationMarker.title : `${markers.length} homes across the Philippines`}
-        </p>
-      </div>
-      <div className="pointer-events-none absolute bottom-6 left-1/2 z-[500] -translate-x-1/2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white">
-        Search as I move the map
-      </div>
     </div>
   );
 }

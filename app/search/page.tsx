@@ -32,11 +32,16 @@ function distanceKm(from: LatLng, property: { latitude?: number; longitude?: num
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ location?: string; guests?: string; type?: string; minPrice?: string; maxPrice?: string; beds?: string; amenities?: string; near?: string }>;
+  searchParams: Promise<{ location?: string; guests?: string; checkIn?: string; checkOut?: string; type?: string; minPrice?: string; maxPrice?: string; beds?: string; amenities?: string; near?: string }>;
 }) {
   const query = await searchParams;
   const approved = await getPublicListingSummaries();
   const requestedGuests = Number(query.guests ?? 0);
+
+  const stayRange = query.checkIn && query.checkOut
+    ? `${new Date(`${query.checkIn}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(`${query.checkOut}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+    : "";
+  const mapMetaLabel = [stayRange, requestedGuests > 0 ? `${requestedGuests} guest${requestedGuests === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
   const location = normalizePropertyLocationSearchQuery(query.location);
   const locationLabel = formatSearchLocationLabel(query.location);
 
@@ -87,6 +92,7 @@ export default async function SearchPage({
       </div>
 
       <SearchResultsLayout
+        metaLabel={mapMetaLabel}
         map={<DeferredRealMap properties={orderedResults} location={query.location} />}
         results={
           <>
