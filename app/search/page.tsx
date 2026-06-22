@@ -85,8 +85,15 @@ export default async function SearchPage({
         </div>
       </div>
 
-      <main className="grid min-w-0 min-h-[calc(100vh-150px)] pb-24 md:pb-0 lg:grid-cols-2">
-        <section className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
+      <main className="flex flex-col lg:min-h-[calc(100vh-150px)] lg:flex-row">
+        {/* Map: at the top on mobile (scroll down for results), sticky sidebar on desktop */}
+        <div className="order-1 border-b lg:order-2 lg:w-[42%] lg:border-b-0 lg:border-l xl:w-[44%]">
+          <div className="h-[45vh] p-3 sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:p-6">
+            <DeferredRealMap properties={orderedResults} location={query.location} />
+          </div>
+        </div>
+
+        <section className="order-2 min-w-0 flex-1 px-4 pb-24 pt-5 sm:px-6 lg:order-1 lg:px-8 lg:pb-10">
           <div className="border-b pb-5">
             <SearchFilters
               types={availableTypes}
@@ -122,19 +129,13 @@ export default async function SearchPage({
               </Link>
             </div>
           ) : (
-            <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-2">
               {orderedResults.map((property, index) => (
                 <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
               ))}
             </div>
           )}
         </section>
-
-        <aside className="hidden border-l lg:block">
-          <div className="sticky top-0 h-screen p-6">
-            <DeferredRealMap properties={orderedResults} location={query.location} />
-          </div>
-        </aside>
       </main>
     </div>
   );
