@@ -151,6 +151,28 @@ export function PayNowButton({
               </div>
             </div>
 
+            <div className="mt-5 rounded-2xl border border-[#083f35]/25 bg-[#083f35]/[0.04] p-4">
+              <label className="block">
+                <span className="text-sm font-semibold">How much do you want to pay?</span>
+                <select
+                  defaultValue="100"
+                  onChange={(event) => setAmount(Math.round((booking.totalPrice * Number(event.target.value)) / 100))}
+                  className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                >
+                  <option value="100">Full payment (100%) — {formatCurrency(booking.totalPrice)}</option>
+                  <option value="50">50% downpayment — {formatCurrency(Math.round(booking.totalPrice * 0.5))}</option>
+                  <option value="30">30% downpayment — {formatCurrency(Math.round(booking.totalPrice * 0.3))}</option>
+                </select>
+              </label>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm text-black/60">You&apos;ll pay now</span>
+                <span className="text-xl font-bold text-[#083f35]">{formatCurrency(amount)}</span>
+              </div>
+              {amount > 0 && amount < booking.totalPrice ? (
+                <p className="mt-1 text-right text-xs font-medium text-amber-700">Remaining balance: {formatCurrency(booking.totalPrice - amount)}</p>
+              ) : null}
+            </div>
+
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border p-4">
                 <div className="flex items-center gap-2 font-semibold">
@@ -188,19 +210,6 @@ export function PayNowButton({
                   <option value="gcash">GCash</option>
                   <option value="bank_transfer">Bank transfer</option>
                   <option value="other">Other</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-semibold">Payment option</span>
-                <select
-                  defaultValue="100"
-                  onChange={(event) => setAmount(Math.round((booking.totalPrice * Number(event.target.value)) / 100))}
-                  className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
-                >
-                  <option value="100">Full payment (100%)</option>
-                  <option value="50">50% downpayment</option>
-                  <option value="30">30% downpayment</option>
                 </select>
               </label>
 
