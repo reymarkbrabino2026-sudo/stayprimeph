@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Image from "next/image";
 import { Landmark, ReceiptText, Smartphone, X } from "lucide-react";
 import { submitManualPaymentDetails, type ManualPaymentActionState } from "@/app/guest/bookings/actions";
 import type { Booking, Payment } from "@/lib/types";
@@ -157,8 +158,9 @@ export function PayNowButton({
                   GCash
                 </div>
                 <p className="mt-2 text-sm leading-6 text-black/60">
-                  Send the transfer using the provided GCash details, then enter the transaction reference here.
+                  Scan the GCash QR code to pay, then enter the transaction reference here.
                 </p>
+                <Image src="/payment-method/gcash-qr.webp" alt="GCash payment QR code" width={200} height={200} className="mt-3 w-full max-w-[200px] rounded-xl border bg-white" />
               </div>
               <div className="rounded-2xl border p-4">
                 <div className="flex items-center gap-2 font-semibold">
@@ -166,8 +168,9 @@ export function PayNowButton({
                   Bank transfer
                 </div>
                 <p className="mt-2 text-sm leading-6 text-black/60">
-                  Complete the bank transfer outside StayPrimePH and include this booking ID in your transfer note.
+                  Scan the bank QR code or transfer to the account shown, and include this booking ID in your transfer note.
                 </p>
+                <Image src="/payment-method/bank-transfer-qr.webp" alt="Bank transfer payment QR code" width={200} height={200} className="mt-3 w-full max-w-[200px] rounded-xl border bg-white" />
               </div>
             </div>
 
