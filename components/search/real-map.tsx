@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { Star, X } from "lucide-react";
 import type { Map as LeafletMap } from "leaflet";
+import { CardImageCarousel } from "@/components/search/card-image-carousel";
 import { defaultMapCenter, resolveLocationCoordinates } from "@/lib/property-map";
 import { getListingMarkers } from "@/lib/search-map";
+import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { PublicListingSummary } from "@/lib/types";
-import { formatSearchLocationLabel, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
+import { formatPropertyLocation, formatSearchLocationLabel, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
+import { formatCurrency } from "@/lib/utils";
 
 function averageCoordinates(markers: Array<{ coords: [number, number] }>) {
   if (markers.length === 0) return null;
@@ -36,6 +41,11 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
   const leafletMapRef = useRef<LeafletMap | null>(null);
   const markers = useMemo(() => getListingMarkers(properties), [properties]);
   const destinationMarker = useMemo(() => getDestinationMarker(location, markers), [location, markers]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedProperty = useMemo(
+    () => properties.find((property) => property.id === selectedId) ?? null,
+    [properties, selectedId],
+  );
 
   useEffect(() => {
     let active = true;
@@ -61,6 +71,7 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
         zoomControl: false,
       });
       L.control.zoom({ position: "topright" }).addTo(map);
+      map.on("click", () => setSelectedId(null));
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
@@ -78,10 +89,10 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
           iconAnchor: [0, 0],
         });
 
-        // Keep the informative price pills above the destination dot when they overlap.
+        // Tapping a price pill surfaces the listing card at the bottom of the map.
         L.marker(marker.coords, { icon, zIndexOffset: 1000, riseOnHover: true })
           .addTo(map)
-          .bindPopup(`<strong>${marker.title}</strong><br>${marker.location}`);
+          .on("click", () => setSelectedId(marker.id));
       });
 
       if (destinationMarker) {
@@ -133,6 +144,48 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
     <div className="relative h-full w-full overflow-hidden rounded-none bg-[#e9f0ea] lg:rounded-[2rem]">
       <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0_42%,rgb(255_255_255_/_0.55)_42%_44%,transparent_44%_100%),linear-gradient(25deg,transparent_0_52%,rgb(255_255_255_/_0.5)_52%_54%,transparent_54%_100%),radial-gradient(circle_at_28%_30%,rgb(76_156_111_/_0.32),transparent_16%),radial-gradient(circle_at_70%_58%,rgb(33_150_180_/_0.24),transparent_18%),radial-gradient(circle_at_44%_76%,rgb(232_190_93_/_0.26),transparent_13%)]" />
       <div ref={mapRef} data-lenis-prevent className="relative z-10 h-full w-full" />
+
+      {selectedProperty ? (
+        <div className="absolute inset-x-0 bottom-0 z-[600] p-3">
+          <div className="relative mx-auto max-w-md overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,0.28)]">
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              aria-label="Close"
+              className="absolute right-3 top-3 z-20 grid size-8 place-items-center rounded-full bg-white text-black/70 shadow-md transition active:scale-95"
+            >
+              <X size={16} />
+            </button>
+            <Link
+              href={`/rooms/${selectedProperty.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <div className="relative aspect-[1.7/1] overflow-hidden bg-stone-100">
+                <CardImageCarousel images={selectedProperty.images} alt={selectedProperty.title} priority />
+              </div>
+              <div className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="truncate font-semibold">{formatPropertyLocation(selectedProperty)}</h3>
+                  <span className="flex shrink-0 items-center gap-1 text-sm">
+                    <Star size={13} fill="currentColor" /> {selectedProperty.rating || "New"}
+                  </span>
+                </div>
+                <p className="truncate text-sm text-black/55">
+                  {selectedProperty.propertyType} · {selectedProperty.bedrooms} beds
+                </p>
+                <p className="mt-1 text-sm">
+                  <span className="font-semibold">
+                    {formatCurrency(calculateGuestPriceWithMarkup(selectedProperty.pricePerNight))}
+                  </span>{" "}
+                  night
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
