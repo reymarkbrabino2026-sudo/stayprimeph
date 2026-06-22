@@ -69,12 +69,9 @@ export function PayNowButton({
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(submitManualPaymentDetails, initialState);
   const [amount, setAmount] = useState(() => (payment?.paymentStatus === "rejected" ? payment.amount : booking.totalPrice));
+  const [method, setMethod] = useState<string>("");
   const isSubmitted = payment?.paymentStatus === "submitted";
   const isRejected = payment?.paymentStatus === "rejected";
-  const defaultPaymentMethod =
-    isRejected && (payment?.paymentMethod === "gcash" || payment?.paymentMethod === "bank_transfer" || payment?.paymentMethod === "other")
-      ? payment.paymentMethod
-      : "gcash";
 
   if (isSubmitted && payment) {
     return (
@@ -151,70 +148,79 @@ export function PayNowButton({
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-[#083f35]/25 bg-[#083f35]/[0.04] p-4">
-              <label className="block">
-                <span className="text-sm font-semibold">How much do you want to pay?</span>
-                <select
-                  defaultValue="100"
-                  onChange={(event) => setAmount(Math.round((booking.totalPrice * Number(event.target.value)) / 100))}
-                  className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
-                >
-                  <option value="100">Full payment (100%) — {formatCurrency(booking.totalPrice)}</option>
-                  <option value="50">50% downpayment — {formatCurrency(Math.round(booking.totalPrice * 0.5))}</option>
-                  <option value="30">30% downpayment — {formatCurrency(Math.round(booking.totalPrice * 0.3))}</option>
-                </select>
-              </label>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm text-black/60">You&apos;ll pay now</span>
-                <span className="text-xl font-bold text-[#083f35]">{formatCurrency(amount)}</span>
-              </div>
-              {amount > 0 && amount < booking.totalPrice ? (
-                <p className="mt-1 text-right text-xs font-medium text-amber-700">Remaining balance: {formatCurrency(booking.totalPrice - amount)}</p>
-              ) : null}
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border p-4">
-                <div className="flex items-center gap-2 font-semibold">
-                  <Smartphone size={18} />
-                  GCash
-                </div>
-                <p className="mt-2 text-sm leading-6 text-black/60">
-                  Scan the GCash QR code to pay, then enter the transaction reference here.
-                </p>
-                <Image src="/payment-method/gcash-qr.webp" alt="GCash payment QR code" width={200} height={200} className="mt-3 w-full max-w-[200px] rounded-xl border bg-white" />
-              </div>
-              <div className="rounded-2xl border p-4">
-                <div className="flex items-center gap-2 font-semibold">
-                  <Landmark size={18} />
-                  Bank transfer
-                </div>
-                <p className="mt-2 text-sm leading-6 text-black/60">
-                  Scan the bank QR code or transfer to the account shown, and include this booking ID in your transfer note.
-                </p>
-                <Image src="/payment-method/bank-transfer-qr.webp" alt="Bank transfer payment QR code" width={200} height={200} className="mt-3 w-full max-w-[200px] rounded-xl border bg-white" />
-              </div>
-            </div>
-
-            <p className="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-              Payment happens outside StayPrimePH for now. This form records the transaction so the platform can verify it and approve the booking.
-            </p>
-
-            <form action={formAction} className="mt-5 space-y-4">
+            <form action={formAction} className="mt-5 space-y-5">
               <input type="hidden" name="csrfToken" value={csrfToken} />
               <input type="hidden" name="bookingId" value={booking.id} />
 
+              <div className="rounded-2xl border border-[#083f35]/25 bg-[#083f35]/[0.04] p-4">
+                <label className="block">
+                  <span className="text-sm font-semibold">1. How much do you want to pay?</span>
+                  <select
+                    defaultValue="100"
+                    onChange={(event) => setAmount(Math.round((booking.totalPrice * Number(event.target.value)) / 100))}
+                    className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                  >
+                    <option value="100">Full payment (100%) — {formatCurrency(booking.totalPrice)}</option>
+                    <option value="50">50% downpayment — {formatCurrency(Math.round(booking.totalPrice * 0.5))}</option>
+                    <option value="30">30% downpayment — {formatCurrency(Math.round(booking.totalPrice * 0.3))}</option>
+                  </select>
+                </label>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-black/60">You&apos;ll pay now</span>
+                  <span className="text-2xl font-bold text-[#083f35]">{formatCurrency(amount)}</span>
+                </div>
+                {amount > 0 && amount < booking.totalPrice ? (
+                  <p className="mt-1 text-xs font-medium text-amber-700">Remaining balance {formatCurrency(booking.totalPrice - amount)} — must be fully paid before check-in.</p>
+                ) : null}
+              </div>
+
               <label className="block">
-                <span className="text-sm font-semibold">Payment method</span>
-                <select name="paymentMethod" defaultValue={defaultPaymentMethod} className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3" required>
+                <span className="text-sm font-semibold">2. Choose payment method</span>
+                <select
+                  name="paymentMethod"
+                  value={method}
+                  onChange={(event) => setMethod(event.target.value)}
+                  className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                  required
+                >
+                  <option value="" disabled>Select a payment method</option>
                   <option value="gcash">GCash</option>
                   <option value="bank_transfer">Bank transfer</option>
-                  <option value="other">Other</option>
                 </select>
               </label>
 
+              {method === "gcash" || method === "bank_transfer" ? (
+                <div className="rounded-2xl border p-4 text-center">
+                  <div className="flex items-center justify-center gap-2 font-semibold">
+                    {method === "gcash" ? <Smartphone size={18} /> : <Landmark size={18} />}
+                    {method === "gcash" ? "Scan to pay with GCash" : "Scan to pay via bank transfer"}
+                  </div>
+                  <p className="mt-2 text-sm text-black/60">
+                    Pay exactly <span className="font-bold text-[#083f35]">{formatCurrency(amount)}</span> using the QR code below.
+                  </p>
+                  <Image
+                    src={method === "gcash" ? "/payment-method/gcash-qr.webp" : "/payment-method/bank-transfer-qr.webp"}
+                    alt={method === "gcash" ? "GCash payment QR code" : "Bank transfer payment QR code"}
+                    width={240}
+                    height={240}
+                    className="mx-auto mt-3 w-full max-w-[240px] rounded-xl border bg-white"
+                  />
+                  {method === "bank_transfer" ? (
+                    <p className="mt-2 text-xs text-black/55">Include this booking ID in your transfer note.</p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-dashed border-black/15 p-4 text-center text-sm text-black/50">
+                  Choose a payment method above to see the QR code.
+                </p>
+              )}
+
+              <p className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                Payment happens outside StayPrimePH for now. After paying, enter the reference below so the host can verify it and approve the booking.
+              </p>
+
               <label className="block">
-                <span className="text-sm font-semibold">Amount paid</span>
+                <span className="text-sm font-semibold">3. Confirm the amount you paid</span>
                 <input
                   name="amount"
                   type="number"
@@ -226,15 +232,10 @@ export function PayNowButton({
                   className="mt-2 min-h-12 w-full rounded-xl border px-3"
                   required
                 />
-                {amount > 0 && amount < booking.totalPrice ? (
-                  <span className="mt-2 block text-xs font-medium text-amber-700">
-                    Remaining balance after this payment: {formatCurrency(booking.totalPrice - amount)}
-                  </span>
-                ) : null}
               </label>
 
               <label className="block">
-                <span className="text-sm font-semibold">Reference number or transaction ID</span>
+                <span className="text-sm font-semibold">4. Reference number or transaction ID</span>
                 <input
                   name="referenceNumber"
                   className="mt-2 min-h-12 w-full rounded-xl border px-3"
@@ -245,12 +246,12 @@ export function PayNowButton({
               </label>
 
               <label className="block">
-                <span className="text-sm font-semibold">Notes</span>
+                <span className="text-sm font-semibold">Notes (optional)</span>
                 <textarea
                   name="notes"
                   rows={3}
                   className="mt-2 w-full rounded-xl border px-3 py-3"
-                  placeholder="Optional proof link, account name used, or other payment notes"
+                  placeholder="Account name used, or other payment notes"
                   defaultValue={payment?.paymentStatus === "rejected" ? payment.notes : ""}
                 />
               </label>
