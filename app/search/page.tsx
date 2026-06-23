@@ -81,6 +81,20 @@ export default async function SearchPage({
   const orderedResults = nearPoint
     ? [...results].sort((a, b) => distanceKm(nearPoint, a) - distanceKm(nearPoint, b))
     : results;
+  const resultsTitle = nearPoint ? "Stays near you" : locationLabel ? `Stays in ${locationLabel}` : "Available stays";
+  const filters = (
+    <SearchFilters
+      types={availableTypes}
+      amenities={availableAmenities}
+      current={{
+        type: typeFilter,
+        minPrice: query.minPrice ?? "",
+        maxPrice: query.maxPrice ?? "",
+        beds: query.beds ?? "",
+        amenities: amenityFilter,
+      }}
+    />
+  );
 
   return (
     <div className="bg-white">
@@ -93,26 +107,15 @@ export default async function SearchPage({
 
       <SearchResultsLayout
         metaLabel={mapMetaLabel}
+        title={resultsTitle}
+        count={results.length}
+        filters={filters}
         map={<DeferredRealMap properties={orderedResults} location={query.location} />}
         results={
           <>
-            <div className="border-b pb-5">
-              <SearchFilters
-                types={availableTypes}
-                amenities={availableAmenities}
-                current={{
-                  type: typeFilter,
-                  minPrice: query.minPrice ?? "",
-                  maxPrice: query.maxPrice ?? "",
-                  beds: query.beds ?? "",
-                  amenities: amenityFilter,
-                }}
-              />
-            </div>
-
             <div className="py-6">
               <p className="text-sm text-black/55">{results.length} places available</p>
-              <h1 className="mt-1 text-2xl font-semibold">{nearPoint ? "Stays near you" : locationLabel ? `Stays near ${locationLabel}` : "Available stays"}</h1>
+              <h1 className="mt-1 text-2xl font-semibold">{resultsTitle}</h1>
             </div>
 
             {results.length === 0 ? (

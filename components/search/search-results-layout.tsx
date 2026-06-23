@@ -1,80 +1,84 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ArrowLeft, List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, SlidersHorizontal, X } from "lucide-react";
 
 export function SearchResultsLayout({
   results,
   map,
+  filters,
   metaLabel = "",
+  title = "Homes in map area",
+  count,
 }: {
   results: ReactNode;
   map: ReactNode;
+  filters?: ReactNode;
   metaLabel?: string;
+  title?: string;
+  count?: number;
 }) {
-  const [view, setView] = useState<"list" | "map">("list");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   return (
     <main className="lg:flex lg:min-h-[calc(100vh-150px)] lg:flex-row">
-      <section
-        className={`min-w-0 flex-1 px-4 pb-28 pt-5 sm:px-6 lg:order-1 lg:block lg:px-8 lg:pb-10 ${
-          view === "map" ? "hidden lg:block" : "block"
-        }`}
-      >
-        {results}
-      </section>
-
-      <div
-        className={`lg:order-2 lg:block lg:w-[42%] lg:border-l xl:w-[44%] ${
-          view === "map"
-            ? "fixed inset-x-0 bottom-[64px] top-0 z-[95] block bg-white lg:static lg:bottom-auto lg:z-auto"
-            : "hidden lg:block"
-        }`}
-      >
-        {/* Compact Airbnb-style top bar — replaces the full search bar in the mobile map view */}
-        {view === "map" ? (
-          <div className="absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 pt-3 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              aria-label="Back to list"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white shadow-md transition active:scale-95"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 py-2 text-center shadow-md">
-              <p className="truncate text-sm font-semibold">Homes in map area</p>
-              {metaLabel ? <p className="truncate text-xs text-black/55">{metaLabel}</p> : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              aria-label="Filters"
-              className="grid size-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white shadow-md transition active:scale-95"
-            >
-              <SlidersHorizontal size={16} />
-            </button>
-          </div>
-        ) : null}
-
-        <div className="h-full p-0 lg:sticky lg:top-0 lg:h-screen lg:p-6">{map}</div>
+      <div className="fixed inset-x-0 top-0 z-[110] flex items-center gap-2 px-3 pt-3 lg:hidden">
+        <Link
+          href="/"
+          aria-label="Back to home"
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white shadow-md transition active:scale-95"
+        >
+          <ArrowLeft size={18} />
+        </Link>
+        <div className="min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 py-2 text-center shadow-md">
+          <p className="truncate text-sm font-semibold">{title}</p>
+          {metaLabel ? <p className="truncate text-xs text-black/55">{metaLabel}</p> : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          aria-label="Filters"
+          disabled={!filters}
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white shadow-md transition active:scale-95 disabled:opacity-45"
+        >
+          <SlidersHorizontal size={16} />
+        </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setView((current) => (current === "list" ? "map" : "list"))}
-        className="fixed bottom-24 left-1/2 z-[96] inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition active:scale-95 lg:hidden"
-      >
-        {view === "list" ? (
-          <>
-            <MapIcon size={16} aria-hidden="true" /> Map
-          </>
-        ) : (
-          <>
-            <List size={16} aria-hidden="true" /> List
-          </>
-        )}
-      </button>
+      {filtersOpen && filters ? (
+        <div className="fixed inset-0 z-[120] bg-black/35 px-3 pt-20 lg:hidden" data-lenis-prevent>
+          <div className="mx-auto max-w-md rounded-[1.5rem] bg-white p-4 shadow-[0_18px_50px_rgb(0_0_0_/_0.25)]">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm font-semibold">Filters</p>
+              <button
+                type="button"
+                aria-label="Close filters"
+                onClick={() => setFiltersOpen(false)}
+                className="grid size-9 place-items-center rounded-full bg-black/[0.06]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {filters}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sticky top-0 z-0 h-[58vh] lg:static lg:order-2 lg:z-auto lg:h-auto lg:w-[42%] lg:border-l xl:w-[44%]">
+        <div className="h-full lg:sticky lg:top-0 lg:h-screen lg:p-6">{map}</div>
+      </div>
+
+      <section className="relative z-10 -mt-6 min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.12)] sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:min-h-0 lg:flex-1 lg:rounded-none lg:px-8 lg:pb-10 lg:pt-5 lg:shadow-none">
+        <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-black/15 lg:hidden" />
+        {typeof count === "number" ? (
+          <p className="mb-3 text-center text-sm font-semibold lg:hidden">
+            {count} {count === 1 ? "home" : "homes"}
+          </p>
+        ) : null}
+        {filters ? <div className="hidden border-b pb-5 lg:block">{filters}</div> : null}
+        {results}
+      </section>
     </main>
   );
 }

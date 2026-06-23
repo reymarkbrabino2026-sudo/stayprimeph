@@ -116,26 +116,19 @@ export function HomeHeader() {
 
         <div className={`hidden px-4 transition-all duration-150 ease-out sm:px-6 md:block ${collapsed ? "pointer-events-none h-0 overflow-hidden opacity-0" : "h-[95px] overflow-visible opacity-100"}`}>
           <div className={`mx-auto max-w-4xl origin-top transition-transform duration-150 ease-out ${collapsed ? "-translate-y-4 scale-95" : "translate-y-0 scale-100"}`}>
-            <SearchBar />
+            <SearchBar variant="desktop" />
           </div>
         </div>
 
-        <Link
-          href="/search"
-          className={`mx-4 flex items-center gap-3 rounded-full border bg-white px-4 text-sm text-black shadow-[0_2px_12px_rgb(0_0_0_/_0.10)] transition-all duration-200 ease-out md:hidden ${
+        <div
+          className={`mx-4 transition-all duration-200 ease-out md:hidden ${
             collapsed
-              ? "pointer-events-none mb-0 max-h-0 min-h-0 -translate-y-2 overflow-hidden border-transparent opacity-0 shadow-none"
-              : "mb-3 max-h-16 min-h-14 translate-y-1 opacity-100"
+              ? "pointer-events-none mb-0 max-h-0 min-h-0 overflow-hidden border-transparent opacity-0 shadow-none"
+              : "mb-3 max-h-16 min-h-14 opacity-100"
           }`}
         >
-          <span className="grid size-9 place-items-center rounded-full bg-[#083f35] text-white">
-            <Search size={16} strokeWidth={3} />
-          </span>
-          <span>
-            <span className="block font-semibold">Start your search</span>
-            <span className="block text-xs text-black/55">Anywhere / Any week / Add guests</span>
-          </span>
-        </Link>
+          <SearchBar variant="mobile" />
+        </div>
       </header>
       <PublicBottomNav />
     </>
