@@ -66,10 +66,10 @@ export function HomeHeader() {
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 z-50 border-b bg-white text-black shadow-[0_2px_16px_rgb(0_0_0_/_0.08)] transition-all duration-200 ease-out md:bg-transparent md:text-white md:shadow-none ${
+        className={`fixed inset-x-0 top-0 z-50 border-b bg-white text-black shadow-[0_2px_16px_rgb(0_0_0_/_0.08)] transition-all duration-200 ease-out ${
           collapsed
             ? "border-black/10 md:bg-white/95 md:text-black md:shadow-[0_2px_14px_rgb(0_0_0_/_0.08)] md:backdrop-blur"
-            : "border-black/10 md:border-transparent md:bg-transparent md:text-white"
+            : "border-black/10 md:border-transparent md:bg-transparent md:text-white md:shadow-none"
         }`}
       >
         <nav className="flex h-[82px] items-end justify-center gap-8 px-4 pb-2 md:hidden" aria-label="Browse StayPrimePH">
