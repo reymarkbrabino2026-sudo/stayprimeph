@@ -1,6 +1,7 @@
 "use client";
 
-import { Home, Search } from "lucide-react";
+import { ConciergeBell, Home, Search, Sparkles } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -10,6 +11,11 @@ import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
 const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay", "Davao", "Siargao"];
+const MOBILE_CATEGORIES: ReadonlyArray<{ label: string; href: string; icon: LucideIcon; active?: boolean; badge?: string }> = [
+  { label: "Homes", href: "/", icon: Home, active: true },
+  { label: "Experiences", href: "/newsroom", icon: Sparkles, badge: "NEW" },
+  { label: "Services", href: "/support", icon: ConciergeBell, badge: "NEW" },
+];
 
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);
@@ -60,13 +66,34 @@ export function HomeHeader() {
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 z-50 border-b transition-all duration-200 ease-out ${
+        className={`fixed inset-x-0 top-0 z-50 border-b bg-white text-black shadow-[0_2px_16px_rgb(0_0_0_/_0.08)] transition-all duration-200 ease-out md:bg-transparent md:text-white md:shadow-none ${
           collapsed
-            ? "border-black/10 bg-white/95 text-black shadow-[0_2px_14px_rgb(0_0_0_/_0.08)] backdrop-blur"
-            : "border-transparent bg-transparent text-white"
+            ? "border-black/10 md:bg-white/95 md:text-black md:shadow-[0_2px_14px_rgb(0_0_0_/_0.08)] md:backdrop-blur"
+            : "border-black/10 md:border-transparent md:bg-transparent md:text-white"
         }`}
       >
-        <div className="relative flex h-[72px] items-center justify-between px-4 sm:px-6 lg:px-12">
+        <nav className="flex h-[82px] items-end justify-center gap-8 px-4 pb-2 md:hidden" aria-label="Browse StayPrimePH">
+          {MOBILE_CATEGORIES.map(({ label, href, icon: Icon, active, badge }) => (
+            <Link
+              key={label}
+              href={href}
+              className={`relative flex min-w-20 flex-col items-center justify-end gap-1.5 pb-2 text-xs font-medium ${
+                active ? "text-black" : "text-black/65"
+              }`}
+            >
+              {badge ? (
+                <span className="absolute -top-1 right-2 rounded-md bg-[#23344a] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white shadow-sm">
+                  {badge}
+                </span>
+              ) : null}
+              <Icon size={28} strokeWidth={active ? 2.25 : 1.9} />
+              <span>{label}</span>
+              {active ? <span className="absolute bottom-0 h-0.5 w-8 rounded-full bg-black" /> : null}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="relative hidden h-[72px] items-center justify-between px-4 sm:px-6 md:flex lg:px-12">
           <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
             <BrandLogo variant={collapsed ? "green" : "white"} className="h-10 w-auto" priority />
           </Link>
@@ -118,16 +145,6 @@ export function HomeHeader() {
           <div className={`mx-auto max-w-4xl origin-top transition-transform duration-150 ease-out ${collapsed ? "-translate-y-4 scale-95" : "translate-y-0 scale-100"}`}>
             <SearchBar variant="desktop" />
           </div>
-        </div>
-
-        <div
-          className={`mx-4 transition-all duration-200 ease-out md:hidden ${
-            collapsed
-              ? "pointer-events-none mb-0 max-h-0 min-h-0 overflow-hidden border-transparent opacity-0 shadow-none"
-              : "mb-3 max-h-16 min-h-14 opacity-100"
-          }`}
-        >
-          <SearchBar variant="mobile" />
         </div>
       </header>
       <PublicBottomNav />

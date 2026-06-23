@@ -44,7 +44,7 @@ export function HomeHeroSlider() {
   }
 
   return (
-    <section className="relative h-[51svh] min-h-[23rem] overflow-hidden bg-[#053f34] text-white md:h-[51vh] md:min-h-0">
+    <section className="relative hidden h-[51svh] min-h-[23rem] overflow-hidden bg-[#053f34] text-white md:block md:h-[51vh] md:min-h-0">
       <Image
         key={slides[active].src}
         src={slides[active].src}

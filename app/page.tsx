@@ -21,7 +21,7 @@ export default async function HomePage() {
 
       <HomeHeroSlider />
 
-      <main className="w-full space-y-10 px-4 pb-24 pt-8 sm:px-6 md:pb-12 md:pt-12 lg:px-9 2xl:px-10">
+      <main className="w-full space-y-8 px-6 pb-24 pt-[6.25rem] sm:px-6 md:space-y-10 md:px-6 md:pb-12 md:pt-12 lg:px-9 2xl:px-10">
         {propertyRails.length > 0 ? (
           propertyRails.map((rail) => (
             <PropertyRail key={rail.title} title={rail.title} items={rail.items} isAuthenticated={false} />
