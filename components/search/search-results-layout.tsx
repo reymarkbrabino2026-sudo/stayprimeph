@@ -69,7 +69,7 @@ export function SearchResultsLayout({
         <div className="h-full lg:sticky lg:top-0 lg:h-screen lg:p-6">{map}</div>
       </div>
 
-      <section className="relative z-10 mt-[74dvh] min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.14)] sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:min-h-0 lg:flex-1 lg:rounded-none lg:px-8 lg:pb-10 lg:pt-5 lg:shadow-none">
+      <section className="relative z-10 mt-[52dvh] min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.14)] sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:min-h-0 lg:flex-1 lg:rounded-none lg:px-8 lg:pb-10 lg:pt-5 lg:shadow-none">
         <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-black/15 lg:hidden" />
         {typeof count === "number" ? (
           <p className="mb-3 text-center text-sm font-semibold lg:hidden">
