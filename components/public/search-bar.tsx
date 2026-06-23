@@ -232,9 +232,6 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
   const showMobile = variant !== "desktop";
   const showDesktop = variant !== "mobile";
 
-  const chip = (active: boolean) =>
-    `min-h-11 rounded-full px-5 text-sm font-semibold transition ${active ? "bg-black text-white" : "bg-black/[0.05] text-black"}`;
-
   function destinationList() {
     return (
       <div className="mt-4 space-y-3">
@@ -278,9 +275,9 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
   function calendarPicker() {
     return (
       <>
-        <div className="mb-5 flex justify-center gap-2">
-          <span className={chip(true)}>Dates</span>
-          <span className={chip(false)}>Flexible</span>
+        <div className="mx-auto mb-5 grid h-12 w-full max-w-72 grid-cols-2 rounded-full bg-black/[0.06] p-1 text-sm font-semibold">
+          <span className="grid place-items-center rounded-full bg-black px-5 text-white shadow-sm">Dates</span>
+          <span className="grid place-items-center rounded-full px-5 text-black/80">Flexible</span>
         </div>
         <p className="mb-6 text-center text-sm text-black/55">
           {checkIn ? (checkOut ? `${formatShort(checkIn)} - ${formatShort(checkOut)}` : "Select your check-out date") : "Select your check-in date"}
