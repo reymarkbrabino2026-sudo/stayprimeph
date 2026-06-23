@@ -122,3 +122,19 @@ export function cloudinaryAvatarUploadFolder(userId: string) {
 export function isIntendedAvatarUrl(value: string, input: { userId: string; cloudName?: string }) {
   return listingPhotoUrlMatchesPrefix(value, avatarUploadScopePrefix(input.userId), input.cloudName);
 }
+
+export function paymentReceiptUploadScopePrefix(userId: string, bookingId: string) {
+  return `uploads/payment-receipts/${normalizeUploadScopeId(userId, "user")}/${normalizeUploadScopeId(bookingId, "booking")}/`;
+}
+
+export function serverGeneratedPaymentReceiptBlobPath(input: { userId: string; bookingId: string; uploadId?: string }) {
+  return `${paymentReceiptUploadScopePrefix(input.userId, input.bookingId)}${input.uploadId ?? randomUUID()}`;
+}
+
+export function cloudinaryPaymentReceiptUploadFolder(userId: string, bookingId: string) {
+  return `stayprimeph/${paymentReceiptUploadScopePrefix(userId, bookingId).replace(/\/$/, "")}`;
+}
+
+export function isIntendedPaymentReceiptUrl(value: string, input: { userId: string; bookingId: string; cloudName?: string }) {
+  return listingPhotoUrlMatchesPrefix(value, paymentReceiptUploadScopePrefix(input.userId, input.bookingId), input.cloudName);
+}

@@ -8,9 +8,10 @@ import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, createSession, hashPassword, requireUser, roleHome, verifyPassword } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
+import { createEmailVerificationCode, hashEmailVerificationCode, normalizeEmailVerificationCode } from "@/lib/email-verification-code";
 import { logger } from "@/lib/logger";
 import { normalizeKnownAppPath } from "@/lib/canonical-paths";
-import { completeEmailChange, consumeAuthToken, getAuthToken, hashAuthTokenValue, issueAuthToken, markUserEmailVerified, updateUserPassword } from "@/lib/auth-tokens";
+import { completeEmailChange, consumeAuthToken, consumeEmailVerificationCode, getAuthToken, hashAuthTokenValue, issueAuthToken, markUserEmailVerified, updateUserPassword } from "@/lib/auth-tokens";
 import { passwordPolicyMessage } from "@/lib/password-policy";
 import { checkDistributedRateLimit, checkLoginLockout, clearFailedLoginAttempts, recordFailedLoginAttempt } from "@/lib/rate-limit";
 import { createUserInDatabase, usesPrismaPersistence } from "@/lib/repositories";
@@ -21,10 +22,14 @@ import { getUserById, getUsers } from "@/lib/users";
 import type { User, UserRole } from "@/lib/types";
 
 type SocialProvider = "google" | "facebook";
-const signupNextStepsMessage = "If we can process that signup, we sent next steps to the email address provided.";
+const verificationCodeSentMessage = "We sent a 6-digit verification code to your email.";
 
 function safeRole(value: FormDataEntryValue | null): UserRole {
   return value === "host" ? "host" : "guest";
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function initials(name: string) {
@@ -45,12 +50,21 @@ function authErrorTarget(path: "/login" | "/register" | "/admin/login", message:
   return `${path}?${params.toString()}`;
 }
 
-function authNoticeTarget(path: "/register", message: string, formData: FormData, role?: FormDataEntryValue | null) {
-  const params = new URLSearchParams({ message });
-  if (role === "host" || role === "guest") params.set("role", role);
+function verificationTarget(kind: "error" | "message", message: string, formData: FormData, email?: string, role?: FormDataEntryValue | null) {
+  const params = new URLSearchParams({ [kind]: message });
+  if (email) params.set("email", email);
+  if (role === "host" || role === "guest" || role === "admin") params.set("role", role);
   const nextPath = safeNextPath(formData.get("next"));
   if (nextPath) params.set("next", nextPath);
-  return `${path}?${params.toString()}`;
+  return `/verify-email?${params.toString()}`;
+}
+
+function loginNoticeTarget(message: string, formData: FormData, role?: FormDataEntryValue | null) {
+  const params = new URLSearchParams({ message });
+  if (role === "host" || role === "guest" || role === "admin") params.set("role", role);
+  const nextPath = safeNextPath(formData.get("next"));
+  if (nextPath) params.set("next", nextPath);
+  return `${role === "admin" ? "/admin/login" : "/login"}?${params.toString()}`;
 }
 
 function adminMfaTarget(kind: "error" | "message", message: string, formData: FormData) {
@@ -115,6 +129,14 @@ async function appendLoginFailureAudit(input: {
 async function sendPasswordResetForUser(user: { id: string; email: string; name: string }) {
   const token = await issueAuthToken(user.id, "password_reset");
   await sendPasswordResetEmail({ to: user.email, name: user.name, token });
+}
+
+async function sendEmailVerificationForUser(user: { id: string; email: string; name: string }) {
+  const code = createEmailVerificationCode();
+  const token = await issueAuthToken(user.id, "email_verification", {
+    codeHash: hashEmailVerificationCode({ userId: user.id, email: user.email, code }),
+  });
+  await sendVerificationEmail({ to: user.email, name: user.name, token, code });
 }
 
 async function startAdminMfaChallenge(user: { id: string; email: string; name: string }, formData: FormData) {
@@ -190,6 +212,11 @@ export async function signIn(formData: FormData) {
   }
 
   await clearFailedLoginAttempts(throttleKeys);
+
+  if (!user.emailVerifiedAt) {
+    await sendEmailVerificationForUser(user);
+    redirect(verificationTarget("message", "Verify your email before logging in. We sent a 6-digit verification code.", formData, user.email, requestedRole ?? user.role));
+  }
 
   if (user.role === "admin") {
     await startAdminMfaChallenge(user, formData);
@@ -299,10 +326,19 @@ export async function signUp(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
   const role = safeRole(formData.get("role"));
 
-  if (name.length < 2 || !email.includes("@")) {
-    redirect(authErrorTarget("/register", "Use a valid name and email address.", formData, role));
+  if (name.length < 2) {
+    redirect(authErrorTarget("/register", "Enter your full name.", formData, role));
+  }
+
+  if (!isValidEmail(email)) {
+    redirect(authErrorTarget("/register", "Enter a valid email address.", formData, role));
+  }
+
+  if (password !== confirmPassword) {
+    redirect(authErrorTarget("/register", "Passwords do not match.", formData, role));
   }
 
   const passwordError = passwordPolicyMessage(password, { email, name });
@@ -311,8 +347,7 @@ export async function signUp(formData: FormData) {
   const users = await getUsers();
   const existingUser = users.find((user) => user.email.toLowerCase() === email);
   if (existingUser) {
-    await sendPasswordResetForUser(existingUser);
-    redirect(authNoticeTarget("/register", signupNextStepsMessage, formData, role));
+    redirect(authErrorTarget("/register", "This email is already registered. Log in or use a different email.", formData, role));
   }
 
   const user = {
@@ -334,14 +369,76 @@ export async function signUp(formData: FormData) {
   }
 
   await sendWelcomeEmail(user.email, user.name);
-  const verificationToken = await issueAuthToken(user.id, "email_verification");
-  await sendVerificationEmail({ to: user.email, name: user.name, token: verificationToken });
-  redirect(authNoticeTarget("/register", signupNextStepsMessage, formData, role));
+  await sendEmailVerificationForUser(user);
+  redirect(verificationTarget("message", verificationCodeSentMessage, formData, user.email, role));
 }
 
 export async function signUpHost(formData: FormData) {
   formData.set("role", "host");
   await signUp(formData);
+}
+
+export async function verifyEmailCode(formData: FormData) {
+  const headerStore = await assertTrustedRequestOrigin();
+  const role = formData.get("role");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const code = normalizeEmailVerificationCode(String(formData.get("code") ?? ""));
+
+  if (!email.includes("@") || !/^\d{6}$/.test(code)) {
+    redirect(verificationTarget("error", "Enter the email and 6-digit verification code we sent.", formData, email, role));
+  }
+
+  const rateLimit = await checkDistributedRateLimit(`email-verification:${clientIp(headerStore)}:${email}`, 8, 15 * 60_000);
+  if (rateLimit.limited) {
+    logger.warn("email_verification_rate_limited");
+    redirect(verificationTarget("error", "Too many verification attempts. Please try again later.", formData, email, role));
+  }
+
+  const user = (await getUsers()).find((item) => item.email.toLowerCase() === email);
+  if (!user) {
+    redirect(verificationTarget("error", "No account was found for that email.", formData, email, role));
+  }
+
+  if (user.emailVerifiedAt) {
+    redirect(loginNoticeTarget("Email already verified. Please log in.", formData, role));
+  }
+
+  const codeHash = hashEmailVerificationCode({ userId: user.id, email: user.email, code });
+  const authToken = await consumeEmailVerificationCode(user.id, codeHash);
+  if (!authToken || authToken.userId !== user.id) {
+    redirect(verificationTarget("error", "Incorrect or expired verification code.", formData, email, role));
+  }
+
+  await markUserEmailVerified(user.id);
+  redirect(loginNoticeTarget("Email verified. You can now log in.", formData, role));
+}
+
+export async function resendVerificationCode(formData: FormData) {
+  const headerStore = await assertTrustedRequestOrigin();
+  const role = formData.get("role");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+
+  if (!email.includes("@")) {
+    redirect(verificationTarget("error", "Enter the email address for your account.", formData, email, role));
+  }
+
+  const rateLimit = await checkDistributedRateLimit(`email-verification-resend:${clientIp(headerStore)}:${email}`, 3, 15 * 60_000);
+  if (rateLimit.limited) {
+    logger.warn("email_verification_resend_rate_limited");
+    redirect(verificationTarget("error", "Too many resend requests. Please wait before requesting another code.", formData, email, role));
+  }
+
+  const user = (await getUsers()).find((item) => item.email.toLowerCase() === email);
+  if (!user) {
+    redirect(verificationTarget("error", "No account was found for that email.", formData, email, role));
+  }
+
+  if (user.emailVerifiedAt) {
+    redirect(loginNoticeTarget("Email already verified. Please log in.", formData, role));
+  }
+
+  await sendEmailVerificationForUser(user);
+  redirect(verificationTarget("message", "We sent a new verification code.", formData, email, role));
 }
 
 export async function signOut() {

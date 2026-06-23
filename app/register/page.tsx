@@ -16,10 +16,10 @@ export default async function RegisterPage({
   if (currentUser) redirect(nextPath ?? roleHome(currentUser.role));
 
   if (role === "host") {
-    return <HostSignupFlow error={error} message={message} />;
+    return <HostSignupFlow error={error} message={message} nextPath={nextPath} />;
   }
 
-  const requestedRole = role === "guest" ? "guest" : undefined;
+  const requestedRole = "guest";
   const loginHref = (() => {
     const params = new URLSearchParams();
     if (requestedRole) params.set("role", requestedRole);
@@ -27,7 +27,7 @@ export default async function RegisterPage({
     const query = params.toString();
     return `/login${query ? `?${query}` : ""}`;
   })();
-  const helperText = requestedRole === "guest" ? "Create a guest account to continue your booking." : undefined;
+  const helperText = nextPath ? "Create a guest account to continue." : "Create a guest account to book stays, save wishlists, and manage trips.";
 
   return (
     <AuthForm
@@ -42,11 +42,13 @@ export default async function RegisterPage({
       error={error}
       message={message}
       showName
-      showRole={!requestedRole}
       helperText={helperText}
       requestedRole={requestedRole}
       signupRole={requestedRole}
       nextPath={nextPath}
+      secondaryPrompt="Planning to host?"
+      secondaryHref="/register?role=host"
+      secondaryLinkText="Create a host account"
     />
   );
 }

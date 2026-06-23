@@ -76,6 +76,7 @@ describe("submitManualPayment", () => {
         paymentMethod: "gcash",
         amount: booking.totalPrice,
         transactionId: "reference",
+        receiptImageUrl: "/uploads/payment-receipts/guest-1/booking-1/receipt.webp",
         notes: undefined,
       },
     });
@@ -86,6 +87,7 @@ describe("submitManualPayment", () => {
         paymentMethod: "gcash",
         paymentStatus: "submitted",
         transactionId: "reference",
+        receiptImageUrl: "/uploads/payment-receipts/guest-1/booking-1/receipt.webp",
       }),
     ]);
     expect(writeStoredBookings).toHaveBeenCalledWith([

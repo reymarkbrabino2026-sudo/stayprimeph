@@ -5,3 +5,14 @@ test-results
 .codex-worktrees
 live-room-smoke.png
 proof-admin-resend-code-fixed.png
+data/users.json
+data/auth-tokens.json
+data/bookings.json
+data/payments.json
+data/messages.json
+data/reviews.json
+data/cancellations.json
+data/payouts.json
+data/host-expenses.json
+data/host-monthly-reports.json
+data/account-settings.json

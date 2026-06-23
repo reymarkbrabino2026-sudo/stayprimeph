@@ -43,6 +43,16 @@ export default async function HostBookingsPage() {
               <div key={`${booking.id}-payment`} className="min-w-48 space-y-1 text-sm">
                 <p className="font-semibold">{formatCurrency(payment.amount)} via {formatPaymentMethod(payment.paymentMethod)}</p>
                 <p className="break-words text-black/55">Ref: {payment.transactionId}</p>
+                {payment.receiptImageUrl ? (
+                  <a
+                    href={payment.receiptImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex text-xs font-semibold text-[#d85d32]"
+                  >
+                    View receipt
+                  </a>
+                ) : null}
                 {payment.notes ? <p className="line-clamp-2 text-black/55">{payment.notes}</p> : null}
                 {payment.rejectionReason ? <p className="text-rose-700">Rejected: {payment.rejectionReason}</p> : null}
               </div>

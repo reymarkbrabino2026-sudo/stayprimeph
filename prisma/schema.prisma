@@ -170,6 +170,7 @@ model Payment {
   paymentMethod   String
   paymentStatus   String
   transactionId   String
+  receiptImageUrl String?
   notes           String?
   rejectionReason String?
   confirmedBy     String?

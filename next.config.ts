@@ -5,11 +5,13 @@ const isProduction = process.env.NODE_ENV === "production";
 const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
+  "https://cdn.jsdelivr.net",
   isProduction ? "" : "'unsafe-eval'",
   isProduction ? "" : "https://va.vercel-scripts.com",
 ].filter(Boolean).join(" ");
 const connectSrc = [
   "'self'",
+  "https://cdn.jsdelivr.net",
   "https://*.ingest.sentry.io",
   isProduction ? "" : "https://va.vercel-scripts.com",
 ].filter(Boolean).join(" ");

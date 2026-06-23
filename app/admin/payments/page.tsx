@@ -60,7 +60,19 @@ export default async function AdminPaymentsPage() {
       <DataTable
         headers={["Transaction", "Booking", "Method", "Amount", "StayPrimePH", "Host payout", "Status", "Actions"]}
         rows={payments.map((payment) => [
-          payment.transactionId,
+          <div key={`${payment.id}-transaction`} className="min-w-44 space-y-1">
+            <p className="break-words font-semibold">{payment.transactionId}</p>
+            {payment.receiptImageUrl ? (
+              <a
+                href={payment.receiptImageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex text-xs font-semibold text-[#d85d32]"
+              >
+                View receipt
+              </a>
+            ) : null}
+          </div>,
           payment.bookingId,
           formatPaymentMethod(payment.paymentMethod),
           formatCurrency(payment.amount),

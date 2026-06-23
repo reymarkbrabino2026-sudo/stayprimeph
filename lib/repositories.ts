@@ -1328,6 +1328,7 @@ type DatabasePayment = {
   paymentMethod: string;
   paymentStatus: string;
   transactionId: string;
+  receiptImageUrl: string | null;
   notes: string | null;
   rejectionReason: string | null;
   confirmedBy: string | null;
@@ -1342,7 +1343,7 @@ export async function listPaymentsFromDatabase(): Promise<Payment[]> {
   const payments = await prisma.$queryRaw<DatabasePayment[]>`
     SELECT
       "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
-      "transactionId", "notes", "rejectionReason", "confirmedBy", "submittedAt",
+      "transactionId", "receiptImageUrl", "notes", "rejectionReason", "confirmedBy", "submittedAt",
       "confirmedAt", "rejectedAt", "createdAt", "updatedAt"
     FROM "Payment"
     ORDER BY "createdAt" DESC
@@ -1356,6 +1357,7 @@ export async function listPaymentsFromDatabase(): Promise<Payment[]> {
     paymentMethod: payment.paymentMethod,
     paymentStatus: payment.paymentStatus as Payment["paymentStatus"],
     transactionId: payment.transactionId,
+    receiptImageUrl: payment.receiptImageUrl ?? undefined,
     notes: payment.notes ?? undefined,
     rejectionReason: payment.rejectionReason ?? undefined,
     confirmedBy: payment.confirmedBy ?? undefined,
@@ -1371,7 +1373,7 @@ export async function listPaymentsForHostFromDatabase(hostId: string): Promise<P
   const payments = await prisma.$queryRaw<DatabasePayment[]>`
     SELECT
       "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
-      "transactionId", "notes", "rejectionReason", "confirmedBy", "submittedAt",
+      "transactionId", "receiptImageUrl", "notes", "rejectionReason", "confirmedBy", "submittedAt",
       "confirmedAt", "rejectedAt", "createdAt", "updatedAt"
     FROM "Payment"
     WHERE "hostId" = ${hostId}
@@ -1386,6 +1388,7 @@ export async function listPaymentsForHostFromDatabase(hostId: string): Promise<P
     paymentMethod: payment.paymentMethod,
     paymentStatus: payment.paymentStatus as Payment["paymentStatus"],
     transactionId: payment.transactionId,
+    receiptImageUrl: payment.receiptImageUrl ?? undefined,
     notes: payment.notes ?? undefined,
     rejectionReason: payment.rejectionReason ?? undefined,
     confirmedBy: payment.confirmedBy ?? undefined,
@@ -1626,7 +1629,7 @@ export async function deleteHostMonthlyReportFromDatabase(reportId: string) {
 
 export async function recordManualPaymentInDatabase(
   booking: Booking,
-  payment: Pick<Payment, "amount" | "paymentMethod" | "transactionId" | "notes">,
+  payment: Pick<Payment, "amount" | "paymentMethod" | "transactionId" | "receiptImageUrl" | "notes">,
 ) {
   const now = new Date();
   await prisma.$transaction(async (tx) => {
@@ -1647,11 +1650,11 @@ export async function recordManualPaymentInDatabase(
     await tx.$executeRaw`
       INSERT INTO "Payment" (
         "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
-        "transactionId", "notes", "submittedAt", "createdAt", "updatedAt"
+        "transactionId", "receiptImageUrl", "notes", "submittedAt", "createdAt", "updatedAt"
       )
       VALUES (
         ${`payment-${booking.id}`}, ${booking.id}, ${booking.guestId}, ${booking.hostId}, ${payment.amount},
-        ${payment.paymentMethod}, ${"submitted"}, ${payment.transactionId}, ${payment.notes ?? null}, ${now}, ${now}, ${now}
+        ${payment.paymentMethod}, ${"submitted"}, ${payment.transactionId}, ${payment.receiptImageUrl ?? null}, ${payment.notes ?? null}, ${now}, ${now}, ${now}
       )
       ON CONFLICT ("bookingId") DO UPDATE SET
         "guestId" = EXCLUDED."guestId",
@@ -1660,6 +1663,7 @@ export async function recordManualPaymentInDatabase(
         "paymentMethod" = EXCLUDED."paymentMethod",
         "paymentStatus" = EXCLUDED."paymentStatus",
         "transactionId" = EXCLUDED."transactionId",
+        "receiptImageUrl" = EXCLUDED."receiptImageUrl",
         "notes" = EXCLUDED."notes",
         "rejectionReason" = NULL,
         "confirmedBy" = NULL,
@@ -1819,18 +1823,32 @@ export async function createMessageInDatabase(message: Message) {
   `;
 }
 
-function encodeEmailChangeTokenType(metadata: Record<string, unknown> | undefined) {
+function tokenTypeSupportsMetadata(type: AuthToken["type"]) {
+  return type === "email_change" || type === "email_verification";
+}
+
+function encodeMetadataTokenType(type: AuthToken["type"], metadata: Record<string, unknown> | undefined) {
   const payload = Buffer.from(JSON.stringify(metadata ?? {}), "utf8").toString("base64url");
-  return `email_change:${payload}`;
+  return `${type}:${payload}`;
+}
+
+function encodeAuthTokenType(token: AuthToken) {
+  return tokenTypeSupportsMetadata(token.type) && token.metadata ? encodeMetadataTokenType(token.type, token.metadata) : token.type;
 }
 
 function decodeStoredAuthTokenType(value: string): Pick<AuthToken, "type" | "metadata"> | null {
-  if (value.startsWith("email_change:")) {
+  const metadataPrefix = value.startsWith("email_change:")
+    ? "email_change"
+    : value.startsWith("email_verification:")
+      ? "email_verification"
+      : null;
+
+  if (metadataPrefix) {
     try {
-      const rawPayload = value.slice("email_change:".length);
+      const rawPayload = value.slice(`${metadataPrefix}:`.length);
       const metadata = JSON.parse(Buffer.from(rawPayload, "base64url").toString("utf8"));
       return {
-        type: "email_change",
+        type: metadataPrefix,
         metadata: metadata && typeof metadata === "object" && !Array.isArray(metadata) ? metadata as Record<string, unknown> : undefined,
       };
     } catch {
@@ -1842,13 +1860,21 @@ function decodeStoredAuthTokenType(value: string): Pick<AuthToken, "type" | "met
   return null;
 }
 
+function authTokenTypeWhere(type: AuthToken["type"]): Prisma.AuthTokenWhereInput {
+  if (tokenTypeSupportsMetadata(type)) {
+    return { OR: [{ type }, { type: { startsWith: `${type}:` } }] };
+  }
+
+  return { type };
+}
+
 export async function createAuthTokenInDatabase(token: AuthToken) {
   await prisma.authToken.create({
     data: {
       id: token.id,
       userId: token.userId,
       tokenHash: token.tokenHash,
-      type: token.type === "email_change" ? encodeEmailChangeTokenType(token.metadata) : token.type,
+      type: encodeAuthTokenType(token),
       expiresAt: new Date(token.expiresAt),
       createdAt: new Date(token.createdAt),
     },
@@ -1924,17 +1950,12 @@ function toAuthToken(token: { id: string; userId: string; tokenHash: string; typ
 }
 
 export async function deleteAuthTokensForUserInDatabase(userId: string, type: AuthToken["type"]) {
-  if (type === "email_change") {
-    await prisma.authToken.deleteMany({ where: { userId, type: { startsWith: "email_change:" } } });
-    return;
-  }
-
-  await prisma.authToken.deleteMany({ where: { userId, type } });
+  await prisma.authToken.deleteMany({ where: { userId, ...authTokenTypeWhere(type) } });
 }
 
 export async function findAuthTokenFromDatabase(tokenHash: string, type: AuthToken["type"]) {
   const token = await prisma.authToken.findFirst({
-    where: type === "email_change" ? { tokenHash, type: { startsWith: "email_change:" } } : { tokenHash, type },
+    where: { tokenHash, ...authTokenTypeWhere(type) },
   });
   if (!token) return null;
   if (token.expiresAt < new Date()) {
@@ -1947,7 +1968,7 @@ export async function findAuthTokenFromDatabase(tokenHash: string, type: AuthTok
 
 export async function consumeAuthTokenFromDatabase(tokenHash: string, type: AuthToken["type"]) {
   const token = await prisma.authToken.findFirst({
-    where: type === "email_change" ? { tokenHash, type: { startsWith: "email_change:" } } : { tokenHash, type },
+    where: { tokenHash, ...authTokenTypeWhere(type) },
   });
   if (!token) return null;
   if (token.expiresAt < new Date()) {
@@ -1957,6 +1978,28 @@ export async function consumeAuthTokenFromDatabase(tokenHash: string, type: Auth
   await prisma.authToken.delete({ where: { id: token.id } });
   const decoded = toAuthToken(token);
   return decoded?.type === type ? decoded : null;
+}
+
+export async function consumeEmailVerificationTokenByCodeHashInDatabase(userId: string, codeHash: string) {
+  const tokens = await prisma.authToken.findMany({
+    where: { userId, ...authTokenTypeWhere("email_verification") },
+    orderBy: { createdAt: "desc" },
+  });
+
+  for (const token of tokens) {
+    if (token.expiresAt < new Date()) {
+      await prisma.authToken.delete({ where: { id: token.id } });
+      continue;
+    }
+
+    const decoded = toAuthToken(token);
+    if (decoded?.type === "email_verification" && decoded.metadata?.codeHash === codeHash) {
+      await prisma.authToken.delete({ where: { id: token.id } });
+      return decoded;
+    }
+  }
+
+  return null;
 }
 
 export async function markUserEmailVerifiedInDatabase(userId: string) {

@@ -9,9 +9,11 @@ async function signInAsGuest(page: import("@playwright/test").Page) {
     await page.goto("/register", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Full name").fill("E2E Guest");
     await page.getByPlaceholder("Email").fill(email);
-    await page.getByPlaceholder("Password").fill(guestPassword);
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill(guestPassword);
+    await page.getByRole("textbox", { name: "Confirm password", exact: true }).fill(guestPassword);
     await page.getByRole("button", { name: "Register" }).click();
-    await expect(page).toHaveURL(/\/register\?message=/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/verify-email\?/, { timeout: 30000 });
+    await expect(page.getByText("We sent a 6-digit verification code")).toBeVisible();
     await expectNoSignedInSession(page);
 
     await markUserEmailVerified(email);

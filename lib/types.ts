@@ -62,6 +62,7 @@ export interface Payment {
   paymentMethod: PaymentMethod | string;
   paymentStatus: PaymentStatus;
   transactionId: string;
+  receiptImageUrl?: string;
   notes?: string;
   rejectionReason?: string;
   confirmedBy?: string;

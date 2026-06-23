@@ -7,6 +7,7 @@ import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import {
   completeUserEmailChangeInDatabase,
   consumeAuthTokenFromDatabase,
+  consumeEmailVerificationTokenByCodeHashInDatabase,
   createAuthTokenInDatabase,
   deleteAuthTokensForUserInDatabase,
   deleteSessionsForUserFromDatabase,
@@ -69,11 +70,11 @@ export async function issueAuthToken(userId: string, type: AuthToken["type"], me
     createdAt: new Date().toISOString(),
   };
   if (usesPrismaPersistence()) {
-    if (type === "email_change" || type === "admin_mfa" || type === "account_deletion") await deleteAuthTokensForUserInDatabase(userId, type);
+    if (type === "email_verification" || type === "email_change" || type === "admin_mfa" || type === "account_deletion") await deleteAuthTokensForUserInDatabase(userId, type);
     await createAuthTokenInDatabase(token);
   } else {
     const tokens = (await readStoredAuthTokens()).filter((item) => item.expiresAt > new Date().toISOString());
-    const activeTokens = type === "email_change" || type === "admin_mfa" || type === "account_deletion" ? tokens.filter((item) => item.userId !== userId || item.type !== type) : tokens;
+    const activeTokens = type === "email_verification" || type === "email_change" || type === "admin_mfa" || type === "account_deletion" ? tokens.filter((item) => item.userId !== userId || item.type !== type) : tokens;
     await writeStoredAuthTokens([token, ...activeTokens]);
   }
   return rawToken;
@@ -102,6 +103,26 @@ export async function consumeAuthToken(rawToken: string, type: AuthToken["type"]
     return null;
   }
   await writeStoredAuthTokens(tokens.filter((item) => item.id !== token.id));
+  return token ?? null;
+}
+
+export async function consumeEmailVerificationCode(userId: string, codeHash: string) {
+  if (usesPrismaPersistence()) return consumeEmailVerificationTokenByCodeHashInDatabase(userId, codeHash);
+
+  const now = new Date().toISOString();
+  const tokens = await readStoredAuthTokens();
+  const activeTokens = tokens.filter((item) => item.expiresAt > now);
+  const token = activeTokens.find((item) => (
+    item.userId === userId
+    && item.type === "email_verification"
+    && typeof item.metadata?.codeHash === "string"
+    && item.metadata.codeHash === codeHash
+  ));
+
+  if (token || activeTokens.length !== tokens.length) {
+    await writeStoredAuthTokens(activeTokens.filter((item) => item.id !== token?.id));
+  }
+
   return token ?? null;
 }
 

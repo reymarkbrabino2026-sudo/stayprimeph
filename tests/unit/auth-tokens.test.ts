@@ -19,6 +19,7 @@ vi.mock("@/lib/json-store", () => ({
 vi.mock("@/lib/repositories", () => ({
   completeUserEmailChangeInDatabase: vi.fn(),
   consumeAuthTokenFromDatabase: vi.fn(),
+  consumeEmailVerificationTokenByCodeHashInDatabase: vi.fn(),
   createAuthTokenInDatabase: vi.fn(),
   deleteAuthTokensForUserInDatabase: vi.fn(),
   deleteSessionsForUserFromDatabase: vi.fn(),
@@ -44,7 +45,7 @@ vi.mock("@/lib/users", () => ({
 
 import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-store";
-import { completeEmailChange, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
+import { completeEmailChange, consumeEmailVerificationCode, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { readStoredSessions, writeStoredSessions } from "@/lib/session-store";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
@@ -172,6 +173,33 @@ describe("email change auth tokens", () => {
     }));
     expect(vi.mocked(appendAuditLog).mock.calls[0][0].metadata).not.toHaveProperty("oldEmail");
     expect(vi.mocked(appendAuditLog).mock.calls[0][0].metadata).not.toHaveProperty("newEmail");
+  });
+
+  it("consumes a matching pending email verification code token once", async () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const verificationToken: AuthToken = {
+      id: "verify-token",
+      userId: user.id,
+      tokenHash: "verify-hash",
+      type: "email_verification",
+      expiresAt: future,
+      createdAt: new Date().toISOString(),
+      metadata: { codeHash: "code-hash" },
+    };
+    const passwordResetToken: AuthToken = {
+      ...verificationToken,
+      id: "reset-token",
+      tokenHash: "reset-hash",
+      type: "password_reset",
+      metadata: undefined,
+    };
+
+    vi.mocked(readStoredAuthTokens).mockResolvedValue([verificationToken, passwordResetToken]);
+
+    const consumed = await consumeEmailVerificationCode(user.id, "code-hash");
+
+    expect(consumed).toEqual(verificationToken);
+    expect(writeStoredAuthTokens).toHaveBeenCalledWith([passwordResetToken]);
   });
 
   it("rejects stale email-change tokens if the account email no longer matches", async () => {

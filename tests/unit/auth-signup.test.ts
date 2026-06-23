@@ -43,6 +43,7 @@ vi.mock("@/lib/audit-logs", () => ({
 vi.mock("@/lib/auth-tokens", () => ({
   completeEmailChange: vi.fn(),
   consumeAuthToken: vi.fn(),
+  consumeEmailVerificationCode: vi.fn(),
   getAuthToken: vi.fn(),
   hashAuthTokenValue: vi.fn(),
   issueAuthToken: vi.fn(async () => "token"),
@@ -60,6 +61,12 @@ vi.mock("@/lib/email", () => ({
   sendPasswordResetEmail: vi.fn(),
   sendVerificationEmail: vi.fn(),
   sendWelcomeEmail: vi.fn(),
+}));
+
+vi.mock("@/lib/email-verification-code", () => ({
+  createEmailVerificationCode: vi.fn(() => "123456"),
+  hashEmailVerificationCode: vi.fn(() => "code-hash"),
+  normalizeEmailVerificationCode: vi.fn((value: string) => value.trim()),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -108,8 +115,9 @@ vi.mock("@/lib/users", () => ({
   getUsers: vi.fn(async () => []),
 }));
 
-import { signUp } from "@/app/auth/actions";
+import { signUp, verifyEmailCode } from "@/app/auth/actions";
 import { createSession } from "@/lib/auth";
+import { consumeEmailVerificationCode, issueAuthToken, markUserEmailVerified } from "@/lib/auth-tokens";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { writeStoredUsers } from "@/lib/user-store";
 import { getUsers } from "@/lib/users";
@@ -119,6 +127,7 @@ function signupForm(email = "maria@example.com") {
   formData.set("name", "Maria Santos");
   formData.set("email", email);
   formData.set("password", "PrimeStay#2026");
+  formData.set("confirmPassword", "PrimeStay#2026");
   formData.set("role", "guest");
   return formData;
 }
@@ -133,6 +142,7 @@ describe("signUp security", () => {
     formData.set("name", "Maria Santos");
     formData.set("email", "maria@example.com");
     formData.set("password", "password123");
+    formData.set("confirmPassword", "password123");
     formData.set("role", "guest");
 
     await expect(signUp(formData)).rejects.toThrow("NEXT_REDIRECT:/register?");
@@ -141,7 +151,18 @@ describe("signUp security", () => {
     expect(writeStoredUsers).not.toHaveBeenCalled();
   });
 
-  it("uses the same generic response for duplicate and fresh signup attempts", async () => {
+  it("rejects mismatched signup passwords before creating a user", async () => {
+    const formData = signupForm();
+    formData.set("confirmPassword", "DifferentPassword#2026");
+
+    await expect(signUp(formData)).rejects.toThrow("NEXT_REDIRECT:/register?");
+
+    expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("Passwords+do+not+match"));
+    expect(writeStoredUsers).not.toHaveBeenCalled();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate signup emails without sending a reset or verification email", async () => {
     const existingUser = {
       id: "user-1",
       name: "Maria Santos",
@@ -152,23 +173,63 @@ describe("signUp security", () => {
       createdAt: "2026-06-18",
       passwordHash: "hash",
     } as const;
-    const genericNotice = "If+we+can+process+that+signup%2C+we+sent+next+steps+to+the+email+address+provided.";
 
     vi.mocked(getUsers).mockResolvedValueOnce([existingUser]);
     await expect(signUp(signupForm(existingUser.email))).rejects.toThrow("NEXT_REDIRECT:/register?");
     const duplicateRedirect = vi.mocked(redirectMock).mock.calls.at(-1)?.[0] ?? "";
 
+    expect(duplicateRedirect).toContain("This+email+is+already+registered");
+    expect(sendPasswordResetEmail).not.toHaveBeenCalled();
+    expect(sendVerificationEmail).not.toHaveBeenCalled();
+    expect(writeStoredUsers).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh user and redirects to email code verification", async () => {
     vi.mocked(getUsers).mockResolvedValueOnce([]);
-    await expect(signUp(signupForm("new-user@example.com"))).rejects.toThrow("NEXT_REDIRECT:/register?");
+    await expect(signUp(signupForm("new-user@example.com"))).rejects.toThrow("NEXT_REDIRECT:/verify-email?");
     const freshRedirect = vi.mocked(redirectMock).mock.calls.at(-1)?.[0] ?? "";
 
-    expect(duplicateRedirect).toContain(genericNotice);
-    expect(freshRedirect).toContain(genericNotice);
-    expect(duplicateRedirect.replace(/maria%40example\\.com|new-user%40example\\.com/g, "email")).toBe(
-      freshRedirect.replace(/maria%40example\\.com|new-user%40example\\.com/g, "email"),
-    );
-    expect(sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+    expect(freshRedirect).toContain("/verify-email?");
+    expect(freshRedirect).toContain("We+sent+a+6-digit+verification+code");
+    expect(issueAuthToken).toHaveBeenCalledWith(expect.any(String), "email_verification", { codeHash: "code-hash" });
     expect(sendVerificationEmail).toHaveBeenCalledTimes(1);
+    expect(sendVerificationEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: "new-user@example.com",
+      code: "123456",
+    }));
     expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("verifies an email when the submitted code matches the pending token", async () => {
+    const user = {
+      id: "user-1",
+      name: "Maria Santos",
+      email: "maria@example.com",
+      role: "guest",
+      avatar: "MS",
+      phone: "",
+      createdAt: "2026-06-18",
+      passwordHash: "hash",
+    } as const;
+    const formData = new FormData();
+    formData.set("email", user.email);
+    formData.set("code", "123456");
+    formData.set("role", "guest");
+
+    vi.mocked(getUsers).mockResolvedValueOnce([user]);
+    vi.mocked(consumeEmailVerificationCode).mockResolvedValueOnce({
+      id: "token-1",
+      userId: user.id,
+      tokenHash: "hash",
+      type: "email_verification",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      createdAt: new Date().toISOString(),
+      metadata: { codeHash: "code-hash" },
+    });
+
+    await expect(verifyEmailCode(formData)).rejects.toThrow("NEXT_REDIRECT:/login?");
+
+    expect(consumeEmailVerificationCode).toHaveBeenCalledWith(user.id, "code-hash");
+    expect(markUserEmailVerified).toHaveBeenCalledWith(user.id);
   });
 });

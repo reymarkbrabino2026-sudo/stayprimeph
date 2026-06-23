@@ -36,6 +36,7 @@ import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { getAvailabilityBlocksForProperty } from "@/lib/availability";
 import { addDays } from "@/lib/availability-calendar";
 import { getCurrentUser } from "@/lib/auth";
@@ -129,8 +130,6 @@ export default async function RoomPage({
         .filter((block) => block.propertyId === property.id)
         .map((block) => ({ checkIn: block.date, checkOut: addDays(block.date, 1) })),
     );
-  const hostInitials =
-    host?.avatar ?? host?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) ?? "H";
   const averageRating = propertyReviews.length
     ? (propertyReviews.reduce((sum, review) => sum + review.rating, 0) / propertyReviews.length).toFixed(2)
     : property.rating > 0
@@ -390,9 +389,7 @@ export default async function RoomPage({
                       <p className="mt-4 text-lg leading-8 text-black/75">{review.comment}</p>
                       <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
                         <div className="flex items-center gap-3">
-                          <span className="grid size-11 place-items-center rounded-full bg-[#f6f1e9] text-sm font-semibold text-[#083f35]">
-                            {guest?.avatar ?? "G"}
-                          </span>
+                          <UserAvatar avatar={guest?.avatar} name={guest?.name ?? "Guest"} fallback="G" className="size-11 bg-[#f6f1e9] text-sm font-semibold text-[#083f35]" imageSizes="44px" />
                           <div>
                             <p className="font-semibold">{guest?.name ?? "Guest"}</p>
                             <p className="text-sm text-black/50">{formatDate(review.createdAt)}</p>
@@ -441,9 +438,7 @@ export default async function RoomPage({
             />
             <div className="mt-8 grid gap-6 rounded-[2rem] border border-black/10 bg-white p-6 md:grid-cols-[17rem_1fr] md:p-8">
               <div className="rounded-[1.5rem] bg-[#f6f1e9] p-7 text-center">
-                <div className="mx-auto grid size-24 place-items-center rounded-full bg-white text-3xl font-semibold text-[#083f35] shadow-sm">
-                  {hostInitials}
-                </div>
+                <UserAvatar avatar={host?.avatar} name={host?.name ?? "Host"} fallback="H" className="mx-auto size-24 bg-white text-3xl font-semibold text-[#083f35] shadow-sm" imageSizes="96px" />
                 <p className="mt-4 text-2xl font-semibold">{host?.name ?? "Host"}</p>
                 <p className="text-black/55">Joined {formatDate(host?.createdAt ?? property.createdAt)}</p>
               </div>

@@ -269,15 +269,15 @@ export async function sendWelcomeEmail(to: string, name: string) {
   });
 }
 
-export async function sendVerificationEmail(input: { to: string; name: string; token: string }) {
+export async function sendVerificationEmail(input: { to: string; name: string; token: string; code: string }) {
   const url = `${env.NEXT_PUBLIC_APP_URL}/verify-email/${encodeURIComponent(input.token)}`;
   await sendEmail({
     to: input.to,
-    subject: "Verify your StayPrimePH email",
+    subject: "Your StayPrimePH verification code",
     consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Verify your email",
-      body: `Hi ${input.name}, confirm this email address so your StayPrimePH account stays protected.`,
+      body: `Hi ${input.name}, use code ${input.code} to verify your StayPrimePH account. This code expires in 1 hour. You can also use the verification button below.`,
       buttonText: "Verify Email",
       buttonUrl: url,
     }),

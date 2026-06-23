@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { cancelBookingByGuest, getBookingById } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
+import { storePaymentReceiptImage } from "@/lib/payment-receipt-storage";
 import { readManualPaymentInput, submitManualPayment } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { canReviewBooking, createStayReview, getReviewForBooking } from "@/lib/reviews";
@@ -116,11 +117,17 @@ export async function submitManualPaymentDetails(
     bookingId = paymentInput.bookingId;
     const booking = await getBookingById(bookingId);
     if (!booking) throw new Error("Booking request not found.");
+    if (booking.guestId !== user.id) throw new Error("Booking request not found.");
+    const receiptImageUrl = await storePaymentReceiptImage({
+      file: formData.get("receiptImage"),
+      userId: user.id,
+      bookingId: booking.id,
+    });
 
     await submitManualPayment({
       guestId: user.id,
       booking,
-      paymentInput,
+      paymentInput: { ...paymentInput, receiptImageUrl },
     });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Payment details could not be submitted." };

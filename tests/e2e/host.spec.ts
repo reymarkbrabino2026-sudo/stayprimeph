@@ -11,10 +11,12 @@ async function signInAsHost(page: import("@playwright/test").Page) {
   await page.getByLabel("Date of birth").fill("1990-01-01");
   await page.getByPlaceholder("Email").fill(email);
   await page.getByPlaceholder("Create a password").fill(hostPassword);
+  await page.getByPlaceholder("Confirm your password").fill(hostPassword);
   await page.getByRole("button", { name: "Agree and continue" }).click();
   await expect(page.getByRole("heading", { name: "Everyone belongs here" })).toBeVisible();
   await page.getByRole("button", { name: "Agree and continue" }).click();
-  await expect(page).toHaveURL(/\/register\?message=.*role=host$/, { timeout: 30000 });
+  await expect(page).toHaveURL(/\/verify-email\?.*role=host/, { timeout: 30000 });
+  await expect(page.getByText("We sent a 6-digit verification code")).toBeVisible();
   await expectNoSignedInSession(page);
   await markUserEmailVerified(email);
 
@@ -134,11 +136,13 @@ test("listing draft is isolated between host accounts after logout", async ({ pa
     await page.getByLabel("Date of birth").fill("1990-01-01");
     await page.getByPlaceholder("Email").fill(secondHostEmail);
     await page.getByPlaceholder("Create a password").fill(hostPassword);
+    await page.getByPlaceholder("Confirm your password").fill(hostPassword);
     await page.getByRole("button", { name: "Agree and continue" }).click();
     await expect(page.getByRole("heading", { name: "Everyone belongs here" })).toBeVisible();
     await page.getByRole("button", { name: "Agree and continue" }).click();
 
-    await expect(page).toHaveURL(/\/register\?message=.*role=host$/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/verify-email\?.*role=host/, { timeout: 30000 });
+    await expect(page.getByText("We sent a 6-digit verification code")).toBeVisible();
     await expectNoSignedInSession(page);
     await markUserEmailVerified(secondHostEmail);
     await page.goto("/login?role=host", { waitUntil: "domcontentloaded" });

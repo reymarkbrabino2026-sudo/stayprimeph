@@ -1,13 +1,17 @@
 import { describe, expect, test } from "vitest";
 import {
   cloudinaryListingUploadFolder,
+  cloudinaryPaymentReceiptUploadFolder,
   extensionFromContentType,
   extensionFromRequestedPath,
   isHostScopedListingPhotoUrl,
   isIntendedListingPhotoUrl,
+  isIntendedPaymentReceiptUrl,
   listingUploadScopePrefix,
+  paymentReceiptUploadScopePrefix,
   serverGeneratedListingBlobPath,
   serverGeneratedListingUploadPath,
+  serverGeneratedPaymentReceiptBlobPath,
 } from "@/lib/upload-paths";
 
 describe("listing upload paths", () => {
@@ -83,5 +87,27 @@ describe("listing upload paths", () => {
     expect(isHostScopedListingPhotoUrl("/uploads/listings/host-2/draft-1/photo.jpg", { userId: "host-1" })).toBe(false);
     expect(isHostScopedListingPhotoUrl("pending-upload", { userId: "host-1" })).toBe(false);
     expect(isHostScopedListingPhotoUrl("https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-1/photo.svg", { userId: "host-1" })).toBe(false);
+  });
+
+  test("builds guest and booking scoped payment receipt paths", () => {
+    expect(paymentReceiptUploadScopePrefix("guest/../evil@example.com", "booking-../123")).toBe("uploads/payment-receipts/guestevilexamplecom/booking-123/");
+    expect(serverGeneratedPaymentReceiptBlobPath({
+      userId: "guest-1",
+      bookingId: "booking-1",
+      uploadId: "receipt-1",
+    })).toBe("uploads/payment-receipts/guest-1/booking-1/receipt-1");
+    expect(cloudinaryPaymentReceiptUploadFolder("guest-1", "booking-1")).toBe("stayprimeph/uploads/payment-receipts/guest-1/booking-1");
+  });
+
+  test("accepts only payment receipts from the intended guest and booking scope", () => {
+    const scope = { userId: "guest-1", bookingId: "booking-1", cloudName: "stayprime-cloud" };
+
+    expect(isIntendedPaymentReceiptUrl("/uploads/payment-receipts/guest-1/booking-1/receipt.webp", scope)).toBe(true);
+    expect(isIntendedPaymentReceiptUrl("https://store.public.blob.vercel-storage.com/uploads/payment-receipts/guest-1/booking-1/receipt.webp", scope)).toBe(true);
+    expect(isIntendedPaymentReceiptUrl("https://res.cloudinary.com/stayprime-cloud/image/upload/v123/stayprimeph/uploads/payment-receipts/guest-1/booking-1/receipt.webp", scope)).toBe(true);
+
+    expect(isIntendedPaymentReceiptUrl("/uploads/payment-receipts/guest-2/booking-1/receipt.webp", scope)).toBe(false);
+    expect(isIntendedPaymentReceiptUrl("/uploads/payment-receipts/guest-1/booking-2/receipt.webp", scope)).toBe(false);
+    expect(isIntendedPaymentReceiptUrl("https://example.com/uploads/payment-receipts/guest-1/booking-1/receipt.webp", scope)).toBe(false);
   });
 });

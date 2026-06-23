@@ -9,10 +9,11 @@ test("guest can sign in and reach the guest dashboard", async ({ page }) => {
     await page.goto("/register", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder("Full name").fill("E2E Guest");
     await page.getByPlaceholder("Email").fill(email);
-    await page.getByPlaceholder("Password").fill(guestPassword);
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill(guestPassword);
+    await page.getByRole("textbox", { name: "Confirm password", exact: true }).fill(guestPassword);
     await page.getByRole("button", { name: "Register" }).click();
-    await expect(page).toHaveURL(/\/register\?message=/);
-    await expect(page.getByText("If we can process that signup")).toBeVisible();
+    await expect(page).toHaveURL(/\/verify-email\?/);
+    await expect(page.getByText("We sent a 6-digit verification code")).toBeVisible();
     await expectNoSignedInSession(page);
 
     await markUserEmailVerified(email);
@@ -33,7 +34,8 @@ test("signup rejects weak guest passwords", async ({ page }) => {
   await page.goto("/register", { waitUntil: "domcontentloaded" });
   await page.getByPlaceholder("Full name").fill("E2E Guest");
   await page.getByPlaceholder("Email").fill(email);
-  await page.getByPlaceholder("Password").fill("Password1234!");
+  await page.getByRole("textbox", { name: "Password", exact: true }).fill("Password1234!");
+  await page.getByRole("textbox", { name: "Confirm password", exact: true }).fill("Password1234!");
   await page.getByRole("button", { name: "Register" }).click();
   await expect(page).toHaveURL(/\/register\?error=/);
   await expect(page.getByText("Use a stronger password")).toBeVisible();

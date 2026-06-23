@@ -42,6 +42,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/auth-tokens", () => ({
   completeEmailChange: vi.fn(),
   consumeAuthToken: vi.fn(),
+  consumeEmailVerificationCode: vi.fn(),
   getAuthToken: vi.fn(),
   hashAuthTokenValue: vi.fn(() => "hashed-token-value"),
   issueAuthToken: vi.fn(async () => "mfa-token"),
@@ -112,7 +113,7 @@ import { clearPendingAdminMfaChallenge, createPendingAdminMfaChallenge, readPend
 import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, createSession, requireUser, verifyPassword } from "@/lib/auth";
 import { consumeAuthToken, getAuthToken, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
-import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail } from "@/lib/email";
+import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { checkLoginLockout } from "@/lib/rate-limit";
 import { getUserById, getUsers } from "@/lib/users";
 import type { AuthToken, User } from "@/lib/types";
@@ -126,6 +127,7 @@ const adminUser: User = {
   phone: "",
   createdAt: "2026-06-18",
   passwordHash: "hashed-password",
+  emailVerifiedAt: "2026-06-18T00:00:00.000Z",
 };
 
 const adminMfaToken: AuthToken = {
@@ -171,6 +173,24 @@ describe("admin MFA sign-in", () => {
     });
     expect(createSession).not.toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("next=%2Fadmin%2Fpayments"));
+  });
+
+  it("requires email verification before MFA or session creation", async () => {
+    const unverifiedAdmin = { ...adminUser, emailVerifiedAt: undefined };
+    vi.mocked(getUsers).mockResolvedValueOnce([unverifiedAdmin]);
+
+    await expect(signIn(signinForm())).rejects.toThrow("NEXT_REDIRECT:/verify-email?");
+
+    expect(issueAuthToken).toHaveBeenCalledWith(unverifiedAdmin.id, "email_verification", { codeHash: expect.any(String) });
+    expect(sendVerificationEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: unverifiedAdmin.email,
+      name: unverifiedAdmin.name,
+      code: expect.stringMatching(/^\d{6}$/),
+    }));
+    expect(createPendingAdminMfaChallenge).not.toHaveBeenCalled();
+    expect(sendAdminMfaEmail).not.toHaveBeenCalled();
+    expect(createSession).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("role=admin"));
   });
 
   it("persists an audit log for failed login attempts", async () => {

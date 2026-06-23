@@ -3,6 +3,7 @@
 import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Trash2, Users } from "lucide-react";
 import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { avatarFallbackText } from "@/lib/avatar";
 import { csrfFieldName } from "@/lib/csrf-fields";
 import { calculateDefaultWeekendPrice, isWeekendDayIndex } from "@/lib/pricing";
 import { formatCurrency, formatStayTimeRange } from "@/lib/utils";
@@ -790,15 +791,7 @@ function formatCompactPrice(value: number) {
 }
 
 function getAvatarLabel(booking: HostCalendarBooking) {
-  const avatar = booking.guestAvatar.trim();
-  if (avatar) return avatar.slice(0, 2);
-
-  return booking.guestName
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2) || "G";
+  return avatarFallbackText(booking.guestAvatar, booking.guestName, "G");
 }
 
 function parseDateKey(value: string) {

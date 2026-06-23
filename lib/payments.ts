@@ -87,6 +87,7 @@ export function readManualPaymentInput(formData: FormData) {
   const paymentMethod = normalizeManualMethod(formData.get("paymentMethod"));
   const amount = Math.round(Number(formData.get("amount") ?? 0));
   const transactionId = String(formData.get("referenceNumber") ?? "").trim();
+  const receiptImageUrl = String(formData.get("receiptImageUrl") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!bookingId) throw new Error("Booking is required.");
@@ -98,6 +99,7 @@ export function readManualPaymentInput(formData: FormData) {
     paymentMethod,
     amount,
     transactionId,
+    receiptImageUrl: receiptImageUrl || undefined,
     notes: notes || undefined,
   };
 }
@@ -145,6 +147,7 @@ export async function submitManualPayment({
     paymentMethod: paymentInput.paymentMethod,
     paymentStatus: "submitted",
     transactionId: paymentInput.transactionId,
+    receiptImageUrl: paymentInput.receiptImageUrl,
     notes: paymentInput.notes,
     submittedAt: now,
     createdAt: existingPayment?.createdAt ?? now,

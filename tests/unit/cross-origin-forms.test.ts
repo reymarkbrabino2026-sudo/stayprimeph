@@ -56,6 +56,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/auth-tokens", () => ({
   completeEmailChange: vi.fn(),
   consumeAuthToken: vi.fn(),
+  consumeEmailVerificationCode: vi.fn(),
   getAuthToken: vi.fn(),
   hashAuthTokenValue: vi.fn(),
   issueAuthToken: vi.fn(async () => "token"),
@@ -187,6 +188,7 @@ function signupForm() {
   formData.set("name", "Maria Santos");
   formData.set("email", "maria@example.com");
   formData.set("password", "PrimeStay#2026");
+  formData.set("confirmPassword", "PrimeStay#2026");
   formData.set("role", "guest");
   return formData;
 }
