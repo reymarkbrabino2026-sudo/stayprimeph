@@ -8,7 +8,7 @@ const desktopMediaQuery = "(min-width: 1024px)";
 
 function MapPlaceholder() {
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-[#e9f0ea]">
+    <div className="relative h-full w-full overflow-hidden rounded-none bg-[#e9f0ea] lg:rounded-[2rem]">
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgb(255_255_255_/_0.5)_1px,transparent_1px),linear-gradient(0deg,rgb(255_255_255_/_0.45)_1px,transparent_1px)] bg-[size:72px_72px]" />
       <div className="absolute left-6 top-6 h-16 w-52 rounded-2xl bg-white/85 shadow-sm" />
       <div className="absolute left-[18%] top-[34%] h-9 w-20 rounded-full bg-white shadow-[0_10px_25px_rgb(0_0_0_/_0.12)]" />
