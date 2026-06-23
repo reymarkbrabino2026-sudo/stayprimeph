@@ -1,23 +1,22 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { updateAvatar } from "@/app/account-settings/avatar-actions";
+import { initialsFromName, isRenderableAvatarImage } from "@/lib/avatar";
 import { csrfFieldName } from "@/lib/csrf-fields";
 
-function isRenderableImage(src?: string) {
-  return Boolean(src && (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("/")));
-}
-
-function initials(name: string) {
-  return name.split(" ").map((part) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "U";
-}
-
 export function AvatarUploader({ initialAvatar, name, csrfToken }: { initialAvatar?: string; name: string; csrfToken?: string }) {
-  const [avatar, setAvatar] = useState<string | undefined>(isRenderableImage(initialAvatar) ? initialAvatar : undefined);
+  const [avatar, setAvatar] = useState<string | undefined>(isRenderableAvatarImage(initialAvatar) ? initialAvatar : undefined);
+  const [imageFailed, setImageFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imageSrc = avatar && !imageFailed ? avatar : undefined;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatar]);
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -39,6 +38,7 @@ export function AvatarUploader({ initialAvatar, name, csrfToken }: { initialAvat
       const result = await updateAvatar(saveBody);
       if (result.error) throw new Error(result.error);
 
+      setImageFailed(false);
       setAvatar(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload your photo.");
@@ -50,10 +50,10 @@ export function AvatarUploader({ initialAvatar, name, csrfToken }: { initialAvat
   return (
     <div className="flex items-center gap-4">
       <div className="relative size-20 shrink-0 overflow-hidden rounded-full bg-[#083f35] text-white">
-        {avatar ? (
-          <Image src={avatar} alt={name} fill sizes="80px" className="object-cover" />
+        {imageSrc ? (
+          <Image src={imageSrc} alt={name} fill sizes="80px" className="object-cover" onError={() => setImageFailed(true)} />
         ) : (
-          <span className="flex size-full items-center justify-center text-xl font-bold">{initials(name)}</span>
+          <span className="flex size-full items-center justify-center text-xl font-bold">{initialsFromName(name)}</span>
         )}
       </div>
       <div>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { UserRole } from "@/lib/types";
 import { clearStoredHostWizardDraft } from "@/stores/host-wizard-store";
 
@@ -120,7 +121,6 @@ export function TravellerMenu() {
   }, []);
 
   const isSignedIn = Boolean(user);
-  const avatarLabel = user?.avatar || user?.name.charAt(0).toUpperCase() || "U";
   const showHostCta = sessionLoaded && (!user || user.role === "guest");
   const hostCtaHref = user?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";
   const activePrimaryLinks = user?.role === "host" ? hostPrimaryLinks : user?.role === "admin" ? adminPrimaryLinks : primaryLinks;
@@ -136,9 +136,7 @@ export function TravellerMenu() {
         aria-expanded={open}
       >
         {isSignedIn ? (
-          <span className="grid size-8 place-items-center rounded-full bg-[#e8f4ef] text-sm font-bold text-[#083f35]">
-            {avatarLabel}
-          </span>
+          <UserAvatar avatar={user?.avatar} name={user?.name} className="size-8 bg-[#e8f4ef] text-sm font-bold text-[#083f35]" imageSizes="32px" />
         ) : null}
         <span className="grid size-8 place-items-center rounded-full bg-[#e8f4ef] text-[#083f35]">
           <Menu size={18} />
