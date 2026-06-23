@@ -256,17 +256,17 @@ export function PayNowButton({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/45 p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="manual-payment-title">
-          <div className="flex h-[92dvh] w-full flex-col rounded-t-[1.5rem] bg-white p-5 shadow-2xl sm:mx-auto sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-[1.5rem] sm:p-6">
-            <div className="flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="manual-payment-title">
+          <div className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-[1.5rem] bg-white shadow-2xl sm:mx-auto sm:max-h-[860px] sm:max-w-2xl sm:rounded-[1.5rem]">
+            <div className="flex items-start justify-between gap-4 border-b border-black/[0.06] px-5 py-4 sm:px-6">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">External payment</p>
-                <h2 id="manual-payment-title" className="mt-2 text-2xl font-bold">Record payment details</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0a4a3f]/60">External payment</p>
+                <h2 id="manual-payment-title" className="mt-1 text-2xl font-bold tracking-normal">Record payment details</h2>
               </div>
               <button
                 type="button"
                 onClick={closePaymentModal}
-                className="grid size-10 shrink-0 place-items-center rounded-full border bg-white text-black/65 transition hover:bg-black/[0.04]"
+                className="grid size-10 shrink-0 place-items-center rounded-full border border-black/10 bg-white text-black/65 shadow-sm transition hover:bg-black/[0.04]"
                 aria-label="Close payment form"
                 title="Close"
               >
@@ -274,69 +274,76 @@ export function PayNowButton({
               </button>
             </div>
 
-            <div className="mt-5 rounded-2xl bg-[#fbf7f2] p-4">
-              <h3 className="font-semibold">{propertyTitle}</h3>
-              <p className="mt-1 text-sm text-black/55">{propertyLocation}</p>
-              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                  <p className="text-black/45">Dates</p>
-                  <p className="font-semibold">{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
-                  <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
-                </div>
-                <div>
-                  <p className="text-black/45">Guests</p>
-                  <p className="font-semibold">{booking.guests}</p>
-                </div>
-                <div>
-                  <p className="text-black/45">Total due</p>
-                  <p className="font-semibold">{formatCurrency(booking.totalPrice)}</p>
-                </div>
-              </div>
-            </div>
+            <form action={formAction} encType="multipart/form-data" className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 sm:px-6">
+                <input type="hidden" name="csrfToken" value={csrfToken} />
+                <input type="hidden" name="bookingId" value={booking.id} />
 
-            <ol className="mt-4 grid grid-cols-4 gap-2">
-              {paymentSteps.map((step, index) => {
-                const active = step.id === paymentStep;
-                const complete = index < currentStepIndex;
-                return (
-                  <li key={step.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStepMessage("");
-                        setPaymentStep(step.id);
-                      }}
-                      disabled={index > currentStepIndex}
-                      className={`flex h-full w-full flex-col items-center gap-1 rounded-2xl border px-2 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-45 ${
-                        active
-                          ? "border-[#083f35] bg-[#083f35] text-white"
-                          : complete
-                            ? "border-[#083f35]/20 bg-[#083f35]/[0.06] text-[#083f35]"
-                            : "border-black/10 bg-white text-black/55"
-                      }`}
-                    >
-                      <span className={`grid size-7 place-items-center rounded-full ${active ? "bg-white text-[#083f35]" : "bg-black/[0.06] text-current"}`}>
-                        {complete ? <CheckCircle2 size={15} /> : index + 1}
-                      </span>
-                      <span>{step.label}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+                <div className="mt-4 rounded-2xl border border-black/[0.08] bg-[#fbfaf7] p-4 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+                  <div className="grid gap-4 text-sm sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.35fr)_64px_104px] sm:items-start">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold">{propertyTitle}</h3>
+                      <p className="mt-1 text-sm text-black/55">{propertyLocation}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-black/45">Dates</p>
+                      <p className="font-semibold">{formatStayDateRange(booking.checkIn, booking.checkOut)}</p>
+                      <p className="mt-1 text-xs text-black/50">{formatStayTimeRange()}</p>
+                    </div>
+                    <div>
+                      <p className="text-black/45">Guests</p>
+                      <p className="font-semibold">{booking.guests}</p>
+                    </div>
+                    <div>
+                      <p className="text-black/45">Total due</p>
+                      <p className="font-bold text-[#083f35]">{formatCurrency(booking.totalPrice)}</p>
+                    </div>
+                  </div>
+                </div>
 
-            <form action={formAction} encType="multipart/form-data" className="mt-4 flex min-h-0 flex-1 flex-col">
-              <input type="hidden" name="csrfToken" value={csrfToken} />
-              <input type="hidden" name="bookingId" value={booking.id} />
+                <ol className="mt-4 grid grid-cols-4 rounded-2xl border border-black/[0.06] bg-white px-2 py-2 shadow-sm">
+                  {paymentSteps.map((step, index) => {
+                    const active = step.id === paymentStep;
+                    const complete = index < currentStepIndex;
+                    return (
+                      <li key={step.id} className="relative flex min-w-0 flex-col items-center gap-1.5">
+                        {index < paymentSteps.length - 1 ? (
+                          <span className={`absolute left-1/2 top-3.5 h-px w-full ${complete ? "bg-[#083f35]" : "bg-black/10"}`} />
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStepMessage("");
+                            setPaymentStep(step.id);
+                          }}
+                          disabled={index > currentStepIndex}
+                          className={`relative z-10 grid size-7 place-items-center rounded-full text-xs font-bold transition disabled:cursor-not-allowed ${
+                            active
+                              ? "bg-[#083f35] text-white shadow-[0_0_0_4px_rgba(8,63,53,0.1)]"
+                              : complete
+                                ? "bg-[#e8f0ee] text-[#083f35]"
+                                : "bg-black/[0.05] text-black/35"
+                          }`}
+                          aria-label={`Go to ${step.label} step`}
+                        >
+                          {complete ? <CheckCircle2 size={15} /> : index + 1}
+                        </button>
+                        <span className={`truncate text-xs font-semibold ${active || complete ? "text-[#083f35]" : "text-black/35"}`}>
+                          {step.label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
 
-              <div className="min-h-0 flex-1">
-                <section hidden={paymentStep !== "amount"} className="rounded-2xl border border-[#083f35]/25 bg-[#083f35]/[0.04] p-4">
+              <div className="mt-4 min-h-0">
+                <section hidden={paymentStep !== "amount"} className="rounded-2xl border border-black/[0.08] bg-[#f6faf8] p-4 shadow-sm">
                   <label className="block">
                     <span className="text-sm font-semibold">How much do you want to pay?</span>
                     <select
                       value={paymentPreset}
                       onChange={(event) => updateAmountPreset(event.target.value)}
-                      className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                      className="mt-2 min-h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-base shadow-sm outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
                     >
                       <option value="100">Full payment (100%) - {formatCurrency(booking.totalPrice)}</option>
                       <option value="50">50% downpayment - {formatCurrency(Math.round(booking.totalPrice * 0.5))}</option>
@@ -344,8 +351,8 @@ export function PayNowButton({
                       <option value="custom">Custom amount</option>
                     </select>
                   </label>
-                  <label className="mt-4 block">
-                    <span className="text-sm font-semibold">Amount to pay now</span>
+                  <label className="mt-4 block rounded-2xl bg-white p-3 shadow-sm">
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-black/45">Amount to pay now</span>
                     <input
                       name="amount"
                       type="number"
@@ -358,20 +365,20 @@ export function PayNowButton({
                         setStepMessage("");
                         setAmount(Number(event.target.value));
                       }}
-                      className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                      className="mt-2 min-h-12 w-full rounded-xl border border-black/10 px-3 text-lg font-semibold outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
                       required
                     />
                   </label>
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                    <span className="text-sm text-black/60">You&apos;ll pay now</span>
-                    <span className="text-2xl font-bold text-[#083f35]">{formatCurrency(amount || 0)}</span>
+                  <div className="mt-4 flex items-end justify-between gap-3 rounded-2xl border border-[#083f35]/10 bg-white px-4 py-3">
+                    <span className="text-sm font-medium text-black/55">You&apos;ll pay now</span>
+                    <span className="text-3xl font-bold leading-none text-[#083f35]">{formatCurrency(amount || 0)}</span>
                   </div>
                   {amount > 0 && amount < booking.totalPrice ? (
                     <p className="mt-1 text-xs font-medium text-amber-700">Remaining balance {formatCurrency(remainingBalance)} - must be fully paid before check-in.</p>
                   ) : null}
                 </section>
 
-                <section hidden={paymentStep !== "method"} className="rounded-2xl border p-4">
+                <section hidden={paymentStep !== "method"} className="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
                   <label className="block">
                     <span className="text-sm font-semibold">Choose payment method</span>
                     <select
@@ -381,7 +388,7 @@ export function PayNowButton({
                         setMethod(event.target.value);
                         setStepMessage("");
                       }}
-                      className="mt-2 min-h-12 w-full rounded-xl border bg-white px-3"
+                      className="mt-2 min-h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-base shadow-sm outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
                       required
                     >
                       <option value="" disabled>Select a payment method</option>
@@ -391,7 +398,7 @@ export function PayNowButton({
                   </label>
 
                   {hasPaymentMethod ? (
-                    <div className="mt-4 rounded-2xl border bg-white p-4 text-center">
+                    <div className="mt-4 rounded-2xl border border-[#083f35]/10 bg-[#f7fbf9] p-4 text-center">
                       <div className="flex items-center justify-center gap-2 font-semibold">
                         {method === "gcash" ? <Smartphone size={18} /> : <Landmark size={18} />}
                         {method === "gcash" ? "Scan to pay with GCash" : "Scan to pay via bank transfer"}
@@ -399,13 +406,15 @@ export function PayNowButton({
                       <p className="mt-2 text-sm text-black/60">
                         Pay exactly <span className="font-bold text-[#083f35]">{formatCurrency(amount || 0)}</span> using the QR code below.
                       </p>
-                      <Image
-                        src={method === "gcash" ? "/payment-method/gcash-qr.webp" : "/payment-method/bank-transfer-qr.webp"}
-                        alt={method === "gcash" ? "GCash payment QR code" : "Bank transfer payment QR code"}
-                        width={220}
-                        height={220}
-                        className="mx-auto mt-3 h-auto max-h-[220px] w-full max-w-[220px] rounded-xl border bg-white object-contain"
-                      />
+                      <div className="mx-auto mt-4 flex h-[220px] w-full max-w-[220px] items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+                        <Image
+                          src={method === "gcash" ? "/payment-method/gcash-qr.webp" : "/payment-method/bank-transfer-qr.webp"}
+                          alt={method === "gcash" ? "GCash payment QR code" : "Bank transfer payment QR code"}
+                          width={220}
+                          height={220}
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
                       {method === "bank_transfer" ? (
                         <p className="mt-2 text-xs text-black/55">Include this booking ID in your transfer note.</p>
                       ) : null}
@@ -417,15 +426,15 @@ export function PayNowButton({
                   )}
                 </section>
 
-                <section hidden={paymentStep !== "proof"} className="rounded-2xl border p-4">
-                  <p className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                    Payment happens outside StayPrimePH for now. After paying, upload your receipt screenshot and confirm the receipt number.
+                <section hidden={paymentStep !== "proof"} className="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
+                  <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+                    Upload your receipt screenshot after paying. The receipt number will be filled from the image when readable.
                   </p>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_180px]">
-                    <div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_168px]">
+                    <div className="min-w-0">
                       <span className="text-sm font-semibold">Upload your payment receipt</span>
-                      <div className="mt-2 rounded-2xl border border-dashed border-black/20 bg-black/[0.02] p-4">
+                      <div className="mt-2 rounded-2xl border border-dashed border-[#083f35]/25 bg-[#f7fbf9] p-4">
                         <input
                           id={`receiptImage-${booking.id}`}
                           name="receiptImage"
@@ -436,13 +445,13 @@ export function PayNowButton({
                           required
                         />
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-semibold">{receiptFileName || "Receipt screenshot"}</p>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{receiptFileName || "Receipt screenshot"}</p>
                             <p className="mt-1 text-sm text-black/55">JPG, PNG, WebP, or AVIF up to 4 MB.</p>
                           </div>
                           <label
                             htmlFor={`receiptImage-${booking.id}`}
-                            className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border bg-white px-4 text-sm font-semibold transition hover:bg-black/[0.04]"
+                            className="inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-4 text-sm font-semibold transition hover:bg-black/[0.04]"
                           >
                             <Upload size={17} />
                             Choose
@@ -470,49 +479,51 @@ export function PayNowButton({
                       ) : null}
                     </div>
 
-                    <div className="hidden overflow-hidden rounded-2xl border bg-black/[0.03] sm:block">
+                    <div className="hidden overflow-hidden rounded-2xl border border-black/10 bg-black/[0.03] sm:block">
                       {receiptObjectUrl ? (
                         <div
                           aria-label="Receipt preview"
-                          className="h-full min-h-[220px] w-full bg-cover bg-center"
+                          className="h-full min-h-[168px] w-full bg-cover bg-center"
                           style={{ backgroundImage: `url(${receiptObjectUrl})` }}
                         />
                       ) : (
-                        <div className="grid h-full min-h-[180px] place-items-center p-4 text-center text-xs text-black/45">Receipt preview</div>
+                        <div className="grid h-full min-h-[168px] place-items-center p-4 text-center text-xs text-black/45">Receipt preview</div>
                       )}
                     </div>
                   </div>
 
-                  <label className="mt-4 block">
-                    <span className="text-sm font-semibold">Receipt number or transaction ID</span>
-                    <input
-                      name="referenceNumber"
-                      className="mt-2 min-h-12 w-full rounded-xl border px-3"
-                      placeholder="Auto-filled after receipt upload"
-                      value={referenceNumber}
-                      onChange={(event) => {
-                        setReferenceNumber(event.target.value);
-                        setStepMessage("");
-                      }}
-                      required
-                    />
-                    <p className="mt-1 text-xs text-black/50">Review the generated number before submitting.</p>
-                  </label>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-sm font-semibold">Receipt number or transaction ID</span>
+                      <input
+                        name="referenceNumber"
+                        className="mt-2 min-h-12 w-full rounded-xl border border-black/10 px-3 outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
+                        placeholder="Auto-filled after receipt upload"
+                        value={referenceNumber}
+                        onChange={(event) => {
+                          setReferenceNumber(event.target.value);
+                          setStepMessage("");
+                        }}
+                        required
+                      />
+                    </label>
 
-                  <label className="mt-4 block">
-                    <span className="text-sm font-semibold">Notes (optional)</span>
-                    <textarea
-                      name="notes"
-                      rows={2}
-                      className="mt-2 w-full rounded-xl border px-3 py-3"
-                      placeholder="Account name used, or other payment notes"
-                      value={notes}
-                      onChange={(event) => setNotes(event.target.value)}
-                    />
-                  </label>
+                    <label className="block">
+                      <span className="text-sm font-semibold">Notes (optional)</span>
+                      <textarea
+                        name="notes"
+                        rows={1}
+                        className="mt-2 min-h-12 w-full rounded-xl border border-black/10 px-3 py-3 outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
+                        placeholder="Account name or notes"
+                        value={notes}
+                        onChange={(event) => setNotes(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-1 text-xs text-black/50">Review the generated number before submitting.</p>
                 </section>
 
-                <section hidden={paymentStep !== "review"} className="rounded-2xl border p-4">
+                <section hidden={paymentStep !== "review"} className="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-sm">
                   <h3 className="font-semibold">Review payment details</h3>
                   <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                     <div className="rounded-xl bg-black/[0.03] p-3">
@@ -544,42 +555,46 @@ export function PayNowButton({
               {stepMessage ? <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{stepMessage}</p> : null}
               {state.error ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{state.error}</p> : null}
 
-              <div className="mt-4 flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:justify-between">
-                <button
-                  type="button"
-                  onClick={closePaymentModal}
-                  className="min-h-12 rounded-full border px-5 font-semibold transition hover:bg-black/[0.04]"
-                >
-                  Cancel
-                </button>
-                <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                  {currentStepIndex > 0 ? (
-                    <button
-                      type="button"
-                      onClick={goToPreviousStep}
-                      className="min-h-12 rounded-full border px-5 font-semibold transition hover:bg-black/[0.04]"
-                    >
-                      Back
-                    </button>
-                  ) : null}
-                  {currentStepIndex < paymentSteps.length - 1 ? (
-                    <button
-                      type="button"
-                      onClick={goToNextStep}
-                      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28]"
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={pending || receiptScanStatus === "reading" || !allStepsComplete}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28] disabled:opacity-60"
-                    >
-                      <ReceiptText size={18} />
-                      {pending ? "Submitting..." : receiptScanStatus === "reading" ? "Reading receipt..." : "Submit payment details"}
-                    </button>
-                  )}
+              </div>
+
+              <div className="shrink-0 border-t border-black/[0.08] bg-white px-5 py-4 sm:px-6">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+                  <button
+                    type="button"
+                    onClick={closePaymentModal}
+                    className="min-h-12 rounded-full border border-black/10 bg-white px-5 font-semibold transition hover:bg-black/[0.04]"
+                  >
+                    Cancel
+                  </button>
+                  <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                    {currentStepIndex > 0 ? (
+                      <button
+                        type="button"
+                        onClick={goToPreviousStep}
+                        className="min-h-12 rounded-full border border-black/10 bg-white px-5 font-semibold transition hover:bg-black/[0.04]"
+                      >
+                        Back
+                      </button>
+                    ) : null}
+                    {currentStepIndex < paymentSteps.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={goToNextStep}
+                        className="inline-flex min-h-12 min-w-24 items-center justify-center rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28]"
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={pending || receiptScanStatus === "reading" || !allStepsComplete}
+                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28] disabled:opacity-60"
+                      >
+                        <ReceiptText size={18} />
+                        {pending ? "Submitting..." : receiptScanStatus === "reading" ? "Reading receipt..." : "Submit payment details"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </form>
