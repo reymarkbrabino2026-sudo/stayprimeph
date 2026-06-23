@@ -484,6 +484,11 @@ async function signInWithSocialProvider(provider: SocialProvider, label: string,
   }
 
   const redirectTo = new URL("/auth/callback", env.NEXT_PUBLIC_APP_URL);
+  redirectTo.searchParams.set("mode", formData?.get("authMode") === "register" ? "register" : "login");
+  const requestedRole = formData?.get("requestedRole");
+  if (requestedRole === "host" || requestedRole === "guest") {
+    redirectTo.searchParams.set("role", requestedRole);
+  }
   const nextPath = formData ? safeNextPath(formData.get("next")) : null;
   if (nextPath) redirectTo.searchParams.set("next", nextPath);
 

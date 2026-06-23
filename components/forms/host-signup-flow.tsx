@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
 import { SiteFooter } from "@/components/home/site-footer";
-import { signUpHost } from "@/app/auth/actions";
+import { signInWithFacebook, signInWithGoogle, signUpHost } from "@/app/auth/actions";
 import { AuthSubmitButton } from "@/components/forms/auth-submit-button";
 import { PasswordInput } from "@/components/forms/password-input";
 import { evaluatePasswordRules, passwordRulesPass } from "@/lib/password-policy";
@@ -90,6 +90,25 @@ export function HostSignupFlow({ error, message, nextPath }: { error?: string; m
               <div className="mt-7 space-y-5">
                 {(clientError || error) && <p role="alert" className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{clientError ?? error}</p>}
                 {message && <p role="status" className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
+                <div className="space-y-3">
+                  <form action={signInWithGoogle}>
+                    <input type="hidden" name="authMode" value="register" />
+                    <input type="hidden" name="requestedRole" value="host" />
+                    {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+                    <AuthSubmitButton label="Continue with Google" pendingLabel="Connecting to Google" variant="secondary" />
+                  </form>
+                  <form action={signInWithFacebook}>
+                    <input type="hidden" name="authMode" value="register" />
+                    <input type="hidden" name="requestedRole" value="host" />
+                    {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+                    <AuthSubmitButton label="Continue with Facebook" pendingLabel="Connecting to Facebook" variant="secondary" />
+                  </form>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-black/40">
+                  <span className="h-px flex-1 bg-black/10" />
+                  <span>or use email</span>
+                  <span className="h-px flex-1 bg-black/10" />
+                </div>
                 <section>
                   <h2 className="mb-3 font-semibold">Legal name</h2>
                   <div className="overflow-hidden rounded-2xl border">

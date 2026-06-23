@@ -6,7 +6,7 @@ import { createUserInDatabase, usesPrismaPersistence } from "@/lib/repositories"
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 import { getUsers } from "@/lib/users";
-import type { User } from "@/lib/types";
+import type { User, UserRole } from "@/lib/types";
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).map((part) => part[0]?.toUpperCase()).join("").slice(0, 2) || "U";
@@ -21,7 +21,28 @@ function safeNextPath(value: string | null) {
   return normalizeKnownAppPath(value);
 }
 
-async function findOrCreateSocialUser(profile: { id: string; email: string; name: string; provider: string }): Promise<User> {
+function safeRequestedRole(value: string | null): Extract<UserRole, "guest" | "host"> | null {
+  return value === "host" || value === "guest" ? value : null;
+}
+
+function safeAuthMode(value: string | null) {
+  return value === "register" ? "register" : "login";
+}
+
+function authErrorTarget(
+  request: NextRequest,
+  input: { mode: "login" | "register"; message: string; role?: "guest" | "host" | null; nextPath?: string | null },
+) {
+  const params = new URLSearchParams({ error: input.message });
+  if (input.role) params.set("role", input.role);
+  if (input.nextPath) params.set("next", input.nextPath);
+  return safeRedirectTarget(request, `/${input.mode}?${params.toString()}`);
+}
+
+async function findOrCreateSocialUser(
+  profile: { id: string; email: string; name: string; provider: string },
+  requestedRole: Extract<UserRole, "guest" | "host"> = "guest",
+): Promise<User> {
   const email = profile.email.trim().toLowerCase();
   const users = await getUsers();
   const existing = users.find((user) => user.email.toLowerCase() === email);
@@ -31,7 +52,7 @@ async function findOrCreateSocialUser(profile: { id: string; email: string; name
     id: `supabase-${profile.id || randomUUID()}`,
     name: profile.name || email.split("@")[0] || `${profile.provider} User`,
     email,
-    role: "guest",
+    role: requestedRole,
     avatar: initials(profile.name || email),
     phone: "",
     createdAt: new Date().toISOString().slice(0, 10),
@@ -49,22 +70,40 @@ async function findOrCreateSocialUser(profile: { id: string; email: string; name
 }
 
 export async function GET(request: NextRequest) {
+  const requestedRole = safeRequestedRole(request.nextUrl.searchParams.get("role"));
+  const authMode = safeAuthMode(request.nextUrl.searchParams.get("mode"));
+  const nextPath = safeNextPath(request.nextUrl.searchParams.get("next"));
   const code = request.nextUrl.searchParams.get("code");
   if (!code || !hasSupabaseConfig()) {
-    return NextResponse.redirect(safeRedirectTarget(request, `/login?error=${encodeURIComponent("Social login is not configured correctly.")}`));
+    return NextResponse.redirect(authErrorTarget(request, {
+      mode: authMode,
+      message: "Social login is not configured correctly.",
+      role: requestedRole,
+      nextPath,
+    }));
   }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    return NextResponse.redirect(safeRedirectTarget(request, `/login?error=${encodeURIComponent("Social login failed. Please try again.")}`));
+    return NextResponse.redirect(authErrorTarget(request, {
+      mode: authMode,
+      message: "Social login failed. Please try again.",
+      role: requestedRole,
+      nextPath,
+    }));
   }
 
   const { data, error: userError } = await supabase.auth.getUser();
   const supabaseUser = data.user;
   const email = supabaseUser?.email;
   if (userError || !supabaseUser || !email) {
-    return NextResponse.redirect(safeRedirectTarget(request, `/login?error=${encodeURIComponent("The social provider did not return an email address.")}`));
+    return NextResponse.redirect(authErrorTarget(request, {
+      mode: authMode,
+      message: "The social provider did not return an email address.",
+      role: requestedRole,
+      nextPath,
+    }));
   }
 
   const appUser = await findOrCreateSocialUser({
@@ -72,8 +111,23 @@ export async function GET(request: NextRequest) {
     email,
     provider: supabaseUser.app_metadata?.provider ?? "Social",
     name: supabaseUser.user_metadata?.full_name ?? supabaseUser.user_metadata?.name ?? email.split("@")[0],
-  });
+  }, requestedRole ?? "guest");
+
+  if (requestedRole && appUser.role !== requestedRole) {
+    if (requestedRole === "host" && appUser.role === "guest") {
+      await createSession(appUser.id);
+      return NextResponse.redirect(safeRedirectTarget(request, "/become-a-host/upgrade"));
+    }
+
+    await supabase.auth.signOut();
+    return NextResponse.redirect(authErrorTarget(request, {
+      mode: authMode,
+      message: `Use a ${requestedRole} account to continue.`,
+      role: requestedRole,
+      nextPath,
+    }));
+  }
 
   await createSession(appUser.id);
-  return NextResponse.redirect(safeRedirectTarget(request, safeNextPath(request.nextUrl.searchParams.get("next")) ?? roleHome(appUser.role)));
+  return NextResponse.redirect(safeRedirectTarget(request, nextPath ?? roleHome(appUser.role)));
 }
