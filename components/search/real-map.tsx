@@ -70,7 +70,9 @@ export function RealMap({ properties, location }: { properties: PublicListingSum
         zoom: destinationMarker ? 12 : 10,
         zoomControl: false,
       });
-      L.control.zoom({ position: "topright" }).addTo(map);
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        L.control.zoom({ position: "topright" }).addTo(map);
+      }
       map.on("click", () => setSelectedId(null));
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
