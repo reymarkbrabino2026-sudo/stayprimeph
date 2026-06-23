@@ -59,7 +59,7 @@ export function HomeHeroSlider() {
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
 
       <div className="absolute inset-x-6 bottom-24 z-10 mx-auto max-w-5xl text-center sm:bottom-32">
-        <p className="text-4xl font-normal leading-[1.02] tracking-normal text-[#fff0a8] [font-stretch:92%] drop-shadow-[0_2px_16px_rgb(0_0_0_/_0.55)] sm:text-5xl lg:text-[58px] xl:whitespace-nowrap">
+        <p className="text-4xl font-normal leading-[1.02] tracking-normal text-white [font-stretch:92%] drop-shadow-[0_2px_16px_rgb(0_0_0_/_0.55)] sm:text-5xl lg:text-[58px] xl:whitespace-nowrap">
           Find your next{" "}
           <span className="-mx-2 inline-grid overflow-hidden px-2 py-1 align-bottom">
             <AnimatePresence mode="wait" initial={false}>
