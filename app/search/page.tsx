@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/public/navbar";
+import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { DeferredRealMap } from "@/components/search/deferred-real-map";
 import { SearchFilters } from "@/components/search/search-filters";
@@ -98,12 +99,13 @@ export default async function SearchPage({
 
   return (
     <div className="bg-white">
-      <div className="border-b">
-        <Navbar />
+      <div className="hidden border-b lg:block">
+        <Navbar hideBottomNav />
         <div className="mx-auto max-w-4xl px-4 pb-5 pt-4 sm:px-6 md:pt-0">
           <SearchBar />
         </div>
       </div>
+      <PublicBottomNav />
 
       <SearchResultsLayout
         metaLabel={mapMetaLabel}
