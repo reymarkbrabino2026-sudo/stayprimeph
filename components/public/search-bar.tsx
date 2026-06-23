@@ -4,6 +4,7 @@ import { Building2, MapPin, Minus, Navigation, Search, Trees, Waves, X } from "l
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BrandLogo } from "@/components/brand/brand-logo";
 
 type Panel = "where" | "when" | "who" | null;
 
@@ -455,8 +456,8 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
         >
           <div className="mx-auto max-w-md">
             <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-6 text-sm font-semibold">
-                <span className="border-b-2 border-black pb-2">Stays</span>
+              <div className="flex items-center">
+                <BrandLogo variant="green" className="h-9 w-auto" priority={false} />
               </div>
               <button
                 type="button"
