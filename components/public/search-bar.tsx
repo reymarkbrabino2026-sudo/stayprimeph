@@ -2,6 +2,7 @@
 
 import { Building2, MapPin, Minus, Navigation, Search, Trees, Waves, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Panel = "where" | "when" | "who" | null;
@@ -66,6 +67,7 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchRef = useRef<HTMLDivElement>(null);
+  const mobileSheetRef = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [location, setLocation] = useState(() => searchParams.get("location") ?? "");
   const [checkIn, setCheckIn] = useState<Date | null>(() => parseISODate(searchParams.get("checkIn")));
@@ -208,9 +210,9 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
     if (!panel) return;
 
     function closeOnOutsideClick(event: PointerEvent) {
-      if (!searchRef.current?.contains(event.target as Node)) {
-        setPanel(null);
-      }
+      const target = event.target as Node;
+      if (searchRef.current?.contains(target) || mobileSheetRef.current?.contains(target)) return;
+      setPanel(null);
     }
 
     document.addEventListener("pointerdown", closeOnOutsideClick);
@@ -445,8 +447,12 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
         </button>
       ) : null}
 
-      {showMobile && panel ? (
-        <div data-lenis-prevent className="fixed inset-0 z-[200] overflow-y-auto bg-[#f7f7f7] px-3 pb-28 pt-4 md:hidden">
+      {showMobile && panel && typeof document !== "undefined" ? createPortal((
+        <div
+          ref={mobileSheetRef}
+          data-lenis-prevent
+          className="fixed inset-0 z-[1000] overflow-y-auto bg-[#f7f7f7] px-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 md:hidden"
+        >
           <div className="mx-auto max-w-md">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-6 text-sm font-semibold">
@@ -469,12 +475,12 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
             </div>
           </div>
 
-          <div className="fixed inset-x-0 bottom-0 z-[210] border-t border-black/10 bg-[#f7f7f7]/95 px-6 py-3 backdrop-blur">
+          <div className="fixed inset-x-0 bottom-0 z-[1010] border-t border-black/10 bg-[#f7f7f7]/95 px-6 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
             <div className="mx-auto flex max-w-md items-center justify-between">
               <button
                 type="button"
                 onClick={resetSearch}
-                className="min-h-12 rounded-full px-1 text-sm font-semibold underline underline-offset-4"
+                className="ml-12 min-h-12 rounded-full px-1 text-sm font-semibold underline underline-offset-4"
               >
                 Clear all
               </button>
@@ -490,7 +496,7 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
             </div>
           </div>
         </div>
-      ) : null}
+      ), document.body) : null}
 
       {showDesktop ? (
       <div className={`relative z-[70] hidden gap-0 overflow-hidden rounded-full transition md:grid md:grid-cols-[1.1fr_.8fr_.8fr_auto] ${activeShell}`}>
