@@ -6,6 +6,12 @@ import type { PublicListingSummary } from "@/lib/types";
 
 const desktopMediaQuery = "(min-width: 1024px)";
 
+type DeferredRealMapProps = {
+  properties: PublicListingSummary[];
+  location?: string;
+  onPreviewOpenChange?: (open: boolean) => void;
+};
+
 function MapPlaceholder() {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-none bg-[#e9f0ea] lg:rounded-[2rem]">
@@ -18,9 +24,14 @@ function MapPlaceholder() {
   );
 }
 
-export function DeferredRealMap({ properties, location }: { properties: PublicListingSummary[]; location?: string }) {
+export function DeferredRealMap({ properties, location, onPreviewOpenChange }: DeferredRealMapProps) {
   const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const loadMap = useCallback(() => setShouldLoadMap(true), []);
+
+  useEffect(() => {
+    if (shouldLoadMap) return;
+    onPreviewOpenChange?.(false);
+  }, [onPreviewOpenChange, shouldLoadMap]);
 
   useEffect(() => {
     if (shouldLoadMap) return;
@@ -67,7 +78,7 @@ export function DeferredRealMap({ properties, location }: { properties: PublicLi
   }, [loadMap, shouldLoadMap]);
 
   if (shouldLoadMap) {
-    return <RealMap properties={properties} location={location} />;
+    return <RealMap properties={properties} location={location} onPreviewOpenChange={onPreviewOpenChange} />;
   }
 
   return (

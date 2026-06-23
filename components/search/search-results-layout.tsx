@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, SlidersHorizontal, X } from "lucide-react";
+
+type PreviewAwareMapProps = {
+  onPreviewOpenChange?: (open: boolean) => void;
+};
 
 export function SearchResultsLayout({
   results,
@@ -20,6 +24,10 @@ export function SearchResultsLayout({
   count?: number;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [mapPreviewOpen, setMapPreviewOpen] = useState(false);
+  const renderedMap = isValidElement<PreviewAwareMapProps>(map)
+    ? cloneElement(map as ReactElement<PreviewAwareMapProps>, { onPreviewOpenChange: setMapPreviewOpen })
+    : map;
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-[#e9f0ea] lg:flex lg:min-h-[calc(100vh-150px)] lg:flex-row lg:bg-white">
@@ -66,10 +74,10 @@ export function SearchResultsLayout({
       ) : null}
 
       <div className="fixed inset-0 z-0 h-dvh w-screen lg:static lg:inset-auto lg:order-2 lg:z-auto lg:h-auto lg:w-[42%] lg:border-l xl:w-[44%]">
-        <div className="h-full lg:sticky lg:top-0 lg:h-screen lg:p-6">{map}</div>
+        <div className="h-full lg:sticky lg:top-0 lg:h-screen lg:p-6">{renderedMap}</div>
       </div>
 
-      <section className="relative z-10 mt-[calc(100dvh-9.75rem)] min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.14)] sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:min-h-0 lg:flex-1 lg:rounded-none lg:px-8 lg:pb-10 lg:pt-5 lg:shadow-none">
+      <section className={`relative z-10 mt-[calc(100dvh-9.75rem)] min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.14)] transition-opacity duration-150 sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:min-h-0 lg:flex-1 lg:rounded-none lg:px-8 lg:pb-10 lg:pt-5 lg:opacity-100 lg:shadow-none ${mapPreviewOpen ? "pointer-events-none opacity-0 lg:pointer-events-auto" : "opacity-100"}`}>
         <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-black/15 lg:hidden" />
         {typeof count === "number" ? (
           <p className="mb-3 text-center text-sm font-semibold lg:hidden">

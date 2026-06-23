@@ -72,10 +72,14 @@ export function WishlistButton({
   propertyId,
   isAuthenticated,
   className,
+  iconClassName,
+  unsavedFill,
 }: {
   propertyId: string;
   isAuthenticated: boolean;
   className?: string;
+  iconClassName?: string;
+  unsavedFill?: string;
 }) {
   const [saved, setSaved] = useState(false);
 
@@ -109,7 +113,7 @@ export function WishlistButton({
       onClick={toggleWishlist}
       className={className ?? "absolute right-3 top-3 grid size-8 place-items-center text-white drop-shadow"}
     >
-      <Heart size={24} fill={saved ? "#ff385c" : "rgba(0,0,0,0.35)"} className={saved ? "text-[#ff385c]" : "text-white"} />
+      <Heart size={24} fill={saved ? "#ff385c" : unsavedFill ?? "rgba(0,0,0,0.35)"} className={saved ? "text-[#ff385c]" : iconClassName ?? "text-white"} />
     </button>
   );
 }
