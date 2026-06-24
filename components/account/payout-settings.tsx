@@ -6,20 +6,9 @@ import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction, verifyFinancialSettingsStepUpAction } from "@/app/account-settings/actions";
 import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { FinancialSettingsState, PayoutMethod } from "@/lib/account-settings-types";
+import type { Payout } from "@/lib/types";
 
-type PayoutRecord = {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  status: "Scheduled" | "Sent" | "Processing";
-};
-
-const payoutRecords: PayoutRecord[] = [
-  { id: "PO-2041", date: "2026-05-27", description: "Booking transaction payout", amount: 12850, status: "Scheduled" },
-  { id: "PO-1988", date: "2026-04-30", description: "Booking transaction payout", amount: 9340, status: "Sent" },
-  { id: "PO-1902", date: "2026-03-30", description: "Booking transaction payout", amount: 7825, status: "Sent" },
-];
+type PayoutHistoryRecord = Pick<Payout, "id" | "hostId" | "bookingId" | "paymentId" | "amount" | "status" | "availableOn" | "createdAt">;
 
 const emptyMethod: Omit<PayoutMethod, "id"> = {
   type: "Bank account",
@@ -37,16 +26,30 @@ function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
+function formatHistoryDate(value: string) {
+  return new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function payoutStatusLabel(status: PayoutHistoryRecord["status"]) {
+  return status === "paid" ? "Sent" : "Scheduled";
+}
+
+function payoutDescription(record: PayoutHistoryRecord) {
+  return record.bookingId ? `Booking transaction ${record.bookingId}` : "Host payout";
+}
+
 export function PayoutSettings({
   initialFinancial,
   requiresStepUp = false,
   hasPassword = true,
   userEmail,
+  payouts = [],
 }: {
   initialFinancial: FinancialSettingsState;
   requiresStepUp?: boolean;
   hasPassword?: boolean;
   userEmail?: string;
+  payouts?: PayoutHistoryRecord[];
 }) {
   const [financial, setFinancial] = useState(initialFinancial);
   const [draft, setDraft] = useState(emptyMethod);
@@ -59,11 +62,16 @@ export function PayoutSettings({
   const needsPasswordSetup = requiresStepUp && !hasPassword;
   const passwordHelpHref = `/forgot-password${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
 
+  const payoutHistory = useMemo(
+    () => [...payouts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [payouts],
+  );
+
   const totals = useMemo(() => {
-    const sent = payoutRecords.filter((item) => item.status === "Sent").reduce((sum, item) => sum + item.amount, 0);
-    const scheduled = payoutRecords.filter((item) => item.status !== "Sent").reduce((sum, item) => sum + item.amount, 0);
+    const sent = payoutHistory.filter((item) => item.status === "paid").reduce((sum, item) => sum + item.amount, 0);
+    const scheduled = payoutHistory.filter((item) => item.status !== "paid").reduce((sum, item) => sum + item.amount, 0);
     return { sent, scheduled };
-  }, []);
+  }, [payoutHistory]);
 
   function saveMethods(next: PayoutMethod[]) {
     if (needsPasswordSetup) {
@@ -152,7 +160,7 @@ export function PayoutSettings({
   }
 
   function exportHistory() {
-    const blob = new Blob([JSON.stringify(payoutRecords, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(payoutHistory, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -232,20 +240,25 @@ export function PayoutSettings({
             <SummaryTile label="Sent" value={money(totals.sent)} />
             <SummaryTile label="Scheduled" value={money(totals.scheduled)} />
           </div>
-          <div className="mt-4 space-y-3">
-            {payoutRecords.map((record) => (
-              <div key={record.id} className="grid gap-2 rounded-xl bg-white p-4 sm:grid-cols-[1fr_auto]">
-                <div>
-                  <p className="font-semibold">{record.description}</p>
-                  <p className="mt-1 text-sm text-black/60">
-                    {record.id} - {new Date(record.date).toLocaleDateString()} - {record.status}
-                  </p>
+          {payoutHistory.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {payoutHistory.map((record) => (
+                <div key={record.id} className="grid gap-2 rounded-xl bg-white p-4 sm:grid-cols-[1fr_auto]">
+                  <div>
+                    <p className="font-semibold">{payoutDescription(record)}</p>
+                    <p className="mt-1 text-sm text-black/60">
+                      {record.id} - {formatHistoryDate(record.status === "paid" ? record.createdAt : record.availableOn)} - {payoutStatusLabel(record.status)}
+                    </p>
+                    {record.paymentId ? <p className="mt-1 text-xs text-black/45">Payment {record.paymentId}</p> : null}
+                  </div>
+                  <p className="font-semibold">{money(record.amount)}</p>
                 </div>
-                <p className="font-semibold">{money(record.amount)}</p>
-              </div>
-            ))}
-          </div>
-          <button type="button" onClick={exportHistory} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black">
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl bg-white p-4 text-sm text-black/60">No payout transactions have been sent yet.</p>
+          )}
+          <button type="button" onClick={exportHistory} disabled={payoutHistory.length === 0} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-50">
             <Download size={18} />
             Download history
           </button>

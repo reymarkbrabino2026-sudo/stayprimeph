@@ -83,7 +83,7 @@ export default async function HostPayoutsPage() {
           </span>
         </div>
 
-        <PayoutSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} hasPassword={Boolean(user.passwordHash)} userEmail={user.email} />
+        <PayoutSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} hasPassword={Boolean(user.passwordHash)} userEmail={user.email} payouts={earnings.payouts} />
       </section>
 
       <p className="mt-5 text-sm text-black/55">
