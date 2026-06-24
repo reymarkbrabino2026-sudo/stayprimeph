@@ -1,4 +1,4 @@
-import { confirmPaymentAndApproveBooking, rejectBooking, rejectSubmittedPayment } from "@/app/host/bookings/actions";
+import { confirmPaymentAndApproveBooking, markCashBalancePaid, rejectBooking, rejectSubmittedPayment } from "@/app/host/bookings/actions";
 import { BookingActionSubmitButton } from "@/app/host/bookings/booking-action-submit-button";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
@@ -30,6 +30,7 @@ export default async function HostBookingsPage() {
         rows={hostBookings.map((booking) => {
           const payment = payments.find((item) => item.bookingId === booking.id);
           const paymentWaiting = payment?.paymentStatus === "submitted";
+          const balanceWaiting = booking.paymentStatus === "partially_paid" && payment?.paymentStatus === "partially_paid";
           const isPartialPayment = Boolean(payment && payment.amount < booking.totalPrice);
           const remainingBalance = payment ? Math.max(booking.totalPrice - payment.amount, 0) : 0;
           const submittedPaymentLabel = isPartialPayment ? "Guest submitted partial payment" : "Guest submitted payment";
@@ -97,6 +98,24 @@ export default async function HostBookingsPage() {
                       label="Reject payment"
                       pendingLabel="Rejecting..."
                       className="min-h-10 w-full rounded-full bg-rose-100 px-3 text-xs font-semibold text-rose-700 transition disabled:cursor-wait disabled:bg-rose-50 disabled:text-rose-700/60"
+                    />
+                  </form>
+                </div>
+              ) : balanceWaiting ? (
+                <div className="space-y-2">
+                  <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                    Partially paid
+                  </p>
+                  <p className="text-xs font-semibold text-black/55">
+                    Balance due: {formatCurrency(remainingBalance)}
+                  </p>
+                  <form action={markCashBalancePaid}>
+                    <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                    <input type="hidden" name="id" value={booking.id} />
+                    <BookingActionSubmitButton
+                      label="Balance paid in cash"
+                      pendingLabel="Marking paid..."
+                      className="min-h-10 w-full rounded-full bg-emerald-100 px-3 text-xs font-semibold text-emerald-700 transition disabled:cursor-wait disabled:bg-emerald-50 disabled:text-emerald-700/60"
                     />
                   </form>
                 </div>

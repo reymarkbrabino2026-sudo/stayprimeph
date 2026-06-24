@@ -40,7 +40,11 @@ export default async function BookingDetailsPage({
   const canCancelBooking =
     (booking.status === "pending" || booking.status === "confirmed") &&
     checkInDate.getTime() > today.getTime();
-  const cancellationRequiresReview = booking.paymentStatus === "paid" || booking.paymentStatus === "submitted";
+  const isPartiallyPaid = booking.paymentStatus === "partially_paid";
+  const partialPaidAmount = isPartiallyPaid ? payment?.amount ?? 0 : 0;
+  const remainingBalance = Math.max(booking.totalPrice - partialPaidAmount, 0);
+  const cancellationRequiresReview =
+    booking.paymentStatus === "paid" || booking.paymentStatus === "partially_paid" || booking.paymentStatus === "submitted";
 
   const messageHostHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(booking.hostId)}`;
 
@@ -113,6 +117,13 @@ export default async function BookingDetailsPage({
           <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             Payment confirmed. Your booking is approved.
           </p>
+        ) : isPartiallyPaid ? (
+          <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="font-semibold">Partially paid. Your booking is confirmed.</p>
+            <p className="mt-1">
+              Paid {formatCurrency(partialPaidAmount)}. Please pay the remaining balance of {formatCurrency(remainingBalance)} upon check-in.
+            </p>
+          </div>
         ) : (
           <PayNowButton
             booking={booking}

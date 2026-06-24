@@ -12,6 +12,7 @@ import {
   confirmManualPaymentInDatabase,
   listPaymentsForHostFromDatabase,
   listPaymentsFromDatabase,
+  markManualPaymentFullyPaidInDatabase,
   recordManualPaymentInDatabase,
   rejectManualPaymentInDatabase,
   usesPrismaPersistence,
@@ -247,6 +248,77 @@ async function confirmSubmittedManualPayment({
 export async function confirmManualPayment({ booking, hostId }: { booking: Booking; hostId: string }) {
   if (booking.hostId !== hostId) throw new Error("Booking request not found.");
   await confirmSubmittedManualPayment({ booking, actorId: hostId, actorRole: "host" });
+}
+
+export async function markManualPaymentFullyPaid({ booking, hostId }: { booking: Booking; hostId: string }) {
+  if (booking.hostId !== hostId) throw new Error("Booking request not found.");
+
+  const payment = await getPaymentByBookingId(booking.id);
+  if (!payment || payment.paymentStatus !== "partially_paid") {
+    throw new Error("No partially paid booking is waiting for balance collection.");
+  }
+
+  if (usesPrismaPersistence()) {
+    await markManualPaymentFullyPaidInDatabase(booking.id, hostId, "host");
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const remainingBalance = Math.max(booking.totalPrice - payment.amount, 0);
+  const cashBalanceNote = "Remaining balance paid in cash at check-in.";
+  const [payments, bookings, ledger] = await Promise.all([
+    readStoredPayments(),
+    readStoredBookings(),
+    readStoredPlatformLedger(),
+  ]);
+  const entry = {
+    id: `platform-${booking.id}`,
+    bookingId: booking.id,
+    paymentId: payment.id,
+    amount: calculateStayprimeMarkupFromTotal(booking.totalPrice),
+    source: "manual_payment" as const,
+    destination: "stayprime_bank" as const,
+    status: "banked" as const,
+    createdAt: now,
+  };
+
+  await writeStoredPayments(payments.map((item) => item.bookingId === booking.id ? {
+    ...item,
+    amount: booking.totalPrice,
+    paymentStatus: "paid",
+    confirmedBy: hostId,
+    confirmedAt: now,
+    notes: item.notes ? `${item.notes}\n${cashBalanceNote}` : cashBalanceNote,
+    rejectedAt: undefined,
+    rejectionReason: undefined,
+    updatedAt: now,
+  } : item));
+  await writeStoredBookings(updateBookingPaymentState(bookings, booking.id, {
+    status: "confirmed",
+    paymentStatus: "paid",
+  }));
+  await writeStoredPlatformLedger(
+    ledger.some((item) => item.bookingId === booking.id)
+      ? ledger.map((item) => (item.bookingId === booking.id ? entry : item))
+      : [entry, ...ledger],
+  );
+  await appendAuditLog({
+    actorId: hostId,
+    actorRole: "host",
+    action: "payment.approved",
+    entityType: "payment",
+    entityId: payment.id,
+    metadata: {
+      bookingId: booking.id,
+      paymentMethod: payment.paymentMethod,
+      transactionId: payment.transactionId,
+      previousPaymentStatus: payment.paymentStatus,
+      previousAmount: payment.amount,
+      amount: booking.totalPrice,
+      remainingBalance,
+      source: "cash_balance",
+    },
+  });
 }
 
 export async function verifySubmittedPaymentByAdmin({ booking, adminId }: { booking: Booking; adminId: string }) {

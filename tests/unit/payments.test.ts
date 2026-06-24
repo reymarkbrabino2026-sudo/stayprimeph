@@ -21,6 +21,7 @@ vi.mock("@/lib/repositories", () => ({
   listPaymentsFromDatabase: vi.fn(),
   recordManualPaymentInDatabase: vi.fn(),
   confirmManualPaymentInDatabase: vi.fn(),
+  markManualPaymentFullyPaidInDatabase: vi.fn(),
   rejectManualPaymentInDatabase: vi.fn(),
 }));
 vi.mock("@/lib/payment-store", () => ({
@@ -40,7 +41,7 @@ import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
-import { arePaidBookingsEnabled, confirmManualPayment, isStripeCheckoutEnabled, submitManualPayment, verifySubmittedPaymentByAdmin } from "@/lib/payments";
+import { arePaidBookingsEnabled, confirmManualPayment, isStripeCheckoutEnabled, markManualPaymentFullyPaid, submitManualPayment, verifySubmittedPaymentByAdmin } from "@/lib/payments";
 
 const booking = {
   id: "booking-1",
@@ -186,6 +187,76 @@ describe("confirmManualPayment", () => {
     expect(readStoredBookings).not.toHaveBeenCalled();
     expect(writeStoredPayments).not.toHaveBeenCalled();
     expect(writeStoredBookings).not.toHaveBeenCalled();
+  });
+});
+
+describe("markManualPaymentFullyPaid", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lets the host mark a partially paid booking fully paid after collecting the cash balance", async () => {
+    const partialBooking = {
+      ...booking,
+      status: "confirmed",
+      paymentStatus: "partially_paid",
+    } satisfies Booking;
+    vi.mocked(readStoredPayments).mockResolvedValue([
+      {
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: 2500,
+        paymentMethod: "gcash",
+        paymentStatus: "partially_paid",
+        transactionId: "gcash-reference",
+        notes: "Down payment confirmed.",
+        createdAt: "2026-06-01",
+      },
+    ]);
+    vi.mocked(readStoredBookings).mockResolvedValue([partialBooking]);
+
+    await markManualPaymentFullyPaid({ booking: partialBooking, hostId: booking.hostId });
+
+    expect(writeStoredPayments).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        amount: booking.totalPrice,
+        paymentStatus: "paid",
+        confirmedBy: booking.hostId,
+        notes: expect.stringContaining("Remaining balance paid in cash at check-in."),
+      }),
+    ]);
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: booking.id,
+        status: "confirmed",
+        paymentStatus: "paid",
+      }),
+    ]);
+    expect(writeStoredPlatformLedger).toHaveBeenCalledWith([
+      expect.objectContaining({
+        bookingId: booking.id,
+        paymentId: "payment-booking-1",
+        amount: 833,
+        source: "manual_payment",
+        destination: "stayprime_bank",
+        status: "banked",
+      }),
+    ]);
+    expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: booking.hostId,
+      actorRole: "host",
+      action: "payment.approved",
+      metadata: expect.objectContaining({
+        previousPaymentStatus: "partially_paid",
+        previousAmount: 2500,
+        amount: booking.totalPrice,
+        remainingBalance: 2500,
+        source: "cash_balance",
+      }),
+    }));
   });
 });
 

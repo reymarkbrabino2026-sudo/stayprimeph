@@ -1736,6 +1736,77 @@ export async function confirmManualPaymentInDatabase(bookingId: string, confirme
   });
 }
 
+export async function markManualPaymentFullyPaidInDatabase(bookingId: string, confirmedBy: string, confirmedByRole: "admin" | "host" = "host") {
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findUnique({
+      where: { bookingId },
+      select: {
+        id: true,
+        paymentMethod: true,
+        transactionId: true,
+        amount: true,
+        paymentStatus: true,
+        notes: true,
+      },
+    });
+    if (!payment || payment.paymentStatus !== "partially_paid") {
+      throw new Error("No partially paid booking is waiting for balance collection.");
+    }
+
+    const bookingRow = await tx.booking.findUnique({ where: { id: bookingId }, select: { totalPrice: true } });
+    const totalPrice = bookingRow?.totalPrice ?? payment.amount;
+    const remainingBalance = Math.max(totalPrice - payment.amount, 0);
+    const cashBalanceNote = "Remaining balance paid in cash at check-in.";
+    const nextNotes = payment.notes
+      ? `${payment.notes}\n${cashBalanceNote}`
+      : cashBalanceNote;
+
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: { status: "confirmed", paymentStatus: "paid" },
+    });
+    await tx.$executeRaw`
+      UPDATE "Payment"
+      SET
+        "amount" = ${totalPrice},
+        "paymentStatus" = ${"paid"},
+        "confirmedBy" = ${confirmedBy},
+        "confirmedAt" = ${now},
+        "notes" = ${nextNotes},
+        "rejectionReason" = NULL,
+        "rejectedAt" = NULL,
+        "updatedAt" = ${now}
+      WHERE "bookingId" = ${bookingId}
+    `;
+    await recordPlatformLedgerEntry(tx, {
+      bookingId,
+      paymentId: payment.id,
+      totalPrice,
+      source: "manual_payment",
+      createdAt: now,
+    });
+    await insertAuditLog(tx, auditLogData({
+      actorId: confirmedBy,
+      actorRole: confirmedByRole,
+      action: "payment.approved",
+      entityType: "payment",
+      entityId: payment.id,
+      metadata: {
+        bookingId,
+        paymentMethod: payment.paymentMethod,
+        transactionId: payment.transactionId,
+        previousPaymentStatus: payment.paymentStatus,
+        previousAmount: payment.amount,
+        amount: totalPrice,
+        remainingBalance,
+        source: "cash_balance",
+      },
+      createdAt: now,
+    }));
+  });
+}
+
 export async function rejectManualPaymentInDatabase(
   bookingId: string,
   rejectionReason: string,

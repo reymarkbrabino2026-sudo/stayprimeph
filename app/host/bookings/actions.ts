@@ -8,7 +8,7 @@ import { getBookingById } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { sendBookingConfirmedEmail } from "@/lib/email";
-import { arePaidBookingsEnabled, confirmManualPayment, rejectManualPayment } from "@/lib/payments";
+import { arePaidBookingsEnabled, confirmManualPayment, markManualPaymentFullyPaid, rejectManualPayment } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { updateBookingStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
@@ -154,6 +154,30 @@ export async function confirmPaymentAndApproveBooking(formData: FormData) {
   revalidatePath("/host/earnings");
   revalidatePath(`/guest/bookings/${id}`);
   revalidatePath("/guest/bookings");
+  revalidatePath("/guest/notifications");
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin/payments");
+}
+
+export async function markCashBalancePaid(formData: FormData) {
+  await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
+
+  const user = await requireRole("host", { forbiddenMessage: "Only hosts can approve booking payments." });
+  requireVerifiedEmail(user);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const booking = await getBookingById(id);
+  if (!booking || booking.hostId !== user.id) throw new Error("Booking request not found.");
+
+  await markManualPaymentFullyPaid({ booking, hostId: user.id });
+
+  revalidatePath("/host/dashboard");
+  revalidatePath("/host/bookings");
+  revalidatePath("/host/earnings");
+  revalidatePath(`/guest/bookings/${id}`);
+  revalidatePath("/guest/bookings");
+  revalidatePath("/guest/dashboard");
   revalidatePath("/guest/notifications");
   revalidatePath("/admin/bookings");
   revalidatePath("/admin/payments");
