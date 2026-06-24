@@ -26,12 +26,17 @@ export function DeleteListingButton({ listingId, csrfToken }: { listingId: strin
     setMessage("");
     startTransition(async () => {
       try {
-        await deleteListing(formData);
+        const result = await deleteListing(formData);
+        if (result.status === "error") {
+          setMessage(result.error);
+          return;
+        }
+
         setOpen(false);
         router.replace("/host/listings?deleted=1");
         router.refresh();
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Listing could not be deleted.");
+      } catch {
+        setMessage("Listing could not be deleted. Please refresh the page and try again.");
       }
     });
   }
@@ -76,7 +81,7 @@ export function DeleteListingButton({ listingId, csrfToken }: { listingId: strin
               Listings with active bookings are protected and will not be deleted.
             </div>
 
-            {message ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{message}</p> : null}
+            {message ? <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{message}</p> : null}
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button

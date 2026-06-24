@@ -9,6 +9,7 @@ import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { amenityGroups } from "@/lib/host-wizard-data";
 import { createPropertyInDatabase, deleteDraftPropertyInDatabase, deletePropertyInDatabase, updatePropertyDetailsInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { logger } from "@/lib/logger";
@@ -17,6 +18,9 @@ import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/propert
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
 import type { Property } from "@/lib/types";
+
+const protectedListingDeleteMessage = "This listing has active bookings and cannot be deleted. Please resolve those bookings before deleting the listing.";
+const genericListingDeleteMessage = "Listing could not be deleted. Please refresh the page and try again.";
 
 const textValue = (max: number, fallback = "") =>
   z.preprocess((value) => typeof value === "string" ? value.trim() : fallback, z.string().max(max)).catch(fallback);
@@ -413,26 +417,42 @@ export async function updateListing(formData: FormData) {
 }
 
 export async function deleteListing(formData: FormData) {
-  const user = await requireHost("Only hosts can delete listings.");
-  await assertValidCsrfForm(formData);
+  try {
+    const user = await requireHost("Only hosts can delete listings.");
+    await assertValidCsrfForm(formData);
 
-  const parsedId = z.string().trim().min(1).safeParse(formData.get("id"));
-  if (!parsedId.success) throw new Error("Listing not found.");
+    const parsedId = z.string().trim().min(1).safeParse(formData.get("id"));
+    if (!parsedId.success) return { status: "error" as const, error: "Listing not found." };
 
-  const existing = await getPropertyById(parsedId.data);
-  if (!existing || existing.hostId !== user.id) throw new Error("Listing not found.");
+    const existing = await getPropertyById(parsedId.data);
+    if (!existing || existing.hostId !== user.id) return { status: "error" as const, error: "Listing not found." };
 
-  if (usesPrismaPersistence()) {
-    await deletePropertyInDatabase(user.id, existing.id);
-  } else {
-    const storedProperties = await readStoredProperties();
-    await writeStoredProperties(storedProperties.filter((property) => !(property.id === existing.id && property.hostId === user.id)));
+    if (usesPrismaPersistence()) {
+      await deletePropertyInDatabase(user.id, existing.id);
+    } else {
+      const bookings = await readStoredBookings();
+      const hasActiveBooking = bookings.some((booking) =>
+        booking.propertyId === existing.id && booking.status !== "cancelled" && booking.status !== "completed",
+      );
+      if (hasActiveBooking) return { status: "error" as const, error: protectedListingDeleteMessage };
+
+      const storedProperties = await readStoredProperties();
+      await writeStoredProperties(storedProperties.filter((property) => !(property.id === existing.id && property.hostId === user.id)));
+    }
+
+    revalidatePublicListingSummaries();
+    revalidatePath("/host/listings");
+    revalidatePath(`/host/listings/${existing.id}`);
+    return { status: "deleted" as const };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.toLowerCase().includes("booking")) {
+      return { status: "error" as const, error: protectedListingDeleteMessage };
+    }
+
+    logger.warn("listing_delete_failed", { error });
+    return { status: "error" as const, error: genericListingDeleteMessage };
   }
-
-  revalidatePublicListingSummaries();
-  revalidatePath("/host/listings");
-  revalidatePath(`/host/listings/${existing.id}`);
-  return { status: "deleted" as const };
 }
 
 export async function saveWizardListingDraft(input: unknown, csrfToken?: string) {
