@@ -30,6 +30,11 @@ export default async function HostBookingsPage() {
         rows={hostBookings.map((booking) => {
           const payment = payments.find((item) => item.bookingId === booking.id);
           const paymentWaiting = payment?.paymentStatus === "submitted";
+          const isPartialPayment = Boolean(payment && payment.amount < booking.totalPrice);
+          const remainingBalance = payment ? Math.max(booking.totalPrice - payment.amount, 0) : 0;
+          const submittedPaymentLabel = isPartialPayment ? "Guest submitted partial payment" : "Guest submitted payment";
+          const confirmPaymentLabel = isPartialPayment ? "Partially paid & confirm" : "Confirm payment & approve";
+          const confirmPaymentPendingLabel = isPartialPayment ? "Confirming partial..." : "Approving...";
 
           return [
             users.find((item) => item.id === booking.guestId)?.name ?? "Guest",
@@ -42,6 +47,7 @@ export default async function HostBookingsPage() {
             payment ? (
               <div key={`${booking.id}-payment`} className="min-w-48 space-y-1 text-sm">
                 <p className="font-semibold">{formatCurrency(payment.amount)} via {formatPaymentMethod(payment.paymentMethod)}</p>
+                {isPartialPayment ? <p className="font-semibold text-amber-700">Balance due: {formatCurrency(remainingBalance)}</p> : null}
                 <p className="break-words text-black/55">Ref: {payment.transactionId}</p>
                 {payment.receiptImageUrl ? (
                   <a
@@ -67,14 +73,14 @@ export default async function HostBookingsPage() {
               {paymentWaiting ? (
                 <div className="space-y-2">
                   <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-                    Guest submitted payment
+                    {submittedPaymentLabel}
                   </p>
                   <form action={confirmPaymentAndApproveBooking}>
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="id" value={booking.id} />
                     <BookingActionSubmitButton
-                      label="Confirm payment & approve"
-                      pendingLabel="Approving..."
+                      label={confirmPaymentLabel}
+                      pendingLabel={confirmPaymentPendingLabel}
                       className="min-h-10 w-full rounded-full bg-emerald-100 px-3 text-xs font-semibold text-emerald-700 transition disabled:cursor-wait disabled:bg-emerald-50 disabled:text-emerald-700/60"
                     />
                   </form>
