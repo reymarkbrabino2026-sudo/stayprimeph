@@ -9,6 +9,15 @@ import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { cancelBookingInDatabase, listBookingsForGuestFromDatabase, listBookingsForHostFromDatabase, listBookingsForPropertyFromDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import type { Booking, Cancellation, Payment } from "@/lib/types";
 
+export function sortBookingsByStayDate<T extends Pick<Booking, "checkIn" | "checkOut" | "createdAt" | "id">>(bookings: T[]) {
+  return [...bookings].sort((a, b) =>
+    a.checkIn.localeCompare(b.checkIn) ||
+    a.checkOut.localeCompare(b.checkOut) ||
+    b.createdAt.localeCompare(a.createdAt) ||
+    a.id.localeCompare(b.id),
+  );
+}
+
 export async function getBookings() {
   if (usesPrismaPersistence()) return listBookingsFromDatabase();
   return readStoredBookings();
@@ -23,7 +32,7 @@ export async function getBookingsForProperty(propertyId: string) {
 export async function getBookingsForHost(hostId: string) {
   if (usesPrismaPersistence()) return listBookingsForHostFromDatabase(hostId);
   const bookings = await readStoredBookings();
-  return bookings.filter((booking) => booking.hostId === hostId);
+  return sortBookingsByStayDate(bookings.filter((booking) => booking.hostId === hostId));
 }
 
 export async function getBookingsForGuest(guestId: string) {

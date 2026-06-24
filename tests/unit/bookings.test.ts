@@ -9,6 +9,9 @@ vi.mock("@/lib/env", () => ({ env: { PERSISTENCE_DRIVER: "json" } }));
 vi.mock("@/lib/repositories", () => ({
   usesPrismaPersistence: () => false,
   cancelBookingInDatabase: vi.fn(),
+  listBookingsForGuestFromDatabase: vi.fn(),
+  listBookingsForHostFromDatabase: vi.fn(),
+  listBookingsForPropertyFromDatabase: vi.fn(),
   listBookingsFromDatabase: vi.fn(),
   updateBookingPaymentInDatabase: vi.fn(),
 }));
@@ -30,7 +33,7 @@ vi.mock("@/lib/platform-ledger-store", () => ({
 }));
 
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
-import { cancelBookingByGuest, markBookingPaid } from "@/lib/bookings";
+import { cancelBookingByGuest, getBookingsForHost, markBookingPaid } from "@/lib/bookings";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
@@ -49,6 +52,26 @@ const booking = {
   paymentStatus: "pending",
   createdAt: "2026-06-01",
 } satisfies Booking;
+
+describe("getBookingsForHost", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns host bookings in stay date order", async () => {
+    vi.mocked(readStoredBookings).mockResolvedValue([
+      { ...booking, id: "later-july", checkIn: "2026-07-08", checkOut: "2026-07-10", createdAt: "2026-06-24" },
+      { ...booking, id: "july-long", checkIn: "2026-07-01", checkOut: "2026-07-06", createdAt: "2026-06-23" },
+      { ...booking, id: "other-host", hostId: "host-2", checkIn: "2026-06-24", checkOut: "2026-06-25" },
+      { ...booking, id: "july-short", checkIn: "2026-07-01", checkOut: "2026-07-02", createdAt: "2026-06-22" },
+      { ...booking, id: "june", checkIn: "2026-06-25", checkOut: "2026-06-27", createdAt: "2026-06-21" },
+    ]);
+
+    const result = await getBookingsForHost("host-1");
+
+    expect(result.map((item) => item.id)).toEqual(["june", "july-short", "july-long", "later-july"]);
+  });
+});
 
 describe("cancelBookingByGuest", () => {
   beforeEach(() => {

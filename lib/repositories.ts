@@ -839,7 +839,11 @@ export async function listBookingsForHostFromDatabase(hostId: string): Promise<B
   await ensureBookingPackageColumns();
   const bookings = await prisma.booking.findMany({
     where: { hostId },
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { checkIn: "asc" },
+      { checkOut: "asc" },
+      { createdAt: "desc" },
+    ],
   });
   const bookingPackages = await prisma.$queryRaw<Array<{ id: string; bookingPackageId: string | null; bookingPackageName: string | null; bookingPackageUnit: string | null }>>`
     SELECT "id", "bookingPackageId", "bookingPackageName", "bookingPackageUnit"
