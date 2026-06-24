@@ -8,7 +8,7 @@ import { StayReviewForm } from "@/components/reviews/stay-review-form";
 import { ReviewCard } from "@/components/ui/review-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
-import { getBookingById } from "@/lib/bookings";
+import { getBookingById, isExpiredUnpaidBooking } from "@/lib/bookings";
 import { getCsrfToken } from "@/lib/csrf";
 import { guestLinks } from "@/lib/navigation";
 import { getPaymentByBookingId } from "@/lib/payments";
@@ -40,6 +40,7 @@ export default async function BookingDetailsPage({
   const canCancelBooking =
     (booking.status === "pending" || booking.status === "confirmed") &&
     checkInDate.getTime() > today.getTime();
+  const unpaidBookingExpired = isExpiredUnpaidBooking(booking, today);
   const isPartiallyPaid = booking.paymentStatus === "partially_paid";
   const partialPaidAmount = isPartiallyPaid ? payment?.amount ?? 0 : 0;
   const remainingBalance = Math.max(booking.totalPrice - partialPaidAmount, 0);
@@ -113,6 +114,13 @@ export default async function BookingDetailsPage({
           <p className="mt-6 rounded-2xl bg-rose-50 p-4 text-sm font-semibold text-rose-700">
             This booking is cancelled. These dates are no longer reserved for your stay.
           </p>
+        ) : unpaidBookingExpired ? (
+          <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="font-semibold">This unpaid booking request has expired.</p>
+            <p className="mt-1">
+              No payment was submitted before the check-in date, so these dates are no longer held. You can make a new booking for any available dates.
+            </p>
+          </div>
         ) : booking.paymentStatus === "paid" ? (
           <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             Payment confirmed. Your booking is approved.
@@ -172,6 +180,10 @@ export default async function BookingDetailsPage({
       ) : booking.status === "cancelled" ? (
         <section className="mt-6 rounded-[1.5rem] border border-dashed bg-white p-5 text-sm leading-6 text-black/60">
           Cancelled bookings cannot be reviewed.
+        </section>
+      ) : unpaidBookingExpired ? (
+        <section className="mt-6 rounded-[1.5rem] border border-dashed bg-white p-5 text-sm leading-6 text-black/60">
+          Expired unpaid booking requests cannot be reviewed.
         </section>
       ) : (
         <section className="mt-6 rounded-[1.5rem] border border-dashed bg-white p-5 text-sm leading-6 text-black/60">

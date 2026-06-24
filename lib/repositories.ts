@@ -928,12 +928,20 @@ export async function deleteAvailabilityBlockInDatabase(blockId: string) {
 export async function createBookingInDatabase(booking: Booking) {
   const checkIn = new Date(booking.checkIn);
   const checkOut = new Date(booking.checkOut);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
   await prisma.$transaction(async (tx) => {
     await ensureBookingPackageColumns(tx);
     const conflictingBooking = await tx.booking.findFirst({
       where: {
         propertyId: booking.propertyId,
         status: { not: "cancelled" },
+        NOT: {
+          AND: [
+            { paymentStatus: { in: ["pending", "rejected"] } },
+            { checkIn: { lt: today } },
+          ],
+        },
         checkIn: { lt: checkOut },
         checkOut: { gt: checkIn },
       },

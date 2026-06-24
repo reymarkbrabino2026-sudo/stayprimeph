@@ -37,12 +37,25 @@ export async function getBookingById(id: string) {
   return bookings.find((booking) => booking.id === id) ?? null;
 }
 
+function startOfLocalDay(value: Date) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+export function isExpiredUnpaidBooking(booking: Pick<Booking, "checkIn" | "paymentStatus" | "status">, now = new Date()) {
+  if (booking.status === "cancelled") return false;
+  if (booking.paymentStatus !== "pending" && booking.paymentStatus !== "rejected") return false;
+  const checkInTime = new Date(`${booking.checkIn}T00:00:00`).getTime();
+  return Number.isFinite(checkInTime) && checkInTime < startOfLocalDay(now);
+}
 export function hasDateConflict(bookings: Booking[], propertyId: string, checkIn: string, checkOut: string) {
   const requestedStart = new Date(checkIn).getTime();
   const requestedEnd = new Date(checkOut).getTime();
 
   return bookings.some((booking) => {
     if (booking.propertyId !== propertyId || booking.status === "cancelled") return false;
+    if (isExpiredUnpaidBooking(booking)) return false;
     const existingStart = new Date(booking.checkIn).getTime();
     const existingEnd = new Date(booking.checkOut).getTime();
     return requestedStart < existingEnd && requestedEnd > existingStart;
