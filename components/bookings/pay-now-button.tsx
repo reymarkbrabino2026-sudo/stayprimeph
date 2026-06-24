@@ -110,6 +110,7 @@ export function PayNowButton({
   const [paymentStep, setPaymentStep] = useState<PaymentStepId>("amount");
   const [stepMessage, setStepMessage] = useState("");
   const receiptScanId = useRef(0);
+  const referenceNumberRef = useRef(initialReferenceNumber);
   const isSubmitted = payment?.paymentStatus === "submitted";
   const isRejected = payment?.paymentStatus === "rejected";
   const currentStepIndex = paymentSteps.findIndex((step) => step.id === paymentStep);
@@ -127,7 +128,7 @@ export function PayNowButton({
 
   function resetReceiptUpload() {
     receiptScanId.current += 1;
-    setReferenceNumber(initialReferenceNumber);
+    updateReferenceNumber(initialReferenceNumber);
     setReceiptFileName("");
     setReceiptScanStatus("idle");
     setReceiptScanMessage("");
@@ -147,10 +148,14 @@ export function PayNowButton({
     setOpen(true);
   }
 
+  function updateReferenceNumber(value: string) {
+    referenceNumberRef.current = value;
+    setReferenceNumber(value);
+  }
+
   function stepValidationMessage(stepId: PaymentStepId) {
     if (stepId === "amount" && !isAmountValid) return `Enter an amount from ${formatCurrency(1)} to ${formatCurrency(booking.totalPrice)}.`;
     if (stepId === "method" && !hasPaymentMethod) return "Choose GCash or bank transfer before continuing.";
-    if (stepId === "proof" && receiptScanStatus === "reading") return "Wait for the receipt scan to finish before continuing.";
     if (stepId === "proof" && !hasReceiptImage) return "Upload a receipt screenshot before continuing.";
     if (stepId === "proof" && !hasReferenceNumber) return "Enter the receipt number or transaction ID before continuing.";
     return "";
@@ -183,7 +188,7 @@ export function PayNowButton({
     receiptScanId.current += 1;
     const scanId = receiptScanId.current;
     setReceiptFileName(file?.name ?? "");
-    setReferenceNumber("");
+    updateReferenceNumber("");
     setReceiptScanMessage("");
     setStepMessage("");
 
@@ -205,15 +210,27 @@ export function PayNowButton({
 
       const extractedReference = extractPaymentReferenceFromReceiptText(result.data.text);
       if (extractedReference) {
-        setReferenceNumber(extractedReference);
+        if (!referenceNumberRef.current.trim()) {
+          updateReferenceNumber(extractedReference);
+          setReceiptScanMessage("Receipt number filled from the screenshot.");
+        } else {
+          setReceiptScanMessage("Receipt scan finished. Your manually entered number was kept.");
+        }
         setReceiptScanStatus("found");
-        setReceiptScanMessage("Receipt number filled from the screenshot.");
+      } else if (referenceNumberRef.current.trim()) {
+        setReceiptScanStatus("found");
+        setReceiptScanMessage("Receipt scan finished. Your manually entered number was kept.");
       } else {
         setReceiptScanStatus("not_found");
         setReceiptScanMessage("We could not read a receipt number. Check the screenshot and enter the number below.");
       }
     } catch {
       if (receiptScanId.current !== scanId) return;
+      if (referenceNumberRef.current.trim()) {
+        setReceiptScanStatus("found");
+        setReceiptScanMessage("Receipt scan could not read the image. Your manually entered number was kept.");
+        return;
+      }
       setReceiptScanStatus("error");
       setReceiptScanMessage("We could not scan this screenshot. Check the image and enter the number below.");
     }
@@ -477,6 +494,11 @@ export function PayNowButton({
                           {receiptScanMessage}
                         </p>
                       ) : null}
+                      {receiptScanStatus === "reading" ? (
+                        <p className="mt-1 text-xs text-black/50">
+                          You can enter the transaction ID manually and continue while the scan finishes.
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="hidden overflow-hidden rounded-2xl border border-black/10 bg-black/[0.03] sm:block">
@@ -498,10 +520,10 @@ export function PayNowButton({
                       <input
                         name="referenceNumber"
                         className="mt-2 min-h-12 w-full rounded-xl border border-black/10 px-3 outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
-                        placeholder="Auto-filled after receipt upload"
+                        placeholder="Auto-filled or enter manually"
                         value={referenceNumber}
                         onChange={(event) => {
-                          setReferenceNumber(event.target.value);
+                          updateReferenceNumber(event.target.value);
                           setStepMessage("");
                         }}
                         required
@@ -587,11 +609,11 @@ export function PayNowButton({
                     ) : (
                       <button
                         type="submit"
-                        disabled={pending || receiptScanStatus === "reading" || !allStepsComplete}
+                        disabled={pending || !allStepsComplete}
                         className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28] disabled:opacity-60"
                       >
                         <ReceiptText size={18} />
-                        {pending ? "Submitting..." : receiptScanStatus === "reading" ? "Reading receipt..." : "Submit payment details"}
+                        {pending ? "Submitting..." : "Submit payment details"}
                       </button>
                     )}
                   </div>
