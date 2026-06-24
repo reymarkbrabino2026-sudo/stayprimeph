@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { appendAuditLog } from "@/lib/audit-logs";
+import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
@@ -7,7 +8,7 @@ import { assertUniquePaymentReference } from "@/lib/payment-references";
 import { readStoredPlatformLedger, writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { cancelBookingInDatabase, listBookingsForGuestFromDatabase, listBookingsForHostFromDatabase, listBookingsForPropertyFromDatabase, listBookingsFromDatabase, updateBookingPaymentInDatabase, usesPrismaPersistence } from "@/lib/repositories";
-import type { Booking, Cancellation, Payment } from "@/lib/types";
+import type { Booking, BookingPackage, Cancellation, Payment } from "@/lib/types";
 
 export function sortBookingsByStayDate<T extends Pick<Booking, "checkIn" | "checkOut" | "createdAt" | "id">>(bookings: T[]) {
   return [...bookings].sort((a, b) =>
@@ -58,7 +59,8 @@ export function isExpiredUnpaidBooking(booking: Pick<Booking, "checkIn" | "payme
   const checkInTime = new Date(`${booking.checkIn}T00:00:00`).getTime();
   return Number.isFinite(checkInTime) && checkInTime < startOfLocalDay(now);
 }
-export function hasDateConflict(bookings: Booking[], propertyId: string, checkIn: string, checkOut: string) {
+
+export function hasDateConflict(bookings: Booking[], propertyId: string, checkIn: string, checkOut: string, packageId?: string | null, packages: BookingPackage[] = []) {
   const requestedStart = new Date(checkIn).getTime();
   const requestedEnd = new Date(checkOut).getTime();
 
@@ -67,7 +69,7 @@ export function hasDateConflict(bookings: Booking[], propertyId: string, checkIn
     if (isExpiredUnpaidBooking(booking)) return false;
     const existingStart = new Date(booking.checkIn).getTime();
     const existingEnd = new Date(booking.checkOut).getTime();
-    return requestedStart < existingEnd && requestedEnd > existingStart;
+    return requestedStart < existingEnd && requestedEnd > existingStart && bookingBlocksRequestedPackage(booking, packageId, packages);
   });
 }
 

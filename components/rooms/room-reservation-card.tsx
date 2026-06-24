@@ -5,7 +5,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star
 import { useEffect, useMemo, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
-import { calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, getBookingPackageById, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
+import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
+import { allowsPackageBooking, allowsStayBooking, calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import {
@@ -30,13 +31,24 @@ export function RoomReservationCard({
   const { checkIn, checkOut, guests, packageId, setCheckIn, setCheckOut, setGuests, setPackageId } = useReservationStore();
   const instantBook = property.rules.includes("Instant book enabled");
   const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
-  const selectedPackage = useMemo(() => getBookingPackageById(property, packageId), [packageId, property]);
+  const stayBookingAllowed = allowsStayBooking(property);
+  const packageBookingAllowed = allowsPackageBooking(property);
+  const [bookingMode, setBookingMode] = useState<"stay" | "package">(() => (stayBookingAllowed ? "stay" : "package"));
+  const effectiveBookingMode = packageBookingAllowed && !stayBookingAllowed ? "package" : stayBookingAllowed && !packageBookingAllowed ? "stay" : bookingMode;
+  const selectedPackage = useMemo(() => (packageBookingAllowed ? findBookingPackageById(property, packageId) : null), [packageBookingAllowed, packageId, property]);
+  const displayedPackage = effectiveBookingMode === "package" ? selectedPackage ?? bookingPackages[0] ?? null : null;
   const fullAccessPackage = useMemo(() => getFullAccessBookingPackage(bookingPackages), [bookingPackages]);
-  const selectedIsDayPackage = selectedPackage?.unit === "day";
+  const selectedIsDayPackage = effectiveBookingMode === "package" && displayedPackage?.unit === "day";
   const dayCheckout = checkIn ? addDays(checkIn, 1) : "";
-  const activePackage = selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout ? fullAccessPackage : selectedPackage;
+  const activePackage = effectiveBookingMode === "package"
+    ? selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout ? fullAccessPackage : displayedPackage
+    : null;
   const activeIsDayPackage = activePackage?.unit === "day";
-  const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
+  const relevantUnavailableStays = useMemo(
+    () => unavailableStays.filter((stay) => "date" in stay || bookingBlocksRequestedPackage(stay, activePackage?.id, bookingPackages)),
+    [activePackage?.id, bookingPackages, unavailableStays],
+  );
+  const bookedNightKeys = useMemo(() => getBookedNightKeys(relevantUnavailableStays), [relevantUnavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const effectiveStay = useMemo(() => {
     const selectedStayNeedsRepair =
@@ -68,6 +80,9 @@ export function RoomReservationCard({
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
   const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id) : "#";
   const maxGuests = activePackage?.maxGuests ?? property.maxGuests;
+  const selectedPackageRooms = activePackage?.accessibleRoomIds?.length
+    ? (property.rooms ?? []).filter((room) => activePackage.accessibleRoomIds?.includes(room.id))
+    : [];
   const changeGuests = (next: number) => setGuests(Math.min(maxGuests, Math.max(1, next)));
   const [activeField, setActiveField] = useState<"checkIn" | "checkOut">("checkIn");
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn || TODAY));
@@ -75,12 +90,16 @@ export function RoomReservationCard({
   const calendarActiveField = activeField;
 
   useEffect(() => {
-    if (!bookingPackages.length) {
+    if (!packageBookingAllowed) {
       if (packageId) setPackageId(null);
       return;
     }
-    if (!selectedPackage) setPackageId(bookingPackages[0].id);
-  }, [bookingPackages, packageId, selectedPackage, setPackageId]);
+    if (effectiveBookingMode === "stay" && packageId) {
+      setPackageId(null);
+      return;
+    }
+    if (effectiveBookingMode === "package" && !selectedPackage) setPackageId(bookingPackages[0].id);
+  }, [effectiveBookingMode, bookingPackages, packageBookingAllowed, packageId, selectedPackage, setPackageId]);
 
   useEffect(() => {
     if (selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout) setPackageId(fullAccessPackage.id);
@@ -145,7 +164,29 @@ export function RoomReservationCard({
         </span>
       </div>
 
-      {bookingPackages.length ? (
+      {stayBookingAllowed && packageBookingAllowed ? (
+        <div className="mt-4 grid grid-cols-2 rounded-2xl bg-black/[0.04] p-1">
+          {[
+            ["stay", "Book Stay"],
+            ["package", "Book Package"],
+          ].map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => {
+                const nextMode = mode as "stay" | "package";
+                setBookingMode(nextMode);
+                setPackageId(nextMode === "package" ? selectedPackage?.id ?? bookingPackages[0]?.id ?? null : null);
+              }}
+              className={`min-h-10 rounded-xl text-sm font-semibold transition ${effectiveBookingMode === mode ? "bg-white text-[#083f35] shadow-sm" : "text-black/55 hover:text-black"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {effectiveBookingMode === "package" && packageBookingAllowed ? (
         <div className="mt-4 grid gap-2">
           {bookingPackages.map((item) => {
             const active = activePackage?.id === item.id;
@@ -166,10 +207,23 @@ export function RoomReservationCard({
                   <span className="font-semibold">{item.name}</span>
                   <span className={active ? "text-white/80" : "text-black/55"}>{formatCurrency(calculateGuestPriceWithMarkup(item.weekdayRate))}</span>
                 </span>
-                <span className={`mt-1 block text-xs ${active ? "text-white/70" : "text-black/50"}`}>{item.accessType}</span>
+                <span className={`mt-1 block text-xs ${active ? "text-white/70" : "text-black/50"}`}>
+                  {item.accessType}
+                  {item.durationHours ? ` - ${item.durationHours} hours` : ""}
+                  {item.sleepingCapacity ? ` - sleeps ${item.sleepingCapacity}` : ""}
+                </span>
               </button>
             );
           })}
+        </div>
+      ) : null}
+
+      {activePackage ? (
+        <div className="mt-4 grid gap-2 rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-xs text-black/60">
+          <PackageAccessLine label="Floors" items={activePackage.accessibleFloors ?? []} fallback={activePackage.accessType} />
+          <PackageAccessLine label="Rooms" items={selectedPackageRooms.map((room) => room.name)} fallback="No bedroom access" />
+          <PackageAccessLine label="Included" items={activePackage.includedAmenities ?? []} fallback="Property amenities apply" />
+          {(activePackage.excludedAmenities ?? []).length ? <PackageAccessLine label="Excluded" items={activePackage.excludedAmenities ?? []} fallback="" /> : null}
         </div>
       ) : null}
 
@@ -410,6 +464,18 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
       <span className={`size-2.5 rounded-sm ${swatch}`} />
       {label}
     </span>
+  );
+}
+
+function PackageAccessLine({ label, items, fallback }: { label: string; items: string[]; fallback: string }) {
+  const visibleItems = items.filter(Boolean);
+  if (!visibleItems.length && !fallback) return null;
+
+  return (
+    <p className="grid gap-1 min-[390px]:grid-cols-[5rem_1fr]">
+      <span className="font-semibold text-black/45">{label}</span>
+      <span>{visibleItems.length ? visibleItems.join(", ") : fallback}</span>
+    </p>
   );
 }
 

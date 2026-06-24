@@ -36,6 +36,7 @@ vi.mock("@/lib/auth", () => ({
   hashPassword: vi.fn((password: string) => `hashed:${password}`),
   requireUser: vi.fn(),
   roleHome: vi.fn(() => "/admin/dashboard"),
+  sessionMetadataFromHeaders: vi.fn((_headers: Headers, overrides?: Record<string, unknown>) => ({ userAgent: "Test Browser", ipAddress: "127.0.x.x", ...overrides })),
   verifyPassword: vi.fn(() => true),
 }));
 
@@ -55,9 +56,9 @@ vi.mock("@/lib/canonical-paths", () => ({
 }));
 
 vi.mock("@/lib/email", () => ({
-  sendAdminMfaEmail: vi.fn(),
   sendPasswordChangedEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
+  sendPrivilegedMfaEmail: vi.fn(),
   sendVerificationEmail: vi.fn(),
   sendWelcomeEmail: vi.fn(),
 }));
@@ -113,7 +114,7 @@ import { clearPendingAdminMfaChallenge, createPendingAdminMfaChallenge, readPend
 import { appendAuditLog } from "@/lib/audit-logs";
 import { clearAllSessionsForUser, clearSession, createSession, requireUser, verifyPassword } from "@/lib/auth";
 import { consumeAuthToken, getAuthToken, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
-import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
+import { sendPasswordChangedEmail, sendPasswordResetEmail, sendPrivilegedMfaEmail, sendVerificationEmail } from "@/lib/email";
 import { checkLoginLockout } from "@/lib/rate-limit";
 import { getUserById, getUsers } from "@/lib/users";
 import type { AuthToken, User } from "@/lib/types";
@@ -128,6 +129,15 @@ const adminUser: User = {
   createdAt: "2026-06-18",
   passwordHash: "hashed-password",
   emailVerifiedAt: "2026-06-18T00:00:00.000Z",
+};
+
+const hostUser: User = {
+  ...adminUser,
+  id: "host-1",
+  name: "StayPrime Host",
+  email: "host@example.com",
+  role: "host",
+  avatar: "SH",
 };
 
 const adminMfaToken: AuthToken = {
@@ -154,6 +164,15 @@ function signinForm() {
   return formData;
 }
 
+function hostSigninForm() {
+  const formData = new FormData();
+  formData.set("email", hostUser.email);
+  formData.set("password", "CorrectHorseBatteryStaple#2026");
+  formData.set("requestedRole", "host");
+  formData.set("next", "/host/bookings");
+  return formData;
+}
+
 describe("admin MFA sign-in", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -166,10 +185,11 @@ describe("admin MFA sign-in", () => {
 
     expect(issueAuthToken).toHaveBeenCalledWith(adminUser.id, "admin_mfa");
     expect(createPendingAdminMfaChallenge).toHaveBeenCalledWith("mfa-token");
-    expect(sendAdminMfaEmail).toHaveBeenCalledWith({
+    expect(sendPrivilegedMfaEmail).toHaveBeenCalledWith({
       to: adminUser.email,
       name: adminUser.name,
       code: "123456",
+      role: "admin",
     });
     expect(createSession).not.toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("next=%2Fadmin%2Fpayments"));
@@ -188,7 +208,7 @@ describe("admin MFA sign-in", () => {
       code: expect.stringMatching(/^\d{6}$/),
     }));
     expect(createPendingAdminMfaChallenge).not.toHaveBeenCalled();
-    expect(sendAdminMfaEmail).not.toHaveBeenCalled();
+    expect(sendPrivilegedMfaEmail).not.toHaveBeenCalled();
     expect(createSession).not.toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("role=admin"));
   });
@@ -245,7 +265,24 @@ describe("admin MFA sign-in", () => {
 
     expect(getAuthToken).toHaveBeenCalledWith("mfa-token", "admin_mfa");
     expect(consumeAuthToken).toHaveBeenCalledWith("mfa-token", "admin_mfa");
-    expect(createSession).toHaveBeenCalledWith(adminUser.id);
+    expect(createSession).toHaveBeenCalledWith(adminUser.id, expect.objectContaining({ mfaRole: "admin" }));
+  });
+
+  it("requires MFA after a valid host password before creating a session", async () => {
+    vi.mocked(getUsers).mockResolvedValueOnce([hostUser]);
+
+    await expect(signIn(hostSigninForm())).rejects.toThrow("NEXT_REDIRECT:/login?mfa=1&role=host");
+
+    expect(issueAuthToken).toHaveBeenCalledWith(hostUser.id, "admin_mfa");
+    expect(createPendingAdminMfaChallenge).toHaveBeenCalledWith("mfa-token");
+    expect(sendPrivilegedMfaEmail).toHaveBeenCalledWith({
+      to: hostUser.email,
+      name: hostUser.name,
+      code: "123456",
+      role: "host",
+    });
+    expect(createSession).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("next=%2Fhost%2Fbookings"));
   });
 
   it("resends a fresh admin MFA code without creating a session", async () => {
@@ -262,10 +299,11 @@ describe("admin MFA sign-in", () => {
     expect(getAuthToken).toHaveBeenCalledWith("mfa-token", "admin_mfa");
     expect(issueAuthToken).toHaveBeenCalledWith(adminUser.id, "admin_mfa");
     expect(createPendingAdminMfaChallenge).toHaveBeenCalledWith("fresh-mfa-token");
-    expect(sendAdminMfaEmail).toHaveBeenCalledWith({
+    expect(sendPrivilegedMfaEmail).toHaveBeenCalledWith({
       to: adminUser.email,
       name: adminUser.name,
       code: "123456",
+      role: "admin",
     });
     expect(createSession).not.toHaveBeenCalled();
     expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("message=We+sent+a+new+admin+code."));
@@ -276,9 +314,9 @@ describe("admin MFA sign-in", () => {
     vi.mocked(readPendingAdminMfaChallenge).mockResolvedValueOnce("mfa-token");
     vi.mocked(getAuthToken).mockResolvedValueOnce(null);
 
-    await expect(resendAdminMfa(new FormData())).rejects.toThrow("NEXT_REDIRECT:/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    await expect(resendAdminMfa(new FormData())).rejects.toThrow("NEXT_REDIRECT:/admin/login?mfa=1&error=Sign-in+challenge+expired.+Log+in+again.");
 
-    expect(sendAdminMfaEmail).not.toHaveBeenCalled();
+    expect(sendPrivilegedMfaEmail).not.toHaveBeenCalled();
     expect(clearPendingAdminMfaChallenge).toHaveBeenCalled();
   });
 

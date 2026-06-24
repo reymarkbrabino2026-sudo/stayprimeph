@@ -28,7 +28,7 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
 import { env } from "@/lib/env";
-import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
+import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, getEnabledBookingPackages } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
@@ -124,11 +124,11 @@ export default async function RoomPage({
   const reviewGuestById = new Map(reviewGuests.map((guest) => [guest.id, guest]));
   const unavailableStays = bookings
     .filter((booking) => booking.status !== "cancelled")
-    .map((booking) => ({ checkIn: booking.checkIn, checkOut: booking.checkOut }))
+    .map((booking) => ({ checkIn: booking.checkIn, checkOut: booking.checkOut, bookingPackageId: booking.bookingPackageId }))
     .concat(
       availabilityBlocks
         .filter((block) => block.propertyId === property.id)
-        .map((block) => ({ checkIn: block.date, checkOut: addDays(block.date, 1) })),
+        .map((block) => ({ checkIn: block.date, checkOut: addDays(block.date, 1), bookingPackageId: undefined })),
     );
   const averageRating = propertyReviews.length
     ? (propertyReviews.reduce((sum, review) => sum + review.rating, 0) / propertyReviews.length).toFixed(2)
@@ -142,6 +142,10 @@ export default async function RoomPage({
     : [{ id: "placeholder", propertyId: property.id, imageUrl: "", tone: "" }];
   const instantBook = property.rules.includes("Instant book enabled");
   const hostMessageHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(property.hostId)}`;
+  const bookingPackages = getEnabledBookingPackages(property);
+  const stayBookingAllowed = allowsStayBooking(property);
+  const packageBookingAllowed = allowsPackageBooking(property);
+  const activeRooms = (property.rooms ?? []).filter((room) => room.active);
 
   const stats = [
     { icon: Users, label: `${property.maxGuests} guests` },
@@ -321,6 +325,75 @@ export default async function RoomPage({
         </div>
 
         {/* Photo carousel — full-bleed, 980x580 slides */}
+        {(packageBookingAllowed || activeRooms.length || stayBookingAllowed) ? (
+          <section id="booking-options" className="scroll-mt-32 border-t border-black/10 bg-white py-16">
+            <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+              <SectionHeader
+                eyebrow="Booking options"
+                title={stayBookingAllowed && packageBookingAllowed ? "Choose a stay or a package" : packageBookingAllowed ? "Choose a package" : "Rooms and access"}
+                body="Compare the spaces, capacity, and included access before you reserve."
+              />
+              <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="rounded-[1.75rem] border border-black/10 bg-[#fbfaf7] p-6">
+                  <h3 className="text-xl font-semibold">Rooms</h3>
+                  <div className="mt-5 grid gap-3">
+                    {activeRooms.length ? activeRooms.map((room) => (
+                      <article key={room.id} className="rounded-2xl bg-white p-4 ring-1 ring-black/10">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-semibold">{room.name}</p>
+                            <p className="mt-1 text-sm text-black/55">{room.floor}</p>
+                          </div>
+                          <span className="rounded-full bg-[#083f35]/10 px-3 py-1 text-sm font-semibold text-[#083f35]">{room.capacity} pax</span>
+                        </div>
+                        {room.description ? <p className="mt-3 text-sm leading-6 text-black/62">{room.description}</p> : null}
+                        {room.amenities.length ? <p className="mt-2 text-xs text-black/45">{room.amenities.join(", ")}</p> : null}
+                      </article>
+                    )) : (
+                      <p className="rounded-2xl bg-white p-4 text-sm text-black/60 ring-1 ring-black/10">Room details are managed by the host.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {packageBookingAllowed ? bookingPackages.map((pkg) => {
+                    const rooms = (property.rooms ?? []).filter((room) => pkg.accessibleRoomIds?.includes(room.id));
+                    return (
+                      <article key={pkg.id} className="rounded-[1.75rem] border border-black/10 bg-white p-6 shadow-[0_14px_44px_rgb(0_0_0_/_0.04)]">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-xl font-semibold">{pkg.name}</h3>
+                            <p className="mt-1 text-sm text-black/58">{pkg.description || pkg.accessType}</p>
+                          </div>
+                          <span className="rounded-full bg-[#f6f1e9] px-3 py-1.5 text-sm font-semibold text-[#083f35]">
+                            {pkg.unit === "day" ? "Day package" : "Overnight"}
+                          </span>
+                        </div>
+                        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+                          <InfoPill label="Capacity" value={`${pkg.maxGuests} guests`} />
+                          <InfoPill label="Sleeping" value={`${pkg.sleepingCapacity ?? 0} guests`} />
+                          <InfoPill label="Duration" value={pkg.durationHours ? `${pkg.durationHours} hours` : `${pkg.checkInTime} to ${pkg.checkOutTime}`} />
+                        </div>
+                        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                          <AccessBlock label="Floors" items={pkg.accessibleFloors ?? []} fallback={pkg.accessType} />
+                          <AccessBlock label="Rooms" items={rooms.map((room) => room.name)} fallback="No bedroom access" />
+                          <AccessBlock label="Included amenities" items={pkg.includedAmenities ?? []} fallback="Property amenities apply" />
+                          <AccessBlock label="Excluded" items={pkg.excludedAmenities ?? []} fallback="None listed" />
+                        </div>
+                      </article>
+                    );
+                  }) : stayBookingAllowed ? (
+                    <article className="rounded-[1.75rem] border border-black/10 bg-white p-6">
+                      <h3 className="text-xl font-semibold">Stay booking</h3>
+                      <p className="mt-2 text-sm leading-6 text-black/62">This listing is available for traditional accommodation booking using the date and guest selector.</p>
+                    </article>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <section id="gallery" className="scroll-mt-32 border-t border-black/10 py-16">
           <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
             <SectionHeader
@@ -540,6 +613,26 @@ function Highlight({
       <Icon className="rounded-full bg-[#f7f0e5] p-2 text-[#8a6a3f]" size={38} />
       <h3 className="mt-4 font-semibold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-black/60">{body}</p>
+    </div>
+  );
+}
+
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-[#f6f1e9] p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</p>
+      <p className="mt-1 font-semibold text-[#083f35]">{value}</p>
+    </div>
+  );
+}
+
+function AccessBlock({ label, items, fallback }: { label: string; items: string[]; fallback: string }) {
+  const visibleItems = items.filter(Boolean);
+
+  return (
+    <div className="rounded-2xl border border-black/10 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</p>
+      <p className="mt-2 leading-6 text-black/65">{visibleItems.length ? visibleItems.join(", ") : fallback}</p>
     </div>
   );
 }

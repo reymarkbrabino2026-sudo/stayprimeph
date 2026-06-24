@@ -35,6 +35,44 @@ export default async function EditListingPage({ params, searchParams }: { params
             <Info label="Bathrooms" value={String(property.bathrooms)} />
           </div>
           <p className="mt-5 leading-7 text-black/65">{property.description}</p>
+          {(property.rooms?.length || property.bookingPackages?.length) ? (
+            <div className="mt-6 space-y-4 border-t border-black/10 pt-5">
+              {property.rooms?.length ? (
+                <div>
+                  <h3 className="font-semibold">Rooms</h3>
+                  <div className="mt-3 grid gap-2">
+                    {property.rooms.filter((room) => room.active).map((room) => (
+                      <Info key={room.id} label={`${room.name} (${room.floor})`} value={`${room.capacity} pax`} />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {property.bookingPackages?.length ? (
+                <div>
+                  <h3 className="font-semibold">Booking packages</h3>
+                  <div className="mt-3 grid gap-2">
+                    {property.bookingPackages.map((pkg) => (
+                      <div key={pkg.id} className="rounded-2xl bg-[#fbf7f2] p-4 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold">{pkg.name}</p>
+                            <p className="mt-1 text-black/55">{pkg.accessType}</p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-black/60">{pkg.enabled ? "Enabled" : "Off"}</span>
+                        </div>
+                        <p className="mt-2 text-black/55">
+                          {pkg.maxGuests} guests
+                          {pkg.sleepingCapacity ? `, sleeps ${pkg.sleepingCapacity}` : ""}
+                          {pkg.durationHours ? `, ${pkg.durationHours} hours` : ""}
+                        </p>
+                        {pkg.includedAmenities?.length ? <p className="mt-2 text-black/45">Includes: {pkg.includedAmenities.join(", ")}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         <section>

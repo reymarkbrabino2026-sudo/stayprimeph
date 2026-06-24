@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { User } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/admin-logs", () => ({
+  appendAdminLog: vi.fn(),
+}));
 vi.mock("@/lib/audit-logs", () => ({
   appendAuditLog: vi.fn(),
 }));
@@ -50,6 +53,7 @@ vi.mock("@/lib/users", () => ({
 }));
 
 import { getAccountSettings, savePrivacySettings } from "@/lib/account-settings";
+import { appendAdminLog } from "@/lib/admin-logs";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { consumeAuthToken, issueAuthToken } from "@/lib/auth-tokens";
 import { readStoredAuthTokens, writeStoredAuthTokens } from "@/lib/auth-token-store";
@@ -247,6 +251,12 @@ describe("verified account deletion", () => {
     ]);
     expect(writeStoredAuthTokens).toHaveBeenCalledWith([]);
     expect(writeStoredSessions).toHaveBeenCalledWith([]);
+    expect(appendAdminLog).toHaveBeenCalledWith({
+      adminId: "admin-1",
+      action: "account.anonymized",
+      entityType: "user",
+      entityId: user.id,
+    });
     expect(appendAuditLog).toHaveBeenCalledWith(expect.objectContaining({
       actorId: "admin-1",
       actorRole: "admin",

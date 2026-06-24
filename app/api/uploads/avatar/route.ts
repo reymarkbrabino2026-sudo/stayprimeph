@@ -1,23 +1,21 @@
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { requireStateChangingApiRequest } from "@/lib/api-request-guard";
 import { getCurrentUser } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
-import { sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
+import { moderateListingPhotoImage, sanitizeListingPhotoImage, scanListingPhotoForMalware, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
 import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
-import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import { cloudinaryAvatarUploadFolder, serverGeneratedAvatarBlobPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
 
 export async function POST(request: Request) {
-  const headerStore = await headers();
-  if (!isTrustedRequestOrigin(headerStore)) {
-    return NextResponse.json({ error: untrustedRequestMessage }, { status: 403 });
-  }
+  const guard = await requireStateChangingApiRequest(request);
+  if (!guard.ok) return guard.response;
+  const headerStore = guard.headers;
 
   const user = await getCurrentUser();
   if (!user) {
@@ -52,9 +50,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: byteValidation.error }, { status: byteValidation.status });
   }
 
+  const malwareScan = scanListingPhotoForMalware(bytes);
+  if (!malwareScan.ok) {
+    logger.warn("avatar_upload_malware_scan_failed", { userId: user.id, reason: malwareScan.reason });
+    return NextResponse.json({ error: malwareScan.error }, { status: malwareScan.status });
+  }
+
   const sanitizedImage = await sanitizeListingPhotoImage(bytes, file.type);
   if (!sanitizedImage.ok) {
     return NextResponse.json({ error: sanitizedImage.error }, { status: sanitizedImage.status });
+  }
+
+  const moderation = await moderateListingPhotoImage(sanitizedImage);
+  if (!moderation.ok) {
+    logger.warn("avatar_upload_moderation_failed", { userId: user.id, reason: moderation.reason });
+    return NextResponse.json({ error: moderation.error }, { status: moderation.status });
   }
 
   const variant = sanitizedImage.variants.find((entry) => entry.format === sanitizedImage.primary.format) ?? sanitizedImage.variants[0];

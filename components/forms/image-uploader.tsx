@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { csrfHeaderName } from "@/lib/csrf-fields";
 import type { PropertyImage } from "@/lib/types";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -34,10 +35,11 @@ function isRenderableImage(src: string) {
   return src !== "pending-upload" && (src.startsWith("/") || src.startsWith("https://") || src.startsWith("http://"));
 }
 
-function uploadOne(file: File, listingId: string, onProgress: (percent: number) => void): Promise<UploadResponse> {
+function uploadOne(file: File, listingId: string, csrfToken: string | undefined, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/uploads/listing-photo");
+    if (csrfToken) xhr.setRequestHeader(csrfHeaderName, csrfToken);
     xhr.timeout = uploadTimeoutMs;
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
@@ -82,9 +84,11 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1) {
 export function ImageUploader({
   initialPhotos = [],
   listingId,
+  csrfToken,
 }: {
   initialPhotos?: PropertyImage[];
   listingId?: string;
+  csrfToken?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [photos, setPhotos] = useState<EditablePhoto[]>(() => initialPhotos.map(toEditablePhoto).filter((photo) => photo.url));
@@ -119,7 +123,7 @@ export function ImageUploader({
         setUploadProgress(Math.round(fileProgress.reduce((sum, value) => sum + value, 0) / fileProgress.length));
       };
       const uploaded = await Promise.all(accepted.map(async (file, index) => {
-        const result = await uploadOne(file, listingId, (percent) => updateFileProgress(index, percent));
+        const result = await uploadOne(file, listingId, csrfToken, (percent) => updateFileProgress(index, percent));
         updateFileProgress(index, 100);
         return { id: result.id, url: result.url, name: file.name };
       }));

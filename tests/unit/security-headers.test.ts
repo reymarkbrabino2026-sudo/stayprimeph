@@ -4,24 +4,31 @@ import path from "node:path";
 
 describe("security headers", () => {
   test("defines a restrictive content security policy", async () => {
-    const config = await fs.readFile(path.join(process.cwd(), "next.config.ts"), "utf8");
+    const [proxy, csp] = await Promise.all([
+      fs.readFile(path.join(process.cwd(), "proxy.ts"), "utf8"),
+      fs.readFile(path.join(process.cwd(), "lib/content-security-policy.ts"), "utf8"),
+    ]);
 
-    expect(config).toContain("Content-Security-Policy");
-    expect(config).toContain("default-src 'self'");
-    expect(config).toContain("object-src 'none'");
-    expect(config).toContain("frame-ancestors 'none'");
-    expect(config).toContain("base-uri 'self'");
-    expect(config).toContain("form-action 'self'");
-    expect(config).toContain("https://res.cloudinary.com");
-    expect(config).toContain("https://*.public.blob.vercel-storage.com");
-    expect(config).toContain("https://a.tile.openstreetmap.org");
-    expect(config).toContain("https://b.tile.openstreetmap.org");
-    expect(config).toContain("https://c.tile.openstreetmap.org");
-    expect(config).toContain("isProduction ? \"\" : \"https://va.vercel-scripts.com\"");
-    expect(config).not.toContain("default-src *");
-    expect(config).not.toContain("https://*.tile.openstreetmap.org");
-    expect(config).not.toContain("https://*.vercel-insights.com");
-    expect(config).not.toContain("blob: https://res.cloudinary.com");
+    expect(proxy).toContain("Content-Security-Policy");
+    expect(proxy).toContain("createCspNonce");
+    expect(proxy).toContain("NextResponse.next({ request: { headers: security.requestHeaders } })");
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("form-action 'self'");
+    expect(csp).toContain("nonceSource");
+    expect(csp).toContain("script-src-elem");
+    expect(csp).toContain("https://js.stripe.com");
+    expect(csp).toContain("https://*.ingest.sentry.io");
+    expect(csp).toContain("https://vitals.vercel-insights.com");
+    expect(csp).toContain("https://res.cloudinary.com");
+    expect(csp).toContain("https://*.public.blob.vercel-storage.com");
+    expect(csp).toContain("https://a.tile.openstreetmap.org");
+    expect(csp).toContain("https://b.tile.openstreetmap.org");
+    expect(csp).toContain("https://c.tile.openstreetmap.org");
+    expect(csp).not.toContain("default-src *");
+    expect(csp).not.toContain("https://*.tile.openstreetmap.org");
   });
 
   test("keeps HSTS enabled for static and dynamic responses", async () => {

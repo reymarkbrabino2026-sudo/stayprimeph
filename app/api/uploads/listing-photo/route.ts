@@ -1,18 +1,27 @@
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { requireStateChangingApiRequest } from "@/lib/api-request-guard";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
-import { sanitizeListingPhotoImage, type OptimizedListingPhotoVariant, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
+import { moderateListingPhotoImage, sanitizeListingPhotoImage, scanListingPhotoForMalware, type OptimizedListingPhotoVariant, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
-import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
+import { cleanupUploadedPhotos, getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
-import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import { cloudinaryListingUploadFolder, normalizeUploadScopeId, serverGeneratedListingBlobPath } from "@/lib/upload-paths";
 import { v2 as cloudinary } from "cloudinary";
+
+type UploadedListingPhotoVariant = {
+  format: OptimizedListingPhotoVariant["format"];
+  url: string;
+  id: string;
+  bytes: number;
+  width: number;
+  height: number;
+  contentType: string;
+};
 
 async function requireListingUploadScope(userId: string, value: FormDataEntryValue | null) {
   const listingId = normalizeUploadScopeId(String(value ?? ""), "");
@@ -27,10 +36,9 @@ async function requireListingUploadScope(userId: string, value: FormDataEntryVal
 }
 
 export async function POST(request: Request) {
-  const headerStore = await headers();
-  if (!isTrustedRequestOrigin(headerStore)) {
-    return NextResponse.json({ error: untrustedRequestMessage }, { status: 403 });
-  }
+  const guard = await requireStateChangingApiRequest(request);
+  if (!guard.ok) return guard.response;
+  const headerStore = guard.headers;
 
   let user;
   try {
@@ -83,9 +91,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: byteValidation.error }, { status: byteValidation.status });
   }
 
+  const malwareScan = scanListingPhotoForMalware(bytes);
+  if (!malwareScan.ok) {
+    logger.warn("listing_photo_malware_scan_failed", { userId: user.id, reason: malwareScan.reason });
+    return NextResponse.json({ error: malwareScan.error }, { status: malwareScan.status });
+  }
+
   const sanitizedImage = await sanitizeListingPhotoImage(bytes, file.type);
   if (!sanitizedImage.ok) {
     return NextResponse.json({ error: sanitizedImage.error }, { status: sanitizedImage.status });
+  }
+
+  const moderation = await moderateListingPhotoImage(sanitizedImage);
+  if (!moderation.ok) {
+    logger.warn("listing_photo_moderation_failed", { userId: user.id, reason: moderation.reason });
+    return NextResponse.json({ error: moderation.error }, { status: moderation.status });
   }
 
   const uploadBasePath = serverGeneratedListingBlobPath({
@@ -94,6 +114,7 @@ export async function POST(request: Request) {
   });
 
   if (hasCloudinaryConfig()) {
+    const uploadedVariants: UploadedListingPhotoVariant[] = [];
     try {
       cloudinary.config({
         cloud_name: env.CLOUDINARY_CLOUD_NAME,
@@ -103,15 +124,7 @@ export async function POST(request: Request) {
       });
       const folder = cloudinaryListingUploadFolder(user.id, listingId);
       const publicIdBase = path.basename(uploadBasePath);
-      const uploadVariant = (variant: OptimizedListingPhotoVariant) => new Promise<{
-        format: OptimizedListingPhotoVariant["format"];
-        url: string;
-        id: string;
-        bytes: number;
-        width: number;
-        height: number;
-        contentType: string;
-      }>((resolve, reject) => {
+      const uploadVariant = (variant: OptimizedListingPhotoVariant) => new Promise<UploadedListingPhotoVariant>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
             folder,
@@ -135,7 +148,9 @@ export async function POST(request: Request) {
         );
         stream.end(variant.bytes);
       });
-      const uploadedVariants = await Promise.all(sanitizedImage.variants.map(uploadVariant));
+      for (const variant of sanitizedImage.variants) {
+        uploadedVariants.push(await uploadVariant(variant));
+      }
       const primary = uploadedVariants.find((variant) => variant.format === sanitizedImage.primary.format) ?? uploadedVariants[0];
       return NextResponse.json({
         id: primary.id,
@@ -148,15 +163,23 @@ export async function POST(request: Request) {
         variants: uploadedVariants,
       });
     } catch (error) {
+      const cleanupFailures = await cleanupUploadedPhotos(uploadedVariants.map((variant) => ({
+        storage: "cloudinary",
+        id: variant.id,
+      })));
+      if (cleanupFailures.length) {
+        logger.warn("cloudinary_listing_photo_cleanup_failed", { userId: user.id, failures: cleanupFailures.length });
+      }
       logger.error("cloudinary_listing_photo_upload_failed", { userId: user.id, error });
       return NextResponse.json({ error: "Cloudinary upload failed. Check the storage credentials and try again." }, { status: 502 });
     }
   }
 
   if (hasVercelBlobConfig()) {
+    const uploadedVariants: UploadedListingPhotoVariant[] = [];
     try {
       const token = getPhotoBlobReadWriteToken();
-      const uploadedVariants = await Promise.all(sanitizedImage.variants.map(async (variant) => {
+      for (const variant of sanitizedImage.variants) {
         const blob = await put(`${uploadBasePath}${variant.extension}`, variant.bytes, {
           access: "public",
           contentType: variant.contentType,
@@ -164,7 +187,7 @@ export async function POST(request: Request) {
           allowOverwrite: false,
           token,
         });
-        return {
+        uploadedVariants.push({
           format: variant.format,
           url: blob.url,
           id: blob.pathname,
@@ -172,8 +195,8 @@ export async function POST(request: Request) {
           width: variant.width,
           height: variant.height,
           contentType: variant.contentType,
-        };
-      }));
+        });
+      }
       const primary = uploadedVariants.find((variant) => variant.format === sanitizedImage.primary.format) ?? uploadedVariants[0];
 
       return NextResponse.json({
@@ -187,6 +210,13 @@ export async function POST(request: Request) {
         variants: uploadedVariants,
       });
     } catch (error) {
+      const cleanupFailures = await cleanupUploadedPhotos(uploadedVariants.map((variant) => ({
+        storage: "vercel-blob",
+        id: variant.id,
+      })));
+      if (cleanupFailures.length) {
+        logger.warn("vercel_blob_listing_photo_cleanup_failed", { userId: user.id, failures: cleanupFailures.length });
+      }
       logger.error("vercel_blob_listing_photo_upload_failed", { userId: user.id, error });
       return NextResponse.json({ error: "Vercel Blob upload failed. Check the connected Blob store and try again." }, { status: 502 });
     }

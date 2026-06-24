@@ -27,6 +27,7 @@ type HostCalendarBooking = {
   id: string;
   propertyId: string;
   propertyTitle: string;
+  bookingPackageName?: string;
   guestName: string;
   guestAvatar: string;
   checkIn: string;
@@ -528,7 +529,7 @@ function SelectedDatePanel({
                 </div>
                 <p className="mt-1 hidden truncate text-sm text-black/55 sm:block">{booking.propertyTitle}</p>
                 <p className="mt-2 hidden items-center gap-2 text-sm text-black/55 sm:flex">
-                  <Users size={14} /> {booking.guests} guests
+                  <Users size={14} /> {booking.guests} guests{booking.bookingPackageName ? ` - ${booking.bookingPackageName}` : ""}
                 </p>
                 <p className="mt-1 text-xs text-black/55 sm:text-sm">
                   {formatDisplayDate(booking.checkIn)} to {formatDisplayDate(booking.checkOut)}

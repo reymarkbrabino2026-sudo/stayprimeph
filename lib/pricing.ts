@@ -1,4 +1,4 @@
-import type { Booking, BookingPackage, ListingDiscounts, Property } from "@/lib/types";
+import type { Booking, BookingPackage, ListingDiscounts, Property, SeasonalRate } from "@/lib/types";
 
 export const STAYPRIME_MARKUP_RATE = 0.2;
 export const DEFAULT_WEEKEND_PREMIUM_RATE = 0.2;
@@ -13,6 +13,9 @@ export interface AppliedDiscount {
 export interface NightlyRates {
   pricePerNight: number;
   weekendPrice?: number | null;
+  holidayPrice?: number | null;
+  holidayDates?: string[];
+  seasonalRates?: SeasonalRate[];
 }
 
 export interface NightlySubtotal {
@@ -41,6 +44,42 @@ function dateKeyToUtcTime(value: string) {
 
 function toDateKeyFromUtcTime(time: number) {
   return new Date(time).toISOString().slice(0, 10);
+}
+
+function isDateKey(value: string | undefined) {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(dateKeyToUtcTime(value)));
+}
+
+function rateIsPositive(value: number | null | undefined) {
+  return Number.isFinite(value) && Number(value) > 0;
+}
+
+function seasonalRateForDate(dateKey: string, seasonalRates: SeasonalRate[] = []) {
+  return seasonalRates.find((season) =>
+    isDateKey(season.startDate) &&
+    isDateKey(season.endDate) &&
+    season.startDate <= dateKey &&
+    dateKey <= season.endDate &&
+    rateIsPositive(season.weekdayRate),
+  ) ?? null;
+}
+
+function nightlyRateForDate(rates: NightlyRates, dateKey: string) {
+  const season = seasonalRateForDate(dateKey, rates.seasonalRates);
+  const weekdayRate = season?.weekdayRate ?? rates.pricePerNight;
+  const weekendRate = rateIsPositive(season?.weekendRate)
+    ? Number(season?.weekendRate)
+    : rateIsPositive(rates.weekendPrice)
+      ? Number(rates.weekendPrice)
+      : calculateDefaultWeekendPrice(weekdayRate);
+  const holidayRate = rateIsPositive(season?.holidayRate)
+    ? Number(season?.holidayRate)
+    : rateIsPositive(rates.holidayPrice)
+      ? Number(rates.holidayPrice)
+      : null;
+
+  if ((rates.holidayDates ?? []).includes(dateKey) && holidayRate) return holidayRate;
+  return isWeekendNight(dateKey) ? weekendRate : weekdayRate;
 }
 
 export function getListingDiscounts(property: Property): ListingDiscounts {
@@ -98,10 +137,6 @@ export function isWeekendDayIndex(day: number) {
 
 export function calculateNightlySubtotal(rates: NightlyRates, checkIn: string, checkOut: string): NightlySubtotal {
   const nights = Math.max(0, nightsBetweenDateKeys(checkIn, checkOut));
-  const weekdayRate = rates.pricePerNight;
-  const weekendRate = Number.isFinite(rates.weekendPrice) && Number(rates.weekendPrice) > 0
-    ? Number(rates.weekendPrice)
-    : calculateDefaultWeekendPrice(weekdayRate);
   const checkInTime = dateKeyToUtcTime(checkIn);
   let weekdayNights = 0;
   let weekendNights = 0;
@@ -113,18 +148,36 @@ export function calculateNightlySubtotal(rates: NightlyRates, checkIn: string, c
     const dateKey = toDateKeyFromUtcTime(checkInTime + index * dayMs);
     if (isWeekendNight(dateKey)) {
       weekendNights += 1;
-      subtotal += weekendRate;
     } else {
       weekdayNights += 1;
-      subtotal += weekdayRate;
     }
+    subtotal += nightlyRateForDate(rates, dateKey);
   }
 
   return { nights, weekdayNights, weekendNights, subtotal };
 }
 
 export function getEnabledBookingPackages(property: Pick<Property, "bookingPackages">) {
-  return (property.bookingPackages ?? []).filter((item) => item.enabled);
+  return (property.bookingPackages ?? [])
+    .filter((item) => item.enabled && item.status !== "inactive")
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || a.name.localeCompare(b.name));
+}
+
+export function getListingBookingType(property: Pick<Property, "bookingType">) {
+  return property.bookingType === "package" || property.bookingType === "both" ? property.bookingType : "stay";
+}
+
+export function allowsStayBooking(property: Pick<Property, "bookingType">) {
+  return getListingBookingType(property) !== "package";
+}
+
+export function allowsPackageBooking(property: Pick<Property, "bookingType" | "bookingPackages">) {
+  return getListingBookingType(property) !== "stay" && getEnabledBookingPackages(property).length > 0;
+}
+
+export function findBookingPackageById(property: Pick<Property, "bookingPackages">, packageId?: string | null) {
+  if (!packageId) return null;
+  return getEnabledBookingPackages(property).find((item) => item.id === packageId) ?? null;
 }
 
 export function getBookingPackageById(property: Pick<Property, "bookingPackages">, packageId?: string | null) {
@@ -146,6 +199,9 @@ export function calculatePackageSubtotal(pkg: BookingPackage, checkIn: string, c
   const { nights, weekdayNights, weekendNights, subtotal } = calculateNightlySubtotal({
     pricePerNight: pkg.weekdayRate,
     weekendPrice: pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate,
+    holidayPrice: pkg.holidayRate,
+    holidayDates: pkg.holidayDates,
+    seasonalRates: pkg.seasonalRates,
   }, checkIn, checkOut);
   const unitCount = nights;
   const extraGuests = Math.max(0, guests - pkg.includedGuests);

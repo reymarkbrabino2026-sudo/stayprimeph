@@ -18,6 +18,7 @@ async function loadEnv({
   stripeSecretKey,
   stripeWebhookSecret,
   stripePublishableKey,
+  fieldLevelEncryptionKey = "test-field-encryption-key-with-at-least-32-characters",
   sentryDsn = "https://public@example.ingest.sentry.io/1",
   sentryPublicDsn = "https://public@example.ingest.sentry.io/1",
   upstashRedisRestToken = "ci-upstash-token",
@@ -38,6 +39,7 @@ async function loadEnv({
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   stripePublishableKey?: string;
+  fieldLevelEncryptionKey?: string;
   sentryDsn?: string;
   sentryPublicDsn?: string;
   upstashRedisRestToken?: string;
@@ -56,6 +58,7 @@ async function loadEnv({
     DIRECT_URL: directUrl,
     NEXT_PUBLIC_APP_URL: "https://example.com",
     AUTH_SECRET: "test-secret-with-at-least-32-characters",
+    FIELD_LEVEL_ENCRYPTION_KEY: fieldLevelEncryptionKey,
     BLOB_READ_WRITE_TOKEN: blobReadWriteToken,
     PERSISTENCE_DRIVER: persistenceDriver,
     PAYMENT_LAUNCH_MODE: paymentLaunchMode,
@@ -98,6 +101,13 @@ describe("environment defaults", () => {
   test("rejects missing PostgreSQL runtime database URLs in production", async () => {
     await expect(loadEnv({ nodeEnv: "production", databaseUrl: "", directUrl: "" })).rejects.toThrow("DATABASE_URL must be a PostgreSQL connection string in production runtime.");
     await expect(loadEnv({ nodeEnv: "production", directUrl: "" })).rejects.toThrow("DIRECT_URL must be a PostgreSQL connection string in production runtime.");
+  });
+
+  test("requires field-level encryption key in production runtime", async () => {
+    await expect(loadEnv({
+      nodeEnv: "production",
+      fieldLevelEncryptionKey: "",
+    })).rejects.toThrow("FIELD_LEVEL_ENCRYPTION_KEY is required for production field-level encryption.");
   });
 
   test("requires Upstash Redis in production runtime", async () => {

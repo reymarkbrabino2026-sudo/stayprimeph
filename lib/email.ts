@@ -299,16 +299,22 @@ export async function sendEmailChangeVerificationEmail(input: { to: string; name
   });
 }
 
-export async function sendAdminMfaEmail(input: { to: string; name: string; code: string }) {
+export async function sendPrivilegedMfaEmail(input: { to: string; name: string; code: string; role: "admin" | "host" }) {
+  const roleLabel = input.role === "admin" ? "admin" : "host";
+  const destination = input.role === "admin" ? "admin area" : "host dashboard";
   await sendEmail({
     to: input.to,
-    subject: "Your StayPrimePH admin sign-in code",
+    subject: `Your StayPrimePH ${roleLabel} sign-in code`,
     consent: { kind: "essential" },
     html: simpleEmail({
-      headline: "Admin sign-in code",
-      body: `Hi ${input.name}, use code ${input.code} to finish signing in to the StayPrimePH admin area. This code expires in 10 minutes. If this was not you, change the admin password immediately.`,
+      headline: `${roleLabel[0].toUpperCase()}${roleLabel.slice(1)} sign-in code`,
+      body: `Hi ${input.name}, use code ${input.code} to finish signing in to the StayPrimePH ${destination}. This code expires in 10 minutes. If this was not you, change your password immediately.`,
     }),
   });
+}
+
+export async function sendAdminMfaEmail(input: { to: string; name: string; code: string }) {
+  await sendPrivilegedMfaEmail({ ...input, role: "admin" });
 }
 
 export async function sendSupportMessageEmail(input: {

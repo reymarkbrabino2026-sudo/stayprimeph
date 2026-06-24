@@ -1,1 +1,99 @@
-[]
+[
+  {
+    "id": "draft-7f77a29b90c589cece",
+    "hostId": "9ad9af6b-03bc-43ad-b4ba-7864574a339b",
+    "slug": "draft-7f77a29b90c589cece",
+    "title": "Untitled draft",
+    "description": "Draft listing saved from the host setup wizard.",
+    "address": "jamespandian2025@gmail.com",
+    "city": "City pending",
+    "country": "Philippines",
+    "latitude": 14.5995,
+    "longitude": 120.9842,
+    "preciseLocation": false,
+    "pricePerNight": 2528,
+    "weekendPrice": 2579,
+    "cleaningFee": 500,
+    "securityDeposit": 0,
+    "currency": "PHP",
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "maxGuests": 4,
+    "propertyType": "Property",
+    "status": "draft",
+    "rating": 0,
+    "amenities": [],
+    "rules": [
+      "No smoking",
+      "No parties or events",
+      "Quiet hours after 10 PM"
+    ],
+    "createdAt": "2026-06-23",
+    "images": [
+      {
+        "id": "draft-7f77a29b90c589cece-placeholder",
+        "propertyId": "draft-7f77a29b90c589cece",
+        "imageUrl": "pending-upload",
+        "tone": "from-rose-100 via-orange-50 to-stone-100"
+      }
+    ],
+    "discounts": {
+      "newListing": true,
+      "lastMinute": true,
+      "weekly": true,
+      "monthly": true
+    },
+    "rooms": [
+      {
+        "id": "draft-7f77a29b90c589cece-sanctuary-suite",
+        "name": "Sanctuary Suite",
+        "capacity": 2,
+        "floor": "Second Floor",
+        "description": "Private suite for overnight guests.",
+        "photos": [],
+        "amenities": [
+          "Smart TV",
+          "Air conditioning"
+        ],
+        "active": true
+      },
+      {
+        "id": "draft-7f77a29b90c589cece-serene-room",
+        "name": "Serene Room",
+        "capacity": 4,
+        "floor": "Second Floor",
+        "description": "Shared bedroom for families or groups.",
+        "photos": [],
+        "amenities": [
+          "Air conditioning"
+        ],
+        "active": true
+      },
+      {
+        "id": "draft-7f77a29b90c589cece-nest-room",
+        "name": "Nest Room",
+        "capacity": 6,
+        "floor": "Second Floor",
+        "description": "Large sleeping room for overnight packages.",
+        "photos": [],
+        "amenities": [
+          "Air conditioning"
+        ],
+        "active": true
+      },
+      {
+        "id": "draft-7f77a29b90c589cece-oasis-room",
+        "name": "Oasis Room",
+        "capacity": 8,
+        "floor": "Ground Floor",
+        "description": "Ground-floor room with extra guest capacity.",
+        "photos": [],
+        "amenities": [
+          "Air conditioning"
+        ],
+        "active": true
+      }
+    ],
+    "bookingPackages": []
+  }
+]

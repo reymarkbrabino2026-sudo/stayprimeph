@@ -31,8 +31,8 @@ vi.mock("@/lib/user-store", () => ({
   writeStoredUsers: vi.fn(),
 }));
 
-import { saveFinancialSettings, getAccountSettings, savePersonalInfo } from "@/lib/account-settings";
-import { defaultFinancialSettings } from "@/lib/account-settings-types";
+import { saveFinancialSettings, getAccountSettings, savePersonalInfo, savePrivacySettings, saveWorkTravelProfile } from "@/lib/account-settings";
+import { defaultFinancialSettings, defaultPrivacySettings } from "@/lib/account-settings-types";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 
@@ -263,6 +263,109 @@ describe("sensitive financial identifier protection", () => {
     expect(JSON.stringify(remediated)).not.toContain("1000");
     expect(JSON.stringify(remediated)).not.toContain("123 Sensitive Street");
   });
+
+  it("encrypts reversible financial account-setting names while keeping public values usable", async () => {
+    vi.mocked(readJsonStore)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await saveFinancialSettings(user, {
+      ...defaultFinancialSettings,
+      paymentMethods: [
+        {
+          id: "card-1",
+          cardholder: "Sensitive Cardholder",
+          brand: "Visa",
+          last4: "4242",
+          expiry: "12/30",
+          billingZip: "",
+        },
+      ],
+      payoutMethods: [
+        {
+          id: "payout-1",
+          type: "Bank account",
+          accountName: "Sensitive Payout Name",
+          bankName: "BPI",
+          accountNumber: "1234567890",
+          currency: "PHP",
+        },
+      ],
+      taxpayer: {
+        legalName: "Sensitive Taxpayer Name",
+        country: "Philippines",
+        taxId: "123456789",
+        address: "",
+      },
+      vat: {
+        businessName: "Sensitive VAT Business",
+        country: "Philippines",
+        vatId: "VAT123456",
+      },
+    });
+
+    expect(result.paymentMethods[0].cardholder).toBe("Sensitive Cardholder");
+    expect(result.payoutMethods[0].accountName).toBe("Sensitive Payout Name");
+    expect(result.taxpayer?.legalName).toBe("Sensitive Taxpayer Name");
+    expect(result.vat?.businessName).toBe("Sensitive VAT Business");
+
+    const stored = vi.mocked(writeJsonStore).mock.calls.at(-1)?.[1][0] as {
+      financial: {
+        paymentMethods: Array<Record<string, unknown>>;
+        payoutMethods: Array<Record<string, unknown>>;
+        taxpayer: Record<string, unknown>;
+        vat: Record<string, unknown>;
+      };
+    };
+    expect(stored.financial.paymentMethods[0].cardholder).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(stored.financial.payoutMethods[0].accountName).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(stored.financial.taxpayer.legalName).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(stored.financial.vat.businessName).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(JSON.stringify(stored)).not.toContain("Sensitive Cardholder");
+    expect(JSON.stringify(stored)).not.toContain("Sensitive Payout Name");
+    expect(JSON.stringify(stored)).not.toContain("Sensitive Taxpayer Name");
+    expect(JSON.stringify(stored)).not.toContain("Sensitive VAT Business");
+  });
+
+  it("encrypts work-travel and privacy account-setting data at rest", async () => {
+    vi.mocked(readJsonStore)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const workTravel = await saveWorkTravelProfile(user, {
+      email: "employee@example.test",
+      companyName: "Sensitive Employer",
+      department: "Private Ops",
+      employeeId: "EMP-12345",
+      includeBusinessReceipts: true,
+      verified: false,
+    });
+    expect(workTravel.employeeId).toBe("EMP-12345");
+
+    const storedWorkTravel = vi.mocked(writeJsonStore).mock.calls.at(-1)?.[1][0] as {
+      workTravel: Record<string, unknown>;
+    };
+    expect(storedWorkTravel.workTravel.email).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(storedWorkTravel.workTravel.companyName).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(storedWorkTravel.workTravel.department).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(storedWorkTravel.workTravel.employeeId).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(JSON.stringify(storedWorkTravel)).not.toContain("Sensitive Employer");
+    expect(JSON.stringify(storedWorkTravel)).not.toContain("EMP-12345");
+
+    vi.mocked(readJsonStore)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const privacy = await savePrivacySettings(user, {
+      ...defaultPrivacySettings(),
+      blockedPeople: ["blocked-user-sensitive-id"],
+    });
+    expect(privacy.blockedPeople).toEqual(["blocked-user-sensitive-id"]);
+    const storedPrivacy = vi.mocked(writeJsonStore).mock.calls.at(-1)?.[1][0] as {
+      privacy: { blockedPeople: unknown[] };
+    };
+    expect(storedPrivacy.privacy.blockedPeople[0]).toMatchObject({ __protected: "stayprimeph.field-encryption" });
+    expect(JSON.stringify(storedPrivacy)).not.toContain("blocked-user-sensitive-id");
+  });
 });
 
 describe("personal identity data minimization", () => {
@@ -291,13 +394,17 @@ describe("personal identity data minimization", () => {
     const stored = vi.mocked(writeJsonStore).mock.calls.at(-1)?.[1][0] as {
       personalInfo: Record<string, string>;
     };
-    expect(stored.personalInfo).toEqual({
+    expect(stored.personalInfo).toMatchObject({
       preferredName: "Tax",
       identity: "Provided",
       residentialAddress: "Provided",
       mailingAddress: "Provided",
       emergencyContact: "Provided",
     });
+    expect(stored.personalInfo.identityToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.personalInfo.residentialAddressToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.personalInfo.mailingAddressToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.personalInfo.emergencyContactToken).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(stored.personalInfo)).not.toContain("Updated Legal Name");
     expect(JSON.stringify(stored.personalInfo)).not.toContain("+63 917");
     expect(JSON.stringify(stored.personalInfo)).not.toContain("123 Sensitive Street");
@@ -332,13 +439,17 @@ describe("personal identity data minimization", () => {
     const remediated = vi.mocked(writeJsonStore).mock.calls[0][1][0] as {
       personalInfo: Record<string, string>;
     };
-    expect(remediated.personalInfo).toEqual({
+    expect(remediated.personalInfo).toMatchObject({
       preferredName: "Tax",
       identity: "Provided",
       residentialAddress: "Provided",
       mailingAddress: "Provided",
       emergencyContact: "Provided",
     });
+    expect(remediated.personalInfo.identityToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(remediated.personalInfo.residentialAddressToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(remediated.personalInfo.mailingAddressToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(remediated.personalInfo.emergencyContactToken).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(remediated.personalInfo)).not.toContain("Legacy Legal Name");
     expect(JSON.stringify(remediated.personalInfo)).not.toContain("legacy@example.test");
     expect(JSON.stringify(remediated.personalInfo)).not.toContain("123 Sensitive Street");

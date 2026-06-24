@@ -5,6 +5,10 @@ export const listingPhotoAcceptedTypes = new Set(["image/jpeg", "image/png", "im
 export const maxListingPhotoUploadBytes = 4 * 1024 * 1024;
 const maxListingPhotoPixels = 24_000_000;
 const maxListingPhotoDimension = 8_000;
+const minModeratedImageDimension = 48;
+const minModeratedImageEntropy = 0.05;
+const minModeratedChannelRange = 8;
+const minModeratedChannelStdev = 2;
 export const maxOptimizedListingPhotoDimension = 1600;
 
 const acceptedExtensionsByType = new Map([
@@ -43,6 +47,10 @@ export function validateListingPhotoMetadata(input: { name: string; type: string
     return { ok: false as const, error: "Upload a JPG, PNG, WebP, or AVIF image.", status: 400 };
   }
 
+  if (!Number.isFinite(input.size) || input.size <= 0) {
+    return { ok: false as const, error: "Upload a non-empty image.", status: 400 };
+  }
+
   if (input.size > maxListingPhotoUploadBytes) {
     return { ok: false as const, error: "Upload an image smaller than 4 MB.", status: 413 };
   }
@@ -50,24 +58,90 @@ export function validateListingPhotoMetadata(input: { name: string; type: string
   return { ok: true as const };
 }
 
-export function hasExpectedListingPhotoSignature(bytes: Buffer, type: string) {
-  if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (type === "image/png") {
-    const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    return bytes.length >= pngSignature.length && bytes.subarray(0, pngSignature.length).equals(pngSignature);
+function hasAvifBrand(bytes: Buffer) {
+  if (bytes.length < 12 || bytes.toString("ascii", 4, 8) !== "ftyp") return false;
+
+  for (let offset = 8; offset + 4 <= Math.min(bytes.length, 40); offset += 4) {
+    const brand = bytes.toString("ascii", offset, offset + 4);
+    if (brand === "avif" || brand === "avis") return true;
   }
-  if (type === "image/webp") {
-    return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
-  }
-  if (type === "image/avif") {
-    return bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp" && bytes.toString("ascii", 8, 12) === "avif";
-  }
+
   return false;
 }
 
+export function sniffListingPhotoMime(bytes: Buffer) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8) {
+    const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    if (bytes.subarray(0, pngSignature.length).equals(pngSignature)) return "image/png";
+  }
+  if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  if (hasAvifBrand(bytes)) return "image/avif";
+
+  return null;
+}
+
+export function hasExpectedListingPhotoSignature(bytes: Buffer, type: string) {
+  return sniffListingPhotoMime(bytes) === type;
+}
+
 export function validateListingPhotoBytes(bytes: Buffer, type: string) {
-  if (!hasExpectedListingPhotoSignature(bytes, type)) {
+  if (!bytes.length) {
+    return { ok: false as const, error: "Upload a non-empty image.", status: 400 };
+  }
+
+  if (bytes.length > maxListingPhotoUploadBytes) {
+    return { ok: false as const, error: "Upload an image smaller than 4 MB.", status: 413 };
+  }
+
+  const sniffedType = sniffListingPhotoMime(bytes);
+  if (!sniffedType || sniffedType !== type) {
     return { ok: false as const, error: "The uploaded file does not match its image type.", status: 400 };
+  }
+
+  return { ok: true as const };
+}
+
+const eicarTestSignature = Buffer.from("X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*", "ascii");
+const suspiciousBinarySignatures = [
+  { reason: "eicar-test-file", bytes: eicarTestSignature },
+  { reason: "embedded-windows-executable", bytes: Buffer.from([0x4d, 0x5a, 0x90, 0x00]) },
+  { reason: "embedded-elf-executable", bytes: Buffer.from([0x7f, 0x45, 0x4c, 0x46]) },
+  { reason: "embedded-pdf", bytes: Buffer.from("%PDF-", "ascii") },
+  { reason: "embedded-zip-archive", bytes: Buffer.from([0x50, 0x4b, 0x03, 0x04]) },
+  { reason: "embedded-rar-archive", bytes: Buffer.from([0x52, 0x61, 0x72, 0x21, 0x1a, 0x07]) },
+  { reason: "embedded-7z-archive", bytes: Buffer.from([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]) },
+];
+const suspiciousTextPayloads = [
+  { reason: "embedded-html", pattern: "<!doctype html" },
+  { reason: "embedded-html", pattern: "<html" },
+  { reason: "embedded-script", pattern: "<script" },
+  { reason: "embedded-php", pattern: "<?php" },
+  { reason: "embedded-javascript-uri", pattern: "javascript:" },
+];
+
+export function scanListingPhotoForMalware(bytes: Buffer) {
+  for (const signature of suspiciousBinarySignatures) {
+    if (bytes.includes(signature.bytes)) {
+      return {
+        ok: false as const,
+        error: "The uploaded image did not pass the security scan.",
+        status: 400,
+        reason: signature.reason,
+      };
+    }
+  }
+
+  const lowerPayload = bytes.toString("latin1").toLowerCase();
+  for (const payload of suspiciousTextPayloads) {
+    if (lowerPayload.includes(payload.pattern)) {
+      return {
+        ok: false as const,
+        error: "The uploaded image did not pass the security scan.",
+        status: 400,
+        reason: payload.reason,
+      };
+    }
   }
 
   return { ok: true as const };
@@ -148,5 +222,31 @@ export async function sanitizeListingPhotoImage(bytes: Buffer, type: string) {
     return { ok: true as const, ...optimizedImage };
   } catch {
     return { ok: false as const, error: "The uploaded image could not be safely processed.", status: 400 };
+  }
+}
+
+export async function moderateListingPhotoImage(image: OptimizedListingPhotoImage) {
+  try {
+    if (image.width < minModeratedImageDimension || image.height < minModeratedImageDimension) {
+      return { ok: false as const, error: "Upload a clear image with enough visual detail.", status: 422, reason: "too-small" };
+    }
+
+    const stats = await sharp(image.primary.bytes, {
+      animated: false,
+      failOn: "warning",
+      limitInputPixels: maxListingPhotoPixels,
+    }).stats();
+
+    const hasVisibleDetail = stats.channels.slice(0, 3).some((channel) =>
+      channel.max - channel.min >= minModeratedChannelRange || channel.stdev >= minModeratedChannelStdev,
+    );
+
+    if (stats.entropy < minModeratedImageEntropy || !hasVisibleDetail) {
+      return { ok: false as const, error: "Upload a clear image with enough visual detail.", status: 422, reason: "low-detail" };
+    }
+
+    return { ok: true as const };
+  } catch {
+    return { ok: false as const, error: "The uploaded image could not be accepted by moderation.", status: 422, reason: "unreadable" };
   }
 }

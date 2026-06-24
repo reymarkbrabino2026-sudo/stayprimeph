@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 
 const adminMfaCookieName = "stayprimeph_admin_mfa";
 const adminMfaMaxAgeSeconds = 10 * 60;
+const adminMfaCookiePath = "/";
 
 function safeCompareHex(actual: string, expected: string) {
   const actualBuffer = Buffer.from(actual, "hex");
@@ -19,6 +20,20 @@ function signPendingChallengeValue(rawToken: string) {
   const payload = `${rawToken}.${issuedAt}.${expiresAt}`;
   const signature = createHmac("sha256", env.AUTH_SECRET).update(payload).digest("hex");
   return `${payload}.${signature}`;
+}
+
+export function pendingAdminMfaCookie(rawToken: string) {
+  return {
+    name: adminMfaCookieName,
+    value: signPendingChallengeValue(rawToken),
+    options: {
+      httpOnly: true,
+      sameSite: "lax" as const,
+      secure: process.env.NODE_ENV === "production",
+      path: adminMfaCookiePath,
+      maxAge: adminMfaMaxAgeSeconds,
+    },
+  };
 }
 
 function readPendingChallengeValue(value?: string) {
@@ -48,13 +63,8 @@ export function isAdminMfaCodeValid(rawToken: string, submittedCode: string) {
 
 export async function createPendingAdminMfaChallenge(rawToken: string) {
   const cookieStore = await cookies();
-  cookieStore.set(adminMfaCookieName, signPendingChallengeValue(rawToken), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/admin/login",
-    maxAge: adminMfaMaxAgeSeconds,
-  });
+  const cookie = pendingAdminMfaCookie(rawToken);
+  cookieStore.set(cookie.name, cookie.value, cookie.options);
 }
 
 export async function readPendingAdminMfaChallenge() {
@@ -68,7 +78,7 @@ export async function clearPendingAdminMfaChallenge() {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/admin/login",
+    path: adminMfaCookiePath,
     maxAge: 0,
   });
 }

@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { createSession, roleHome } from "@/lib/auth";
+import { createAdminMfaCode, pendingAdminMfaCookie } from "@/lib/admin-mfa";
+import { createSession, roleHome, sessionMetadataFromHeaders } from "@/lib/auth";
+import { issueAuthToken } from "@/lib/auth-tokens";
 import { normalizeKnownAppPath } from "@/lib/canonical-paths";
+import { sendPrivilegedMfaEmail } from "@/lib/email";
 import { createUserInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
@@ -115,7 +118,7 @@ export async function GET(request: NextRequest) {
 
   if (requestedRole && appUser.role !== requestedRole) {
     if (requestedRole === "host" && appUser.role === "guest") {
-      await createSession(appUser.id);
+      await createSession(appUser.id, sessionMetadataFromHeaders(request.headers));
       return NextResponse.redirect(safeRedirectTarget(request, "/become-a-host/upgrade"));
     }
 
@@ -128,6 +131,22 @@ export async function GET(request: NextRequest) {
     }));
   }
 
-  await createSession(appUser.id);
+  if (appUser.role === "host") {
+    const token = await issueAuthToken(appUser.id, "admin_mfa");
+    await sendPrivilegedMfaEmail({
+      to: appUser.email,
+      name: appUser.name,
+      code: createAdminMfaCode(token),
+      role: "host",
+    });
+    const params = new URLSearchParams({ mfa: "1", role: "host", message: "Enter the 6-digit code sent to the host email." });
+    if (nextPath && !nextPath.startsWith("/admin")) params.set("next", nextPath);
+    const response = NextResponse.redirect(safeRedirectTarget(request, `/login?${params.toString()}`));
+    const cookie = pendingAdminMfaCookie(token);
+    response.cookies.set(cookie.name, cookie.value, cookie.options);
+    return response;
+  }
+
+  await createSession(appUser.id, sessionMetadataFromHeaders(request.headers));
   return NextResponse.redirect(safeRedirectTarget(request, nextPath ?? roleHome(appUser.role)));
 }

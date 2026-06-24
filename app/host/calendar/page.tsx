@@ -22,6 +22,7 @@ export default async function HostCalendarPage() {
         id: booking.id,
         propertyId: booking.propertyId,
         propertyTitle: property?.title ?? "Property",
+        bookingPackageName: booking.bookingPackageName,
         guestName: guest?.name ?? "Guest",
         guestAvatar: guest?.avatar ?? "G",
         checkIn: booking.checkIn,

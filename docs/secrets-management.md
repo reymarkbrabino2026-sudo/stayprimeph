@@ -13,8 +13,6 @@ Production secrets should live in your hosting provider's encrypted secret store
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |
 | `SENTRY_DSN` | Server-side Sentry DSN |
 | `RESEND_API_KEY` | Resend API key for transactional email |
-| `STRIPE_SECRET_KEY` | Stripe server key. Use `sk_test_` for testing and `sk_live_` or a live restricted key for real payments |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret for the matching test or live webhook endpoint |
 
 ## Required production config
 
@@ -22,11 +20,22 @@ Production secrets should live in your hosting provider's encrypted secret store
 | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | Public production URL; this value is exposed to the browser |
 | `PERSISTENCE_DRIVER` | Must be `prisma` in production |
-| `PAYMENT_LAUNCH_MODE` | Use `disabled` until paid bookings are intentionally launched. Use `stripe` only with live Stripe keys and a live webhook secret |
+| `PAYMENT_LAUNCH_MODE` | Use `disabled` while manual GCash/bank-transfer payments are current and hosted provider checkout is off |
 | `NEXT_PUBLIC_SENTRY_DSN` | Browser-visible Sentry DSN |
 | `NEXT_PUBLIC_VERCEL_ANALYTICS` | Set to `enabled` in production |
 | `EMAIL_FROM` | Verified sender identity for transactional email |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key. Use `pk_test_` for testing and `pk_live_` for real payments |
+
+## Future PayMongo secrets
+
+Do not add PayMongo live keys until the PayMongo integration is built and ready to test. When implemented, store them only in the hosting provider secret manager:
+
+| Secret | Notes |
+| --- | --- |
+| `PAYMONGO_SECRET_KEY` | Future server-side PayMongo key |
+| `PAYMONGO_WEBHOOK_SECRET` | Future PayMongo webhook signing secret |
+| `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Future browser-visible key only if the implemented flow requires one |
+
+Legacy Stripe secrets are not required for the current manual-payment launch path.
 
 ## Recommended workflow
 
@@ -40,8 +49,8 @@ Production secrets should live in your hosting provider's encrypted secret store
 5. Run `npm run prod:check` in the runtime environment before launch or as a release smoke check.
 6. Run database migrations separately from app builds using a trusted operator machine or CI job with migration-only access to `DIRECT_URL`.
 7. Never paste real values into screenshots, issues, chat, or committed files.
-8. Keep `PAYMENT_LAUNCH_MODE=disabled` unless production is approved to collect real money.
-9. For Stripe live mode, set `PAYMENT_LAUNCH_MODE=stripe` and keep the publishable, server, and webhook keys from the same Stripe mode. Do not mix `pk_live_` with `sk_test_`, or a live API key with a test webhook secret.
+8. Keep `PAYMENT_LAUNCH_MODE=disabled` while manual payment collection is current and hosted provider checkout remains disabled.
+9. Implement PayMongo checkout/webhooks on a dedicated branch before adding PayMongo live keys or enabling online provider checkout.
 
 ## Storage exposure controls
 

@@ -3,9 +3,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import {
-  AlarmSmoke, Armchair, Baby, Bath, BriefcaseMedical, Building, Building2, CarFront, CookingPot, DoorOpen,
+  AlarmSmoke, Armchair, Baby, Bath, BedDouble, BriefcaseMedical, Building, Building2, CarFront, CookingPot, DoorOpen,
   Check, FireExtinguisher, Flame, Home, Hotel, House, Lamp, Laptop, Layers, Leaf, MapPin, Mic, Palmtree, Projector,
-  Puzzle, ShieldAlert, Snowflake, Sofa, Sparkles, Sun, Target, TentTree, Tractor, TreePine, Tv, Umbrella, Users,
+  Plus, Puzzle, ShieldAlert, Snowflake, Sofa, Sparkles, Sun, Target, TentTree, Tractor, Trash2, TreePine, Tv, Umbrella, Users,
   UtensilsCrossed, WashingMachine, Waves, Wifi,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -21,7 +21,7 @@ import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
 import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
-import type { HostBookingPackageDraft } from "@/lib/host-wizard-types";
+import type { HostBookingPackageDraft, HostPropertyRoomDraft, HostSeasonalRateDraft } from "@/lib/host-wizard-types";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
 const iconMap = {
@@ -33,6 +33,20 @@ const iconMap = {
   "shield-alert": ShieldAlert, leaf: Leaf, sparkles: Sparkles, baby: Baby, lamp: Lamp, "map-pin": MapPin,
   sofa: Sofa, armchair: Armchair, projector: Projector, mic: Mic, target: Target, puzzle: Puzzle, layers: Layers, sun: Sun,
 };
+
+const amenityLabelById = new Map(
+  amenityGroups.flatMap((group) => group.items.map((item) => [item.id, item.label] as const)),
+);
+
+const weekdayOptions = [
+  ["Sun", 0],
+  ["Mon", 1],
+  ["Tue", 2],
+  ["Wed", 3],
+  ["Thu", 4],
+  ["Fri", 5],
+  ["Sat", 6],
+] as const;
 
 function DynamicIcon({ name }: { name: keyof typeof iconMap | string }) {
   const Icon = iconMap[name as keyof typeof iconMap] ?? House;
@@ -107,6 +121,60 @@ function formatAddressValues(values: AddressValues) {
     .join(", ");
 }
 
+function splitCsv(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinCsv(values: string[]) {
+  return values.join(", ");
+}
+
+function splitDateKeys(value: string) {
+  return splitCsv(value).filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item));
+}
+
+function formatSeasonalRates(values: HostSeasonalRateDraft[] = []) {
+  return values
+    .map((item) => [
+      item.name,
+      item.startDate,
+      item.endDate,
+      item.weekdayRate,
+      item.weekendRate || "",
+      item.holidayRate || "",
+    ].join(" | "))
+    .join("\n");
+}
+
+function parseSeasonalRates(value: string, fallback: HostSeasonalRateDraft[] = []) {
+  const parsed = value
+    .split(/\r?\n/)
+    .map((line, index) => {
+      const [name, startDate, endDate, weekdayRate, weekendRate, holidayRate] = line.split("|").map((item) => item.trim());
+      return {
+        id: fallback[index]?.id ?? `season-${Date.now().toString(36)}-${index}`,
+        name: name || fallback[index]?.name || "Seasonal rate",
+        startDate: startDate || "",
+        endDate: endDate || "",
+        weekdayRate: Number(weekdayRate),
+        weekendRate: Number(weekendRate || 0),
+        holidayRate: Number(holidayRate || 0),
+      };
+    })
+    .filter((item) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(item.startDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(item.endDate) &&
+      item.endDate >= item.startDate &&
+      Number.isFinite(item.weekdayRate) &&
+      item.weekdayRate > 0,
+    );
+
+  return parsed;
+}
+
 export function HostListingWizard({ user, csrfToken, freshStart = false }: { user: { id: string; email: string }; csrfToken: string; freshStart?: boolean }) {
   const router = useRouter();
   const { ownerUserId, initialized, currentStep, draft, initializeForUser, setStep, updateDraft, toggleAmenity } = useHostWizardStore();
@@ -144,6 +212,12 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
 
   const titleRemaining = 50 - draft.title.length;
   const selectedAmenities = useMemo(() => new Set(draft.amenityIds), [draft.amenityIds]);
+  const selectedAmenityLabels = useMemo(() => draft.amenityIds.map((id) => amenityLabelById.get(id) ?? id), [draft.amenityIds]);
+  const activeRooms = useMemo(() => draft.rooms.filter((room) => room.active), [draft.rooms]);
+  const availableFloors = useMemo(
+    () => Array.from(new Set(draft.rooms.map((room) => room.floor.trim()).filter(Boolean))),
+    [draft.rooms],
+  );
 
   async function saveAndExit() {
     if (isSavingDraft) return;
@@ -196,6 +270,60 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     updateDraft({
       bookingPackages: draft.bookingPackages.map((item) => item.id === id ? { ...item, ...patch } : item),
     });
+  }
+
+  function updateRoom(id: string, patch: Partial<HostPropertyRoomDraft>) {
+    updateDraft({
+      rooms: draft.rooms.map((item) => item.id === id ? { ...item, ...patch } : item),
+    });
+  }
+
+  function addRoom() {
+    const id = `room-${Date.now().toString(36)}`;
+    updateDraft({
+      rooms: [
+        ...draft.rooms,
+        {
+          id,
+          name: "New room",
+          capacity: 2,
+          floor: draft.rooms.at(-1)?.floor || "Ground Floor",
+          description: "",
+          photos: [],
+          amenities: [],
+          active: true,
+        },
+      ],
+    });
+  }
+
+  function removeRoom(id: string) {
+    updateDraft({
+      rooms: draft.rooms.filter((item) => item.id !== id),
+      bookingPackages: draft.bookingPackages.map((item) => ({
+        ...item,
+        accessibleRoomIds: item.accessibleRoomIds.filter((roomId) => roomId !== id),
+      })),
+    });
+  }
+
+  function updateCsvList<T extends keyof HostBookingPackageDraft>(packageId: string, key: T, value: string) {
+    updateBookingPackage(packageId, { [key]: splitCsv(value) } as Partial<HostBookingPackageDraft>);
+  }
+
+  function togglePackageListValue<T extends keyof HostBookingPackageDraft>(packageId: string, key: T, value: string) {
+    const pkg = draft.bookingPackages.find((item) => item.id === packageId);
+    const current = (pkg?.[key] as string[] | undefined) ?? [];
+    updateBookingPackage(packageId, {
+      [key]: current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+    } as Partial<HostBookingPackageDraft>);
+  }
+
+  function toggleAvailableDay(packageId: string, day: number) {
+    const pkg = draft.bookingPackages.find((item) => item.id === packageId);
+    const current = pkg?.availableDays ?? [];
+    const next = current.includes(day) ? current.filter((item) => item !== day) : [...current, day].sort((a, b) => a - b);
+    updateBookingPackage(packageId, { availableDays: next.length ? next : current });
   }
 
   function bookingPackagesForPrices(nextBasePrice: number, nextWeekendPrice: number) {
@@ -320,6 +448,79 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
           </section>
         ) : null}
 
+        {currentStep === "rooms" ? (
+          <section className="mx-auto max-w-5xl">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-semibold">{step.title}</h1>
+                <p className="mt-2 max-w-2xl text-black/60">{step.description}</p>
+              </div>
+              <button
+                type="button"
+                onClick={addRoom}
+                className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28]"
+              >
+                <Plus size={16} /> Add room
+              </button>
+            </div>
+
+            <div className="mt-8 grid gap-4">
+              {draft.rooms.map((room) => (
+                <section key={room.id} className={`rounded-3xl border p-5 ${room.active ? "border-black bg-white" : "border-black/10 bg-black/[0.02]"}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={room.active}
+                        onChange={(event) => updateRoom(room.id, { active: event.target.checked })}
+                        className="mt-1 h-5 w-5"
+                      />
+                      <span>
+                        <span className="flex items-center gap-2 font-semibold"><BedDouble size={18} /> {room.name || "Room"}</span>
+                        <span className="mt-1 block text-sm text-black/55">{room.floor || "No floor set"} &middot; {room.capacity} pax</span>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeRoom(room.id)}
+                      className="grid size-10 place-items-center rounded-full text-black/45 transition hover:bg-black/[0.05] hover:text-black"
+                      aria-label={`Remove ${room.name || "room"}`}
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <label className="lg:col-span-2">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Room name</span>
+                      <input value={room.name} onChange={(event) => updateRoom(room.id, { name: event.target.value })} className="min-h-12 w-full rounded-xl border px-3" />
+                    </label>
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Floor</span>
+                      <input value={room.floor} onChange={(event) => updateRoom(room.id, { floor: event.target.value })} className="min-h-12 w-full rounded-xl border px-3" />
+                    </label>
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Capacity</span>
+                      <input type="number" min={1} value={room.capacity} onChange={(event) => updateRoom(room.id, { capacity: Number(event.target.value) })} className="min-h-12 w-full rounded-xl border px-3" />
+                    </label>
+                    <label className="lg:col-span-2">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Room amenities</span>
+                      <input value={joinCsv(room.amenities)} onChange={(event) => updateRoom(room.id, { amenities: splitCsv(event.target.value) })} className="min-h-12 w-full rounded-xl border px-3" placeholder="Smart TV, Air conditioning" />
+                    </label>
+                    <label className="lg:col-span-2">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Photo URLs</span>
+                      <input value={joinCsv(room.photos)} onChange={(event) => updateRoom(room.id, { photos: splitCsv(event.target.value) })} className="min-h-12 w-full rounded-xl border px-3" placeholder="Optional room photo URLs" />
+                    </label>
+                    <label className="sm:col-span-2 lg:col-span-4">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Description</span>
+                      <textarea value={room.description} onChange={(event) => updateRoom(room.id, { description: event.target.value })} rows={2} className="w-full rounded-xl border p-3" />
+                    </label>
+                  </div>
+                </section>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {currentStep === "amenities" ? (
           <section className="mx-auto max-w-4xl">
             <h1 className="text-3xl font-semibold">{step.title}</h1>
@@ -344,7 +545,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <h1 className="text-3xl font-semibold">{step.title}</h1>
             <p className="mt-2 text-black/60">{step.description}</p>
             <div className="mt-6"><UploadCard /></div>
-            <div className="mt-5"><ImageUploader /></div>
+            <div className="mt-5"><ImageUploader csrfToken={csrfToken} /></div>
           </section>
         ) : null}
 
@@ -384,7 +585,14 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
           <section className="mx-auto max-w-3xl">
             <h1 className="text-3xl font-semibold">{step.title}</h1>
             <p className="mt-2 text-black/60">{step.description}</p>
-            <div className="mt-8 grid gap-3">
+            <h2 className="mt-8 text-xl font-semibold">What can guests book?</h2>
+            <div className="mt-4 grid gap-3">
+              <OptionCard selected={draft.bookingType === "stay"} title="Stay bookings only" description="Guests reserve dates and guests using classic nightly booking." icon={<DynamicIcon name="house" />} onClick={() => updateDraft({ bookingType: "stay", pricingMode: "simple" })} />
+              <OptionCard selected={draft.bookingType === "package"} title="Package bookings only" description="Guests must choose an overnight, daytime, event, or custom package." icon={<DynamicIcon name="layers" />} onClick={() => updateDraft({ bookingType: "package", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
+              <OptionCard selected={draft.bookingType === "both"} title="Stay and package bookings" description="Offer traditional stays plus packages on the same listing." icon={<DynamicIcon name="sparkles" />} onClick={() => updateDraft({ bookingType: "both", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
+            </div>
+            <h2 className="mt-8 text-xl font-semibold">How are reservations confirmed?</h2>
+            <div className="mt-4 grid gap-3">
               <OptionCard selected={draft.bookingMode === "request"} title="Approve your first 3 bookings" description="Start by reviewing reservation requests, then switch later if you want." icon={<DynamicIcon name="calendar" />} onClick={() => updateDraft({ bookingMode: "request" })} />
               <OptionCard selected={draft.bookingMode === "instant"} title="Use Instant Book" description="Let guests book automatically." icon={<DynamicIcon name="sparkles" />} onClick={() => updateDraft({ bookingMode: "instant" })} />
             </div>
@@ -398,7 +606,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => updateDraft({ pricingMode: "simple" })}
+                onClick={() => updateDraft({ bookingType: "stay", pricingMode: "simple" })}
                 className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "simple" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
               >
                 <span className="block font-semibold">Simple nightly pricing</span>
@@ -406,7 +614,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
               </button>
               <button
                 type="button"
-                onClick={() => updateDraft({ pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })}
+                onClick={() => updateDraft({ bookingType: draft.bookingType === "stay" ? "both" : draft.bookingType, pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })}
                 className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
               >
                 <span className="block font-semibold">Booking packages</span>
@@ -429,6 +637,40 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                 }}
                 className="mt-10 w-full"
               />
+            </div>
+            <div className="mt-8 grid gap-4 rounded-3xl border border-black/10 bg-white p-5">
+              <h2 className="text-xl font-semibold">Holiday and seasonal stay pricing</h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label>
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday nightly rate</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={draft.holidayPrice}
+                    onChange={(event) => updateDraft({ holidayPrice: Number(event.target.value) })}
+                    className="min-h-12 w-full rounded-xl border px-3"
+                  />
+                </label>
+                <label>
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday dates</span>
+                  <input
+                    value={joinCsv(draft.holidayDates)}
+                    onChange={(event) => updateDraft({ holidayDates: splitDateKeys(event.target.value) })}
+                    className="min-h-12 w-full rounded-xl border px-3"
+                    placeholder="2026-12-24, 2026-12-31"
+                  />
+                </label>
+              </div>
+              <label>
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Seasonal rate rows</span>
+                <textarea
+                  value={formatSeasonalRates(draft.seasonalRates)}
+                  onChange={(event) => updateDraft({ seasonalRates: parseSeasonalRates(event.target.value, draft.seasonalRates) })}
+                  rows={4}
+                  className="w-full rounded-xl border p-3 text-sm leading-6"
+                  placeholder="Summer | 2026-03-01 | 2026-05-31 | 5000 | 6500 | 7500"
+                />
+              </label>
             </div>
           </section>
         ) : null}
@@ -482,29 +724,45 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                           <span className="mt-1 block text-sm text-black/55">{pkg.accessType}</span>
                         </span>
                       </label>
-                      <select
-                        value={pkg.unit}
-                        onChange={(event) => updateBookingPackage(pkg.id, { unit: event.target.value as HostBookingPackageDraft["unit"] })}
-                        className="min-h-11 rounded-xl border px-3 text-sm"
-                      >
-                        <option value="night">Counts by night</option>
-                        <option value="day">Counts by day</option>
-                      </select>
+                      <div className="flex flex-wrap gap-2">
+                        <select
+                          value={pkg.unit}
+                          onChange={(event) => updateBookingPackage(pkg.id, { unit: event.target.value as HostBookingPackageDraft["unit"] })}
+                          className="min-h-11 rounded-xl border px-3 text-sm"
+                        >
+                          <option value="night">Counts by night</option>
+                          <option value="day">Counts by day</option>
+                        </select>
+                        <select
+                          value={pkg.status}
+                          onChange={(event) => updateBookingPackage(pkg.id, { status: event.target.value as HostBookingPackageDraft["status"] })}
+                          className="min-h-11 rounded-xl border px-3 text-sm"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
                     </div>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       {[
                         ["name", "Package name", "text"],
                         ["accessType", "Access", "text"],
+                        ["description", "Description", "text"],
                         ["weekdayRate", "Weekday rate", "number"],
                         ["weekendRate", "Weekend rate", "number"],
+                        ["holidayRate", "Holiday rate", "number"],
                         ["includedGuests", "Included guests", "number"],
                         ["maxGuests", "Max guests", "number"],
+                        ["sleepingCapacity", "Sleeping capacity", "number"],
+                        ["durationHours", "Duration hours", "number"],
                         ["additionalGuestFee", "Extra head fee", "number"],
                         ["extensionHourlyFee", "Extension / hour", "number"],
+                        ["minimumAdvanceBookingDays", "Advance days", "number"],
+                        ["displayOrder", "Display order", "number"],
                         ["checkInTime", "Start / check-in", "text"],
                         ["checkOutTime", "End / check-out", "text"],
                       ].map(([key, label, type]) => (
-                        <label key={key} className={key === "name" || key === "accessType" ? "lg:col-span-2" : ""}>
+                        <label key={key} className={key === "name" || key === "accessType" || key === "description" ? "lg:col-span-2" : ""}>
                           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</span>
                           <input
                             value={String(pkg[key as keyof HostBookingPackageDraft])}
@@ -518,6 +776,133 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                           />
                         </label>
                       ))}
+                    </div>
+                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Accessible floors</legend>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {availableFloors.map((floor) => (
+                            <label key={floor} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={pkg.accessibleFloors.includes(floor)}
+                                onChange={() => togglePackageListValue(pkg.id, "accessibleFloors", floor)}
+                                className="mr-2"
+                              />
+                              {floor}
+                            </label>
+                          ))}
+                        </div>
+                        <input
+                          value={joinCsv(pkg.accessibleFloors)}
+                          onChange={(event) => updateCsvList(pkg.id, "accessibleFloors", event.target.value)}
+                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
+                          placeholder="Ground Floor, Second Floor"
+                        />
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Accessible rooms</legend>
+                        <div className="mt-3 grid gap-2">
+                          {activeRooms.length ? activeRooms.map((room) => (
+                            <label key={room.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fbf7f2] px-3 py-2 text-sm">
+                              <span>{room.name} <span className="text-black/45">({room.floor})</span></span>
+                              <input
+                                type="checkbox"
+                                checked={pkg.accessibleRoomIds.includes(room.id)}
+                                onChange={() => togglePackageListValue(pkg.id, "accessibleRoomIds", room.id)}
+                              />
+                            </label>
+                          )) : <p className="text-sm text-black/55">No active rooms yet.</p>}
+                        </div>
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Included amenities</legend>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedAmenityLabels.map((amenity) => (
+                            <label key={amenity} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={pkg.includedAmenities.includes(amenity)}
+                                onChange={() => togglePackageListValue(pkg.id, "includedAmenities", amenity)}
+                                className="mr-2"
+                              />
+                              {amenity}
+                            </label>
+                          ))}
+                        </div>
+                        <input
+                          value={joinCsv(pkg.includedAmenities)}
+                          onChange={(event) => updateCsvList(pkg.id, "includedAmenities", event.target.value)}
+                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
+                          placeholder="Heated pool, Karaoke, WiFi"
+                        />
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Excluded amenities or spaces</legend>
+                        <input
+                          value={joinCsv(pkg.excludedAmenities)}
+                          onChange={(event) => updateCsvList(pkg.id, "excludedAmenities", event.target.value)}
+                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
+                          placeholder="Bedrooms, Second floor access"
+                        />
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Holiday dates</legend>
+                        <input
+                          value={joinCsv(pkg.holidayDates ?? [])}
+                          onChange={(event) => updateBookingPackage(pkg.id, { holidayDates: splitDateKeys(event.target.value) })}
+                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
+                          placeholder="2026-12-24, 2026-12-31"
+                        />
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Seasonal package rates</legend>
+                        <textarea
+                          value={formatSeasonalRates(pkg.seasonalRates ?? [])}
+                          onChange={(event) => updateBookingPackage(pkg.id, { seasonalRates: parseSeasonalRates(event.target.value, pkg.seasonalRates ?? []) })}
+                          rows={4}
+                          className="mt-3 w-full rounded-xl border p-3 text-sm leading-6"
+                          placeholder="Peak season | 2026-03-01 | 2026-05-31 | 18000 | 22000 | 25000"
+                        />
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Available days</legend>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {weekdayOptions.map(([label, value]) => (
+                            <label key={value} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={pkg.availableDays.includes(value)}
+                                onChange={() => toggleAvailableDay(pkg.id, value)}
+                                className="mr-2"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+
+                      <fieldset className="rounded-2xl border border-black/10 p-4">
+                        <legend className="px-1 text-sm font-semibold">Package conflicts</legend>
+                        <div className="mt-3 grid gap-2">
+                          {draft.bookingPackages.filter((item) => item.id !== pkg.id).map((item) => (
+                            <label key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fbf7f2] px-3 py-2 text-sm">
+                              <span>{item.name}</span>
+                              <input
+                                type="checkbox"
+                                checked={pkg.blockedPackageIds.includes(item.id)}
+                                onChange={() => togglePackageListValue(pkg.id, "blockedPackageIds", item.id)}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
                     </div>
                   </section>
                 ))}

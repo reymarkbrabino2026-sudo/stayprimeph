@@ -30,9 +30,12 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/repositories", () => ({
   createSessionInDatabase: vi.fn(),
+  deleteSessionByIdForUserFromDatabase: vi.fn(),
   deleteSessionFromDatabase: vi.fn(),
+  deleteSessionsForUserExceptFromDatabase: vi.fn(),
   deleteSessionsForUserFromDatabase: vi.fn(),
   findSessionFromDatabase: vi.fn(),
+  listSessionsForUserFromDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),
 }));
 

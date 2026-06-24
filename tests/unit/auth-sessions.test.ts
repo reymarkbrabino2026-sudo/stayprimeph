@@ -24,9 +24,12 @@ vi.mock("next/headers", () => ({
 
 vi.mock("@/lib/repositories", () => ({
   createSessionInDatabase: vi.fn(),
+  deleteSessionByIdForUserFromDatabase: vi.fn(),
   deleteSessionFromDatabase: vi.fn(),
+  deleteSessionsForUserExceptFromDatabase: vi.fn(),
   deleteSessionsForUserFromDatabase: vi.fn(),
   findSessionFromDatabase: vi.fn(),
+  listSessionsForUserFromDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),
 }));
 
@@ -39,7 +42,7 @@ vi.mock("@/lib/users", () => ({
   getUserById: vi.fn(),
 }));
 
-import { clearAllSessionsForUser, clearSession, createSession, getCurrentUser, hashSessionToken } from "@/lib/auth";
+import { clearAllSessionsForUser, clearAllSessionsForUserExceptCurrent, clearSession, createSession, getCurrentAuthSession, getCurrentUser, hashSessionToken, listActiveSessionsForUser, revokeSessionForUser } from "@/lib/auth";
 import { readStoredSessions, writeStoredSessions } from "@/lib/session-store";
 import { getUserById } from "@/lib/users";
 import type { AuthSession, User } from "@/lib/types";
@@ -75,7 +78,12 @@ describe("server-side sessions", () => {
   it("creates an opaque cookie and stores only the hashed session token", async () => {
     vi.mocked(readStoredSessions).mockResolvedValueOnce([]);
 
-    await createSession(user.id);
+    await createSession(user.id, {
+      userAgent: "Mozilla/5.0 Test Browser",
+      ipAddress: "203.0.x.x",
+      mfaVerifiedAt: "2026-06-18T00:00:00.000Z",
+      mfaRole: "host",
+    });
 
     const token = cookieStore.value();
     expect(token).toMatch(/^[a-f0-9]{64}$/);
@@ -95,6 +103,10 @@ describe("server-side sessions", () => {
     expect(storedSessions[0]).toMatchObject({
       userId: user.id,
       sessionHash: hashSessionToken(token!),
+      userAgent: "Mozilla/5.0 Test Browser",
+      ipAddress: "203.0.x.x",
+      mfaVerifiedAt: "2026-06-18T00:00:00.000Z",
+      mfaRole: "host",
     });
     expect(JSON.stringify(storedSessions[0])).not.toContain(token);
   });
@@ -187,5 +199,54 @@ describe("server-side sessions", () => {
     await clearAllSessionsForUser(user.id);
 
     expect(writeStoredSessions).toHaveBeenCalledWith([otherUserSession]);
+  });
+
+  it("lists active sessions for the device management screen", async () => {
+    const expired = sessionForToken("0".repeat(64), {
+      id: "expired-session",
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+    const active = sessionForToken("1".repeat(64), {
+      id: "active-session",
+      userAgent: "Mozilla/5.0",
+      ipAddress: "203.0.x.x",
+      lastSeenAt: "2026-06-18T00:10:00.000Z",
+    });
+    vi.mocked(readStoredSessions).mockResolvedValueOnce([expired, active]);
+
+    await expect(listActiveSessionsForUser(user.id)).resolves.toEqual([active]);
+
+    expect(writeStoredSessions).toHaveBeenCalledWith([active]);
+  });
+
+  it("revokes a selected session for the signed-in user", async () => {
+    const session = sessionForToken("2".repeat(64), { id: "session-to-revoke" });
+    const otherSession = sessionForToken("3".repeat(64), { id: "session-to-keep" });
+    vi.mocked(readStoredSessions).mockResolvedValueOnce([session, otherSession]);
+
+    await revokeSessionForUser(user.id, "session-to-revoke");
+
+    expect(writeStoredSessions).toHaveBeenCalledWith([otherSession]);
+  });
+
+  it("keeps the current session when logging out other devices", async () => {
+    const token = "4".repeat(64);
+    const currentSession = sessionForToken(token, { id: "current-session" });
+    const otherSession = sessionForToken("5".repeat(64), { id: "other-session" });
+    cookieStore.set("stayprimeph_session", token);
+    vi.mocked(readStoredSessions).mockResolvedValueOnce([currentSession, otherSession]);
+
+    await clearAllSessionsForUserExceptCurrent(user.id);
+
+    expect(writeStoredSessions).toHaveBeenCalledWith([currentSession]);
+  });
+
+  it("returns the current auth session for session-management actions", async () => {
+    const token = "6".repeat(64);
+    const session = sessionForToken(token, { id: "current-session" });
+    cookieStore.set("stayprimeph_session", token);
+    vi.mocked(readStoredSessions).mockResolvedValueOnce([session]);
+
+    await expect(getCurrentAuthSession()).resolves.toMatchObject({ id: "current-session" });
   });
 });

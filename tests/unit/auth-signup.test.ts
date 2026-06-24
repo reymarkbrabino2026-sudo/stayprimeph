@@ -25,6 +25,7 @@ vi.mock("@/lib/auth", () => ({
   hashPassword: vi.fn((password: string) => `hashed:${password}`),
   requireUser: vi.fn(),
   roleHome: vi.fn(() => "/guest/dashboard"),
+  sessionMetadataFromHeaders: vi.fn(() => ({})),
   verifyPassword: vi.fn(),
 }));
 
@@ -59,6 +60,7 @@ vi.mock("@/lib/email", () => ({
   sendAdminMfaEmail: vi.fn(),
   sendPasswordChangedEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
+  sendPrivilegedMfaEmail: vi.fn(),
   sendVerificationEmail: vi.fn(),
   sendWelcomeEmail: vi.fn(),
 }));

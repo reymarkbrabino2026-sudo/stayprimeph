@@ -1,7 +1,6 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
-import { env } from "@/lib/env";
+import { fieldToken } from "@/lib/field-protection";
 
 type ProtectedIdentifier = {
   display: string;
@@ -39,9 +38,7 @@ export function maskPayoutIdentifier(value: string) {
 }
 
 function tokenForIdentifier(canonical: string, purpose: "tax-id" | "payout-id") {
-  return createHmac("sha256", env.AUTH_SECRET)
-    .update(`stayprimeph-${purpose}-v1:${canonical}`)
-    .digest("hex");
+  return fieldToken(canonical, purpose);
 }
 
 function looksMasked(value: string) {

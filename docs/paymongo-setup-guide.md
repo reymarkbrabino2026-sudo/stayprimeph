@@ -1,6 +1,18 @@
 # PayMongo setup guide
 
-This guide describes the planned StayPrimePH payment setup while replacing Stripe with PayMongo.
+This guide describes the planned StayPrimePH online payment setup while replacing Stripe with PayMongo.
+
+## Current launch decision
+
+As of June 23, 2026, PayMongo is the intended online payment provider, but the PayMongo integration is not set up yet.
+
+Current launch payment setup:
+
+- Guests submit manual GCash or bank-transfer payment details from the booking page.
+- Guests upload a receipt screenshot and enter a reference number.
+- Host/admin review confirms the payment before a booking is marked paid.
+- Hosted provider checkout remains disabled until PayMongo checkout and webhook verification are built and tested.
+- Stripe is not the launch payment provider.
 
 ## Goal
 
@@ -19,7 +31,7 @@ Example:
 | StayPrimePH 20% markup | PHP 2,000 |
 | Guest total | PHP 12,000 |
 
-## Recommended launch model
+## Future PayMongo launch model
 
 Use PayMongo Hosted Checkout first, then add marketplace split payments once PayMongo enables platform features for the account.
 
@@ -251,6 +263,6 @@ Before enabling live payments:
 
 As of this guide, Stripe checkout has been disabled in the app while PayMongo planning continues.
 
-Manual payment flows remain available.
+Manual GCash/bank-transfer payment flows are the current setup.
 
 The PayMongo implementation still needs to be built before online checkout can be re-enabled.

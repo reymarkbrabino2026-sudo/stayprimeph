@@ -1,6 +1,6 @@
 import type { AvailabilityBlock, Booking } from "@/lib/types";
 
-export type UnavailableStay = AvailabilityBlock | Pick<Booking, "checkIn" | "checkOut">;
+export type UnavailableStay = AvailabilityBlock | Pick<Booking, "checkIn" | "checkOut" | "bookingPackageId">;
 
 export function parseDateKey(value: string) {
   const [year, month, day] = value.split("-").map(Number);

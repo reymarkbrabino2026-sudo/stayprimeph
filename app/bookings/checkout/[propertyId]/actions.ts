@@ -16,7 +16,7 @@ import { sendBookingConfirmedEmail, sendBookingReceivedEmail, sendBookingRequest
 import { arePaidBookingsEnabled } from "@/lib/payments";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { getUserById } from "@/lib/users";
-import { calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
+import { allowsPackageBooking, allowsStayBooking, calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, findBookingPackageById, getBestDiscount, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import type { Booking, Property, User } from "@/lib/types";
 
@@ -113,7 +113,12 @@ export async function createBooking(formData: FormData) {
   if (property.status !== "approved") throw new Error("This listing is not available for booking.");
   if (!Number.isFinite(property.pricePerNight) || property.pricePerNight <= 0) throw new Error("This listing is missing valid pricing.");
   const enabledPackages = getEnabledBookingPackages(property);
-  let bookingPackage = enabledPackages.length ? getBookingPackageById(property, packageId) : null;
+  const stayBookingAllowed = allowsStayBooking(property);
+  const packageBookingAllowed = allowsPackageBooking(property);
+  let bookingPackage = packageId && packageBookingAllowed ? findBookingPackageById(property, packageId) : null;
+  if (packageId && !bookingPackage) throw new Error("Please choose an available booking package.");
+  if (!bookingPackage && !stayBookingAllowed && packageBookingAllowed) bookingPackage = enabledPackages[0] ?? null;
+  if (!bookingPackage && !stayBookingAllowed) throw new Error("Please choose a booking package for this listing.");
   if (bookingPackage?.unit === "day" && checkOut !== addDays(checkIn, 1)) {
     bookingPackage = getFullAccessBookingPackage(enabledPackages);
     if (!bookingPackage) throw new Error("Full access is required for multi-day bookings.");
@@ -124,7 +129,15 @@ export async function createBooking(formData: FormData) {
   today.setUTCHours(0, 0, 0, 0);
   if (checkInTime < today.getTime()) throw new Error("Check-in must be today or later.");
   if (checkOutTime <= checkInTime) throw new Error("Check-out must be after check-in.");
-  if (hasDateConflict(bookings, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
+  if (bookingPackage?.availableDays?.length) {
+    const checkInDay = new Date(`${checkIn}T00:00:00.000Z`).getUTCDay();
+    if (!bookingPackage.availableDays.includes(checkInDay)) throw new Error("This package is not available on the selected day.");
+  }
+  if (bookingPackage?.minimumAdvanceBookingDays) {
+    const minimumCheckInTime = today.getTime() + bookingPackage.minimumAdvanceBookingDays * 86400000;
+    if (checkInTime < minimumCheckInTime) throw new Error("This package requires more advance notice.");
+  }
+  if (hasDateConflict(bookings, propertyId, checkIn, checkOut, bookingPackage?.id, property.bookingPackages ?? [])) throw new Error("Those dates are no longer available.");
   if (hasAvailabilityBlockConflict(availabilityBlocks, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
 
   const { nights, subtotal } = bookingPackage
@@ -159,7 +172,7 @@ export async function createBooking(formData: FormData) {
     await createBookingInDatabase(booking);
   } else {
     const [latestBookings, latestAvailabilityBlocks] = await Promise.all([readStoredBookings(), getAvailabilityBlocks()]);
-    if (hasDateConflict(latestBookings, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
+    if (hasDateConflict(latestBookings, propertyId, checkIn, checkOut, bookingPackage?.id, property.bookingPackages ?? [])) throw new Error("Those dates are no longer available.");
     if (hasAvailabilityBlockConflict(latestAvailabilityBlocks, propertyId, checkIn, checkOut)) throw new Error("Those dates are no longer available.");
     await writeStoredBookings([booking, ...latestBookings]);
   }

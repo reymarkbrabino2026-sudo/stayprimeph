@@ -133,6 +133,26 @@ export default async function HostReportsPage({
       ];
       return isAdmin ? [report.hostName, ...cells] : cells;
     });
+  const propertyById = new Map(scopedProperties.map((property) => [property.id, property]));
+  const packagePerformance = Array.from(monthBookings.reduce((groups, booking) => {
+    const key = `${booking.propertyId}:${booking.bookingPackageId ?? "stay"}`;
+    const current = groups.get(key) ?? {
+      bookings: 0,
+      guests: 0,
+      label: booking.bookingPackageName ?? "Stay bookings",
+      listing: propertyById.get(booking.propertyId)?.title ?? "Property",
+      payout: 0,
+      units: 0,
+    };
+
+    current.bookings += 1;
+    current.guests += booking.guests;
+    current.units += paidNightsInMonth(booking, selectedMonth);
+    current.payout += calculateHostPayoutFromTotal(booking.totalPrice);
+    groups.set(key, current);
+    return groups;
+  }, new Map<string, { bookings: number; guests: number; label: string; listing: string; payout: number; units: number }>()).values())
+    .sort((a, b) => b.payout - a.payout || b.bookings - a.bookings);
   const expenseSuccessMessage = expenseSaved
     ? `${expenseSaved} expense${expenseSaved === "1" ? "" : "s"} saved.`
     : expenseUpdated
@@ -189,6 +209,32 @@ export default async function HostReportsPage({
             </div>
           );
         })}
+      </section>
+
+      <section className="mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Package performance</p>
+            <h2 className="mt-2 text-2xl font-bold">Booking mix</h2>
+          </div>
+          <p className="text-sm font-semibold text-black/55">{monthBookings.length} paid bookings in {monthLabel(selectedMonth)}</p>
+        </div>
+        {packagePerformance.length === 0 ? (
+          <EmptyState title="No package performance yet" body="Paid stay and package bookings for the selected month will appear here." />
+        ) : (
+          <DataTable
+            embedded
+            headers={["Package", "Listing", "Bookings", "Units", "Guests", "Payout"]}
+            rows={packagePerformance.map((item) => [
+              item.label,
+              item.listing,
+              String(item.bookings),
+              String(item.units),
+              String(item.guests),
+              formatCurrency(item.payout),
+            ])}
+          />
+        )}
       </section>
 
       {expenseError || reportError ? (

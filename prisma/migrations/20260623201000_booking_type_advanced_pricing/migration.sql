@@ -1,0 +1,11 @@
+ALTER TABLE "Property"
+  ADD COLUMN IF NOT EXISTS "bookingType" TEXT NOT NULL DEFAULT 'stay';
+
+ALTER TABLE "ListingPricing"
+  ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER,
+  ADD COLUMN IF NOT EXISTS "holidayDates" JSONB,
+  ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB;
+
+ALTER TABLE "ListingBookingPackage"
+  ADD COLUMN IF NOT EXISTS "holidayDates" JSONB,
+  ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB;

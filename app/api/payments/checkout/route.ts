@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { z } from "zod";
+import { requireStateChangingApiRequest } from "@/lib/api-request-guard";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { env } from "@/lib/env";
@@ -8,7 +8,6 @@ import { logger } from "@/lib/logger";
 import { getStripe, isStripeCheckoutEnabled } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { checkDistributedRateLimit, rateLimitKey } from "@/lib/rate-limit";
-import { isTrustedRequestOrigin, untrustedRequestMessage } from "@/lib/request-safety";
 import {
   beginStripeCheckoutAttempt,
   checkoutInProgressMessage,
@@ -21,10 +20,9 @@ const checkoutRequestSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const headerStore = await headers();
-  if (!isTrustedRequestOrigin(headerStore)) {
-    return NextResponse.json({ error: untrustedRequestMessage }, { status: 403 });
-  }
+  const guard = await requireStateChangingApiRequest(request);
+  if (!guard.ok) return guard.response;
+  const headerStore = guard.headers;
 
   if (!isStripeCheckoutEnabled()) {
     return NextResponse.json({ error: "Paid bookings are disabled until StayPrimePH launches a verified payment provider." }, { status: 503 });

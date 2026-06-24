@@ -105,18 +105,23 @@ For each device:
 - [ ] Guest cannot book unavailable dates.
 - [ ] Guest cannot book above max guest count.
 
-## 6. Stripe payment flow
+## 6. Manual payment flow
 
-Use Stripe test mode first.
+Manual GCash/bank-transfer payment is the current launch setup. PayMongo online checkout is planned but not set up yet.
 
-- [ ] Checkout session starts from booking.
-- [ ] Stripe checkout shows correct listing name.
-- [ ] Stripe checkout shows correct amount and currency.
-- [ ] Successful sandbox payment redirects to booking success page.
-- [ ] Webhook marks booking as paid.
-- [ ] Failed/cancelled payment leaves booking unpaid.
-- [ ] Duplicate webhook delivery is safe/idempotent.
+- [ ] Guest can open payment form from booking.
+- [ ] Guest can select GCash.
+- [ ] Guest can select bank transfer.
+- [ ] Payment QR/reference instructions are visible.
+- [ ] Guest can upload receipt screenshot.
+- [ ] Guest can submit payment reference number.
+- [ ] Submitted payment appears for host review.
+- [ ] Submitted payment appears for admin payment review.
+- [ ] Host/admin can approve a valid submitted payment.
+- [ ] Host/admin can reject an invalid submitted payment with a reason.
+- [ ] Approved manual payment marks booking paid.
 - [ ] Payment record is visible in admin payments.
+- [ ] Confirmation emails are delivered after payment approval.
 
 ## 7. Host listing flow
 
@@ -181,6 +186,6 @@ Use Stripe test mode first.
 - [ ] `npm.cmd run test:e2e` passes.
 - [ ] `npm.cmd run build` passes.
 - [ ] Production smoke test passes on deployed URL.
-- [ ] Stripe remains in test mode until final sign-off.
+- [ ] Hosted provider checkout remains disabled until PayMongo implementation and final sign-off.
 - [ ] Real production secrets are stored only in provider secret manager.
 - [ ] Rollback plan is documented.

@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
+import { appendAdminLog } from "@/lib/admin-logs";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
@@ -66,6 +67,12 @@ async function updateListingStatus(formData: FormData, status: ListingStatus) {
         previousStatus: property.status,
         nextStatus: status,
       },
+    });
+    await appendAdminLog({
+      adminId: user.id,
+      action: status === "approved" ? "listing.approved" : "listing.rejected",
+      entityType: "property",
+      entityId: property.id,
     });
   }
   logger.info("listing_status_updated", { listingId: id, status, adminId: user.id });

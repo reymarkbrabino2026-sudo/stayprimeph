@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { AuthSubmitButton } from "@/components/forms/auth-submit-button";
+import { PasskeySignInButton } from "@/components/forms/passkey-sign-in-button";
 import { PasswordInput } from "@/components/forms/password-input";
 
 export function AuthForm({
@@ -118,6 +119,7 @@ export function AuthForm({
             {!showName ? <Link href="/forgot-password" className="block text-sm font-semibold text-[#a8431f]">Forgot password?</Link> : null}
             <AuthSubmitButton label={submitLabel} pendingLabel={isCreateAccount ? "Creating account" : "Signing in"} />
           </form>
+          {!showName ? <PasskeySignInButton requestedRole={requestedRole} nextPath={nextPath} /> : null}
           {googleAction ? (
             <form action={googleAction} className="mt-3">
               <input type="hidden" name="authMode" value={showName ? "register" : "login"} />

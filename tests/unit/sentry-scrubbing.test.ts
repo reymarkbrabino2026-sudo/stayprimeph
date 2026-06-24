@@ -63,23 +63,25 @@ describe("Sentry event privacy scrubber", () => {
     expect(payload).toContain("[redacted]");
   });
 
-  test("keeps Sentry enabled through server, edge, and browser configs", async () => {
-    const [serverConfig, edgeConfig, clientConfig, instrumentation] = await Promise.all([
+  test("keeps Sentry enabled through server, edge, and Turbopack browser instrumentation", async () => {
+    const [serverConfig, edgeConfig, clientInstrumentation, instrumentation] = await Promise.all([
       fs.readFile("sentry.server.config.ts", "utf8"),
       fs.readFile("sentry.edge.config.ts", "utf8"),
-      fs.readFile("sentry.client.config.ts", "utf8"),
+      fs.readFile("instrumentation-client.ts", "utf8"),
       fs.readFile("instrumentation.ts", "utf8"),
     ]);
 
     expect(serverConfig).toContain("dsn: process.env.SENTRY_DSN");
     expect(edgeConfig).toContain("dsn: process.env.SENTRY_DSN");
-    expect(clientConfig).toContain("dsn: process.env.NEXT_PUBLIC_SENTRY_DSN");
+    expect(clientInstrumentation).toContain("dsn: process.env.NEXT_PUBLIC_SENTRY_DSN");
     expect(serverConfig).toContain("enabled: Boolean(process.env.SENTRY_DSN)");
     expect(edgeConfig).toContain("enabled: Boolean(process.env.SENTRY_DSN)");
-    expect(clientConfig).toContain("enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN)");
+    expect(clientInstrumentation).toContain("enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN)");
     expect(serverConfig).toContain("...sentryPrivacyOptions");
     expect(edgeConfig).toContain("...sentryPrivacyOptions");
-    expect(clientConfig).toContain("...sentryPrivacyOptions");
+    expect(clientInstrumentation).toContain("...sentryPrivacyOptions");
+    expect(clientInstrumentation).toContain("captureRouterTransitionStart");
+    expect(clientInstrumentation).toContain("export const onRouterTransitionStart");
     expect(instrumentation).toContain('void import("./sentry.server.config")');
     expect(instrumentation).toContain('void import("./sentry.edge.config")');
   });

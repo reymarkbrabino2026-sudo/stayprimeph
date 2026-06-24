@@ -1,6 +1,12 @@
-# Stripe live mode runbook
+# Legacy Stripe live mode runbook
 
-Use this only when StayPrimePH is ready to accept real money.
+This is retained only as historical reference for the legacy Stripe integration. It is not the current launch payment path.
+
+Current decision as of June 23, 2026:
+
+- Manual GCash/bank-transfer payment is the current setup.
+- PayMongo is the intended future online payment provider.
+- Stripe should remain disabled unless the business explicitly reverses the PayMongo decision.
 
 Do not paste live Stripe secret keys into chat, screenshots, issues, email, or committed files. Put live secrets directly into Vercel Environment Variables.
 
@@ -11,7 +17,7 @@ Do not paste live Stripe secret keys into chat, screenshots, issues, email, or c
 - Checkout mode: one-time payment
 - Currency: `php`
 - Booking is marked paid only after a valid Stripe webhook with `checkout.session.completed`, `payment_status=paid`, matching currency, and matching amount.
-- Production should keep `PAYMENT_LAUNCH_MODE=disabled` until this runbook is approved and the first live payment test is scheduled.
+- Production should keep `PAYMENT_LAUNCH_MODE=disabled` while manual payments are current and hosted provider checkout is disabled.
 - App variables already used by the code:
   - `PAYMENT_LAUNCH_MODE`
   - `STRIPE_SECRET_KEY`

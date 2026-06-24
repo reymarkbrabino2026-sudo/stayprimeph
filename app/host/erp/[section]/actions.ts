@@ -8,10 +8,12 @@ import { z } from "zod";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { hasAvailabilityBlockConflict } from "@/lib/availability-calendar";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
-import { getBookings, hasDateConflict } from "@/lib/bookings";
+import { getBookings, getBookingsForHost, hasDateConflict } from "@/lib/bookings";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
+import { saveHostCustomerClassification } from "@/lib/host-customer-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { assertUniquePaymentReference } from "@/lib/payment-references";
+import { allowsPackageBooking, allowsStayBooking } from "@/lib/pricing";
 import { getProperties } from "@/lib/properties";
 import {
   createBookingInDatabase,
@@ -21,7 +23,7 @@ import {
   usesPrismaPersistence,
 } from "@/lib/repositories";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
-import type { Booking, Payment, PaymentMethod, Property, User } from "@/lib/types";
+import type { Booking, HostCustomerClassification, Payment, PaymentMethod, Property, User } from "@/lib/types";
 import { getUsers } from "@/lib/users";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 
@@ -41,7 +43,7 @@ function localGuestEmail(id: string) {
 }
 
 function findEnabledPackage(property: Property, packageId?: string) {
-  const enabledPackages = property.bookingPackages?.filter((item) => item.enabled) ?? [];
+  const enabledPackages = property.bookingPackages?.filter((item) => item.enabled && item.status !== "inactive") ?? [];
   if (!packageId) return enabledPackages[0];
   return enabledPackages.find((item) => item.id === packageId);
 }
@@ -97,6 +99,44 @@ const externalReservationSchema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
+function customerReturnPath(value: FormDataEntryValue | null) {
+  const fallback = "/host/erp/customers";
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/host/erp/customers")) return fallback;
+  if (trimmed.includes("\n") || trimmed.includes("\r")) return fallback;
+  return trimmed;
+}
+
+function normalizeCustomerClassification(value: FormDataEntryValue | null): HostCustomerClassification {
+  return value === "vip" ? "vip" : "ordinary";
+}
+
+export async function updateCustomerClassification(formData: FormData) {
+  await assertTrustedRequestOrigin();
+
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update customer types." });
+  requireVerifiedEmail(user);
+
+  const guestId = String(formData.get("guestId") ?? "").trim();
+  const submittedHostId = String(formData.get("hostId") ?? "").trim();
+  const hostId = user.role === "admin" ? submittedHostId : user.id;
+  const classification = normalizeCustomerClassification(formData.get("classification"));
+  const returnTo = customerReturnPath(formData.get("returnTo"));
+
+  if (!guestId || !hostId) throw new Error("Customer not found.");
+
+  const bookings = user.role === "admin" ? await getBookings() : await getBookingsForHost(user.id);
+  const customerBelongsToHost = bookings.some((booking) => booking.hostId === hostId && booking.guestId === guestId);
+  if (!customerBelongsToHost) throw new Error("Customer not found for this host.");
+
+  await saveHostCustomerClassification({ hostId, guestId, classification });
+
+  revalidatePath("/host/erp");
+  revalidatePath("/host/erp/customers");
+  redirect(returnTo);
+}
+
 export async function createExternalReservation(formData: FormData) {
   await assertTrustedRequestOrigin();
 
@@ -127,12 +167,17 @@ export async function createExternalReservation(formData: FormData) {
   if (property.status !== "approved") throw new Error("Only approved listings can receive reservations.");
 
   const requestedPackageId = data.bookingPackageId?.trim();
-  const bookingPackage = requestedPackageId ? findEnabledPackage(property, requestedPackageId) : findEnabledPackage(property);
+  const stayBookingAllowed = allowsStayBooking(property);
+  const packageBookingAllowed = allowsPackageBooking(property);
+  const bookingPackage = packageBookingAllowed
+    ? requestedPackageId ? findEnabledPackage(property, requestedPackageId) : stayBookingAllowed ? undefined : findEnabledPackage(property)
+    : undefined;
   if (requestedPackageId && !bookingPackage) throw new Error("Selected booking package does not belong to this listing.");
+  if (!bookingPackage && !stayBookingAllowed) throw new Error("This listing requires a booking package.");
   const maxGuests = bookingPackage?.maxGuests ?? property.maxGuests;
   if (data.guests > maxGuests) throw new Error("Guest count exceeds this listing capacity.");
   if (dateTime(data.checkOut) <= dateTime(data.checkIn)) throw new Error("Check-out must be after check-in.");
-  if (hasDateConflict(bookings, data.propertyId, data.checkIn, data.checkOut)) throw new Error("Those dates are already booked.");
+  if (hasDateConflict(bookings, data.propertyId, data.checkIn, data.checkOut, bookingPackage?.id, property.bookingPackages ?? [])) throw new Error("Those dates are already booked.");
   if (hasAvailabilityBlockConflict(availabilityBlocks, data.propertyId, data.checkIn, data.checkOut)) throw new Error("Those dates are blocked on the calendar.");
 
   const guest = await getOrCreateExternalGuest({
@@ -188,7 +233,7 @@ export async function createExternalReservation(formData: FormData) {
     });
   } else {
     const [latestBookings, latestBlocks, latestPayments] = await Promise.all([readStoredBookings(), getAvailabilityBlocks(), readStoredPayments()]);
-    if (hasDateConflict(latestBookings, data.propertyId, data.checkIn, data.checkOut)) throw new Error("Those dates are already booked.");
+    if (hasDateConflict(latestBookings, data.propertyId, data.checkIn, data.checkOut, bookingPackage?.id, property.bookingPackages ?? [])) throw new Error("Those dates are already booked.");
     if (hasAvailabilityBlockConflict(latestBlocks, data.propertyId, data.checkIn, data.checkOut)) throw new Error("Those dates are blocked on the calendar.");
     assertUniquePaymentReference(latestPayments, {
       bookingId: booking.id,

@@ -7,10 +7,11 @@ import { requireRole } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { CheckoutDates } from "@/components/bookings/checkout-dates";
 import { getAvailabilityBlocksForProperty } from "@/lib/availability";
+import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { arePaidBookingsEnabled } from "@/lib/payments";
-import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, getBookingPackageById, getBestDiscount, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
+import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, calculateNightlySubtotal, calculatePackageSubtotal, calculateStayprimeMarkup, findBookingPackageById, getBestDiscount, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency, formatDate } from "@/lib/utils";
@@ -62,12 +63,17 @@ export default async function BookingCheckoutPage({
   const requestedCheckIn = validDateParam(query.checkIn);
   const checkIn = requestedCheckIn && requestedCheckIn >= today ? requestedCheckIn : today;
   const bookingPackages = getEnabledBookingPackages(property);
-  const requestedPackage = bookingPackages.length ? getBookingPackageById(property, query.packageId) : null;
+  const stayBookingAllowed = allowsStayBooking(property);
+  const packageBookingAllowed = allowsPackageBooking(property);
+  if ((query.packageId && !packageBookingAllowed) || (!stayBookingAllowed && !packageBookingAllowed)) notFound();
+  const requestedPackage = packageBookingAllowed ? findBookingPackageById(property, query.packageId) : null;
+  if (query.packageId && !requestedPackage) notFound();
   const fullAccessPackage = getFullAccessBookingPackage(bookingPackages);
   const requestedCheckOut = validDateParam(query.checkOut);
   const dayCheckout = addDays(checkIn, 1);
   const requestedCheckOutIsMultiDay = Boolean(requestedCheckOut && requestedCheckOut > dayCheckout);
-  const selectedPackage = requestedPackage?.unit === "day" && requestedCheckOutIsMultiDay && fullAccessPackage ? fullAccessPackage : requestedPackage;
+  const initialPackage = requestedPackage ?? (!stayBookingAllowed && packageBookingAllowed ? bookingPackages[0] ?? null : null);
+  const selectedPackage = initialPackage?.unit === "day" && requestedCheckOutIsMultiDay && fullAccessPackage ? fullAccessPackage : initialPackage;
   const isDayPackage = selectedPackage?.unit === "day";
   const checkOut = isDayPackage ? dayCheckout : requestedCheckOut && new Date(requestedCheckOut) > new Date(checkIn) ? requestedCheckOut : addDays(checkIn, 5);
   const requestedGuests = Number(query.guests ?? 1);
@@ -86,10 +92,14 @@ export default async function BookingCheckoutPage({
   const total = discountedSubtotal + serviceFee;
   const guestSubtotal = calculateGuestPriceWithMarkup(subtotal);
   const guestSavings = guestSubtotal - total;
-  const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut);
+  const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut, selectedPackage?.id, property.bookingPackages ?? []);
   const availabilityBlocks = await getAvailabilityBlocksForProperty(property.id);
   const unavailableRanges = bookings
-    .filter((item) => item.propertyId === property.id && item.status !== "cancelled")
+    .filter((item) =>
+      item.propertyId === property.id &&
+      item.status !== "cancelled" &&
+      bookingBlocksRequestedPackage(item, selectedPackage?.id, property.bookingPackages ?? []),
+    )
     .map((item) => ({ checkIn: item.checkIn, checkOut: item.checkOut }))
     .concat(
       availabilityBlocks
@@ -105,6 +115,9 @@ export default async function BookingCheckoutPage({
   const checkOutTime = selectedPackage?.checkOutTime ?? STANDARD_CHECK_OUT_TIME;
   const unitLabel = selectedPackage?.unit === "day" ? "daytime booking" : "night";
   const visibleCheckOutDate = isDayPackage ? checkIn : checkOut;
+  const selectedPackageRooms = selectedPackage?.accessibleRoomIds?.length
+    ? (property.rooms ?? []).filter((room) => selectedPackage.accessibleRoomIds?.includes(room.id))
+    : [];
 
   return (
     <div className="min-h-screen bg-white">
@@ -145,6 +158,12 @@ export default async function BookingCheckoutPage({
                   <span className="block text-sm font-semibold">Package</span>
                   <span className="mt-1 block text-sm text-black/65">{selectedPackage.name}</span>
                   <span className="mt-1 block text-xs text-black/50">{selectedPackage.accessType}</span>
+                  <div className="mt-4 grid gap-3 text-xs text-black/60 sm:grid-cols-2">
+                    <AccessList label="Accessible floors" items={selectedPackage.accessibleFloors ?? []} fallback="Set by host" />
+                    <AccessList label="Accessible rooms" items={selectedPackageRooms.map((room) => room.name)} fallback="No bedroom access" />
+                    <AccessList label="Included amenities" items={selectedPackage.includedAmenities ?? []} fallback="Property amenities apply" />
+                    <AccessList label="Excluded" items={selectedPackage.excludedAmenities ?? []} fallback="None listed" />
+                  </div>
                 </div>
               ) : null}
               {isDayPackage ? (
@@ -274,6 +293,17 @@ export default async function BookingCheckoutPage({
           </div>
         </aside>
       </main>
+    </div>
+  );
+}
+
+function AccessList({ label, items, fallback }: { label: string; items: string[]; fallback: string }) {
+  const visibleItems = items.filter(Boolean);
+
+  return (
+    <div className="rounded-xl bg-black/[0.03] p-3">
+      <span className="block font-semibold text-black/70">{label}</span>
+      <span className="mt-1 block leading-5">{visibleItems.length ? visibleItems.join(", ") : fallback}</span>
     </div>
   );
 }

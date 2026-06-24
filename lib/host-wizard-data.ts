@@ -8,6 +8,7 @@ export const hostWizardSteps: WizardStepDefinition[] = [
   { id: "location", title: "Is the pin in the right spot?", description: "Guests see an approximate location until they book." },
   { id: "visibility", title: "Choose how guests see your location on a map", description: "You can show an exact pin or keep the location approximate before booking." },
   { id: "basics", title: "Share some basics about your place", description: "You’ll add more details later, like bed types." },
+  { id: "rooms", title: "Add the rooms guests can access", description: "Define floors, room capacity, room amenities, and bedroom access for package rules." },
   { id: "standout-intro", eyebrow: "Step 2", title: "Make your place stand out", description: "Add amenities, photos, a title, and a description guests will remember." },
   { id: "amenities", title: "Tell guests what your place has to offer", description: "You can add more amenities after you publish your listing." },
   { id: "photos", title: "Add some photos of your house", description: "You’ll need 5 photos to get started. Landscape shots look best—they fill a 980 × 580 carousel on your listing page." },

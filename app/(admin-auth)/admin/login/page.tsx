@@ -65,6 +65,7 @@ export default async function AdminLoginPage({
             {error && <p className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
             {message && <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
             <form action={verifyAdminMfa} className="mt-6 space-y-3">
+              <input type="hidden" name="role" value="admin" />
               <input type="hidden" name="next" value={nextPath} />
               <input
                 name="code"
@@ -79,6 +80,7 @@ export default async function AdminLoginPage({
               <AuthSubmitButton label="Verify code" />
             </form>
             <form action={resendAdminMfa} className="mt-3">
+              <input type="hidden" name="role" value="admin" />
               <input type="hidden" name="next" value={nextPath} />
               <AuthSubmitButton label="Resend code" pendingLabel="Resending code" variant="secondary" />
             </form>

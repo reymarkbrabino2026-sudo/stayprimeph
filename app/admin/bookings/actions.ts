@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { appendAdminLog } from "@/lib/admin-logs";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
 import { resolveCancellationReview, type CancellationResolution } from "@/lib/cancellations";
@@ -35,6 +36,12 @@ async function resolveCancellation(formData: FormData, resolution: CancellationR
   const booking = bookingId ? await getBookingById(bookingId) : null;
 
   await resolveCancellationReview({ bookingId, resolution, adminId: admin.id });
+  await appendAdminLog({
+    adminId: admin.id,
+    action: resolution === "refund" ? "dispute.refund_approved" : "dispute.closed_without_refund",
+    entityType: "booking",
+    entityId: bookingId,
+  });
   revalidateCancellationReviewPaths(bookingId, booking?.propertyId);
 }
 

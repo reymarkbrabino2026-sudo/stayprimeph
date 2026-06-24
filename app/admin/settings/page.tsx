@@ -15,7 +15,7 @@ export default function AdminSettingsPage() {
     ["App URL", Boolean(process.env.NEXT_PUBLIC_APP_URL), "Public canonical URL for links and auth callbacks."],
     ["Database", Boolean(process.env.DATABASE_URL), "PostgreSQL connection for production persistence."],
     ["Prisma persistence", process.env.PERSISTENCE_DRIVER === "prisma", "Production must use Prisma instead of local JSON files."],
-    ["Payment launch mode", paymentMode === "disabled" || hasLiveStripe, paymentMode === "stripe" ? "Live Stripe provider payments are enabled." : "Paid bookings are disabled until a verified payment provider is launched."],
+    ["Payment launch mode", paymentMode === "disabled" || hasLiveStripe, paymentMode === "stripe" ? "Legacy Stripe provider checkout is enabled." : "Manual GCash/bank-transfer payment review is current; hosted provider checkout stays disabled until PayMongo is implemented."],
     ["Photo storage", hasCloudinary || hasVercelBlob, "Cloudinary or Vercel Blob is configured for durable listing photo uploads."],
     ["Resend email", Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM), "Transactional email sender is configured."],
     ["Upstash Redis", Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN), "Distributed rate limiting is configured."],

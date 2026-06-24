@@ -32,20 +32,22 @@ import {
 } from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { CustomerClassificationSelect } from "@/components/host/customer-classification-select";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings, getBookingsForHost } from "@/lib/bookings";
+import { readHostCustomerProfiles } from "@/lib/host-customer-store";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { adminLinks, hostLinks } from "@/lib/navigation";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getProperties, getPropertiesForHost } from "@/lib/properties";
-import type { AvailabilityBlock, Booking, Property, User } from "@/lib/types";
+import type { AvailabilityBlock, Booking, HostCustomerClassification, Property, User } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { getUsers } from "@/lib/users";
-import { createExternalReservation } from "./actions";
+import { createExternalReservation, updateCustomerClassification } from "./actions";
 
 type ErpSection = "reservations" | "revenue" | "operations" | "customers" | "financial";
 type ReservationFilter = "all" | "confirmed" | "pending" | "checked_in" | "checked_out" | "cancelled";
@@ -1131,8 +1133,10 @@ function CustomerDashboard({
     active: boolean;
     bookingCount: number;
     code: string;
+    classification: HostCustomerClassification;
     email: string;
     firstBookingMonth: string;
+    hostId: string;
     id: string;
     initials: string;
     lastStay: string;
@@ -1154,8 +1158,13 @@ function CustomerDashboard({
     month: currentMonth,
     q: customerSearch || undefined,
   };
+  const currentCustomerPath = `/host/erp/customers${buildQuery({
+    ...queryBase,
+    page: customerPage,
+    segment: customerSegment === "all" ? undefined : customerSegment,
+  })}`;
   const csv = [
-    ["Customer ID", "Customer", "Email", "Phone", "Total Bookings", "Total Spent", "Last Stay", "Status"].map(csvCell).join(","),
+    ["Customer ID", "Customer", "Email", "Phone", "Total Bookings", "Total Spent", "Last Stay", "Customer Type", "Status"].map(csvCell).join(","),
     ...pageCustomers.map((customer) =>
       [
         customer.code,
@@ -1165,6 +1174,7 @@ function CustomerDashboard({
         customer.bookingCount,
         customer.totalSpent,
         customer.lastStay || "No completed stay",
+        customer.classification === "vip" ? "VIP" : "Ordinary",
         customer.active ? "Active" : "Inactive",
       ]
         .map(csvCell)
@@ -1269,11 +1279,11 @@ function CustomerDashboard({
       ) : (
         <>
           <div className="hidden overflow-x-auto md:block">
-            <table className="min-w-[980px] w-full text-left text-sm">
+            <table className="min-w-[1080px] w-full text-left text-sm">
               <thead className="bg-[#fbf7f2] text-xs text-black/50">
                 <tr>
                   <th className="w-12 px-4 py-4"><input type="checkbox" aria-label="Select all customers" className="size-4 rounded border-black/20" /></th>
-                  {["Customer ID", "Customer", "Contact", "Total Bookings", "Total Spent", "Last Stay", "Status", "Actions"].map((header) => (
+                  {["Customer ID", "Customer", "Contact", "Total Bookings", "Total Spent", "Last Stay", "Type", "Status", "Actions"].map((header) => (
                     <th key={header} className={`px-4 py-4 font-semibold ${header === "Actions" ? "text-right" : ""}`}>{header}</th>
                   ))}
                 </tr>
@@ -1291,7 +1301,6 @@ function CustomerDashboard({
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-bold">{customer.name}</p>
-                            {customer.vip ? <OperationPill label="VIP" tone="bg-orange-100 text-orange-700" /> : null}
                           </div>
                           <p className="mt-1 text-xs text-black/45">{customer.email || "No email on file"}</p>
                         </div>
@@ -1304,6 +1313,16 @@ function CustomerDashboard({
                     <td className="px-4 py-4 font-semibold">{customer.bookingCount}</td>
                     <td className="px-4 py-4 font-bold">{formatCurrency(customer.totalSpent)}</td>
                     <td className="px-4 py-4 font-semibold">{customer.lastStay ? displayDate(customer.lastStay) : "No completed stay"}</td>
+                    <td className="px-4 py-4">
+                      <CustomerClassificationSelect
+                        action={updateCustomerClassification}
+                        customerName={customer.name}
+                        guestId={customer.id}
+                        hostId={customer.hostId}
+                        returnTo={currentCustomerPath}
+                        value={customer.classification}
+                      />
+                    </td>
                     <td className="px-4 py-4"><CustomerStatusPill active={customer.active} /></td>
                     <td className="px-4 py-4">
                       <div className="flex justify-end gap-2">
@@ -1339,7 +1358,17 @@ function CustomerDashboard({
                       <p className="mt-1 break-all text-xs text-black/45">{customer.email || "No email on file"}</p>
                     </div>
                   </div>
-                  <CustomerStatusPill active={customer.active} />
+                  <div className="grid justify-items-end gap-2">
+                    <CustomerClassificationSelect
+                      action={updateCustomerClassification}
+                      customerName={customer.name}
+                      guestId={customer.id}
+                      hostId={customer.hostId}
+                      returnTo={currentCustomerPath}
+                      value={customer.classification}
+                    />
+                    <CustomerStatusPill active={customer.active} />
+                  </div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-[#fbf7f2] p-3 text-sm">
                   <div><p className="text-xs text-black/45">Bookings</p><p className="font-bold">{customer.bookingCount}</p></div>
@@ -1855,13 +1884,14 @@ export default async function HostErpSectionPage({
   // Hosts only ever see their own rows (the JS scoping below already enforces this),
   // so fetch host-scoped data at the database level instead of loading the entire
   // platform's bookings/properties on every ERP page load. Admins still see everything.
-  const [bookings, properties, users, reports, expenses, availabilityBlocks] = await Promise.all([
+  const [bookings, properties, users, reports, expenses, availabilityBlocks, customerProfiles] = await Promise.all([
     isAdmin ? getBookings() : getBookingsForHost(hostScopeId),
     isAdmin ? getProperties() : getPropertiesForHost(hostScopeId),
     getUsers(),
     readHostMonthlyReports(),
     readHostExpenses(),
     getAvailabilityBlocks(),
+    readHostCustomerProfiles(isAdmin ? undefined : hostScopeId),
   ]);
   const currentMonth = validMonthKey(queryValue(resolvedSearchParams.month)) ?? monthKey();
   const requestedReservationStatus = queryValue(resolvedSearchParams.status) as ReservationFilter | undefined;
@@ -1884,6 +1914,8 @@ export default async function HostErpSectionPage({
   const scopedReports = isAdmin ? reports : reports.filter((report) => report.hostId === user?.id);
   const scopedExpenses = isAdmin ? expenses : expenses.filter((expense) => expense.hostId === user?.id);
   const scopedBlocks = availabilityBlocks.filter((block) => scopedPropertyIds.has(block.propertyId));
+  const scopedCustomerProfiles = isAdmin ? customerProfiles : customerProfiles.filter((profile) => profile.hostId === user?.id);
+  const customerProfileMap = new Map(scopedCustomerProfiles.map((profile) => [`${profile.hostId}:${profile.guestId}`, profile]));
 
   const activeListings = scopedProperties.filter((property) => property.status === "approved");
   const openReservations = scopedBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
@@ -1976,6 +2008,11 @@ export default async function HostErpSectionPage({
     totals[booking.guestId] = (totals[booking.guestId] ?? 0) + booking.totalPrice;
     return totals;
   }, {});
+  const guestHostIds = scopedBookings.reduce<Record<string, Set<string>>>((hostsByGuest, booking) => {
+    hostsByGuest[booking.guestId] ??= new Set<string>();
+    hostsByGuest[booking.guestId].add(booking.hostId);
+    return hostsByGuest;
+  }, {});
   const guestIds = Object.keys(guestBookingCounts);
   const repeatGuests = guestIds.filter((guestId) => guestBookingCounts[guestId] > 1).length;
   const firstBookingByGuest = guestIds.reduce<Record<string, Booking | undefined>>((firstBookings, guestId) => {
@@ -2003,15 +2040,19 @@ export default async function HostErpSectionPage({
       const lastStay = lastStayByGuest[guestId];
       const bookingCount = guestBookingCounts[guestId] ?? 0;
       const totalSpent = guestSpend[guestId] ?? 0;
-      const vip = totalSpent >= 50_000;
+      const customerHostId = Array.from(guestHostIds[guestId] ?? []).sort()[0] ?? hostScopeId;
+      const classification = customerProfileMap.get(`${customerHostId}:${guestId}`)?.classification ?? "ordinary";
+      const vip = classification === "vip";
       const repeat = bookingCount > 1;
 
       return {
         active: customerIsActive(lastStay?.checkOut, today),
         bookingCount,
         code: customerCode(guestId),
+        classification,
         email,
         firstBookingMonth: firstBooking?.createdAt.slice(0, 7) ?? "",
+        hostId: customerHostId,
         id: guestId,
         initials: customerInitials(name),
         lastStay: lastStay?.checkOut ?? "",

@@ -58,9 +58,13 @@ These files are local QA artifacts and are not committed.
 
 ## Current verdict
 
-Automated device-emulation QA passes for public browsing, legal/support/status pages, search, and an approved listing detail page. Real-device QA and authenticated dashboard/upload checks remain open until:
+Automated device-emulation QA passes for public browsing, legal/support/status pages, search, and an approved listing detail page. At the time of this automated report, real-device QA and authenticated dashboard/upload checks remained open until:
 
 - Physical iPhone Safari is tested.
 - Physical Android Chrome is tested.
 - Desktop browser is tested hands-on.
 - Real guest/host/admin accounts or dedicated QA accounts are available for dashboard testing.
+
+## June 23, 2026 physical-device update
+
+Physical iPhone Safari, Android Chrome, desktop Chrome/Edge, and confirmation-email delivery QA are recorded as completed with no launch-blocking issues based on external launch signoff confirmation. The remaining Sentry, Vercel Analytics, and Upstash telemetry signoff was completed on June 24, 2026 and recorded in `docs/final-monitoring-qa.md`.

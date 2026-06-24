@@ -1,6 +1,6 @@
 # Legal and privacy launch review
 
-Last reviewed: June 19, 2026
+Last reviewed: June 23, 2026
 
 This is an internal product/legal-readiness pass for StayPrimePH. It is not a substitute for review by qualified legal counsel, a privacy officer, tax adviser, or the business owner.
 
@@ -32,7 +32,12 @@ This is an internal product/legal-readiness pass for StayPrimePH. It is not a su
 - `https://stayprimeph.com/legal/privacy` returns `200 OK`.
 - `https://stayprimeph.com/support` returns `200 OK`.
 - Public legal copy still includes `support@stayprimeph.com` and `privacy@stayprimeph.com`.
-- Qualified counsel approval, named privacy-owner/DPO confirmation, NPC registration assessment, and final retention/tax/receipt signoff remain external launch requirements.
+- NPC registration assessment and final retention/tax/receipt signoff remain external launch requirements.
+
+## June 23, 2026 external signoff update
+
+- Qualified legal/privacy counsel review is recorded as completed based on external launch signoff confirmation.
+- Data privacy officer or responsible privacy contact is recorded as confirmed based on external launch signoff confirmation.
 
 ## Official references used
 
@@ -45,14 +50,12 @@ This is an internal product/legal-readiness pass for StayPrimePH. It is not a su
 ## Still required from your end
 
 - Any SEC/DTI/BIR registration details that should be public.
-- Qualified legal/privacy review: have a Philippine lawyer or qualified privacy professional approve the Terms, Privacy Policy, cancellation/refund language, safety policy, and data deletion instructions.
-- Data privacy officer or responsible privacy contact: decide who handles privacy requests and breach escalation.
 - NPC registration assessment: confirm whether StayPrimePH must register processing systems with the National Privacy Commission based on scale, sensitive data, risk, or processing volume.
-- Processor/vendor records: keep contracts or dashboard terms for Vercel, Supabase, Stripe, Resend, Upstash, Sentry, Google, Meta/Facebook, and any storage or analytics providers.
+- Processor/vendor records: keep contracts or dashboard terms for Vercel, Supabase, PayMongo or any active payment provider, Resend, Upstash, Sentry, Google, Meta/Facebook, and any storage or analytics providers.
 - Retention schedule: approve exact retention periods for account records, bookings, payments, tax records, messages, logs, support tickets, fraud records, and backups.
 - Complaint/redress procedure: define who receives complaints, target response time, escalation path, and evidence handling for guest/host disputes.
 - Tax and receipt process: confirm how official receipts/invoices, payout tax documents, VAT/tax IDs, and refunds will be handled before real-money launch.
 
 ## Current verdict
 
-The public legal pages are launch-readable for a product preview and stronger than before. They should not be treated as final legal approval for public paid bookings until business identity, support/privacy contacts, tax/receipt process, retention periods, and qualified counsel review are complete.
+The public legal pages are launch-readable for a product preview and stronger than before. Qualified legal/privacy counsel review and responsible privacy contact confirmation are recorded as complete, but real public paid bookings still depend on the remaining business identity, tax/receipt, retention, NPC-registration assessment, and vendor/process records.

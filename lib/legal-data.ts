@@ -96,7 +96,7 @@ export const legalPages: LegalPage[] = [
         title: "Service providers and data sharing",
         body: [
           "StayPrimePH shares personal data only when needed to operate hosting, database, storage, email, authentication, payment, fraud-prevention, support, analytics, error-monitoring, rate-limiting, security, backup, legal, accounting, or compliance workflows.",
-          "Current or planned operational providers may include Vercel, Supabase, Cloudinary or other media storage, Stripe or other payment providers, Resend or other email providers, Upstash Redis, Sentry, Google, Facebook/Meta, GitHub, and related infrastructure providers.",
+          "Current or planned operational providers may include Vercel, Supabase, Cloudinary or other media storage, PayMongo or other payment providers, Resend or other email providers, Upstash Redis, Sentry, Google, Facebook/Meta, GitHub, and related infrastructure providers.",
           "Hosts and guests may receive booking, listing, message, profile, and payment-status information that is necessary to complete a booking, host a stay, resolve a support issue, or enforce marketplace rules.",
           "Admins and authorized support personnel may access account, listing, booking, message, support, payment-reference, and audit data when needed for moderation, support, fraud prevention, dispute handling, payment review, privacy request handling, or legal compliance.",
           "Some providers and recipients may process data outside the Philippines. StayPrimePH uses reasonable operational, contractual, and security safeguards for personal data handled by service providers.",

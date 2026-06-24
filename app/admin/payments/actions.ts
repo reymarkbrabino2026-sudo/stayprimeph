@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { appendAdminLog } from "@/lib/admin-logs";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookingById } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
@@ -100,6 +101,12 @@ export async function verifySubmittedPayment(formData: FormData) {
   if (!booking) throw new Error("Booking not found.");
 
   await verifySubmittedPaymentByAdmin({ booking, adminId: admin.id });
+  await appendAdminLog({
+    adminId: admin.id,
+    action: "payment.approved",
+    entityType: "payment",
+    entityId: `payment-${booking.id}`,
+  });
   await sendBookingConfirmationPair(booking);
   revalidatePaymentReviewPaths(booking.id);
 }
@@ -116,6 +123,12 @@ export async function recordPayout(formData: FormData) {
   if (!hostId) throw new Error("Host is required.");
 
   await recordHostPayout(hostId, amount);
+  await appendAdminLog({
+    adminId: admin.id,
+    action: "settings.payout_recorded",
+    entityType: "host",
+    entityId: hostId,
+  });
   revalidatePath("/admin/payments");
 }
 
@@ -132,5 +145,11 @@ export async function rejectSubmittedPayment(formData: FormData) {
   if (!booking) throw new Error("Booking not found.");
 
   await rejectSubmittedPaymentByAdmin({ booking, adminId: admin.id, rejectionReason });
+  await appendAdminLog({
+    adminId: admin.id,
+    action: "payment.rejected",
+    entityType: "payment",
+    entityId: `payment-${booking.id}`,
+  });
   revalidatePaymentReviewPaths(booking.id);
 }

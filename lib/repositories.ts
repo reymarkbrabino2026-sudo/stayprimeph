@@ -2,11 +2,12 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostExpense, HostMonthlyReport, Message, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PublicListingSummary, Review, User } from "@/lib/types";
+import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
   return {
@@ -31,8 +32,12 @@ export function usesPrismaPersistence() {
 
 let platformLedgerTableReady: Promise<void> | null = null;
 let listingBookingPackageTableReady: Promise<void> | null = null;
+let listingRoomTableReady: Promise<void> | null = null;
 let bookingPackageColumnsReady: Promise<void> | null = null;
+let propertyAdvancedPricingColumnsReady: Promise<void> | null = null;
 let authSessionTableReady: Promise<void> | null = null;
+let passkeyTableReady: Promise<void> | null = null;
+let hostCustomerProfileTableReady: Promise<void> | null = null;
 
 function cacheGlobalEnsure(db: unknown, cached: Promise<void> | null, setCached: (promise: Promise<void> | null) => void, ensure: () => Promise<void>) {
   if (db !== prisma) return ensure();
@@ -72,6 +77,19 @@ async function insertAuditLog(
 
 export async function appendAuditLogInDatabase(auditLog: AuditLog) {
   await insertAuditLog(prisma, auditLog);
+}
+
+export async function appendAdminLogInDatabase(adminLog: AdminLog) {
+  await prisma.adminLog.create({
+    data: {
+      id: adminLog.id,
+      adminId: adminLog.adminId,
+      action: adminLog.action,
+      entityType: adminLog.entityType,
+      entityId: adminLog.entityId,
+      createdAt: new Date(adminLog.createdAt),
+    },
+  });
 }
 
 type DatabaseAuditLog = {
@@ -167,22 +185,73 @@ async function ensureListingBookingPackageTable(db: Pick<typeof prisma, "$execut
         "id" TEXT NOT NULL,
         "propertyId" TEXT NOT NULL,
         "name" TEXT NOT NULL,
+        "description" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "displayOrder" INTEGER NOT NULL DEFAULT 0,
         "accessType" TEXT NOT NULL,
         "unit" TEXT NOT NULL,
         "weekdayRate" INTEGER NOT NULL,
         "weekendRate" INTEGER NOT NULL,
         "holidayRate" INTEGER,
+        "holidayDates" JSONB,
+        "seasonalRates" JSONB,
         "includedGuests" INTEGER NOT NULL,
         "maxGuests" INTEGER NOT NULL,
+        "sleepingCapacity" INTEGER,
+        "durationHours" INTEGER,
         "additionalGuestFee" INTEGER NOT NULL,
         "extensionHourlyFee" INTEGER NOT NULL,
         "checkInTime" TEXT NOT NULL,
         "checkOutTime" TEXT NOT NULL,
+        "accessibleFloors" JSONB,
+        "accessibleRoomIds" JSONB,
+        "includedAmenities" JSONB,
+        "excludedAmenities" JSONB,
+        "availableDays" JSONB,
+        "minimumAdvanceBookingDays" INTEGER NOT NULL DEFAULT 0,
+        "blockedPackageIds" JSONB,
         "enabled" BOOLEAN NOT NULL DEFAULT true,
         CONSTRAINT "ListingBookingPackage_pkey" PRIMARY KEY ("id")
       )
     `);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "description" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "displayOrder" INTEGER NOT NULL DEFAULT 0`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "sleepingCapacity" INTEGER`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "durationHours" INTEGER`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "holidayDates" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "accessibleFloors" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "accessibleRoomIds" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "includedAmenities" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "excludedAmenities" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "availableDays" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "minimumAdvanceBookingDays" INTEGER NOT NULL DEFAULT 0`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingBookingPackage" ADD COLUMN IF NOT EXISTS "blockedPackageIds" JSONB`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ListingBookingPackage_propertyId_idx" ON "ListingBookingPackage"("propertyId")`);
+  });
+}
+
+async function ensureListingRoomTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, listingRoomTableReady, (promise) => {
+    listingRoomTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ListingRoom" (
+        "id" TEXT NOT NULL,
+        "propertyId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "capacity" INTEGER NOT NULL,
+        "floor" TEXT NOT NULL,
+        "description" TEXT,
+        "photoUrls" JSONB,
+        "amenities" JSONB,
+        "active" BOOLEAN NOT NULL DEFAULT true,
+        "displayOrder" INTEGER NOT NULL DEFAULT 0,
+        CONSTRAINT "ListingRoom_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ListingRoom_propertyId_idx" ON "ListingRoom"("propertyId")`);
   });
 }
 
@@ -193,6 +262,17 @@ async function ensureBookingPackageColumns(db: Pick<typeof prisma, "$executeRawU
     await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageId" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageName" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageUnit" TEXT`);
+  });
+}
+
+async function ensurePropertyAdvancedPricingColumns(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, propertyAdvancedPricingColumnsReady, (promise) => {
+    propertyAdvancedPricingColumnsReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "bookingType" TEXT NOT NULL DEFAULT 'stay'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayDates" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB`);
   });
 }
 
@@ -211,8 +291,70 @@ async function ensureAuthSessionTable(db: Pick<typeof prisma, "$executeRawUnsafe
         CONSTRAINT "AuthSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
       )
     `);
+    await db.$executeRawUnsafe(`ALTER TABLE "AuthSession" ADD COLUMN IF NOT EXISTS "userAgent" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "AuthSession" ADD COLUMN IF NOT EXISTS "ipAddress" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "AuthSession" ADD COLUMN IF NOT EXISTS "lastSeenAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "AuthSession" ADD COLUMN IF NOT EXISTS "mfaVerifiedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "AuthSession" ADD COLUMN IF NOT EXISTS "mfaRole" TEXT`);
     await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "AuthSession_sessionHash_key" ON "AuthSession"("sessionHash")`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "AuthSession_userId_expiresAt_idx" ON "AuthSession"("userId", "expiresAt")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "AuthSession_userId_createdAt_idx" ON "AuthSession"("userId", "createdAt")`);
+  });
+}
+
+async function ensurePasskeyTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, passkeyTableReady, (promise) => {
+    passkeyTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Passkey" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "credentialId" TEXT NOT NULL,
+        "publicKey" TEXT NOT NULL,
+        "counter" INTEGER NOT NULL DEFAULT 0,
+        "name" TEXT NOT NULL,
+        "transports" JSONB,
+        "deviceType" TEXT NOT NULL,
+        "backedUp" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "lastUsedAt" TIMESTAMP(3),
+        CONSTRAINT "Passkey_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await db.$executeRawUnsafe(`ALTER TABLE "Passkey" ADD COLUMN IF NOT EXISTS "counter" INTEGER NOT NULL DEFAULT 0`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Passkey" ADD COLUMN IF NOT EXISTS "name" TEXT NOT NULL DEFAULT 'Passkey'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Passkey" ADD COLUMN IF NOT EXISTS "transports" JSONB`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Passkey" ADD COLUMN IF NOT EXISTS "deviceType" TEXT NOT NULL DEFAULT 'singleDevice'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Passkey" ADD COLUMN IF NOT EXISTS "backedUp" BOOLEAN NOT NULL DEFAULT false`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Passkey" ADD COLUMN IF NOT EXISTS "lastUsedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Passkey_credentialId_key" ON "Passkey"("credentialId")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Passkey_userId_createdAt_idx" ON "Passkey"("userId", "createdAt")`);
+  });
+}
+
+async function ensureHostCustomerProfileTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, hostCustomerProfileTableReady, (promise) => {
+    hostCustomerProfileTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "HostCustomerProfile" (
+        "id" TEXT NOT NULL,
+        "hostId" TEXT NOT NULL,
+        "guestId" TEXT NOT NULL,
+        "classification" TEXT NOT NULL DEFAULT 'ordinary',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "HostCustomerProfile_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await db.$executeRawUnsafe(`ALTER TABLE "HostCustomerProfile" ADD COLUMN IF NOT EXISTS "classification" TEXT NOT NULL DEFAULT 'ordinary'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "HostCustomerProfile" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    await db.$executeRawUnsafe(`ALTER TABLE "HostCustomerProfile" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "HostCustomerProfile_hostId_guestId_key" ON "HostCustomerProfile"("hostId", "guestId")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HostCustomerProfile_hostId_idx" ON "HostCustomerProfile"("hostId")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HostCustomerProfile_guestId_idx" ON "HostCustomerProfile"("guestId")`);
   });
 }
 
@@ -330,7 +472,49 @@ export async function createUserInDatabase(user: User) {
   });
 }
 
-type DatabaseBookingPackage = BookingPackage & { propertyId: string };
+type DatabaseBookingPackage = {
+  id: string;
+  propertyId: string;
+  name: string;
+  description: string | null;
+  status: string | null;
+  displayOrder: number | null;
+  accessType: string;
+  unit: string;
+  weekdayRate: number;
+  weekendRate: number;
+  holidayRate: number | null;
+  holidayDates: Prisma.JsonValue | null;
+  seasonalRates: Prisma.JsonValue | null;
+  includedGuests: number;
+  maxGuests: number;
+  sleepingCapacity: number | null;
+  durationHours: number | null;
+  additionalGuestFee: number;
+  extensionHourlyFee: number;
+  checkInTime: string;
+  checkOutTime: string;
+  accessibleFloors: Prisma.JsonValue | null;
+  accessibleRoomIds: Prisma.JsonValue | null;
+  includedAmenities: Prisma.JsonValue | null;
+  excludedAmenities: Prisma.JsonValue | null;
+  availableDays: Prisma.JsonValue | null;
+  minimumAdvanceBookingDays: number | null;
+  blockedPackageIds: Prisma.JsonValue | null;
+  enabled: boolean;
+};
+type DatabaseListingRoom = {
+  id: string;
+  propertyId: string;
+  name: string;
+  capacity: number;
+  floor: string;
+  description: string | null;
+  photoUrls: Prisma.JsonValue | null;
+  amenities: Prisma.JsonValue | null;
+  active: boolean;
+  displayOrder: number | null;
+};
 type DatabaseProperty = Prisma.PropertyGetPayload<{
   include: {
     images: true;
@@ -347,6 +531,7 @@ type DatabasePublicListingSummary = Prisma.PropertyGetPayload<{
     address: true;
     city: true;
     country: true;
+    bookingType: true;
     pricePerNight: true;
     bedrooms: true;
     maxGuests: true;
@@ -359,15 +544,117 @@ type DatabasePublicListingSummary = Prisma.PropertyGetPayload<{
   };
 }>;
 
+function parseStringArray(value: Prisma.JsonValue | null | undefined) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())) : [];
+}
+
+function parseNumberArray(value: Prisma.JsonValue | null | undefined) {
+  return Array.isArray(value) ? value.filter((item): item is number => Number.isInteger(item)) : [];
+}
+
+function isPrismaJsonObject(value: Prisma.JsonValue): value is Prisma.JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function jsonStringValue(value: Prisma.JsonValue | undefined) {
+  return typeof value === "string" ? value : "";
+}
+
+function jsonNumberValue(value: Prisma.JsonValue | undefined) {
+  return typeof value === "number" ? value : Number(value);
+}
+
+function parseSeasonalRates(value: Prisma.JsonValue | null | undefined): SeasonalRate[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isPrismaJsonObject)
+    .map((item) => {
+      const name = jsonStringValue(item.name).trim();
+
+      return {
+        id: jsonStringValue(item.id) || undefined,
+        name: name || "Seasonal rate",
+        startDate: jsonStringValue(item.startDate),
+        endDate: jsonStringValue(item.endDate),
+        weekdayRate: jsonNumberValue(item.weekdayRate),
+        weekendRate: jsonNumberValue(item.weekendRate),
+        holidayRate: jsonNumberValue(item.holidayRate),
+      };
+    })
+    .filter((item) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(item.startDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(item.endDate) &&
+      item.endDate >= item.startDate &&
+      Number.isFinite(item.weekdayRate) &&
+      item.weekdayRate > 0,
+    )
+    .map((item) => ({
+      ...item,
+      weekendRate: Number.isFinite(item.weekendRate) && Number(item.weekendRate) > 0 ? Number(item.weekendRate) : undefined,
+      holidayRate: Number.isFinite(item.holidayRate) && Number(item.holidayRate) > 0 ? Number(item.holidayRate) : undefined,
+    }));
+}
+
 function groupBookingPackages(packages: DatabaseBookingPackage[]) {
   return packages.reduce<Record<string, BookingPackage[]>>((groups, item) => {
-    const { propertyId: _propertyId, ...bookingPackage } = item;
-    groups[_propertyId] = [...(groups[_propertyId] ?? []), bookingPackage];
+    const bookingPackage: BookingPackage = {
+      id: item.id,
+      name: item.name,
+      description: item.description ?? undefined,
+      status: item.status === "inactive" ? "inactive" : "active",
+      displayOrder: item.displayOrder ?? 0,
+      accessType: item.accessType,
+      unit: item.unit === "day" ? "day" : "night",
+      weekdayRate: item.weekdayRate,
+      weekendRate: item.weekendRate,
+      holidayRate: item.holidayRate ?? undefined,
+      holidayDates: parseStringArray(item.holidayDates),
+      seasonalRates: parseSeasonalRates(item.seasonalRates),
+      includedGuests: item.includedGuests,
+      maxGuests: item.maxGuests,
+      sleepingCapacity: item.sleepingCapacity ?? undefined,
+      durationHours: item.durationHours ?? undefined,
+      additionalGuestFee: item.additionalGuestFee,
+      extensionHourlyFee: item.extensionHourlyFee,
+      checkInTime: item.checkInTime,
+      checkOutTime: item.checkOutTime,
+      accessibleFloors: parseStringArray(item.accessibleFloors),
+      accessibleRoomIds: parseStringArray(item.accessibleRoomIds),
+      includedAmenities: parseStringArray(item.includedAmenities),
+      excludedAmenities: parseStringArray(item.excludedAmenities),
+      availableDays: parseNumberArray(item.availableDays),
+      minimumAdvanceBookingDays: item.minimumAdvanceBookingDays ?? 0,
+      blockedPackageIds: parseStringArray(item.blockedPackageIds),
+      enabled: item.enabled,
+    };
+    groups[item.propertyId] = [...(groups[item.propertyId] ?? []), bookingPackage];
     return groups;
   }, {});
 }
 
-function toProperty(property: DatabaseProperty, packagesByProperty: Record<string, BookingPackage[]>): Property {
+function groupListingRooms(rooms: DatabaseListingRoom[]) {
+  return rooms.reduce<Record<string, PropertyRoom[]>>((groups, item) => {
+    const room: PropertyRoom = {
+      id: item.id,
+      name: item.name,
+      capacity: item.capacity,
+      floor: item.floor,
+      description: item.description ?? undefined,
+      photos: parseStringArray(item.photoUrls),
+      amenities: parseStringArray(item.amenities),
+      active: item.active,
+    };
+    groups[item.propertyId] = [...(groups[item.propertyId] ?? []), room];
+    return groups;
+  }, {});
+}
+
+function normalizeListingBookingType(value: string | null | undefined) {
+  return value === "package" || value === "both" ? value : "stay";
+}
+
+function toProperty(property: DatabaseProperty, packagesByProperty: Record<string, BookingPackage[]>, roomsByProperty: Record<string, PropertyRoom[]> = {}): Property {
   return {
     id: property.id,
     hostId: property.hostId,
@@ -377,8 +664,12 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
     address: property.address,
     city: property.city,
     country: property.country,
+    bookingType: normalizeListingBookingType(property.bookingType),
     pricePerNight: property.pricePerNight,
     weekendPrice: property.pricing?.weekendPrice,
+    holidayPrice: property.pricing?.holidayPrice ?? undefined,
+    holidayDates: parseStringArray(property.pricing?.holidayDates),
+    seasonalRates: parseSeasonalRates(property.pricing?.seasonalRates),
     cleaningFee: property.pricing?.cleaningFee,
     securityDeposit: property.pricing?.securityDeposit,
     currency: property.pricing?.currency,
@@ -392,6 +683,7 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
     rules: parseRules(property.rules),
     createdAt: property.createdAt.toISOString().slice(0, 10),
     images: property.images.map(toPropertyImage),
+    rooms: roomsByProperty[property.id] ?? undefined,
     bookingPackages: packagesByProperty[property.id] ?? undefined,
     latitude: property.location?.latitude,
     longitude: property.location?.longitude,
@@ -410,6 +702,7 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
     address: property.address,
     city: property.city,
     country: property.country,
+    bookingType: normalizeListingBookingType(property.bookingType),
     pricePerNight: property.pricePerNight,
     bedrooms: property.bedrooms,
     maxGuests: property.maxGuests,
@@ -427,8 +720,38 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
   };
 }
 
-export async function listPropertiesFromDatabase(): Promise<Property[]> {
+async function listBookingPackageRowsForProperties(propertyIds: string[]): Promise<DatabaseBookingPackage[]> {
+  if (!propertyIds.length) return [];
   await ensureListingBookingPackageTable();
+  return prisma.$queryRaw<DatabaseBookingPackage[]>`
+    SELECT
+      "id", "propertyId", "name", "description", "status", "displayOrder", "accessType", "unit",
+      "weekdayRate", "weekendRate", "holidayRate", "includedGuests", "maxGuests", "sleepingCapacity",
+      "durationHours", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime",
+      "accessibleFloors", "accessibleRoomIds", "includedAmenities", "excludedAmenities", "availableDays",
+      "minimumAdvanceBookingDays", "blockedPackageIds", "holidayDates", "seasonalRates", "enabled"
+    FROM "ListingBookingPackage"
+    WHERE "propertyId" IN (${Prisma.join(propertyIds)})
+    ORDER BY "displayOrder" ASC, "name" ASC
+  `;
+}
+
+async function listListingRoomRowsForProperties(propertyIds: string[]): Promise<DatabaseListingRoom[]> {
+  if (!propertyIds.length) return [];
+  await ensureListingRoomTable();
+  return prisma.$queryRaw<DatabaseListingRoom[]>`
+    SELECT
+      "id", "propertyId", "name", "capacity", "floor", "description", "photoUrls", "amenities", "active", "displayOrder"
+    FROM "ListingRoom"
+    WHERE "propertyId" IN (${Prisma.join(propertyIds)})
+    ORDER BY "displayOrder" ASC, "floor" ASC, "name" ASC
+  `;
+}
+
+export async function listPropertiesFromDatabase(): Promise<Property[]> {
+  await ensurePropertyAdvancedPricingColumns();
+  await ensureListingBookingPackageTable();
+  await ensureListingRoomTable();
   const properties = await prisma.property.findMany({
     include: {
       images: true,
@@ -439,20 +762,21 @@ export async function listPropertiesFromDatabase(): Promise<Property[]> {
     orderBy: { createdAt: "desc" },
   });
   if (!properties.length) return [];
-  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
-    SELECT
-      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
-      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
-    FROM "ListingBookingPackage"
-    ORDER BY "name" ASC
-  `;
+  const propertyIds = properties.map((property) => property.id);
+  const [packages, rooms] = await Promise.all([
+    listBookingPackageRowsForProperties(propertyIds),
+    listListingRoomRowsForProperties(propertyIds),
+  ]);
   const packagesByProperty = groupBookingPackages(packages);
+  const roomsByProperty = groupListingRooms(rooms);
 
-  return properties.map((property) => toProperty(property, packagesByProperty));
+  return properties.map((property) => toProperty(property, packagesByProperty, roomsByProperty));
 }
 
 export async function listPropertiesForHostFromDatabase(hostId: string): Promise<Property[]> {
+  await ensurePropertyAdvancedPricingColumns();
   await ensureListingBookingPackageTable();
+  await ensureListingRoomTable();
   const properties = await prisma.property.findMany({
     where: { hostId },
     include: {
@@ -464,21 +788,21 @@ export async function listPropertiesForHostFromDatabase(hostId: string): Promise
     orderBy: { createdAt: "desc" },
   });
   if (!properties.length) return [];
-  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
-    SELECT
-      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
-      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
-    FROM "ListingBookingPackage"
-    WHERE "propertyId" IN (${Prisma.join(properties.map((property) => property.id))})
-    ORDER BY "name" ASC
-  `;
+  const propertyIds = properties.map((property) => property.id);
+  const [packages, rooms] = await Promise.all([
+    listBookingPackageRowsForProperties(propertyIds),
+    listListingRoomRowsForProperties(propertyIds),
+  ]);
   const packagesByProperty = groupBookingPackages(packages);
+  const roomsByProperty = groupListingRooms(rooms);
 
-  return properties.map((property) => toProperty(property, packagesByProperty));
+  return properties.map((property) => toProperty(property, packagesByProperty, roomsByProperty));
 }
 
 export async function listPropertiesByStatusFromDatabase(status: Property["status"]): Promise<Property[]> {
+  await ensurePropertyAdvancedPricingColumns();
   await ensureListingBookingPackageTable();
+  await ensureListingRoomTable();
   const properties = await prisma.property.findMany({
     where: { status },
     include: {
@@ -489,22 +813,19 @@ export async function listPropertiesByStatusFromDatabase(status: Property["statu
     },
     orderBy: { createdAt: "desc" },
   });
-  const packages = properties.length
-    ? await prisma.$queryRaw<DatabaseBookingPackage[]>`
-      SELECT
-        "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
-        "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
-      FROM "ListingBookingPackage"
-      WHERE "propertyId" IN (${Prisma.join(properties.map((property) => property.id))})
-      ORDER BY "name" ASC
-    `
-    : [];
+  const propertyIds = properties.map((property) => property.id);
+  const [packages, rooms] = await Promise.all([
+    listBookingPackageRowsForProperties(propertyIds),
+    listListingRoomRowsForProperties(propertyIds),
+  ]);
   const packagesByProperty = groupBookingPackages(packages);
+  const roomsByProperty = groupListingRooms(rooms);
 
-  return properties.map((property) => toProperty(property, packagesByProperty));
+  return properties.map((property) => toProperty(property, packagesByProperty, roomsByProperty));
 }
 
 export async function listPublicListingSummariesFromDatabase(): Promise<PublicListingSummary[]> {
+  await ensurePropertyAdvancedPricingColumns();
   const properties = await prisma.property.findMany({
     where: { status: "approved" },
     select: {
@@ -514,6 +835,7 @@ export async function listPublicListingSummariesFromDatabase(): Promise<PublicLi
       address: true,
       city: true,
       country: true,
+      bookingType: true,
       pricePerNight: true,
       bedrooms: true,
       maxGuests: true,
@@ -531,7 +853,9 @@ export async function listPublicListingSummariesFromDatabase(): Promise<PublicLi
 }
 
 export async function findPropertyByIdFromDatabase(id: string): Promise<Property | null> {
+  await ensurePropertyAdvancedPricingColumns();
   await ensureListingBookingPackageTable();
+  await ensureListingRoomTable();
   const property = await prisma.property.findUnique({
     where: { id },
     include: {
@@ -543,16 +867,12 @@ export async function findPropertyByIdFromDatabase(id: string): Promise<Property
   });
   if (!property) return null;
 
-  const packages = await prisma.$queryRaw<DatabaseBookingPackage[]>`
-    SELECT
-      "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
-      "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
-    FROM "ListingBookingPackage"
-    WHERE "propertyId" = ${id}
-    ORDER BY "name" ASC
-  `;
+  const [packages, rooms] = await Promise.all([
+    listBookingPackageRowsForProperties([id]),
+    listListingRoomRowsForProperties([id]),
+  ]);
 
-  return toProperty(property, groupBookingPackages(packages));
+  return toProperty(property, groupBookingPackages(packages), groupListingRooms(rooms));
 }
 
 function amenityIdForName(name: string) {
@@ -577,6 +897,11 @@ async function ensureAmenitiesForProperty(db: Pick<Prisma.TransactionClient, "am
   return names.map((name) => idByName.get(name)).filter((id): id is string => Boolean(id));
 }
 
+function inputJsonArrayValue(value?: unknown[]) {
+  if (!value?.length) return Prisma.JsonNull;
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
 function propertyCreateData(property: Property, amenityIds: string[]) {
   const hasCoordinates = Number.isFinite(property.latitude) && Number.isFinite(property.longitude);
 
@@ -589,6 +914,7 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
     address: property.address,
     city: property.city,
     country: property.country,
+    bookingType: property.bookingType ?? "stay",
     pricePerNight: property.pricePerNight,
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
@@ -616,6 +942,9 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
         create: {
           id: `pricing-${property.id}`,
           weekendPrice: property.weekendPrice!,
+          holidayPrice: property.holidayPrice ?? null,
+          holidayDates: inputJsonArrayValue(property.holidayDates),
+          seasonalRates: inputJsonArrayValue(property.seasonalRates),
           cleaningFee: property.cleaningFee ?? 0,
           securityDeposit: property.securityDeposit ?? 0,
           currency: property.currency ?? "PHP",
@@ -635,20 +964,51 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
   };
 }
 
+function jsonArrayValue(value?: unknown[]) {
+  return JSON.stringify(value ?? []);
+}
+
+async function insertPropertyRooms(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Property) {
+  if (property.rooms?.length) {
+    await ensureListingRoomTable(db);
+    await Promise.all(
+      property.rooms.map((room, index) => db.$executeRaw`
+        INSERT INTO "ListingRoom" (
+          "id", "propertyId", "name", "capacity", "floor", "description", "photoUrls", "amenities", "active", "displayOrder"
+        )
+        VALUES (
+          ${room.id}, ${property.id}, ${room.name}, ${room.capacity}, ${room.floor}, ${room.description ?? null},
+          ${jsonArrayValue(room.photos)}::jsonb, ${jsonArrayValue(room.amenities)}::jsonb, ${room.active}, ${index}
+        )
+      `),
+    );
+  }
+}
+
 async function insertPropertyBookingPackages(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Property) {
   if (property.bookingPackages?.length) {
     await ensureListingBookingPackageTable(db);
     await Promise.all(
-      property.bookingPackages.map((bookingPackage) => db.$executeRaw`
+      property.bookingPackages.map((bookingPackage, index) => db.$executeRaw`
         INSERT INTO "ListingBookingPackage" (
-          "id", "propertyId", "name", "accessType", "unit", "weekdayRate", "weekendRate", "holidayRate",
-          "includedGuests", "maxGuests", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime", "enabled"
+          "id", "propertyId", "name", "description", "status", "displayOrder", "accessType", "unit",
+          "weekdayRate", "weekendRate", "holidayRate", "includedGuests", "maxGuests", "sleepingCapacity",
+          "durationHours", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime",
+          "accessibleFloors", "accessibleRoomIds", "includedAmenities", "excludedAmenities", "availableDays",
+          "minimumAdvanceBookingDays", "blockedPackageIds", "holidayDates", "seasonalRates", "enabled"
         )
         VALUES (
-          ${bookingPackage.id}, ${property.id}, ${bookingPackage.name}, ${bookingPackage.accessType}, ${bookingPackage.unit},
+          ${bookingPackage.id}, ${property.id}, ${bookingPackage.name}, ${bookingPackage.description ?? null},
+          ${bookingPackage.status ?? "active"}, ${bookingPackage.displayOrder ?? index}, ${bookingPackage.accessType}, ${bookingPackage.unit},
           ${bookingPackage.weekdayRate}, ${bookingPackage.weekendRate}, ${bookingPackage.holidayRate ?? null},
-          ${bookingPackage.includedGuests}, ${bookingPackage.maxGuests}, ${bookingPackage.additionalGuestFee},
-          ${bookingPackage.extensionHourlyFee}, ${bookingPackage.checkInTime}, ${bookingPackage.checkOutTime}, ${bookingPackage.enabled}
+          ${bookingPackage.includedGuests}, ${bookingPackage.maxGuests}, ${bookingPackage.sleepingCapacity ?? null},
+          ${bookingPackage.durationHours ?? null}, ${bookingPackage.additionalGuestFee}, ${bookingPackage.extensionHourlyFee},
+          ${bookingPackage.checkInTime}, ${bookingPackage.checkOutTime},
+          ${jsonArrayValue(bookingPackage.accessibleFloors)}::jsonb, ${jsonArrayValue(bookingPackage.accessibleRoomIds)}::jsonb,
+          ${jsonArrayValue(bookingPackage.includedAmenities)}::jsonb, ${jsonArrayValue(bookingPackage.excludedAmenities)}::jsonb,
+          ${jsonArrayValue(bookingPackage.availableDays)}::jsonb, ${bookingPackage.minimumAdvanceBookingDays ?? 0},
+          ${jsonArrayValue(bookingPackage.blockedPackageIds)}::jsonb, ${jsonArrayValue(bookingPackage.holidayDates)}::jsonb,
+          ${jsonArrayValue(bookingPackage.seasonalRates)}::jsonb, ${bookingPackage.enabled}
         )
       `),
     );
@@ -657,8 +1017,10 @@ async function insertPropertyBookingPackages(db: Pick<Prisma.TransactionClient, 
 
 export async function createPropertyInDatabase(property: Property) {
   await prisma.$transaction(async (tx) => {
+    await ensurePropertyAdvancedPricingColumns(tx);
     const amenityIds = await ensureAmenitiesForProperty(tx, property.amenities);
     await tx.property.create({ data: propertyCreateData(property, amenityIds) });
+    await insertPropertyRooms(tx, property);
     await insertPropertyBookingPackages(tx, property);
   }, { maxWait: 10000, timeout: 15000 });
 }
@@ -667,9 +1029,11 @@ export async function upsertDraftPropertyInDatabase(property: Property) {
   if (property.status !== "draft") throw new Error("Only draft listings can be saved through this path.");
 
   await prisma.$transaction(async (tx) => {
+    await ensurePropertyAdvancedPricingColumns(tx);
     await tx.property.deleteMany({ where: { id: property.id, hostId: property.hostId, status: "draft" } });
     const amenityIds = await ensureAmenitiesForProperty(tx, property.amenities);
     await tx.property.create({ data: propertyCreateData(property, amenityIds) });
+    await insertPropertyRooms(tx, property);
     await insertPropertyBookingPackages(tx, property);
   }, { maxWait: 10000, timeout: 15000 });
 }
@@ -733,11 +1097,12 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "amenities" | "images"
+  "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "amenities" | "images"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
   await prisma.$transaction(async (tx) => {
+    await ensurePropertyAdvancedPricingColumns(tx);
     const amenityIds = await ensureAmenitiesForProperty(tx, property.amenities);
     await tx.property.update({
       where: { id: property.id },
@@ -747,6 +1112,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         address: property.address,
         city: property.city,
         country: property.country,
+        bookingType: property.bookingType ?? "stay",
         pricePerNight: property.pricePerNight,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
@@ -769,12 +1135,18 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
             create: {
               id: `pricing-${property.id}`,
               weekendPrice: property.weekendPrice ?? property.pricePerNight,
+              holidayPrice: property.holidayPrice ?? null,
+              holidayDates: inputJsonArrayValue(property.holidayDates),
+              seasonalRates: inputJsonArrayValue(property.seasonalRates),
               cleaningFee: property.cleaningFee ?? 0,
               securityDeposit: property.securityDeposit ?? 0,
               currency: property.currency ?? "PHP",
             },
             update: {
               weekendPrice: property.weekendPrice ?? property.pricePerNight,
+              holidayPrice: property.holidayPrice ?? null,
+              holidayDates: inputJsonArrayValue(property.holidayDates),
+              seasonalRates: inputJsonArrayValue(property.seasonalRates),
               cleaningFee: property.cleaningFee ?? 0,
               securityDeposit: property.securityDeposit ?? 0,
               currency: property.currency ?? "PHP",
@@ -929,66 +1301,81 @@ export async function deleteAvailabilityBlockInDatabase(blockId: string) {
   await prisma.availabilityBlock.delete({ where: { id: blockId } });
 }
 
+function isBookingOverlapInvariantError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("BookingResourceLock_no_active_overlap_excl") ||
+    message.includes("Booking_no_active_overlap_excl")
+  );
+}
+
 export async function createBookingInDatabase(booking: Booking) {
   const checkIn = new Date(booking.checkIn);
   const checkOut = new Date(booking.checkOut);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
-  await prisma.$transaction(async (tx) => {
-    await ensureBookingPackageColumns(tx);
-    const conflictingBooking = await tx.booking.findFirst({
-      where: {
-        propertyId: booking.propertyId,
-        status: { not: "cancelled" },
-        NOT: {
-          AND: [
-            { paymentStatus: { in: ["pending", "rejected"] } },
-            { checkIn: { lt: today } },
-          ],
-        },
-        checkIn: { lt: checkOut },
-        checkOut: { gt: checkIn },
-      },
-      select: { id: true },
-    });
-    if (conflictingBooking) throw new Error("Those dates are no longer available.");
-
-    const blockedDate = await tx.availabilityBlock.findFirst({
-      where: {
-        propertyId: booking.propertyId,
-        available: false,
-        date: { gte: checkIn, lt: checkOut },
-      },
-      select: { id: true },
-    });
-    if (blockedDate) throw new Error("Those dates are no longer available.");
-
-    await tx.booking.create({
-      data: {
-        id: booking.id,
-        propertyId: booking.propertyId,
-        guestId: booking.guestId,
-        hostId: booking.hostId,
-        checkIn,
-        checkOut,
-        guests: booking.guests,
-        totalPrice: booking.totalPrice,
-        status: booking.status,
-        paymentStatus: booking.paymentStatus,
-        createdAt: new Date(booking.createdAt),
-      },
-    });
-    if (booking.bookingPackageId) {
-      await tx.$executeRaw`
-        UPDATE "Booking"
-        SET
-          "bookingPackageId" = ${booking.bookingPackageId},
-          "bookingPackageName" = ${booking.bookingPackageName ?? null},
-          "bookingPackageUnit" = ${booking.bookingPackageUnit ?? null}
-        WHERE "id" = ${booking.id}
+  try {
+    await prisma.$transaction(async (tx) => {
+      await ensureBookingPackageColumns(tx);
+      await ensureListingBookingPackageTable(tx);
+      const packageRows = await tx.$queryRaw<DatabaseBookingPackage[]>`
+        SELECT
+          "id", "propertyId", "name", "description", "status", "displayOrder", "accessType", "unit",
+          "weekdayRate", "weekendRate", "holidayRate", "includedGuests", "maxGuests", "sleepingCapacity",
+          "durationHours", "additionalGuestFee", "extensionHourlyFee", "checkInTime", "checkOutTime",
+          "accessibleFloors", "accessibleRoomIds", "includedAmenities", "excludedAmenities", "availableDays",
+          "minimumAdvanceBookingDays", "blockedPackageIds", "holidayDates", "seasonalRates", "enabled"
+        FROM "ListingBookingPackage"
+        WHERE "propertyId" = ${booking.propertyId}
       `;
-    }
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      const bookingPackages = groupBookingPackages(packageRows)[booking.propertyId] ?? [];
+      const overlappingBookings = await tx.$queryRaw<Array<{ id: string; bookingPackageId: string | null }>>`
+        SELECT "id", "bookingPackageId"
+        FROM "Booking"
+        WHERE "propertyId" = ${booking.propertyId}
+          AND "status" <> ${"cancelled"}
+          AND NOT ("paymentStatus" IN (${"pending"}, ${"rejected"}) AND "checkIn" < ${today})
+          AND "checkIn" < ${checkOut}
+          AND "checkOut" > ${checkIn}
+      `;
+      const conflictingBooking = overlappingBookings.find((item) =>
+        bookingBlocksRequestedPackage({ bookingPackageId: item.bookingPackageId ?? undefined }, booking.bookingPackageId, bookingPackages),
+      );
+      if (conflictingBooking) throw new Error("Those dates are no longer available.");
+
+      const blockedDate = await tx.availabilityBlock.findFirst({
+        where: {
+          propertyId: booking.propertyId,
+          available: false,
+          date: { gte: checkIn, lt: checkOut },
+        },
+        select: { id: true },
+      });
+      if (blockedDate) throw new Error("Those dates are no longer available.");
+
+      await tx.booking.create({
+        data: {
+          id: booking.id,
+          propertyId: booking.propertyId,
+          guestId: booking.guestId,
+          hostId: booking.hostId,
+          checkIn,
+          checkOut,
+          guests: booking.guests,
+          totalPrice: booking.totalPrice,
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+          bookingPackageId: booking.bookingPackageId ?? null,
+          bookingPackageName: booking.bookingPackageName ?? null,
+          bookingPackageUnit: booking.bookingPackageUnit ?? null,
+          createdAt: new Date(booking.createdAt),
+        },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error) {
+    if (isBookingOverlapInvariantError(error)) throw new Error("Those dates are no longer available.");
+    throw error;
+  }
 }
 
 export async function updateBookingPaymentInDatabase(bookingId: string, paymentStatus: Booking["paymentStatus"], transactionId: string) {
@@ -1457,6 +1844,72 @@ export async function listPlatformLedgerFromDatabase(): Promise<PlatformLedgerEn
     status: entry.status as PlatformLedgerEntry["status"],
     createdAt: entry.createdAt.toISOString(),
   }));
+}
+
+type DatabaseHostCustomerProfile = {
+  id: string;
+  hostId: string;
+  guestId: string;
+  classification: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function toHostCustomerClassification(value: string): HostCustomerClassification {
+  return value === "vip" ? "vip" : "ordinary";
+}
+
+function toHostCustomerProfile(profile: DatabaseHostCustomerProfile): HostCustomerProfile {
+  return {
+    id: profile.id,
+    hostId: profile.hostId,
+    guestId: profile.guestId,
+    classification: toHostCustomerClassification(profile.classification),
+    createdAt: profile.createdAt.toISOString(),
+    updatedAt: profile.updatedAt.toISOString(),
+  };
+}
+
+export async function listHostCustomerProfilesFromDatabase(hostId?: string): Promise<HostCustomerProfile[]> {
+  await ensureHostCustomerProfileTable();
+  const profiles = hostId
+    ? await prisma.$queryRaw<DatabaseHostCustomerProfile[]>`
+        SELECT "id", "hostId", "guestId", "classification", "createdAt", "updatedAt"
+        FROM "HostCustomerProfile"
+        WHERE "hostId" = ${hostId}
+        ORDER BY "updatedAt" DESC
+      `
+    : await prisma.$queryRaw<DatabaseHostCustomerProfile[]>`
+        SELECT "id", "hostId", "guestId", "classification", "createdAt", "updatedAt"
+        FROM "HostCustomerProfile"
+        ORDER BY "updatedAt" DESC
+      `;
+
+  return profiles.map(toHostCustomerProfile);
+}
+
+export async function upsertHostCustomerProfileInDatabase({
+  hostId,
+  guestId,
+  classification,
+}: {
+  hostId: string;
+  guestId: string;
+  classification: HostCustomerClassification;
+}) {
+  await ensureHostCustomerProfileTable();
+  const now = new Date();
+  await prisma.$executeRaw`
+    INSERT INTO "HostCustomerProfile" (
+      "id", "hostId", "guestId", "classification", "createdAt", "updatedAt"
+    )
+    VALUES (
+      ${`${hostId}:${guestId}`}, ${hostId}, ${guestId}, ${classification}, ${now}, ${now}
+    )
+    ON CONFLICT ("hostId", "guestId") DO UPDATE SET
+      "classification" = EXCLUDED."classification",
+      "updatedAt" = EXCLUDED."updatedAt"
+  `;
 }
 
 type DatabaseHostExpense = {
@@ -1968,8 +2421,15 @@ export async function createAuthTokenInDatabase(token: AuthToken) {
 export async function createSessionInDatabase(session: AuthSession) {
   await ensureAuthSessionTable();
   await prisma.$executeRaw`
-    INSERT INTO "AuthSession" ("id", "userId", "sessionHash", "expiresAt", "createdAt")
-    VALUES (${session.id}, ${session.userId}, ${session.sessionHash}, ${new Date(session.expiresAt)}, ${new Date(session.createdAt)})
+    INSERT INTO "AuthSession" (
+      "id", "userId", "sessionHash", "expiresAt", "createdAt",
+      "userAgent", "ipAddress", "lastSeenAt", "mfaVerifiedAt", "mfaRole"
+    )
+    VALUES (
+      ${session.id}, ${session.userId}, ${session.sessionHash}, ${new Date(session.expiresAt)}, ${new Date(session.createdAt)},
+      ${session.userAgent ?? null}, ${session.ipAddress ?? null}, ${session.lastSeenAt ? new Date(session.lastSeenAt) : null},
+      ${session.mfaVerifiedAt ? new Date(session.mfaVerifiedAt) : null}, ${session.mfaRole ?? null}
+    )
   `;
 }
 
@@ -1979,6 +2439,11 @@ type DatabaseAuthSession = {
   sessionHash: string;
   expiresAt: Date;
   createdAt: Date;
+  userAgent: string | null;
+  ipAddress: string | null;
+  lastSeenAt: Date | null;
+  mfaVerifiedAt: Date | null;
+  mfaRole: string | null;
 };
 
 function toAuthSession(session: DatabaseAuthSession): AuthSession {
@@ -1988,13 +2453,20 @@ function toAuthSession(session: DatabaseAuthSession): AuthSession {
     sessionHash: session.sessionHash,
     expiresAt: session.expiresAt.toISOString(),
     createdAt: session.createdAt.toISOString(),
+    userAgent: session.userAgent ?? undefined,
+    ipAddress: session.ipAddress ?? undefined,
+    lastSeenAt: session.lastSeenAt?.toISOString(),
+    mfaVerifiedAt: session.mfaVerifiedAt?.toISOString(),
+    mfaRole: session.mfaRole === "admin" || session.mfaRole === "host" || session.mfaRole === "guest" ? session.mfaRole : undefined,
   };
 }
 
 export async function findSessionFromDatabase(sessionHash: string) {
   await ensureAuthSessionTable();
   const session = await prisma.$queryRaw<DatabaseAuthSession[]>`
-    SELECT "id", "userId", "sessionHash", "expiresAt", "createdAt"
+    SELECT
+      "id", "userId", "sessionHash", "expiresAt", "createdAt",
+      "userAgent", "ipAddress", "lastSeenAt", "mfaVerifiedAt", "mfaRole"
     FROM "AuthSession"
     WHERE "sessionHash" = ${sessionHash}
     LIMIT 1
@@ -2005,7 +2477,21 @@ export async function findSessionFromDatabase(sessionHash: string) {
     await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "id" = ${found.id}`;
     return null;
   }
+  await prisma.$executeRaw`UPDATE "AuthSession" SET "lastSeenAt" = ${new Date()} WHERE "id" = ${found.id}`;
   return toAuthSession(found);
+}
+
+export async function listSessionsForUserFromDatabase(userId: string) {
+  await ensureAuthSessionTable();
+  const sessions = await prisma.$queryRaw<DatabaseAuthSession[]>`
+    SELECT
+      "id", "userId", "sessionHash", "expiresAt", "createdAt",
+      "userAgent", "ipAddress", "lastSeenAt", "mfaVerifiedAt", "mfaRole"
+    FROM "AuthSession"
+    WHERE "userId" = ${userId} AND "expiresAt" > ${new Date()}
+    ORDER BY "createdAt" DESC
+  `;
+  return sessions.map(toAuthSession);
 }
 
 export async function deleteSessionFromDatabase(sessionHash: string) {
@@ -2013,9 +2499,104 @@ export async function deleteSessionFromDatabase(sessionHash: string) {
   await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "sessionHash" = ${sessionHash}`;
 }
 
+export async function deleteSessionByIdForUserFromDatabase(userId: string, sessionId: string) {
+  await ensureAuthSessionTable();
+  await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${userId} AND "id" = ${sessionId}`;
+}
+
 export async function deleteSessionsForUserFromDatabase(userId: string) {
   await ensureAuthSessionTable();
   await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${userId}`;
+}
+
+export async function deleteSessionsForUserExceptFromDatabase(userId: string, sessionHash: string) {
+  await ensureAuthSessionTable();
+  await prisma.$executeRaw`DELETE FROM "AuthSession" WHERE "userId" = ${userId} AND "sessionHash" <> ${sessionHash}`;
+}
+
+type DatabasePasskey = {
+  id: string;
+  userId: string;
+  credentialId: string;
+  publicKey: string;
+  counter: number;
+  name: string;
+  transports: Prisma.JsonValue | null;
+  deviceType: string;
+  backedUp: boolean;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+};
+
+function toPasskey(passkey: DatabasePasskey): Passkey {
+  return {
+    id: passkey.id,
+    userId: passkey.userId,
+    credentialId: passkey.credentialId,
+    publicKey: passkey.publicKey,
+    counter: passkey.counter,
+    name: passkey.name,
+    transports: Array.isArray(passkey.transports) ? passkey.transports.filter((item): item is string => typeof item === "string") : undefined,
+    deviceType: passkey.deviceType === "multiDevice" ? "multiDevice" : "singleDevice",
+    backedUp: passkey.backedUp,
+    createdAt: passkey.createdAt.toISOString(),
+    lastUsedAt: passkey.lastUsedAt?.toISOString(),
+  };
+}
+
+export async function listPasskeysForUserFromDatabase(userId: string) {
+  await ensurePasskeyTable();
+  const passkeys = await prisma.$queryRaw<DatabasePasskey[]>`
+    SELECT
+      "id", "userId", "credentialId", "publicKey", "counter", "name",
+      "transports", "deviceType", "backedUp", "createdAt", "lastUsedAt"
+    FROM "Passkey"
+    WHERE "userId" = ${userId}
+    ORDER BY "createdAt" DESC
+  `;
+  return passkeys.map(toPasskey);
+}
+
+export async function findPasskeyByCredentialIdFromDatabase(credentialId: string) {
+  await ensurePasskeyTable();
+  const passkeys = await prisma.$queryRaw<DatabasePasskey[]>`
+    SELECT
+      "id", "userId", "credentialId", "publicKey", "counter", "name",
+      "transports", "deviceType", "backedUp", "createdAt", "lastUsedAt"
+    FROM "Passkey"
+    WHERE "credentialId" = ${credentialId}
+    LIMIT 1
+  `;
+  return passkeys[0] ? toPasskey(passkeys[0]) : null;
+}
+
+export async function createPasskeyInDatabase(passkey: Passkey) {
+  await ensurePasskeyTable();
+  await prisma.$executeRaw`
+    INSERT INTO "Passkey" (
+      "id", "userId", "credentialId", "publicKey", "counter", "name",
+      "transports", "deviceType", "backedUp", "createdAt", "lastUsedAt"
+    )
+    VALUES (
+      ${passkey.id}, ${passkey.userId}, ${passkey.credentialId}, ${passkey.publicKey}, ${passkey.counter}, ${passkey.name},
+      ${JSON.stringify(passkey.transports ?? [])}::jsonb, ${passkey.deviceType}, ${passkey.backedUp},
+      ${new Date(passkey.createdAt)}, ${passkey.lastUsedAt ? new Date(passkey.lastUsedAt) : null}
+    )
+  `;
+}
+
+export async function deletePasskeyForUserInDatabase(userId: string, passkeyId: string) {
+  await ensurePasskeyTable();
+  await prisma.$executeRaw`DELETE FROM "Passkey" WHERE "userId" = ${userId} AND "id" = ${passkeyId}`;
+}
+
+export async function updatePasskeyUsageInDatabase(credentialId: string, counter: number, deviceType: Passkey["deviceType"], backedUp: boolean) {
+  await ensurePasskeyTable();
+  await prisma.$executeRaw`
+    UPDATE "Passkey"
+    SET "counter" = ${counter}, "deviceType" = ${deviceType}, "backedUp" = ${backedUp}, "lastUsedAt" = ${new Date()}
+    WHERE "credentialId" = ${credentialId}
+  `;
 }
 
 function toAuthToken(token: { id: string; userId: string; tokenHash: string; type: string; expiresAt: Date; createdAt: Date }): AuthToken | null {

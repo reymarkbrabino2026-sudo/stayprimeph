@@ -7,8 +7,12 @@ const canonicalPathnames: Record<string, string> = {
   "/guest/profile": "/guest/profile",
   "/guest/notifications": "/guest/notifications",
   "/account-settings": "/account-settings",
+  "/account-settings/login-and-security": "/account-settings/login-and-security",
+  "/account-settings/privacy": "/account-settings/privacy",
   "/account-settings/notifications": "/account-settings/notifications",
+  "/account-settings/notifications/account": "/account-settings/notifications/account",
   "/account-settings/languages-and-currency": "/account-settings/languages-and-currency",
+  "/account-settings/booking-permissions": "/account-settings/booking-permissions",
   "/support/help-center": "/support/help-center",
 };
 

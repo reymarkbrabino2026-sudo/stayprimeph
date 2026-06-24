@@ -6,7 +6,7 @@ import { put } from "@vercel/blob";
 import { v2 as cloudinary } from "cloudinary";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
-import { sanitizeListingPhotoImage, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
+import { moderateListingPhotoImage, sanitizeListingPhotoImage, scanListingPhotoForMalware, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
 import {
   cloudinaryPaymentReceiptUploadFolder,
@@ -35,8 +35,14 @@ async function getSanitizedReceiptVariant(file: File): Promise<StoredReceiptVari
   const byteValidation = validateListingPhotoBytes(originalBytes, file.type);
   if (!byteValidation.ok) throw new Error(byteValidation.error);
 
+  const malwareScan = scanListingPhotoForMalware(originalBytes);
+  if (!malwareScan.ok) throw new Error(malwareScan.error);
+
   const sanitizedImage = await sanitizeListingPhotoImage(originalBytes, file.type);
   if (!sanitizedImage.ok) throw new Error(sanitizedImage.error);
+
+  const moderation = await moderateListingPhotoImage(sanitizedImage);
+  if (!moderation.ok) throw new Error(moderation.error);
 
   return sanitizedImage.variants.find((variant) => variant.format === sanitizedImage.primary.format) ?? sanitizedImage.variants[0];
 }

@@ -46,6 +46,7 @@ export function HostAddressFlow() {
                 className="object-cover"
                 sizes="(min-width: 1024px) 384px, 90vw"
                 preload
+                fetchPriority="high"
                 loading="eager"
               />
             </div>

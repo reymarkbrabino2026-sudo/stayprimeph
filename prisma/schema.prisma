@@ -31,6 +31,7 @@ model User {
   adminLogs       AdminLog[]
   authTokens      AuthToken[]
   authSessions    AuthSession[]
+  passkeys        Passkey[]
   accountSettings AccountSettings?
 }
 
@@ -43,6 +44,7 @@ model Property {
   address       String
   city          String
   country       String
+  bookingType   String               @default("stay")
   pricePerNight Int
   bedrooms      Int
   bathrooms     Int
@@ -61,6 +63,7 @@ model Property {
   location      ListingLocation?
   pricing       ListingPricing?
   availability  ListingAvailability?
+  rooms         ListingRoom[]
   bookingPackages ListingBookingPackage[]
   calendar      AvailabilityBlock[]
   highlights    ListingHighlight[]
@@ -95,6 +98,22 @@ model PropertyAmenity {
   @@id([propertyId, amenityId])
 }
 
+model ListingRoom {
+  id          String   @id
+  propertyId  String
+  name        String
+  capacity    Int
+  floor       String
+  description String?
+  photoUrls   Json?
+  amenities   Json?
+  active      Boolean  @default(true)
+  displayOrder Int     @default(0)
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
 model Booking {
   id            String        @id
   propertyId    String
@@ -116,10 +135,25 @@ model Booking {
   messages      Message[]
   payment       Payment?
   cancellation  Cancellation?
+  resourceLocks BookingResourceLock[]
 
   @@index([propertyId, checkIn, checkOut])
   @@index([guestId, status])
   @@index([hostId, status])
+}
+
+model BookingResourceLock {
+  bookingId   String
+  propertyId  String
+  resourceKey String
+  checkIn     DateTime
+  checkOut    DateTime
+  status      String
+  createdAt   DateTime @default(now())
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@id([bookingId, resourceKey])
+  @@index([propertyId, resourceKey, checkIn, checkOut])
 }
 
 model Review {
@@ -189,17 +223,31 @@ model ListingBookingPackage {
   id                 String   @id
   propertyId         String
   name               String
+  description        String?
+  status             String   @default("active")
+  displayOrder       Int      @default(0)
   accessType         String
   unit               String
   weekdayRate        Int
   weekendRate        Int
   holidayRate        Int?
+  holidayDates       Json?
+  seasonalRates      Json?
   includedGuests     Int
   maxGuests          Int
+  sleepingCapacity   Int?
+  durationHours      Int?
   additionalGuestFee Int
   extensionHourlyFee Int
   checkInTime        String
   checkOutTime       String
+  accessibleFloors   Json?
+  accessibleRoomIds  Json?
+  includedAmenities  Json?
+  excludedAmenities  Json?
+  availableDays      Json?
+  minimumAdvanceBookingDays Int @default(0)
+  blockedPackageIds  Json?
   enabled            Boolean  @default(true)
   property           Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
@@ -251,6 +299,19 @@ model HostMonthlyReport {
   @@index([month])
 }
 
+model HostCustomerProfile {
+  id             String   @id
+  hostId         String
+  guestId        String
+  classification String   @default("ordinary")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([hostId, guestId])
+  @@index([hostId])
+  @@index([guestId])
+}
+
 model AuthToken {
   id        String   @id
   userId    String
@@ -269,9 +330,32 @@ model AuthSession {
   sessionHash String   @unique
   expiresAt   DateTime
   createdAt   DateTime @default(now())
+  userAgent   String?
+  ipAddress   String?
+  lastSeenAt  DateTime?
+  mfaVerifiedAt DateTime?
+  mfaRole     String?
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+  @@index([userId, createdAt])
+}
+
+model Passkey {
+  id           String    @id
+  userId       String
+  credentialId String    @unique
+  publicKey    String
+  counter      Int       @default(0)
+  name         String
+  transports   Json?
+  deviceType   String
+  backedUp     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model HostProfile {
@@ -299,6 +383,9 @@ model ListingPricing {
   id              String   @id
   propertyId      String   @unique
   weekendPrice    Int
+  holidayPrice    Int?
+  holidayDates    Json?
+  seasonalRates   Json?
   cleaningFee     Int
   securityDeposit Int
   currency        String

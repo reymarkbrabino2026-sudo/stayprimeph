@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCanonicalPathname } from "@/lib/canonical-paths";
+import { buildContentSecurityPolicy, cspNonceHeaderName } from "@/lib/content-security-policy";
 import { corsHeaders } from "@/lib/cors";
 
 const sessionCookieName = "stayprimeph_session";
@@ -35,7 +36,28 @@ function withCorsHeaders(request: NextRequest, response: NextResponse) {
   return response;
 }
 
-function withSecurityHeaders(request: NextRequest, response: NextResponse) {
+function createCspNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let value = "";
+  for (const byte of bytes) value += String.fromCharCode(byte);
+  return btoa(value);
+}
+
+function createRequestSecurity(request: NextRequest) {
+  const nonce = createCspNonce();
+  const contentSecurityPolicy = buildContentSecurityPolicy({
+    nonce,
+    isProduction: process.env.NODE_ENV === "production",
+  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(cspNonceHeaderName, nonce);
+  requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+  return { contentSecurityPolicy, requestHeaders };
+}
+
+function withSecurityHeaders(request: NextRequest, response: NextResponse, contentSecurityPolicy: string) {
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -112,16 +134,18 @@ function buildLoginUrl(request: NextRequest, role?: "admin" | "host" | "guest") 
 }
 
 export async function proxy(request: NextRequest) {
+  const security = createRequestSecurity(request);
+
   if (request.method === "OPTIONS" && request.nextUrl.pathname.startsWith("/api/")) {
     const cors = corsHeaders(request.headers.get("origin"));
-    return withSecurityHeaders(request, new NextResponse(null, { status: cors ? 204 : 403 }));
+    return withSecurityHeaders(request, new NextResponse(null, { status: cors ? 204 : 403 }), security.contentSecurityPolicy);
   }
 
   const canonicalPathname = getCanonicalPathname(request.nextUrl.pathname);
   if (canonicalPathname && canonicalPathname !== request.nextUrl.pathname) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = canonicalPathname;
-    return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
+    return withSecurityHeaders(request, NextResponse.redirect(redirectUrl), security.contentSecurityPolicy);
   }
 
   const protectedRoute = getProtectedRoute(request.nextUrl.pathname);
@@ -129,11 +153,15 @@ export async function proxy(request: NextRequest) {
     const sessionValue = request.cookies.get(sessionCookieName)?.value;
     const validSession = await hasValidSession(sessionValue);
     if (!validSession) {
-      return withSecurityHeaders(request, NextResponse.redirect(buildLoginUrl(request, protectedRoute.role)));
+      return withSecurityHeaders(request, NextResponse.redirect(buildLoginUrl(request, protectedRoute.role)), security.contentSecurityPolicy);
     }
   }
 
-  return withSecurityHeaders(request, NextResponse.next());
+  return withSecurityHeaders(
+    request,
+    NextResponse.next({ request: { headers: security.requestHeaders } }),
+    security.contentSecurityPolicy,
+  );
 }
 
 export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };

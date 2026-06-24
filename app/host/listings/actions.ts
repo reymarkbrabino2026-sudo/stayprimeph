@@ -31,25 +31,66 @@ const numberValue = (min: number, max: number, fallback: number) =>
 const integerValue = (min: number, max: number, fallback: number) =>
   z.preprocess((value) => Number(value), z.number().int().min(min).max(max)).catch(fallback);
 
+const dateKeyList = z.array(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]);
+
+const seasonalRateDraftSchema = z.object({
+  id: textValue(80),
+  name: textValue(80),
+  startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).catch(""),
+  endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).catch(""),
+  weekdayRate: integerValue(1, 1000000, 1),
+  weekendRate: integerValue(0, 1000000, 0),
+  holidayRate: integerValue(0, 1000000, 0),
+}).transform((value) => ({
+  ...value,
+  id: value.id || randomUUID(),
+  name: value.name || "Seasonal rate",
+}));
+
 const draftBookingPackageSchema = z.object({
   id: textValue(80),
   name: textValue(80),
+  description: textValue(300),
+  status: z.enum(["active", "inactive"]).catch("active"),
+  displayOrder: integerValue(0, 100, 0),
   accessType: textValue(120),
   unit: z.enum(["night", "day"]).catch("night"),
   weekdayRate: integerValue(1, 1000000, 1),
   weekendRate: integerValue(0, 1000000, 0),
   holidayRate: integerValue(0, 1000000, 0),
+  holidayDates: dateKeyList,
+  seasonalRates: z.array(seasonalRateDraftSchema).max(12).catch([]),
   includedGuests: integerValue(1, 500, 1),
   maxGuests: integerValue(1, 500, 1),
+  sleepingCapacity: integerValue(0, 500, 0),
+  durationHours: integerValue(1, 168, 21),
   additionalGuestFee: integerValue(0, 1000000, 0),
   extensionHourlyFee: integerValue(0, 1000000, 0),
   checkInTime: textValue(40),
   checkOutTime: textValue(40),
+  accessibleFloors: z.array(z.string().trim().min(1).max(80)).max(20).catch([]),
+  accessibleRoomIds: z.array(z.string().trim().min(1).max(100)).max(50).catch([]),
+  includedAmenities: z.array(z.string().trim().min(1).max(80)).max(80).catch([]),
+  excludedAmenities: z.array(z.string().trim().min(1).max(80)).max(80).catch([]),
+  availableDays: z.array(z.number().int().min(0).max(6)).min(1).max(7).catch([0, 1, 2, 3, 4, 5, 6]),
+  minimumAdvanceBookingDays: integerValue(0, 365, 0),
+  blockedPackageIds: z.array(z.string().trim().min(1).max(100)).max(20).catch([]),
   enabled: z.boolean().catch(false),
 }).transform((value) => ({
   ...value,
   maxGuests: Math.max(value.maxGuests, value.includedGuests),
 }));
+
+const draftRoomSchema = z.object({
+  id: textValue(80),
+  name: textValue(80),
+  capacity: integerValue(1, 100, 1),
+  floor: textValue(80),
+  description: textValue(300),
+  photos: z.array(z.string().trim().max(2048)).max(12).catch([]),
+  amenities: z.array(z.string().trim().max(80)).max(30).catch([]),
+  active: z.boolean().catch(true),
+});
 
 const hostListingDraftSaveSchema = z.object({
   uploadScopeId: textValue(120),
@@ -70,6 +111,7 @@ const hostListingDraftSaveSchema = z.object({
   bedrooms: integerValue(0, 50, 0),
   beds: integerValue(1, 100, 1),
   bathrooms: numberValue(1, 50, 1),
+  rooms: z.array(draftRoomSchema).max(30).catch([]),
   amenityIds: z.array(z.string().max(80)).max(50).catch([]),
   photos: z.array(z.object({
     id: textValue(160),
@@ -81,10 +123,14 @@ const hostListingDraftSaveSchema = z.object({
   title: textValue(50),
   highlights: z.array(z.string().max(80)).max(2).catch([]),
   description: textValue(500),
+  bookingType: z.enum(["stay", "package", "both"]).catch("stay"),
   bookingMode: z.enum(["request", "instant"]).catch("request"),
   pricingMode: z.enum(["simple", "packages"]).catch("simple"),
   basePrice: integerValue(1, 1000000, 1),
   weekendPrice: integerValue(1, 1000000, 1),
+  holidayPrice: integerValue(0, 1000000, 0),
+  holidayDates: dateKeyList,
+  seasonalRates: z.array(seasonalRateDraftSchema).max(12).catch([]),
   weekendPremium: integerValue(0, 99, 0),
   cleaningFee: integerValue(0, 1000000, 0),
   securityDeposit: integerValue(0, 1000000, 0),
@@ -128,6 +174,9 @@ const listingFormSchema = z.object({
   cleaningFee: z.coerce.number().int().min(0).max(1000000),
   securityDeposit: z.coerce.number().int().min(0).max(1000000),
   currency: z.string().trim().min(1).max(8),
+  bookingType: z.enum(["stay", "package", "both"]).catch("stay"),
+  holidayPrice: z.coerce.number().int().min(0).max(1000000).optional(),
+  holidayDates: z.array(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]),
   bedrooms: z.coerce.number().int().min(0).max(50),
   bathrooms: z.coerce.number().min(0).max(50),
   maxGuests: z.coerce.number().int().min(1).max(100),
@@ -146,6 +195,14 @@ const amenityLabelById = new Map(
 
 function toAmenityLabels(ids: string[]) {
   return ids.map((id) => amenityLabelById.get(id) ?? id);
+}
+
+function csvDateKeys(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item));
 }
 
 function buildHouseRules(input: Pick<HostListingInput, "safetyDisclosures" | "bookingMode">) {
@@ -194,20 +251,65 @@ function readSubmittedImages(formData: FormData, existing: Property, userId: str
   }));
 }
 
-function enabledBookingPackages(input: Pick<HostListingInput, "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "pricingMode" | "bookingPackages">) {
-  return input.pricingMode === "packages" ? input.bookingPackages.filter((item) => item.enabled) : [];
+function enabledBookingPackages(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages">) {
+  return input.bookingType !== "stay" && input.pricingMode === "packages" ? input.bookingPackages.filter((item) => item.enabled && item.status !== "inactive") : [];
 }
 
-function propertyScopedBookingPackages(input: Pick<HostListingInput, "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "pricingMode" | "bookingPackages">, propertyId: string) {
-  return enabledBookingPackages(input).map((item) => ({ ...item, id: `${propertyId}-${item.id}` }));
+function propertyScopedRooms(input: Pick<HostListingInput, "rooms"> | Pick<HostListingDraftSaveInput, "rooms">, propertyId: string) {
+  return input.rooms
+    .filter((room) => room.active && room.name.trim())
+    .map((room) => ({
+      id: `${propertyId}-${room.id}`,
+      name: room.name,
+      capacity: room.capacity,
+      floor: room.floor || "Unassigned",
+      description: room.description || undefined,
+      photos: room.photos,
+      amenities: room.amenities,
+      active: room.active,
+    }));
 }
 
-function minimumPackageWeekdayRate(input: Pick<HostListingInput, "pricingMode" | "bookingPackages" | "basePrice"> | Pick<HostListingDraftSaveInput, "pricingMode" | "bookingPackages" | "basePrice">) {
+function scopedPackageId(propertyId: string, id: string) {
+  return id.startsWith(`${propertyId}-`) ? id : `${propertyId}-${id}`;
+}
+
+function scopedRoomId(propertyId: string, id: string) {
+  return id.startsWith(`${propertyId}-`) ? id : `${propertyId}-${id}`;
+}
+
+function validSeasonalRates(rates: Array<{ id?: string; name: string; startDate: string; endDate: string; weekdayRate: number; weekendRate: number; holidayRate: number }> = []) {
+  return rates
+    .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.startDate) && /^\d{4}-\d{2}-\d{2}$/.test(item.endDate) && item.endDate >= item.startDate && item.weekdayRate > 0)
+    .map((item) => ({
+      id: item.id || randomUUID(),
+      name: item.name || "Seasonal rate",
+      startDate: item.startDate,
+      endDate: item.endDate,
+      weekdayRate: item.weekdayRate,
+      weekendRate: item.weekendRate > 0 ? item.weekendRate : undefined,
+      holidayRate: item.holidayRate > 0 ? item.holidayRate : undefined,
+    }));
+}
+
+function propertyScopedBookingPackages(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages">, propertyId: string) {
+  return enabledBookingPackages(input).map((item, index) => ({
+    ...item,
+    id: scopedPackageId(propertyId, item.id),
+    displayOrder: item.displayOrder || index,
+    status: item.status ?? "active",
+    accessibleRoomIds: item.accessibleRoomIds.map((roomId) => scopedRoomId(propertyId, roomId)),
+    blockedPackageIds: item.blockedPackageIds.map((packageId) => scopedPackageId(propertyId, packageId)),
+    seasonalRates: validSeasonalRates(item.seasonalRates ?? []),
+  }));
+}
+
+function minimumPackageWeekdayRate(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages" | "basePrice"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages" | "basePrice">) {
   const packages = enabledBookingPackages(input);
   return packages.length ? Math.min(...packages.map((item) => item.weekdayRate)) : input.basePrice;
 }
 
-function minimumPackageWeekendRate(input: Pick<HostListingInput, "pricingMode" | "bookingPackages" | "weekendPrice"> | Pick<HostListingDraftSaveInput, "pricingMode" | "bookingPackages" | "weekendPrice">) {
+function minimumPackageWeekendRate(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages" | "weekendPrice"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages" | "weekendPrice">) {
   const packages = enabledBookingPackages(input);
   if (!packages.length) return input.weekendPrice;
   return Math.min(...packages.map((item) => item.weekendRate > 0 ? item.weekendRate : item.weekdayRate));
@@ -227,6 +329,7 @@ function draftText(value: string, fallback: string) {
 
 function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, createdAt = new Date().toISOString().slice(0, 10)): Property {
   const identity = draftPropertyIdentity(userId, listing.uploadScopeId || randomUUID());
+  const rooms = propertyScopedRooms(listing, identity.id);
   const bookingPackages = propertyScopedBookingPackages(listing, identity.id);
   const images = orderedImages(listing, identity.id).filter((image) => image.imageUrl);
 
@@ -245,8 +348,12 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
     latitude: listing.latitude,
     longitude: listing.longitude,
     preciseLocation: listing.preciseLocation,
+    bookingType: listing.bookingType,
     pricePerNight: minimumPackageWeekdayRate(listing),
     weekendPrice: minimumPackageWeekendRate(listing),
+    holidayPrice: listing.holidayPrice,
+    holidayDates: listing.holidayDates,
+    seasonalRates: validSeasonalRates(listing.seasonalRates),
     cleaningFee: listing.cleaningFee,
     securityDeposit: listing.securityDeposit,
     currency: listing.currency || "PHP",
@@ -261,6 +368,7 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
     createdAt,
     images: images.length ? images : [{ id: `${identity.id}-placeholder`, propertyId: identity.id, imageUrl: "pending-upload", tone: "from-rose-100 via-orange-50 to-stone-100" }],
     discounts: listing.discounts,
+    rooms,
     bookingPackages,
   };
 }
@@ -291,6 +399,9 @@ export async function createListing(formData: FormData) {
     cleaningFee: formData.get("cleaningFee") || "0",
     securityDeposit: formData.get("securityDeposit") || "0",
     currency: formData.get("currency") || "PHP",
+    bookingType: formData.get("bookingType") || "stay",
+    holidayPrice: formData.get("holidayPrice") || "0",
+    holidayDates: csvDateKeys(formData.get("holidayDates")),
     bedrooms: formData.get("bedrooms"),
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
@@ -309,6 +420,9 @@ export async function createListing(formData: FormData) {
     cleaningFee,
     securityDeposit,
     currency,
+    bookingType,
+    holidayPrice,
+    holidayDates,
     bedrooms,
     bathrooms,
     maxGuests,
@@ -326,8 +440,11 @@ export async function createListing(formData: FormData) {
     address,
     city,
     country,
+    bookingType,
     pricePerNight,
     weekendPrice,
+    holidayPrice: holidayPrice ?? 0,
+    holidayDates,
     cleaningFee,
     securityDeposit,
     currency,
@@ -369,6 +486,9 @@ export async function updateListing(formData: FormData) {
     cleaningFee: formData.get("cleaningFee") || "0",
     securityDeposit: formData.get("securityDeposit") || "0",
     currency: formData.get("currency") || "PHP",
+    bookingType: formData.get("bookingType") || "stay",
+    holidayPrice: formData.get("holidayPrice") || "0",
+    holidayDates: csvDateKeys(formData.get("holidayDates")),
     bedrooms: formData.get("bedrooms"),
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
@@ -395,6 +515,9 @@ export async function updateListing(formData: FormData) {
     cleaningFee: parsed.data.cleaningFee,
     securityDeposit: parsed.data.securityDeposit,
     currency: parsed.data.currency,
+    bookingType: parsed.data.bookingType,
+    holidayPrice: parsed.data.holidayPrice ?? 0,
+    holidayDates: parsed.data.holidayDates,
     bedrooms: parsed.data.bedrooms,
     bathrooms: parsed.data.bathrooms,
     maxGuests: parsed.data.maxGuests,
@@ -520,6 +643,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
   }
 
   const id = randomUUID();
+  const rooms = propertyScopedRooms(listing, id);
   const bookingPackages = propertyScopedBookingPackages(listing, id);
   const property: Property = {
     id,
@@ -536,8 +660,12 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     latitude: listing.latitude,
     longitude: listing.longitude,
     preciseLocation: listing.preciseLocation,
+    bookingType: listing.bookingType,
     pricePerNight: minimumPackageWeekdayRate(listing),
     weekendPrice: minimumPackageWeekendRate(listing),
+    holidayPrice: listing.holidayPrice,
+    holidayDates: listing.holidayDates,
+    seasonalRates: validSeasonalRates(listing.seasonalRates),
     cleaningFee: listing.cleaningFee,
     securityDeposit: listing.securityDeposit,
     currency: listing.currency,
@@ -552,6 +680,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     createdAt: new Date().toISOString().slice(0, 10),
     images: orderedImages(listing, id),
     discounts: listing.discounts,
+    rooms,
     bookingPackages,
   };
   const draftIdentity = draftPropertyIdentity(user.id, listing.uploadScopeId);

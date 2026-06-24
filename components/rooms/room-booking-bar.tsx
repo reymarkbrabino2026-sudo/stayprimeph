@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
-import { calculateGuestPriceWithMarkup, getBookingPackageById } from "@/lib/pricing";
+import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
+import { calculateGuestPriceWithMarkup, findBookingPackageById } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import { TODAY, buildReserveHref, computePrice, useReservationStore } from "@/stores/reservation-store";
@@ -29,7 +30,12 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
   const [activeSection, setActiveSection] = useState(navItems[0].href);
   const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
   const [inlineReservationVisible, setInlineReservationVisible] = useState(false);
-  const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableStays), [unavailableStays]);
+  const selectedPackage = useMemo(() => (packageId ? findBookingPackageById(property, packageId) : null), [packageId, property]);
+  const relevantUnavailableStays = useMemo(
+    () => unavailableStays.filter((stay) => "date" in stay || bookingBlocksRequestedPackage(stay, selectedPackage?.id, property.bookingPackages ?? [])),
+    [property.bookingPackages, selectedPackage?.id, unavailableStays],
+  );
+  const bookedNightKeys = useMemo(() => getBookedNightKeys(relevantUnavailableStays), [relevantUnavailableStays]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const effectiveStay = useMemo(() => {
     const selectedStayNeedsRepair =
@@ -47,7 +53,6 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
   }, [bookedNightSet, checkIn, checkOut]);
-  const selectedPackage = useMemo(() => getBookingPackageById(property, packageId), [packageId, property]);
   const { nights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(selectedPackage?.weekdayRate ?? property.pricePerNight);
   const reserveHref = validStay ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id) : "#";

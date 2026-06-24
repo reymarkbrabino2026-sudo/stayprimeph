@@ -140,11 +140,14 @@ vi.mock("@/lib/payments", () => ({
 }));
 
 vi.mock("@/lib/pricing", () => ({
+  allowsPackageBooking: vi.fn(() => true),
+  allowsStayBooking: vi.fn(() => true),
   calculateDefaultWeekendPrice: vi.fn((price: number) => price),
   calculateGuestPriceWithMarkup: vi.fn((price: number) => price),
   calculateNightlySubtotal: vi.fn(() => ({ nights: 1, subtotal: 1000 })),
   calculatePackageSubtotal: vi.fn(() => ({ nights: 1, subtotal: 1000 })),
   calculateStayprimeMarkup: vi.fn(() => 200),
+  findBookingPackageById: vi.fn(() => null),
   getBestDiscount: vi.fn(() => null),
   getBookingPackageById: vi.fn(() => null),
   getEnabledBookingPackages: vi.fn(() => []),
@@ -224,7 +227,7 @@ import { sendGuestMessage } from "@/app/host/messages/actions";
 import { deleteHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
 import { POST as createPaymentCheckout } from "@/app/api/payments/checkout/route";
 import { cancelBookingByGuest, getBookingById, getBookings, hasDateConflict } from "@/lib/bookings";
-import { calculatePackageSubtotal, getBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
+import { calculatePackageSubtotal, findBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
 import { savePersonalInfo } from "@/lib/account-settings";
 import { createMessage } from "@/lib/messages";
 import { getProperties, getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
@@ -358,6 +361,7 @@ describe("IDOR protections", () => {
     vi.clearAllMocks();
     authState.currentUser = null;
     authState.stripeCheckoutCreate.mockClear();
+    vi.mocked(hasDateConflict).mockReset();
     vi.mocked(hasDateConflict).mockReturnValue(false);
   });
 
@@ -417,7 +421,7 @@ describe("IDOR protections", () => {
     vi.mocked(getPropertyById).mockResolvedValueOnce({ ...property, bookingPackages: [dayPackage, fullAccessPackage] });
     vi.mocked(getBookings).mockResolvedValueOnce([]);
     vi.mocked(getEnabledBookingPackages).mockReturnValueOnce([dayPackage, fullAccessPackage]);
-    vi.mocked(getBookingPackageById).mockReturnValueOnce(dayPackage);
+    vi.mocked(findBookingPackageById).mockReturnValueOnce(dayPackage);
 
     await expect(
       createBooking(formData({
@@ -621,6 +625,7 @@ describe("IDOR protections", () => {
       bedrooms: 2,
       beds: 3,
       bathrooms: 2,
+      rooms: [],
       amenityIds: ["wifi"],
       photos: uploadedPhotos,
       title: "Wizard Listing",

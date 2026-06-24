@@ -71,6 +71,27 @@ describe("calculateNightlySubtotal", () => {
     const total = calculateNightlySubtotal({ pricePerNight: 1000 }, "2026-06-19", "2026-06-22");
     expect(total).toEqual({ nights: 3, weekdayNights: 0, weekendNights: 3, subtotal: 3600 });
   });
+
+  it("uses holiday rates on configured holiday dates", () => {
+    const total = calculateNightlySubtotal({
+      pricePerNight: 1000,
+      weekendPrice: 1500,
+      holidayPrice: 2500,
+      holidayDates: ["2026-06-18"],
+    }, "2026-06-18", "2026-06-20");
+
+    expect(total).toEqual({ nights: 2, weekdayNights: 1, weekendNights: 1, subtotal: 4000 });
+  });
+
+  it("uses seasonal rates inside configured date windows", () => {
+    const total = calculateNightlySubtotal({
+      pricePerNight: 1000,
+      weekendPrice: 1500,
+      seasonalRates: [{ name: "Peak", startDate: "2026-06-18", endDate: "2026-06-20", weekdayRate: 2000, weekendRate: 3000 }],
+    }, "2026-06-18", "2026-06-21");
+
+    expect(total).toEqual({ nights: 3, weekdayNights: 1, weekendNights: 2, subtotal: 8000 });
+  });
 });
 
 describe("calculatePackageSubtotal", () => {

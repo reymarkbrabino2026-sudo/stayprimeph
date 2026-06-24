@@ -28,6 +28,7 @@ import { verifyPassword } from "@/lib/auth";
 import { issueAuthToken } from "@/lib/auth-tokens";
 import { prisma } from "@/lib/db";
 import { sendEmailChangeVerificationEmail } from "@/lib/email";
+import { canonicalTokenValue, fieldNeedsEncryption, fieldToken, protectedTextForStorage, publicProtectedText } from "@/lib/field-protection";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { usesPrismaPersistence } from "@/lib/repositories";
 import {
@@ -82,6 +83,7 @@ const providedMarker = "Provided";
 const minimizedIdentityStatuses = new Set(["Verification started", "Verified", "Declined", "Expired"]);
 const personalInfoStorageFields = ["preferredName", "identity", "residentialAddress", "mailingAddress", "emergencyContact"] as const;
 const minimizedPersonalInfoFields = ["identity", "residentialAddress", "mailingAddress", "emergencyContact"] as const;
+const personalInfoProtectionSuffixes = ["Token", "ProtectedAt"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -103,6 +105,36 @@ function providedState(value: unknown) {
   return normalizeText(value).trim() ? providedMarker : "";
 }
 
+function protectedProvidedState(value: unknown, existingRecord: unknown, field: string, purpose: string, display: string) {
+  const normalized = normalizeText(value).trim();
+  const existing = isRecord(existingRecord) ? existingRecord : {};
+  const existingToken = normalizeText(existing[`${field}Token`]);
+  const existingProtectedAt = normalizeText(existing[`${field}ProtectedAt`]);
+
+  if (!normalized) return { [field]: "" };
+  if ((normalized === display || normalized === providedMarker || minimizedIdentityStatuses.has(normalized)) && existingToken) {
+    return {
+      [field]: normalized,
+      [`${field}Token`]: existingToken,
+      [`${field}ProtectedAt`]: existingProtectedAt || new Date().toISOString(),
+    };
+  }
+
+  return {
+    [field]: display,
+    [`${field}Token`]: fieldToken(canonicalTokenValue(normalized), purpose),
+    [`${field}ProtectedAt`]: new Date().toISOString(),
+  };
+}
+
+function protectedText(value: unknown, purpose: string) {
+  return protectedTextForStorage(normalizeText(value), purpose);
+}
+
+function publicText(value: unknown, purpose: string) {
+  return publicProtectedText(value, purpose);
+}
+
 function normalizeIdentityStatus(value: unknown) {
   const status = normalizeText(value).trim();
   if (!status) return "";
@@ -120,19 +152,19 @@ function normalizePersonalInfo(user: User, value: unknown): PersonalInfoState {
   return next;
 }
 
-function minimizePersonalInfoForStorage(personalInfo: PersonalInfoState) {
+function protectPersonalInfoForStorage(personalInfo: PersonalInfoState, existingPersonalInfo?: unknown) {
   return {
     preferredName: personalInfo.preferredName.trim(),
-    identity: normalizeIdentityStatus(personalInfo.identity),
-    residentialAddress: providedState(personalInfo.residentialAddress),
-    mailingAddress: providedState(personalInfo.mailingAddress),
-    emergencyContact: providedState(personalInfo.emergencyContact),
+    ...protectedProvidedState(personalInfo.identity, existingPersonalInfo, "identity", "account-settings.personalInfo.identity", normalizeIdentityStatus(personalInfo.identity)),
+    ...protectedProvidedState(personalInfo.residentialAddress, existingPersonalInfo, "residentialAddress", "account-settings.personalInfo.residentialAddress", providedMarker),
+    ...protectedProvidedState(personalInfo.mailingAddress, existingPersonalInfo, "mailingAddress", "account-settings.personalInfo.mailingAddress", providedMarker),
+    ...protectedProvidedState(personalInfo.emergencyContact, existingPersonalInfo, "emergencyContact", "account-settings.personalInfo.emergencyContact", providedMarker),
   };
 }
 
-function minimizeStoredPersonalInfoForStorage(personalInfo: unknown) {
+function protectStoredPersonalInfoForStorage(personalInfo: unknown) {
   const value = isRecord(personalInfo) ? personalInfo : {};
-  return minimizePersonalInfoForStorage({
+  return protectPersonalInfoForStorage({
     legalName: "",
     preferredName: normalizeText(value.preferredName),
     email: "",
@@ -141,13 +173,18 @@ function minimizeStoredPersonalInfoForStorage(personalInfo: unknown) {
     residentialAddress: normalizeText(value.residentialAddress),
     mailingAddress: normalizeText(value.mailingAddress),
     emergencyContact: normalizeText(value.emergencyContact),
-  });
+  }, personalInfo);
+}
+
+function isAllowedPersonalInfoStorageField(field: string) {
+  if (personalInfoStorageFields.includes(field as typeof personalInfoStorageFields[number])) return true;
+  return minimizedPersonalInfoFields.some((sensitiveField) => personalInfoProtectionSuffixes.some((suffix) => field === `${sensitiveField}${suffix}`));
 }
 
 function personalInfoNeedsMinimization(personalInfo: unknown) {
   if (!isRecord(personalInfo)) return false;
   const duplicatesProfileFields = ["legalName", "email", "phone"].some((field) => typeof personalInfo[field] === "string" && personalInfo[field].trim());
-  const hasUnexpectedField = Object.keys(personalInfo).some((field) => !personalInfoStorageFields.includes(field as typeof personalInfoStorageFields[number]));
+  const hasUnexpectedField = Object.keys(personalInfo).some((field) => !isAllowedPersonalInfoStorageField(field));
   const hasRawSensitiveText = minimizedPersonalInfoFields.some((field) => {
     const value = normalizeText(personalInfo[field]).trim();
     return value && value !== providedMarker && !minimizedIdentityStatuses.has(value);
@@ -204,7 +241,9 @@ function normalizePrivacySettings(value: unknown): PrivacySettingsState {
 
   return {
     settings,
-    blockedPeople: Array.isArray(value.blockedPeople) ? value.blockedPeople.filter((item): item is string => typeof item === "string") : [],
+    blockedPeople: Array.isArray(value.blockedPeople)
+      ? value.blockedPeople.map((item) => publicText(item, "account-settings.privacy.blockedPeople")).filter(Boolean)
+      : [],
     dataRequestedAt: typeof value.dataRequestedAt === "string" ? value.dataRequestedAt : null,
     deletionRequestedAt: typeof value.deletionRequestedAt === "string" ? value.deletionRequestedAt : null,
     deletionVerifiedAt: typeof value.deletionVerifiedAt === "string" ? value.deletionVerifiedAt : null,
@@ -221,7 +260,7 @@ function normalizeBookingPermissions(value: unknown): BookingPermissionState {
 function normalizeWorkTravelProfile(value: unknown): WorkTravelProfile {
   const next = { ...defaultWorkTravelProfile };
   if (!isRecord(value)) return next;
-  for (const field of workTravelTextFields) next[field] = normalizeText(value[field]);
+  for (const field of workTravelTextFields) next[field] = publicText(value[field], `account-settings.workTravel.${field}`);
   next.includeBusinessReceipts = normalizeBoolean(value.includeBusinessReceipts, next.includeBusinessReceipts);
   next.verified = normalizeBoolean(value.verified, next.verified);
   return next;
@@ -263,7 +302,7 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
     paymentMethods: Array.isArray(value.paymentMethods)
       ? value.paymentMethods.filter(isRecord).map((method) => ({
         id: normalizeText(method.id),
-        cardholder: normalizeText(method.cardholder),
+        cardholder: publicText(method.cardholder, "account-settings.financial.paymentMethods.cardholder"),
         brand: normalizeText(method.brand) || "Card",
         last4: normalizeText(method.last4).replace(/\D/g, "").slice(-4),
         expiry: normalizeText(method.expiry),
@@ -286,7 +325,7 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
       ? value.payoutMethods.filter(isRecord).map((method) => ({
         id: normalizeText(method.id),
         type: typeof method.type === "string" && payoutTypes.includes(method.type as FinancialSettingsState["payoutMethods"][number]["type"]) ? method.type as FinancialSettingsState["payoutMethods"][number]["type"] : "Bank account",
-        accountName: normalizeText(method.accountName),
+        accountName: publicText(method.accountName, "account-settings.financial.payoutMethods.accountName"),
         bankName: normalizeText(method.bankName),
         accountNumber: publicPayoutIdentifier(method, "accountNumber") || publicPayoutIdentifier(method, "accountLast4"),
         accountLast4: publicPayoutIdentifier(method, "accountLast4") || undefined,
@@ -294,13 +333,13 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
       })).filter((method) => method.id && method.accountNumber)
       : defaults.payoutMethods,
     taxpayer: isRecord(value.taxpayer) ? {
-      legalName: normalizeText(value.taxpayer.legalName),
+      legalName: publicText(value.taxpayer.legalName, "account-settings.financial.taxpayer.legalName"),
       country: normalizeText(value.taxpayer.country) || "Philippines",
       taxId: publicTaxIdentifier(value.taxpayer, "taxId"),
       address: providedState(value.taxpayer.address) || (value.taxpayer.addressProvided === true ? providedMarker : ""),
     } : null,
     vat: isRecord(value.vat) ? {
-      businessName: normalizeText(value.vat.businessName),
+      businessName: publicText(value.vat.businessName, "account-settings.financial.vat.businessName"),
       country: normalizeText(value.vat.country) || "Philippines",
       vatId: publicTaxIdentifier(value.vat, "vatId"),
     } : null,
@@ -342,6 +381,7 @@ function protectFinancialSettingsForStorage(financial: FinancialSettingsState, e
   const existingPayoutMethods = Array.isArray(existing.payoutMethods) ? existing.payoutMethods : [];
   const paymentMethods = financial.paymentMethods.map((method) => ({
     ...method,
+    cardholder: protectedText(method.cardholder, "account-settings.financial.paymentMethods.cardholder"),
     billingZip: "",
     billingZipProvided: Boolean(method.billingZip.trim()),
   }));
@@ -351,12 +391,14 @@ function protectFinancialSettingsForStorage(financial: FinancialSettingsState, e
     delete methodForStorage.accountLast4;
     return {
       ...methodForStorage,
+      accountName: protectedText(method.accountName, "account-settings.financial.payoutMethods.accountName"),
       ...protectedPayoutIdentifierFields(method.accountNumber, existingMethod, "accountNumber"),
     };
   });
   const taxpayer = financial.taxpayer
     ? {
       ...financial.taxpayer,
+      legalName: protectedText(financial.taxpayer.legalName, "account-settings.financial.taxpayer.legalName"),
       address: providedState(financial.taxpayer.address),
       addressProvided: Boolean(financial.taxpayer.address.trim()),
       ...protectedIdentifierFields(financial.taxpayer.taxId, existing.taxpayer, "taxId"),
@@ -365,6 +407,7 @@ function protectFinancialSettingsForStorage(financial: FinancialSettingsState, e
   const vat = financial.vat
     ? {
       ...financial.vat,
+      businessName: protectedText(financial.vat.businessName, "account-settings.financial.vat.businessName"),
       ...protectedIdentifierFields(financial.vat.vatId, existing.vat, "vatId"),
     }
     : null;
@@ -378,20 +421,55 @@ function protectFinancialSettingsForStorage(financial: FinancialSettingsState, e
   };
 }
 
+function protectWorkTravelForStorage(workTravel: WorkTravelProfile) {
+  return {
+    ...workTravel,
+    email: protectedText(workTravel.email, "account-settings.workTravel.email"),
+    companyName: protectedText(workTravel.companyName, "account-settings.workTravel.companyName"),
+    department: protectedText(workTravel.department, "account-settings.workTravel.department"),
+    employeeId: protectedText(workTravel.employeeId, "account-settings.workTravel.employeeId"),
+  };
+}
+
+function protectPrivacyForStorage(privacy: PrivacySettingsState) {
+  return {
+    ...privacy,
+    blockedPeople: privacy.blockedPeople.map((value) => protectedText(value, "account-settings.privacy.blockedPeople")),
+  };
+}
+
 function financialSettingsNeedProtection(financial: unknown) {
   if (!isRecord(financial)) return false;
   const paymentAddressNeedsMinimization = Array.isArray(financial.paymentMethods)
     && financial.paymentMethods.some((method) => isRecord(method) && normalizeText(method.billingZip).trim());
+  const paymentMethodNeedsEncryption = Array.isArray(financial.paymentMethods)
+    && financial.paymentMethods.some((method) => isRecord(method) && fieldNeedsEncryption(method.cardholder));
   const taxpayerAddressNeedsMinimization = isRecord(financial.taxpayer)
     && normalizeText(financial.taxpayer.address).trim()
     && financial.taxpayer.address !== providedMarker;
   const payoutNeedsProtection = Array.isArray(financial.payoutMethods)
     && financial.payoutMethods.some((method) => payoutIdentifierNeedsProtection(method, "accountNumber") || payoutIdentifierNeedsProtection(method, "accountLast4"));
+  const payoutTextNeedsEncryption = Array.isArray(financial.payoutMethods)
+    && financial.payoutMethods.some((method) => isRecord(method) && fieldNeedsEncryption(method.accountName));
   return paymentAddressNeedsMinimization
+    || paymentMethodNeedsEncryption
     || taxpayerAddressNeedsMinimization
+    || fieldNeedsEncryption(isRecord(financial.taxpayer) ? financial.taxpayer.legalName : undefined)
+    || fieldNeedsEncryption(isRecord(financial.vat) ? financial.vat.businessName : undefined)
+    || payoutTextNeedsEncryption
     || payoutNeedsProtection
     || taxIdentifierNeedsProtection(financial.taxpayer, "taxId")
     || taxIdentifierNeedsProtection(financial.vat, "vatId");
+}
+
+function workTravelNeedsProtection(workTravel: unknown) {
+  if (!isRecord(workTravel)) return false;
+  return workTravelTextFields.some((field) => fieldNeedsEncryption(workTravel[field]));
+}
+
+function privacyNeedsProtection(privacy: unknown) {
+  if (!isRecord(privacy) || !Array.isArray(privacy.blockedPeople)) return false;
+  return privacy.blockedPeople.some(fieldNeedsEncryption);
 }
 
 function normalizeAccountSettings(user: User, stored?: Partial<StoredAccountSettings>): AccountSettingsData {
@@ -437,17 +515,30 @@ async function readStoredAccountSettings(userId: string) {
       },
     });
     const minimizePersonalInfo = record ? personalInfoNeedsMinimization(record.personalInfo) : false;
-    if (record && (minimizePersonalInfo || financialSettingsNeedProtection(record.financial))) {
-      const personalInfo = minimizePersonalInfo ? minimizeStoredPersonalInfoForStorage(record.personalInfo) : record.personalInfo;
-      const protectedFinancial = protectFinancialSettingsForStorage(normalizeFinancialSettings(record.financial), record.financial);
+    const protectFinancial = record ? financialSettingsNeedProtection(record.financial) : false;
+    const protectWorkTravel = record ? workTravelNeedsProtection(record.workTravel) : false;
+    const protectPrivacy = record ? privacyNeedsProtection(record.privacy) : false;
+    if (record && (minimizePersonalInfo || protectFinancial || protectWorkTravel || protectPrivacy)) {
+      const personalInfo = minimizePersonalInfo ? protectStoredPersonalInfoForStorage(record.personalInfo) : record.personalInfo;
+      const financial = protectFinancial ? protectFinancialSettingsForStorage(normalizeFinancialSettings(record.financial), record.financial) : record.financial;
+      const workTravel = protectWorkTravel ? protectWorkTravelForStorage(normalizeWorkTravelProfile(record.workTravel)) : record.workTravel;
+      const privacy = protectPrivacy ? protectPrivacyForStorage(normalizePrivacySettings(record.privacy)) : record.privacy;
       await prisma.accountSettings.update({
         where: { userId },
         data: {
           personalInfo: personalInfo as Prisma.InputJsonValue,
-          financial: protectedFinancial as Prisma.InputJsonValue,
+          privacy: privacy as Prisma.InputJsonValue,
+          workTravel: workTravel as Prisma.InputJsonValue,
+          financial: financial as Prisma.InputJsonValue,
         },
       });
-      return fromDatabase({ ...record, personalInfo: personalInfo as Prisma.JsonValue, financial: protectedFinancial as Prisma.JsonValue });
+      return fromDatabase({
+        ...record,
+        personalInfo: personalInfo as Prisma.JsonValue,
+        privacy: privacy as Prisma.JsonValue,
+        workTravel: workTravel as Prisma.JsonValue,
+        financial: financial as Prisma.JsonValue,
+      });
     }
     return fromDatabase(record);
   }
@@ -455,10 +546,15 @@ async function readStoredAccountSettings(userId: string) {
   const records = await readJsonStore<StoredAccountSettings>(storeFileName);
   const record = records.find((item) => item.userId === userId);
   const minimizePersonalInfo = record ? personalInfoNeedsMinimization(record.personalInfo) : false;
-  if (record && (minimizePersonalInfo || financialSettingsNeedProtection(record.financial))) {
-    const personalInfo = minimizePersonalInfo ? minimizeStoredPersonalInfoForStorage(record.personalInfo) : record.personalInfo;
-    const protectedFinancial = protectFinancialSettingsForStorage(normalizeFinancialSettings(record.financial), record.financial);
-    const nextRecord = { ...record, personalInfo, financial: protectedFinancial };
+  const protectFinancial = record ? financialSettingsNeedProtection(record.financial) : false;
+  const protectWorkTravel = record ? workTravelNeedsProtection(record.workTravel) : false;
+  const protectPrivacy = record ? privacyNeedsProtection(record.privacy) : false;
+  if (record && (minimizePersonalInfo || protectFinancial || protectWorkTravel || protectPrivacy)) {
+    const personalInfo = minimizePersonalInfo ? protectStoredPersonalInfoForStorage(record.personalInfo) : record.personalInfo;
+    const financial = protectFinancial ? protectFinancialSettingsForStorage(normalizeFinancialSettings(record.financial), record.financial) : record.financial;
+    const workTravel = protectWorkTravel ? protectWorkTravelForStorage(normalizeWorkTravelProfile(record.workTravel)) : record.workTravel;
+    const privacy = protectPrivacy ? protectPrivacyForStorage(normalizePrivacySettings(record.privacy)) : record.privacy;
+    const nextRecord = { ...record, personalInfo, privacy, workTravel, financial };
     await writeJsonStore(storeFileName, records.map((item) => (item.userId === userId ? nextRecord : item)));
     return nextRecord;
   }
@@ -469,16 +565,16 @@ async function writeStoredAccountSettings(userId: string, next: AccountSettingsD
   if (usesPrismaPersistence()) {
     const existing = await prisma.accountSettings.findUnique({
       where: { userId },
-      select: { financial: true },
+      select: { personalInfo: true, financial: true },
     });
-    const personalInfo = minimizePersonalInfoForStorage(next.personalInfo);
+    const personalInfo = protectPersonalInfoForStorage(next.personalInfo, existing?.personalInfo);
     const financial = protectFinancialSettingsForStorage(next.financial, existing?.financial);
     const data = {
       personalInfo: personalInfo as Prisma.InputJsonValue,
       notificationPreferences: next.notifications as Prisma.InputJsonValue,
-      privacy: next.privacy as Prisma.InputJsonValue,
+      privacy: protectPrivacyForStorage(next.privacy) as Prisma.InputJsonValue,
       bookingPermissions: next.bookingPermissions as Prisma.InputJsonValue,
-      workTravel: next.workTravel as Prisma.InputJsonValue,
+      workTravel: protectWorkTravelForStorage(next.workTravel) as Prisma.InputJsonValue,
       professionalHostingTools: next.professionalHostingTools as Prisma.InputJsonValue,
       localization: next.localization as Prisma.InputJsonValue,
       financial: financial as Prisma.InputJsonValue,
@@ -493,15 +589,15 @@ async function writeStoredAccountSettings(userId: string, next: AccountSettingsD
 
   const records = await readJsonStore<StoredAccountSettings>(storeFileName);
   const existingRecord = records.find((record) => record.userId === userId);
-  const personalInfo = minimizePersonalInfoForStorage(next.personalInfo);
+  const personalInfo = protectPersonalInfoForStorage(next.personalInfo, existingRecord?.personalInfo);
   const financial = protectFinancialSettingsForStorage(next.financial, existingRecord?.financial);
   const replacement: StoredAccountSettings = {
     userId,
     personalInfo,
     notifications: next.notifications,
-    privacy: next.privacy,
+    privacy: protectPrivacyForStorage(next.privacy),
     bookingPermissions: next.bookingPermissions,
-    workTravel: next.workTravel,
+    workTravel: protectWorkTravelForStorage(next.workTravel),
     professionalHostingTools: next.professionalHostingTools,
     localization: next.localization,
     financial,

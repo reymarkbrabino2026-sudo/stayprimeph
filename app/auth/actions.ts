@@ -5,9 +5,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clearPendingAdminMfaChallenge, createAdminMfaCode, createPendingAdminMfaChallenge, isAdminMfaCodeValid, readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
 import { appendAuditLog } from "@/lib/audit-logs";
-import { clearAllSessionsForUser, clearSession, createSession, hashPassword, requireUser, roleHome, verifyPassword } from "@/lib/auth";
+import { clearAllSessionsForUser, clearSession, createSession, hashPassword, requireUser, roleHome, sessionMetadataFromHeaders, verifyPassword } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { sendAdminMfaEmail, sendPasswordChangedEmail, sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
+import { sendPasswordChangedEmail, sendPasswordResetEmail, sendPrivilegedMfaEmail, sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
 import { createEmailVerificationCode, hashEmailVerificationCode, normalizeEmailVerificationCode } from "@/lib/email-verification-code";
 import { logger } from "@/lib/logger";
 import { normalizeKnownAppPath } from "@/lib/canonical-paths";
@@ -72,6 +72,19 @@ function adminMfaTarget(kind: "error" | "message", message: string, formData: Fo
   const nextPath = safeNextPath(formData.get("next"));
   if (nextPath?.startsWith("/admin")) params.set("next", nextPath);
   return `/admin/login?${params.toString()}`;
+}
+
+function privilegedMfaRole(value: FormDataEntryValue | null): Extract<UserRole, "admin" | "host"> {
+  return value === "host" ? "host" : "admin";
+}
+
+function privilegedMfaTarget(role: Extract<UserRole, "admin" | "host">, kind: "error" | "message", message: string, formData: FormData) {
+  if (role === "admin") return adminMfaTarget(kind, message, formData);
+
+  const params = new URLSearchParams({ mfa: "1", role: "host", [kind]: message });
+  const nextPath = safeNextPath(formData.get("next"));
+  if (nextPath && !nextPath.startsWith("/admin")) params.set("next", nextPath);
+  return `/login?${params.toString()}`;
 }
 
 function resetPasswordTarget(token: string, message: string) {
@@ -139,13 +152,14 @@ async function sendEmailVerificationForUser(user: { id: string; email: string; n
   await sendVerificationEmail({ to: user.email, name: user.name, token, code });
 }
 
-async function startAdminMfaChallenge(user: { id: string; email: string; name: string }, formData: FormData) {
+async function startPrivilegedMfaChallenge(user: { id: string; email: string; name: string; role: UserRole }, formData: FormData) {
+  if (user.role !== "admin" && user.role !== "host") return;
   const token = await issueAuthToken(user.id, "admin_mfa");
   const code = createAdminMfaCode(token);
   await createPendingAdminMfaChallenge(token);
-  await sendAdminMfaEmail({ to: user.email, name: user.name, code });
-  logger.info("admin_mfa_challenge_issued", { userId: user.id });
-  redirect(adminMfaTarget("message", "Enter the 6-digit code sent to the admin email.", formData));
+  await sendPrivilegedMfaEmail({ to: user.email, name: user.name, code, role: user.role });
+  logger.info("privileged_mfa_challenge_issued", { userId: user.id, role: user.role });
+  redirect(privilegedMfaTarget(user.role, "message", `Enter the 6-digit code sent to the ${user.role} email.`, formData));
 }
 
 export async function signIn(formData: FormData) {
@@ -218,11 +232,11 @@ export async function signIn(formData: FormData) {
     redirect(verificationTarget("message", "Verify your email before logging in. We sent a 6-digit verification code.", formData, user.email, requestedRole ?? user.role));
   }
 
-  if (user.role === "admin") {
-    await startAdminMfaChallenge(user, formData);
+  if (user.role === "admin" || user.role === "host") {
+    await startPrivilegedMfaChallenge(user, formData);
   }
 
-  await createSession(user.id);
+  await createSession(user.id, sessionMetadataFromHeaders(headerStore));
   logger.info("signin_success", { userId: user.id, role: user.role });
   redirect(safeNextPath(formData.get("next")) ?? roleHome(user.role));
 }
@@ -234,49 +248,53 @@ export async function verifyAdminMfa(formData: FormData) {
   const rateLimit = await checkDistributedRateLimit(`admin-mfa:${headerStore.get("x-forwarded-for") ?? "local"}:${tokenKey}`, 5, 10 * 60_000);
   if (rateLimit.limited) {
     logger.warn("admin_mfa_rate_limited");
-    redirect(adminMfaTarget("error", "Too many code attempts. Log in again to request a new code.", formData));
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Too many code attempts. Log in again to request a new code.", formData));
   }
 
   if (!isTrustedRequestOrigin(headerStore)) {
     logger.warn("admin_mfa_untrusted_origin");
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   if (!rawToken) {
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   const pendingToken = await getAuthToken(rawToken, "admin_mfa");
   if (!pendingToken) {
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   const code = String(formData.get("code") ?? "");
   if (!isAdminMfaCodeValid(rawToken, code)) {
     logger.warn("admin_mfa_failed", { userId: pendingToken.userId });
-    redirect(adminMfaTarget("error", "Incorrect or expired admin code.", formData));
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Incorrect or expired sign-in code.", formData));
   }
 
   const user = await getUserById(pendingToken.userId);
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "admin" && user.role !== "host")) {
     await consumeAuthToken(rawToken, "admin_mfa");
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   const consumedToken = await consumeAuthToken(rawToken, "admin_mfa");
   if (!consumedToken || consumedToken.userId !== user.id) {
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(user.role, "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   await clearPendingAdminMfaChallenge();
-  await createSession(user.id);
-  logger.info("admin_mfa_success", { userId: user.id });
+  await createSession(user.id, sessionMetadataFromHeaders(headerStore, {
+    mfaVerifiedAt: new Date(),
+    mfaRole: user.role,
+  }));
+  logger.info("privileged_mfa_success", { userId: user.id, role: user.role });
   const nextPath = safeNextPath(formData.get("next"));
-  redirect(nextPath?.startsWith("/admin") ? nextPath : roleHome(user.role));
+  if (user.role === "admin") redirect(nextPath?.startsWith("/admin") ? nextPath : roleHome(user.role));
+  redirect(nextPath && !nextPath.startsWith("/admin") ? nextPath : roleHome(user.role));
 }
 
 export async function resendAdminMfa(formData: FormData) {
@@ -287,37 +305,37 @@ export async function resendAdminMfa(formData: FormData) {
   if (!isTrustedRequestOrigin(headerStore)) {
     logger.warn("admin_mfa_resend_untrusted_origin");
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   if (!rawToken) {
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   const pendingToken = await getAuthToken(rawToken, "admin_mfa");
   if (!pendingToken) {
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   const rateLimit = await checkDistributedRateLimit(`admin-mfa-resend:${ip}:${pendingToken.userId}`, 3, 10 * 60_000);
   if (rateLimit.limited) {
     logger.warn("admin_mfa_resend_rate_limited", { userId: pendingToken.userId });
-    redirect(adminMfaTarget("error", "Too many resend requests. Please wait before requesting another code.", formData));
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Too many resend requests. Please wait before requesting another code.", formData));
   }
 
   const user = await getUserById(pendingToken.userId);
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "admin" && user.role !== "host")) {
     await consumeAuthToken(rawToken, "admin_mfa");
     await clearPendingAdminMfaChallenge();
-    redirect("/admin/login?error=Admin sign-in challenge expired. Log in again.");
+    redirect(privilegedMfaTarget(privilegedMfaRole(formData.get("role")), "error", "Sign-in challenge expired. Log in again.", formData));
   }
 
   const freshToken = await issueAuthToken(user.id, "admin_mfa");
   await createPendingAdminMfaChallenge(freshToken);
-  await sendAdminMfaEmail({ to: user.email, name: user.name, code: createAdminMfaCode(freshToken) });
-  logger.info("admin_mfa_code_resent", { userId: user.id });
-  redirect(adminMfaTarget("message", "We sent a new admin code.", formData));
+  await sendPrivilegedMfaEmail({ to: user.email, name: user.name, code: createAdminMfaCode(freshToken), role: user.role });
+  logger.info("privileged_mfa_code_resent", { userId: user.id, role: user.role });
+  redirect(privilegedMfaTarget(user.role, "message", `We sent a new ${user.role} code.`, formData));
 }
 
 export async function signUp(formData: FormData) {

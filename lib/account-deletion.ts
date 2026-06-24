@@ -1,7 +1,7 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import { getAccountSettings, savePrivacySettings } from "@/lib/account-settings";
+import { appendAdminLog } from "@/lib/admin-logs";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { consumeAuthToken, issueAuthToken } from "@/lib/auth-tokens";
 import { prisma } from "@/lib/db";
@@ -233,7 +233,7 @@ async function anonymizeUserInJsonStore(target: User) {
   await writeStoredSessions(sessions.filter((session) => session.userId !== target.id));
 }
 
-async function anonymizeUserInDatabase(target: User, adminId: string) {
+async function anonymizeUserInDatabase(target: User) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -270,15 +270,6 @@ async function anonymizeUserInDatabase(target: User, adminId: string) {
         emailVerifiedAt: null,
       },
     });
-    await tx.adminLog.create({
-      data: {
-        id: randomUUID(),
-        adminId,
-        action: "account_anonymized",
-        entityType: "User",
-        entityId: target.id,
-      },
-    });
   });
 }
 
@@ -294,10 +285,16 @@ export async function processAccountDeletion({ adminId, targetUserId }: { adminI
   await requireVerifiedDeletionRequest(target.id);
 
   if (usesPrismaPersistence()) {
-    await anonymizeUserInDatabase(target, adminId);
+    await anonymizeUserInDatabase(target);
   } else {
     await anonymizeUserInJsonStore(target);
   }
+  await appendAdminLog({
+    adminId,
+    action: "account.anonymized",
+    entityType: "user",
+    entityId: target.id,
+  });
   await appendAuditLog({
     actorId: adminId,
     actorRole: "admin",

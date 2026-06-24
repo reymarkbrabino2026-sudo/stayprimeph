@@ -8,6 +8,7 @@ const envSchema = z.object({
   POSTGRES_URL: z.string().min(1).optional(),
   NEXT_PUBLIC_APP_URL: z.string().url(),
   AUTH_SECRET: z.string().min(32),
+  FIELD_LEVEL_ENCRYPTION_KEY: z.string().min(32).optional(),
   PERSISTENCE_DRIVER: z.enum(["json", "prisma"]).default("json"),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
@@ -43,6 +44,7 @@ const isProductionRuntime = process.env.NODE_ENV === "production" && process.env
 const databaseUrl = optionalEnv(process.env.DATABASE_URL);
 const postgresUrlNonPooling = optionalEnv(process.env.POSTGRES_URL_NON_POOLING);
 const directUrl = optionalEnv(process.env.DIRECT_URL) ?? postgresUrlNonPooling;
+const fieldLevelEncryptionKey = optionalEnv(process.env.FIELD_LEVEL_ENCRYPTION_KEY);
 const paymentLaunchMode = optionalEnv(process.env.PAYMENT_LAUNCH_MODE) ?? "disabled";
 const resendApiKey = optionalEnv(process.env.RESEND_API_KEY);
 const emailFrom = optionalEnv(process.env.EMAIL_FROM);
@@ -70,6 +72,10 @@ if (isProductionRuntime && !isPostgresUrl(databaseUrl)) {
 
 if (isProductionRuntime && !isPostgresUrl(directUrl)) {
   throw new Error("DIRECT_URL must be a PostgreSQL connection string in production runtime.");
+}
+
+if (isProductionRuntime && !fieldLevelEncryptionKey) {
+  throw new Error("FIELD_LEVEL_ENCRYPTION_KEY is required for production field-level encryption.");
 }
 
 if (isProductionRuntime && (!optionalEnv(process.env.UPSTASH_REDIS_REST_URL) || !optionalEnv(process.env.UPSTASH_REDIS_REST_TOKEN))) {
@@ -120,6 +126,7 @@ export const env = envSchema.parse({
   POSTGRES_URL: optionalEnv(process.env.POSTGRES_URL),
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   AUTH_SECRET: process.env.AUTH_SECRET,
+  FIELD_LEVEL_ENCRYPTION_KEY: fieldLevelEncryptionKey,
   PERSISTENCE_DRIVER: persistenceDriver,
   UPSTASH_REDIS_REST_URL: optionalEnv(process.env.UPSTASH_REDIS_REST_URL),
   UPSTASH_REDIS_REST_TOKEN: optionalEnv(process.env.UPSTASH_REDIS_REST_TOKEN),

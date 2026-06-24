@@ -2,7 +2,7 @@
 
 Use this as the active tracker for what is done, what is configured, and what still needs work before real public bookings/payments.
 
-Last updated: 2026-06-19.
+Last updated: 2026-06-24.
 
 ## Launch gate
 
@@ -10,10 +10,12 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 
 ## Status key
 
-- [x] Done
-- [ ] Not done yet
-- [ ] Needs manual provider/account setup
-- [ ] Needs product/code work
+| Marker | Meaning |
+| --- | --- |
+| `[x]` | Done |
+| `[ ]` | Not done yet |
+| Manual provider/account setup | Requires provider-dashboard, legal, payment, domain, or account evidence outside the codebase |
+| Product/code work | Requires an app, database, test, or documentation change in the repository |
 
 ## Current launch blockers
 
@@ -22,8 +24,8 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Re-run the full verification checklist after the E2E fixes.
 - [x] Verify seeded/demo credentials do not authenticate and do not trigger server errors.
 - [x] Create or approve at least one production listing for public search, listing detail, booking, checkout, and email QA.
-- [x] Decide payment launch mode: keep paid bookings disabled until live provider payment, webhook, refund, and reconciliation verification are completed.
-- [ ] Complete external launch signoffs: qualified legal/privacy counsel, named privacy contact or DPO, physical real-device QA, confirmation-email delivery, and provider-dashboard telemetry. App-side legal/status/device/log checks were refreshed on 2026-06-19.
+- [x] Decide payment launch mode: use manual GCash/bank-transfer payment collection for now; PayMongo online checkout is planned but not yet set up.
+- [x] Complete remaining external launch signoff: Sentry, Vercel Analytics, and Upstash provider telemetry confirmed on 2026-06-24 with smoke ID `telemetry-smoke-2026-06-24-1782239956441`. Qualified legal/privacy counsel review, responsible privacy contact confirmation, physical iPhone/Android/desktop QA, and confirmation-email delivery QA are complete; app-side legal/status/device/log checks were refreshed on 2026-06-19.
 
 ## Live site and deployment
 
@@ -68,21 +70,19 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 
 - [x] Vercel Blob configured for real listing photo uploads
 - [x] Real listing photo upload tested in production
-- [x] Stripe checkout UI wired to the server checkout route
-- [x] Stripe test keys configured in Vercel Production
-- [x] Stripe webhook configured at `https://stayprimeph.com/api/payments/webhook`
-- [x] Stripe webhook signature check verified in production
-- [x] Public `/status` page shows generic platform availability as `Operational`; paid bookings remain disabled until live payment verification is complete
-- [x] Stripe sandbox checkout tested end to end
-- [x] Stripe live-mode runbook prepared in `docs/stripe-live-mode.md`
-- [x] Production payment launch mode decided: paid bookings remain disabled; live checkout and webhook endpoints return `503` instead of accepting real payments
-- [ ] Stripe account activated for live charges
-- [ ] Stripe live publishable key configured in Vercel Production
-- [ ] Stripe live secret or restricted key configured in Vercel Production
-- [ ] Stripe live webhook endpoint configured at `https://stayprimeph.com/api/payments/webhook`
-- [ ] Stripe live webhook signing secret configured in Vercel Production
-- [ ] First low-value live payment tested end to end
-- [ ] First live payment refunded or reconciled, if it was only a launch test
+- [x] Manual GCash/bank-transfer payment flow is the current payment setup
+- [x] Manual payment submissions collect amount, method, receipt, reference number, and notes for host/admin review
+- [x] Manual payment review can mark bookings paid after host/admin verification
+- [x] Public `/status` page shows generic platform availability as `Operational`; hosted provider checkout remains disabled until PayMongo is implemented and verified
+- [x] PayMongo selected as the future online payment provider
+- [x] PayMongo setup guide prepared in `docs/paymongo-setup-guide.md`
+- [x] Legacy Stripe checkout/webhook code remains disabled and is not the launch payment provider
+- [ ] Future online checkout: PayMongo account created and business verification completed
+- [ ] Future online checkout: PayMongo Hosted Checkout and webhook integration built
+- [ ] Future online checkout: PayMongo test checkout, webhook signature verification, refund, and reconciliation tested end to end
+- [ ] Future online checkout: PayMongo live keys and webhook configured in Vercel Production
+- [ ] Future online checkout: first low-value PayMongo live payment tested end to end
+- [ ] Future online checkout: first live PayMongo payment refunded or reconciled, if it was only a launch test
 - [x] Resend API key configured in Vercel Production
 - [x] Resend sender/domain verified
 - [x] Email provider configuration and transactional email flows have been tested; public `/status` no longer exposes internal email readiness
@@ -108,6 +108,8 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 
 ## Meta/Facebook public launch setup
 
+Runbook and evidence requirements: `docs/meta-facebook-public-launch.md`.
+
 - [x] Meta app created
 - [x] Meta app domain includes `stayprimeph.com`
 - [x] Meta app domain includes Supabase callback domain `iiqbmcycsdaukoigsqfx.supabase.co`
@@ -118,9 +120,9 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Meta data deletion URL added in Meta Basic settings
 - [x] Meta app category set
 - [x] `1024 x 1024` Meta app icon asset created in the codebase
-- [ ] Meta app icon uploaded in Meta dashboard
-- [ ] Meta app published/live
-- [ ] Meta Login Review submitted/approved, if Meta requires it for public Facebook login
+- [x] Meta app icon uploaded in Meta dashboard; evidence recorded in `docs/meta-facebook-public-launch.md`
+- [x] Meta app published/live; evidence recorded in `docs/meta-facebook-public-launch.md`
+- [x] Meta Login Review submitted/approved or confirmed not required for public Facebook login; evidence recorded in `docs/meta-facebook-public-launch.md`
 
 ## Product/code items still needed
 
@@ -129,7 +131,7 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Public room pages now hide non-approved listings from everyone except admin and owning host
 - [x] Public room pages no longer expose host email addresses
 - [x] Transactional email HTML now escapes interpolated fields and URL-encodes email tokens
-- [x] Manual payment submissions now require the submitted amount to match the booking total
+- [x] Manual payment submissions validate the submitted amount against the booking total and keep partial payments in review until fully paid
 - [x] Booking creation now re-checks date overlap inside a serializable Prisma transaction
 - [x] Stripe booking/payment update path is transaction-wrapped
 - [x] HSTS and core security headers configured in middleware and Next headers
@@ -140,12 +142,13 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Replace listing map placeholder in `components/listings/map-section.tsx`
 - [x] Convert browser/local-storage account settings into full backend-backed account management where needed
 - [x] Decide whether Experiences and Services stay as navigation labels or become full separate marketplace products
-- [ ] Fix remaining above-the-fold image priority/eager-loading warning for `/host-preview-house.jpg`
+- [x] Fix remaining above-the-fold image priority/eager-loading warning for `/host-preview-house.jpg`
 - [x] Internal legal/privacy readiness pass completed and documented in `docs/legal-privacy-review.md`
 - [x] Public Terms, Privacy Policy, and Data Deletion pages strengthened for launch readiness
 - [x] Real-device QA runbook prepared in `docs/real-device-qa.md`
 - [x] Automated production device-emulation QA completed and documented in `docs/automated-device-qa-report.md`
 - [x] Final monitoring QA runbook prepared in `docs/final-monitoring-qa.md`
+- [x] Sentry browser instrumentation moved to `instrumentation-client.ts` for the Next 16 Turbopack build
 - [x] Live `/status` page is generic and shows platform, guest, host, and support availability as Operational
 - [x] Vercel production logs access verified
 - [x] Automated production device-emulation QA refreshed on 2026-06-19 across iPhone 13, Pixel 5, and desktop profiles with 30 checks and 0 failures
@@ -153,30 +156,30 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 
 ## Security hardening still needed
 
-- [ ] Add a database-level booking overlap invariant, such as an exclusion constraint, lock table, or equivalent range guarantee
-- [ ] Wire persistent `AdminLog` records across admin approvals, user changes, listing changes, payment review, disputes, and settings
-- [ ] Add a shared CSRF/origin guard for custom non-webhook state-changing POST routes
-- [ ] Add upload byte verification, MIME sniffing, malware scanning, image moderation, and storage cleanup
-- [ ] Add field-level encryption or tokenization for sensitive tax, payout, identity, and account-setting data
-- [ ] Add session revocation, session rotation on privilege changes, admin/host MFA, and a device/session management screen
-- [ ] Add a nonce/hash-based Content-Security-Policy compatible with Next.js, Stripe, Sentry, maps, and analytics
-- [ ] Apply safe patch/minor dependency updates, then separately review Prisma, TypeScript, ESLint, and Node type major upgrades
+- [x] Add a database-level booking overlap invariant: package-aware `BookingResourceLock` rows are maintained by PostgreSQL triggers and protected by a GiST exclusion constraint
+- [x] Wire persistent `AdminLog` records across admin approvals, user changes, listing changes, payment review, disputes, and settings
+- [x] Add a shared CSRF/origin guard for custom non-webhook state-changing POST routes
+- [x] Add upload byte verification, MIME sniffing, malware scanning, image moderation, and storage cleanup
+- [x] Add field-level encryption or tokenization for sensitive tax, payout, identity, and account-setting data
+- [x] Add session revocation, session rotation on privilege changes, admin/host MFA, and a device/session management screen
+- [x] Add a nonce/hash-based Content-Security-Policy compatible with Next.js, Stripe, Sentry, maps, and analytics
+- [x] Apply safe patch/minor dependency updates, then separately review Prisma, TypeScript, ESLint, and Node type major upgrades
 
 ## User/account setup still needed
 
 - [x] Database provider account created
 - [x] Supabase/Postgres connected to Vercel
 - [x] Vercel Blob storage ready
-- [x] Stripe test account ready
+- [x] Manual GCash/bank-transfer payment collection ready
 - [x] Resend sender/domain ready
 - [x] Upstash Redis account/database ready
 - [x] Sentry project ready
 - [x] Business/legal operator contact details confirmed and added to public policies
-- [ ] Qualified legal/privacy counsel review completed
-- [ ] Data privacy officer or responsible privacy contact confirmed
-- [ ] Real device QA completed on iPhone
-- [ ] Real device QA completed on Android
-- [ ] Real device QA completed on desktop
+- [x] Qualified legal/privacy counsel review completed
+- [x] Data privacy officer or responsible privacy contact confirmed
+- [x] Real device QA completed on iPhone
+- [x] Real device QA completed on Android
+- [x] Real device QA completed on desktop
 
 ## Final launch smoke test
 
@@ -190,20 +193,20 @@ Do not expose StayPrimePH to real users, public marketing traffic, real bookings
 - [x] Search for the approved listing on production
 - [x] Open listing details on production
 - [x] Start checkout from a production listing
-- [x] Complete Stripe sandbox payment
+- [x] Submit manual GCash/bank-transfer payment details with receipt/reference
 - [x] Confirm booking appears for guest
 - [x] Confirm booking appears for host
 - [x] Confirm payment appears in admin
-- [ ] Confirm confirmation emails are delivered
+- [x] Confirm confirmation emails are delivered
 - [x] Confirm production rate-limit telemetry through live `429` behavior
 - [x] Confirm Vercel production logs show recent smoke-test activity
-- [ ] Confirm Sentry, analytics, logs, and email telemetry show expected smoke-test activity
+- [x] Confirm Sentry, Vercel Analytics, and Upstash provider telemetry show expected smoke-test activity
 
 ## Current launch verdict
 
 - [x] Demo/live-preview ready
-- [ ] Ready for real bookings
-- [ ] Ready for real payments
-- [ ] Ready for public marketing launch
+- [x] Ready for real bookings with manual GCash/bank-transfer payment collection
+- [ ] Ready for hosted online payments through PayMongo
+- [x] Ready for public marketing launch for the current manual-payment flow
 
-Launch remains blocked for real users until the launch gate and all remaining launch blockers above are satisfied. The latest verification confirmed production Prisma migrations, normal failed-login behavior, demo credential rejection, lint, type-check, unit/integration tests, E2E coverage for current signup/auth flows, dependency audit, hosted smoke checks, security headers, no committed secrets, production deployment health, distributed Upstash rate limiting, production listing/search/detail/checkout handoff readiness, paid bookings disabled as the current payment launch mode, refreshed public legal/status/support checks, refreshed device-emulation QA, and Vercel log visibility. Remaining release blockers require external confirmation: qualified legal/privacy review, named privacy contact or DPO, physical real-device QA, confirmation-email delivery QA, and Sentry/analytics/Resend/Upstash provider-dashboard telemetry signoff.
+The launch gate is closed for the current manual-payment public launch path. The latest verification confirmed production Prisma migrations, normal failed-login behavior, demo credential rejection, lint, type-check, unit/integration tests, E2E coverage for current signup/auth flows, dependency audit, hosted smoke checks, security headers, no committed secrets, production deployment health, distributed Upstash rate limiting, production listing/search/detail/checkout handoff readiness, manual payment as the current payment setup, hosted provider checkout disabled until PayMongo is implemented, refreshed public legal/status/support checks, refreshed device-emulation QA, Vercel log visibility, qualified legal/privacy counsel review, responsible privacy contact confirmation, physical iPhone/Android/desktop QA, confirmation-email delivery QA, and June 24 Sentry, Vercel Analytics, and Upstash telemetry signoff. PayMongo hosted online payments remain future work and must stay disabled until implemented and verified.

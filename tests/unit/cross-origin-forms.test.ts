@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/admin-logs", () => ({
+  appendAdminLog: vi.fn(),
+}));
 vi.mock("@/lib/audit-logs", () => ({
   appendAuditLog: vi.fn(),
 }));
@@ -50,6 +53,7 @@ vi.mock("@/lib/auth", () => ({
   requireUser: vi.fn(),
   requireVerifiedEmail: vi.fn(),
   roleHome: vi.fn(() => "/guest/dashboard"),
+  sessionMetadataFromHeaders: vi.fn(() => ({})),
   verifyPassword: vi.fn(),
 }));
 
@@ -76,6 +80,7 @@ vi.mock("@/lib/email", () => ({
   sendListingReviewEmail: vi.fn(),
   sendPasswordChangedEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
+  sendPrivilegedMfaEmail: vi.fn(),
   sendVerificationEmail: vi.fn(),
   sendWelcomeEmail: vi.fn(),
 }));
@@ -155,6 +160,7 @@ vi.mock("@/lib/users", () => ({
 import { approveListing } from "@/app/admin/listings/actions";
 import { signUp } from "@/app/auth/actions";
 import { createListing } from "@/app/host/listings/actions";
+import { appendAdminLog } from "@/lib/admin-logs";
 import { appendAuditLog } from "@/lib/audit-logs";
 import { requireRole } from "@/lib/auth";
 import { sendVerificationEmail, sendWelcomeEmail } from "@/lib/email";
@@ -325,5 +331,11 @@ describe("cross-origin form submissions", () => {
         nextStatus: "approved",
       }),
     }));
+    expect(appendAdminLog).toHaveBeenCalledWith({
+      adminId: "admin-1",
+      action: "listing.approved",
+      entityType: "property",
+      entityId: "property-1",
+    });
   });
 });

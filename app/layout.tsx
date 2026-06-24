@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
+import { headers } from "next/headers";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { JsonLd } from "@/components/seo/json-ld";
+import { cspNonceHeaderName } from "@/lib/content-security-policy";
 import { env } from "@/lib/env";
 import "./globals.css";
 
@@ -92,16 +94,20 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get(cspNonceHeaderName) ?? undefined;
+
   return (
     <html lang="en" data-scroll-behavior="smooth" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <JsonLd data={organizationLd} />
-        <JsonLd data={websiteLd} />
+        <JsonLd data={organizationLd} nonce={nonce} />
+        <JsonLd data={websiteLd} nonce={nonce} />
         <SmoothScroll />
         {children}
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled" ? <Analytics /> : null}

@@ -14,8 +14,8 @@ import {
 import type { Booking, Payout } from "@/lib/types";
 
 // Host earnings clear 24h after checkout (a small buffer for disputes), per the
-// agreed payout policy. StayPrime absorbs Stripe fees, so the host receives the
-// full nightly subtotal (total minus the StayPrime service-fee markup).
+// agreed payout policy. StayPrime absorbs payment-provider fees, so the host
+// receives the full nightly subtotal (total minus the StayPrime service-fee markup).
 const PAYOUT_HOLD_HOURS = 24;
 
 export function bookingHostShare(booking: Booking): number {

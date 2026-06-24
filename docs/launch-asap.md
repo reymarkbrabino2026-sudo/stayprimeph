@@ -8,7 +8,8 @@ Launch rule: do not expose StayPrimePH to real users, public marketing traffic, 
 
 - PostgreSQL: create a managed Postgres database with TLS. Use the pooled connection string for `DATABASE_URL` and the direct connection string for `DIRECT_URL`.
 - Cloudinary: create a cloud, API key, and API secret for listing photos.
-- Stripe: use test mode first, create a webhook endpoint at `https://YOUR_DOMAIN/api/payments/webhook`, and subscribe it to checkout/payment events used by Checkout.
+- Manual payments: prepare the production GCash/bank-transfer QR details, payment-review owners, refund path, and reconciliation process.
+- PayMongo: create/verify the account for the future online checkout integration, but keep provider checkout disabled until the integration is built and tested.
 - Resend: verify the sender domain and set `EMAIL_FROM` to that verified sender.
 - Upstash Redis: create a REST Redis database for distributed rate limiting.
 - Sentry: create a Next.js project and copy both server and public DSNs.
@@ -33,9 +34,7 @@ NEXT_PUBLIC_SENTRY_DSN
 NEXT_PUBLIC_VERCEL_ANALYTICS=enabled
 RESEND_API_KEY
 EMAIL_FROM
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+PAYMENT_LAUNCH_MODE=disabled
 CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
@@ -77,11 +76,11 @@ On the deployed preview URL, manually verify:
 
 - Register, verify email, log in, log out, reset password.
 - Search listings, open listing details, and start checkout.
-- Complete a Stripe sandbox payment and confirm the booking shows as paid.
+- Submit manual GCash/bank-transfer payment details and confirm host/admin payment review marks the booking paid.
 - Create a host listing, upload photos, and approve it in admin.
 - Confirm Resend emails arrive and Cloudinary images render.
 - Check Sentry, analytics, provider logs, and Upstash rate-limit telemetry.
 
 ## 5. Go live
 
-Point the production domain at the deployment only after the launch rule is satisfied. Set `NEXT_PUBLIC_APP_URL` to the final `https://` domain, redeploy, and rerun the hosted smoke test. Keep Stripe in test mode until the entire hosted flow is clean, then switch Stripe keys and webhook secret to live mode.
+Point the production domain at the deployment only after the launch rule is satisfied. Set `NEXT_PUBLIC_APP_URL` to the final `https://` domain, redeploy, and rerun the hosted smoke test. Keep hosted provider checkout disabled for launch; implement and verify PayMongo separately before enabling online payments.

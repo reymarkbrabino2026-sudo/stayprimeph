@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BookingPermissionSettings } from "@/components/account/booking-permission-settings";
 import { AccountSettingsShell } from "@/components/account/settings-shell";
 import { getAccountSettings } from "@/lib/account-settings";
+import { defaultBookingPermissions } from "@/lib/account-settings-types";
 import { getCurrentUser } from "@/lib/auth";
 
 export default async function BookingPermissionsPage() {
@@ -12,10 +13,6 @@ export default async function BookingPermissionsPage() {
   }
 
   const accountSettings = await getAccountSettings(user);
-
-  if (!accountSettings?.bookingPermissions) {
-    redirect("/account/settings");
-  }
 
   return (
     <AccountSettingsShell active="Booking permissions">
@@ -29,7 +26,7 @@ export default async function BookingPermissionsPage() {
       </p>
 
       <BookingPermissionSettings
-        initialSettings={accountSettings.bookingPermissions}
+        initialSettings={accountSettings.bookingPermissions ?? defaultBookingPermissions}
       />
     </AccountSettingsShell>
   );

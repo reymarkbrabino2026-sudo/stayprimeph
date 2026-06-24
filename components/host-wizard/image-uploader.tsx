@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { csrfHeaderName } from "@/lib/csrf-fields";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -14,10 +15,11 @@ interface UploadResponse {
   bytes: number;
 }
 
-function uploadOne(file: File, listingId: string, onProgress: (percent: number) => void): Promise<UploadResponse> {
+function uploadOne(file: File, listingId: string, csrfToken: string, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/uploads/listing-photo");
+    xhr.setRequestHeader(csrfHeaderName, csrfToken);
     xhr.timeout = uploadTimeoutMs;
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -51,7 +53,7 @@ function uploadOne(file: File, listingId: string, onProgress: (percent: number) 
   });
 }
 
-export function ImageUploader() {
+export function ImageUploader({ csrfToken }: { csrfToken: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { draft, addPhotos, removePhoto, setCoverPhoto, movePhoto } = useHostWizardStore();
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export function ImageUploader() {
       };
 
       const uploaded = await Promise.all(accepted.map(async (file, index) => {
-        const result = await uploadOne(file, draft.uploadScopeId, (percent) => updateFileProgress(index, percent));
+        const result = await uploadOne(file, draft.uploadScopeId, csrfToken, (percent) => updateFileProgress(index, percent));
         updateFileProgress(index, 100);
         return { id: result.id, url: result.url, name: file.name, size: result.bytes, isCover: false };
       }));

@@ -5,7 +5,7 @@ import {
   calculateNightlySubtotal,
   calculatePackageSubtotal,
   calculateStayprimeMarkup,
-  getBookingPackageById,
+  findBookingPackageById,
   nightsBetweenDateKeys,
   STAYPRIME_MARKUP_RATE,
   type NightlyRates,
@@ -46,7 +46,7 @@ export interface PriceBreakdown {
 }
 
 export function computePrice(rates: NightlyRates | Property | number, checkIn: string, checkOut: string, guests = 1, packageId?: string | null): PriceBreakdown {
-  const bookingPackage = typeof rates === "object" && "bookingPackages" in rates ? getBookingPackageById(rates, packageId) : null;
+  const bookingPackage = typeof rates === "object" && "bookingPackages" in rates ? findBookingPackageById(rates, packageId) : null;
   const nightlyRates = typeof rates === "number" ? { pricePerNight: rates } : rates;
   const nightlySubtotal = bookingPackage
     ? calculatePackageSubtotal(bookingPackage, checkIn, checkOut, guests)

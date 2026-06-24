@@ -46,6 +46,14 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
           </select>
         </label>
         <label className="block">
+          <span className="mb-2 block text-sm font-medium">Booking type</span>
+          <select name="bookingType" defaultValue={property?.bookingType ?? "stay"} className="min-h-12 w-full rounded-2xl border p-3">
+            <option value="stay">Stay bookings only</option>
+            <option value="package">Package bookings only</option>
+            <option value="both">Stay and package bookings</option>
+          </select>
+        </label>
+        <label className="block">
           <span className="mb-2 block text-sm font-medium">Currency</span>
           <select name="currency" defaultValue={property?.currency ?? "PHP"} className="min-h-12 w-full rounded-2xl border p-3">
             {["PHP", "USD"].map((item) => (
@@ -53,6 +61,16 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
             ))}
           </select>
         </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Holiday price</span>
+            <input name="holidayPrice" type="number" min="0" defaultValue={property?.holidayPrice ?? 0} className="min-h-12 w-full rounded-2xl border p-3" />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Holiday dates</span>
+            <input name="holidayDates" type="text" defaultValue={(property?.holidayDates ?? []).join(", ")} className="min-h-12 w-full rounded-2xl border p-3" placeholder="2026-12-24, 2026-12-31" />
+          </label>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {capacityFields.map(({ label, name, defaultValue }) => (
             <label key={name} className="block">
@@ -66,7 +84,7 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
         </button>
       </div>
       <div className="space-y-4">
-        <ImageUploader listingId={property?.id} initialPhotos={property?.images} />
+        <ImageUploader listingId={property?.id} initialPhotos={property?.images} csrfToken={csrfToken} />
         <div className="rounded-[1.5rem] bg-white p-5 soft-card">
           <h3 className="font-semibold">Amenities</h3>
           <div className="mt-4 grid gap-5 text-sm">

@@ -14,6 +14,24 @@ const { supabaseAuth } = vi.hoisted(() => ({
 vi.mock("@/lib/auth", () => ({
   createSession: vi.fn(),
   roleHome: vi.fn((role: string) => `/${role}/dashboard`),
+  sessionMetadataFromHeaders: vi.fn(() => ({ userAgent: "Test Browser" })),
+}));
+
+vi.mock("@/lib/admin-mfa", () => ({
+  createAdminMfaCode: vi.fn(() => "123456"),
+  pendingAdminMfaCookie: vi.fn(() => ({
+    name: "stayprimeph_admin_mfa",
+    value: "signed-mfa-cookie",
+    options: { httpOnly: true, sameSite: "lax", secure: true, path: "/", maxAge: 600 },
+  })),
+}));
+
+vi.mock("@/lib/auth-tokens", () => ({
+  issueAuthToken: vi.fn(async () => "mfa-token"),
+}));
+
+vi.mock("@/lib/email", () => ({
+  sendPrivilegedMfaEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/canonical-paths", () => ({
@@ -41,6 +59,8 @@ vi.mock("@/lib/users", () => ({
 
 import { GET } from "@/app/auth/callback/route";
 import { createSession } from "@/lib/auth";
+import { issueAuthToken } from "@/lib/auth-tokens";
+import { sendPrivilegedMfaEmail } from "@/lib/email";
 import { hasSupabaseConfig } from "@/lib/supabase/server";
 import { writeStoredUsers } from "@/lib/user-store";
 import { getUsers } from "@/lib/users";
@@ -65,7 +85,7 @@ describe("social auth callback", () => {
     supabaseAuth.getUser.mockResolvedValue({ data: { user: supabaseUser }, error: null });
   });
 
-  it("creates a new Google or Facebook account with the requested host role", async () => {
+  it("creates a new Google or Facebook host account and requires host MFA", async () => {
     const response = await GET(callbackRequest("/auth/callback?code=oauth-code&mode=register&role=host"));
 
     expect(writeStoredUsers).toHaveBeenCalledWith([
@@ -75,8 +95,16 @@ describe("social auth callback", () => {
         role: "host",
       }),
     ]);
-    expect(createSession).toHaveBeenCalledWith("supabase-social-user-1");
-    expect(response.headers.get("location")).toBe("https://stayprimeph.com/host/dashboard");
+    expect(createSession).not.toHaveBeenCalled();
+    expect(issueAuthToken).toHaveBeenCalledWith("supabase-social-user-1", "admin_mfa");
+    expect(sendPrivilegedMfaEmail).toHaveBeenCalledWith({
+      to: "host@example.com",
+      name: "Host User",
+      code: "123456",
+      role: "host",
+    });
+    expect(response.headers.get("location")).toBe("https://stayprimeph.com/login?mfa=1&role=host&message=Enter+the+6-digit+code+sent+to+the+host+email.");
+    expect(response.headers.get("set-cookie")).toContain("stayprimeph_admin_mfa");
   });
 
   it("sends an existing guest who requested host access to the upgrade flow", async () => {
@@ -95,7 +123,7 @@ describe("social auth callback", () => {
     const response = await GET(callbackRequest("/auth/callback?code=oauth-code&mode=register&role=host"));
 
     expect(writeStoredUsers).not.toHaveBeenCalled();
-    expect(createSession).toHaveBeenCalledWith("guest-1");
+    expect(createSession).toHaveBeenCalledWith("guest-1", expect.objectContaining({ userAgent: "Test Browser" }));
     expect(supabaseAuth.signOut).not.toHaveBeenCalled();
     expect(response.headers.get("location")).toBe("https://stayprimeph.com/become-a-host/upgrade");
   });

@@ -7,8 +7,10 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { cancelBookingByGuest, getBookingById } from "@/lib/bookings";
 import { evaluateCancellationPolicy } from "@/lib/cancellation-policy";
 import { assertValidCsrfForm } from "@/lib/csrf";
+import { logger } from "@/lib/logger";
 import { storePaymentReceiptImage } from "@/lib/payment-receipt-storage";
 import { getPaymentByBookingId, readManualPaymentInput, submitManualPayment } from "@/lib/payments";
+import { cleanupStoredPhotoUrl } from "@/lib/photo-storage";
 import { getPropertyById } from "@/lib/properties";
 import { canReviewBooking, createStayReview, getReviewForBooking } from "@/lib/reviews";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
@@ -121,6 +123,7 @@ export async function submitManualPaymentDetails(
   }
 
   let bookingId = "";
+  let receiptImageUrl = "";
 
   try {
     const paymentInput = readManualPaymentInput(formData);
@@ -128,7 +131,7 @@ export async function submitManualPaymentDetails(
     const booking = await getBookingById(bookingId);
     if (!booking) throw new Error("Booking request not found.");
     if (booking.guestId !== user.id) throw new Error("Booking request not found.");
-    const receiptImageUrl = await storePaymentReceiptImage({
+    receiptImageUrl = await storePaymentReceiptImage({
       file: formData.get("receiptImage"),
       userId: user.id,
       bookingId: booking.id,
@@ -140,6 +143,12 @@ export async function submitManualPaymentDetails(
       paymentInput: { ...paymentInput, receiptImageUrl },
     });
   } catch (error) {
+    if (receiptImageUrl) {
+      const cleanup = await cleanupStoredPhotoUrl(receiptImageUrl);
+      if (cleanup.failures.length) {
+        logger.warn("payment_receipt_cleanup_failed", { bookingId, failures: cleanup.failures.length });
+      }
+    }
     return { error: error instanceof Error ? error.message : "Payment details could not be submitted." };
   }
 

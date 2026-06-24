@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Booking } from "@/lib/types";
+import type { Booking, BookingPackage } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/audit-logs", () => ({
@@ -33,7 +33,7 @@ vi.mock("@/lib/platform-ledger-store", () => ({
 }));
 
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
-import { cancelBookingByGuest, getBookingsForHost, markBookingPaid } from "@/lib/bookings";
+import { cancelBookingByGuest, getBookingsForHost, hasDateConflict, markBookingPaid } from "@/lib/bookings";
 import { readStoredCancellations, writeStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { writeStoredPlatformLedger } from "@/lib/platform-ledger-store";
@@ -169,5 +169,59 @@ describe("markBookingPaid", () => {
     expect(writeStoredPayments).not.toHaveBeenCalled();
     expect(writeStoredPlatformLedger).not.toHaveBeenCalled();
     expect(appendAuditLog).not.toHaveBeenCalled();
+  });
+});
+
+describe("hasDateConflict", () => {
+  const groundFloorPackage = {
+    id: "ground-floor",
+    name: "Ground Floor Daytime",
+    accessType: "Ground floor only",
+    unit: "day",
+    weekdayRate: 8000,
+    weekendRate: 9000,
+    includedGuests: 20,
+    maxGuests: 25,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1000,
+    checkInTime: "9:00 AM",
+    checkOutTime: "6:00 PM",
+    enabled: true,
+    blockedPackageIds: ["whole-villa"],
+  } satisfies BookingPackage;
+  const secondFloorPackage = {
+    ...groundFloorPackage,
+    id: "second-floor",
+    name: "Second Floor Overnight",
+    accessType: "Second floor rooms",
+    unit: "night",
+    blockedPackageIds: ["whole-villa"],
+  } satisfies BookingPackage;
+  const wholeVillaPackage = {
+    ...groundFloorPackage,
+    id: "whole-villa",
+    name: "Whole Villa Overnight",
+    accessType: "Whole villa",
+    unit: "night",
+    blockedPackageIds: ["ground-floor", "second-floor"],
+  } satisfies BookingPackage;
+  const packages = [groundFloorPackage, secondFloorPackage, wholeVillaPackage];
+
+  it("allows overlapping package bookings when neither package blocks the other", () => {
+    expect(hasDateConflict([
+      { ...booking, status: "confirmed", paymentStatus: "paid", bookingPackageId: "ground-floor" },
+    ], booking.propertyId, "2026-06-20", "2026-06-21", "second-floor", packages)).toBe(false);
+  });
+
+  it("blocks overlapping package bookings when either package declares a conflict", () => {
+    expect(hasDateConflict([
+      { ...booking, status: "confirmed", paymentStatus: "paid", bookingPackageId: "whole-villa" },
+    ], booking.propertyId, "2026-06-20", "2026-06-21", "ground-floor", packages)).toBe(true);
+  });
+
+  it("keeps whole-stay bookings conservative when no package is selected", () => {
+    expect(hasDateConflict([
+      { ...booking, status: "confirmed", paymentStatus: "paid", bookingPackageId: "ground-floor" },
+    ], booking.propertyId, "2026-06-20", "2026-06-21", null, packages)).toBe(true);
   });
 });
