@@ -57,7 +57,7 @@ export function PayoutSettings({
   const [isPending, startTransition] = useTransition();
   const methods = financial.payoutMethods;
   const needsPasswordSetup = requiresStepUp && !hasPassword;
-  const passwordSetupHref = `/forgot-password${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
+  const passwordHelpHref = `/forgot-password${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
 
   const totals = useMemo(() => {
     const sent = payoutRecords.filter((item) => item.status === "Sent").reduce((sum, item) => sum + item.amount, 0);
@@ -171,13 +171,13 @@ export function PayoutSettings({
           <div className="mt-5 max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <p className="font-semibold">This account uses Google sign-in.</p>
             <p className="mt-1 text-amber-900/80">StayPrimePH never receives your Gmail password. Set a StayPrimePH password first, then return here to add or change payout methods.</p>
-            <Link href={passwordSetupHref} className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#21170f] px-4 font-semibold text-white transition hover:bg-black">
+            <Link href={passwordHelpHref} className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#21170f] px-4 font-semibold text-white transition hover:bg-black">
               Set StayPrimePH password
             </Link>
           </div>
         ) : (
           <div className="mt-5 max-w-md">
-            <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+            <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} resetHref={passwordHelpHref} />
           </div>
         )}
         {methods.length > 0 ? (
