@@ -534,13 +534,18 @@ export function PayNowButton({
                       ) : null}
                     </div>
 
-                    <div className="hidden overflow-hidden rounded-2xl border border-black/10 bg-black/[0.03] sm:block">
+                    <div className="hidden min-h-[168px] overflow-hidden rounded-2xl border border-black/10 bg-black/[0.03] sm:block">
                       {receiptObjectUrl ? (
-                        <div
-                          aria-label="Receipt preview"
-                          className="h-full min-h-[168px] w-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${receiptObjectUrl})` }}
-                        />
+                        <div className="relative h-full min-h-[168px] w-full bg-white" aria-label="Receipt preview">
+                          <Image
+                            src={receiptObjectUrl}
+                            alt="Uploaded receipt preview"
+                            fill
+                            sizes="168px"
+                            className="object-contain p-2"
+                            unoptimized
+                          />
+                        </div>
                       ) : (
                         <div className="grid h-full min-h-[168px] place-items-center p-4 text-center text-xs text-black/45">Receipt preview</div>
                       )}
