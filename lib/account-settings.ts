@@ -76,7 +76,6 @@ const bookingPermissionFields = ["profilePhoto", "verifiedPhone", "instantBookin
 const professionalToolFields = ["professionalTools", "ruleSets", "bulkEditing"] as const;
 const workTravelTextFields = ["email", "companyName", "department", "employeeId"] as const;
 const localizationFields = ["language", "currency", "region", "measurementUnits", "timeZone"] as const;
-const serviceFeeModes = ["single", "split"] as const;
 const donationApplyToValues = ["Bookings", "Payouts", "Both"] as const;
 const payoutTypes = ["Bank account", "Digital wallet", "PayPal", "GCash", "Maya"] as const;
 const providedMarker = "Provided";
@@ -344,7 +343,6 @@ function normalizeFinancialSettings(value: unknown): FinancialSettingsState {
       vatId: publicTaxIdentifier(value.vat, "vatId"),
     } : null,
     donationPreference: normalizeDonationPreference(value.donationPreference),
-    serviceFeeMode: typeof value.serviceFeeMode === "string" && serviceFeeModes.includes(value.serviceFeeMode as FinancialSettingsState["serviceFeeMode"]) ? value.serviceFeeMode as FinancialSettingsState["serviceFeeMode"] : defaults.serviceFeeMode,
   };
 }
 

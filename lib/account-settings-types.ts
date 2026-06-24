@@ -194,8 +194,6 @@ export type DonationPreference = {
   applyTo: "Bookings" | "Payouts" | "Both";
 };
 
-export type ServiceFeeMode = "single" | "split";
-
 export type FinancialSettingsState = {
   paymentMethods: SavedPaymentMethod[];
   giftCredits: GiftCredit[];
@@ -204,7 +202,6 @@ export type FinancialSettingsState = {
   taxpayer: TaxpayerInfo | null;
   vat: VatInfo | null;
   donationPreference: DonationPreference;
-  serviceFeeMode: ServiceFeeMode;
 };
 
 export const defaultDonationPreference: DonationPreference = {
@@ -222,5 +219,4 @@ export const defaultFinancialSettings: FinancialSettingsState = {
   taxpayer: null,
   vat: null,
   donationPreference: defaultDonationPreference,
-  serviceFeeMode: "split",
 };

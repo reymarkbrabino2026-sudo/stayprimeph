@@ -145,7 +145,6 @@ function mockExportSources() {
         nonprofit: "StayPrimePH Open Doors Fund",
         applyTo: "Bookings",
       },
-      serviceFeeMode: "split",
     },
   });
   vi.mocked(getProperties).mockResolvedValue([

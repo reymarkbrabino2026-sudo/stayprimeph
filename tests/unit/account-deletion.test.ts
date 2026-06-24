@@ -153,7 +153,6 @@ describe("verified account deletion", () => {
           nonprofit: "StayPrimePH Open Doors Fund",
           applyTo: "Bookings",
         },
-        serviceFeeMode: "split",
       },
     });
     vi.mocked(issueAuthToken).mockResolvedValueOnce("raw-deletion-token");

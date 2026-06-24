@@ -7,6 +7,7 @@ import {
   calculateStayprimeMarkupFromTotal,
   calculatePackageSubtotal,
   getBestDiscount,
+  STAYPRIME_MARKUP_RATE,
 } from "@/lib/pricing";
 import type { Booking, Property } from "@/lib/types";
 
@@ -37,6 +38,10 @@ describe("getBestDiscount", () => {
 });
 
 describe("calculateStayprimeMarkup", () => {
+  it("uses a single fixed 20% markup rate", () => {
+    expect(STAYPRIME_MARKUP_RATE).toBe(0.2);
+  });
+
   it("adds a 20% StayPrimePH markup", () => {
     expect(calculateStayprimeMarkup(10000)).toBe(2000);
   });
@@ -45,9 +50,26 @@ describe("calculateStayprimeMarkup", () => {
     expect(calculateGuestPriceWithMarkup(10000)).toBe(12000);
   });
 
+  it("uses the markup after discounts are applied to the host subtotal", () => {
+    const discountedHostSubtotal = 25000;
+
+    expect(calculateStayprimeMarkup(discountedHostSubtotal)).toBe(5000);
+    expect(calculateGuestPriceWithMarkup(discountedHostSubtotal)).toBe(30000);
+  });
+
   it("splits a guest-paid total back into markup and host payout", () => {
     expect(calculateStayprimeMarkupFromTotal(12000)).toBe(2000);
     expect(calculateHostPayoutFromTotal(12000)).toBe(10000);
+  });
+
+  it("rounds guest-total splits while keeping markup plus payout equal to the paid total", () => {
+    const guestTotal = 5000;
+    const markup = calculateStayprimeMarkupFromTotal(guestTotal);
+    const hostPayout = calculateHostPayoutFromTotal(guestTotal);
+
+    expect(markup).toBe(833);
+    expect(hostPayout).toBe(4167);
+    expect(markup + hostPayout).toBe(guestTotal);
   });
 });
 
