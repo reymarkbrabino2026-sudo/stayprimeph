@@ -89,6 +89,16 @@ describe("financial settings step-up auth", () => {
     expect(saveFinancialSettings).not.toHaveBeenCalled();
   });
 
+  it("blocks host financial changes for social sign-in users until they set a password", async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce({ ...hostUser, passwordHash: undefined });
+
+    const result = await saveFinancialSettingsAction(defaultFinancialSettings, "google-password");
+
+    expect(result).toEqual({ ok: false, error: "Set a password before changing payment or payout settings." });
+    expect(verifyPassword).not.toHaveBeenCalled();
+    expect(saveFinancialSettings).not.toHaveBeenCalled();
+  });
+
   it("saves host financial changes after a valid current password", async () => {
     vi.mocked(requireUser).mockResolvedValueOnce(hostUser);
     vi.mocked(verifyPassword).mockReturnValueOnce(true);
@@ -107,6 +117,15 @@ describe("financial settings step-up auth", () => {
 
     expect(result).toEqual({ ok: false, error: "Current password is incorrect." });
     expect(verifyPassword).toHaveBeenCalledWith("wrong-password", "hash");
+  });
+
+  it("blocks payout setup for social sign-in users until they set a password", async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce({ ...hostUser, passwordHash: undefined });
+
+    const result = await verifyFinancialSettingsStepUpAction("google-password");
+
+    expect(result).toEqual({ ok: false, error: "Set a password before changing payment or payout settings." });
+    expect(verifyPassword).not.toHaveBeenCalled();
   });
 
   it("allows payout setup after a valid current password", async () => {

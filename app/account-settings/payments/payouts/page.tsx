@@ -12,7 +12,7 @@ export default async function PayoutsPage() {
     <AccountSettingsShell active="Payments">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Payments</h2>
       <SettingsTabs tabs={[{ label: "Payments", href: "/account-settings/payments" }, { label: "Payouts", href: "/account-settings/payments/payouts", active: true }, { label: "Service fee", href: "/account-settings/payments/service-fee" }, { label: "Donations", href: "/account-settings/payments/donations" }]} />
-      <PayoutSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} />
+      <PayoutSettings initialFinancial={accountSettings.financial} requiresStepUp={user.role === "host"} hasPassword={Boolean(user.passwordHash)} userEmail={user.email} />
     </AccountSettingsShell>
   );
 }

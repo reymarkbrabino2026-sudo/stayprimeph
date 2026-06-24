@@ -1,6 +1,7 @@
 "use client";
 
 import { Banknote, ChevronRight, Download, Landmark, WalletCards, X } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { saveFinancialSettingsAction, verifyFinancialSettingsStepUpAction } from "@/app/account-settings/actions";
 import { StepUpPasswordField } from "@/components/account/step-up-password-field";
@@ -36,7 +37,17 @@ function money(value: number) {
   return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(value);
 }
 
-export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { initialFinancial: FinancialSettingsState; requiresStepUp?: boolean }) {
+export function PayoutSettings({
+  initialFinancial,
+  requiresStepUp = false,
+  hasPassword = true,
+  userEmail,
+}: {
+  initialFinancial: FinancialSettingsState;
+  requiresStepUp?: boolean;
+  hasPassword?: boolean;
+  userEmail?: string;
+}) {
   const [financial, setFinancial] = useState(initialFinancial);
   const [draft, setDraft] = useState(emptyMethod);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,6 +56,8 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const methods = financial.payoutMethods;
+  const needsPasswordSetup = requiresStepUp && !hasPassword;
+  const passwordSetupHref = `/forgot-password${userEmail ? `?email=${encodeURIComponent(userEmail)}` : ""}`;
 
   const totals = useMemo(() => {
     const sent = payoutRecords.filter((item) => item.status === "Sent").reduce((sum, item) => sum + item.amount, 0);
@@ -53,6 +66,12 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
   }, []);
 
   function saveMethods(next: PayoutMethod[]) {
+    if (needsPasswordSetup) {
+      setMessage("Set a StayPrimePH password before changing payout settings.");
+      setOpenPanel(null);
+      return;
+    }
+
     const nextFinancial = { ...financial, payoutMethods: next };
     const previous = financial;
     setFinancial(nextFinancial);
@@ -83,6 +102,12 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
 
     if (!requiresStepUp) {
       showMethodForm(method);
+      return;
+    }
+
+    if (needsPasswordSetup) {
+      setMessage("Set a StayPrimePH password before setting up payouts.");
+      setOpenPanel(null);
       return;
     }
 
@@ -142,9 +167,19 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
         {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
         <h3 className="text-3xl font-semibold">How you&apos;ll get paid</h3>
         <p className="mt-2">Add at least one payout method so we know where to send your money.</p>
-        <div className="mt-5 max-w-md">
-          <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
-        </div>
+        {needsPasswordSetup ? (
+          <div className="mt-5 max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">This account uses Google sign-in.</p>
+            <p className="mt-1 text-amber-900/80">StayPrimePH never receives your Gmail password. Set a StayPrimePH password first, then return here to add or change payout methods.</p>
+            <Link href={passwordSetupHref} className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#21170f] px-4 font-semibold text-white transition hover:bg-black">
+              Set StayPrimePH password
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-5 max-w-md">
+            <StepUpPasswordField required={requiresStepUp} value={currentPassword} onChange={setCurrentPassword} />
+          </div>
+        )}
         {methods.length > 0 ? (
           <div className="mt-7 space-y-3">
             {methods.map((method) => (
@@ -157,7 +192,7 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
             ))}
           </div>
         ) : null}
-        <PrimaryButton onClick={() => openMethodForm()} disabled={isPending}>{methods.length > 0 ? "Add another payout method" : "Set up payouts"}</PrimaryButton>
+        <PrimaryButton onClick={() => openMethodForm()} disabled={isPending || needsPasswordSetup}>{methods.length > 0 ? "Add another payout method" : "Set up payouts"}</PrimaryButton>
         {openPanel === "method" ? (
           <Panel title={editingId ? "Edit payout method" : "Set up payouts"}>
             <label className="grid gap-2 font-semibold">

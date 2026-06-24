@@ -1,7 +1,8 @@
 import { requestPasswordReset } from "@/app/auth/actions";
 
-export default async function ForgotPasswordPage({ searchParams }: { searchParams: Promise<{ sent?: string; error?: string }> }) {
+export default async function ForgotPasswordPage({ searchParams }: { searchParams: Promise<{ sent?: string; error?: string; email?: string }> }) {
   const query = await searchParams;
+  const email = typeof query.email === "string" ? query.email : "";
   return (
     <main className="grid min-h-dvh place-items-center bg-[#faf7f4] p-4">
       <section className="w-full max-w-md rounded-[2rem] bg-white p-6 soft-card">
@@ -12,7 +13,7 @@ export default async function ForgotPasswordPage({ searchParams }: { searchParam
         <form action={requestPasswordReset} className="mt-5 space-y-3">
           <label className="block">
             <span className="sr-only">Email</span>
-            <input name="email" type="email" required placeholder="Email" className="min-h-12 w-full rounded-2xl border p-4" />
+            <input name="email" type="email" required placeholder="Email" defaultValue={email} className="min-h-12 w-full rounded-2xl border p-4" />
           </label>
           <button className="min-h-12 w-full rounded-2xl bg-[#21170f] font-semibold text-white">Email reset link</button>
         </form>
