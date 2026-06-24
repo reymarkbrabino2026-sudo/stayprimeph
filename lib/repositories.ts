@@ -1632,6 +1632,7 @@ export async function recordManualPaymentInDatabase(
   payment: Pick<Payment, "amount" | "paymentMethod" | "transactionId" | "receiptImageUrl" | "notes">,
 ) {
   const now = new Date();
+  const nextBookingStatus = booking.paymentStatus === "partially_paid" ? "confirmed" : "pending";
   await prisma.$transaction(async (tx) => {
     const duplicatePayment = await tx.payment.findFirst({
       where: {
@@ -1645,7 +1646,7 @@ export async function recordManualPaymentInDatabase(
 
     await tx.booking.update({
       where: { id: booking.id },
-      data: { status: "pending", paymentStatus: "submitted" },
+      data: { status: nextBookingStatus, paymentStatus: "submitted" },
     });
     await tx.$executeRaw`
       INSERT INTO "Payment" (

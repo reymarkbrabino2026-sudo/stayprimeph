@@ -88,17 +88,28 @@ export function PayNowButton({
   propertyLocation,
   payment,
   csrfToken,
+  mode = "booking",
+  balanceAmount,
+  triggerLabel,
+  wrapperClassName = "mt-6",
 }: {
   booking: Booking;
   propertyTitle: string;
   propertyLocation: string;
   payment: Payment | null;
   csrfToken: string;
+  mode?: "booking" | "balance";
+  balanceAmount?: number;
+  triggerLabel?: string;
+  wrapperClassName?: string;
 }) {
+  const amountDue = mode === "balance" ? Math.max(Math.round(balanceAmount ?? 0), 0) : booking.totalPrice;
+  const alreadyPaidAmount = mode === "balance" && payment?.paymentStatus === "partially_paid" ? payment.amount : 0;
+  const defaultAmount = payment?.paymentStatus === "rejected" ? payment.amount : amountDue;
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(submitManualPaymentDetails, initialState);
-  const [amount, setAmount] = useState(() => (payment?.paymentStatus === "rejected" ? payment.amount : booking.totalPrice));
-  const [paymentPreset, setPaymentPreset] = useState(() => (payment?.paymentStatus === "rejected" ? "custom" : "100"));
+  const [amount, setAmount] = useState(() => defaultAmount);
+  const [paymentPreset, setPaymentPreset] = useState(() => (mode === "balance" ? "balance" : payment?.paymentStatus === "rejected" ? "custom" : "100"));
   const [method, setMethod] = useState<string>(() => (payment?.paymentStatus === "rejected" && payment.paymentMethod !== "stripe" ? payment.paymentMethod : ""));
   const initialReferenceNumber = payment?.paymentStatus === "rejected" ? payment.transactionId : "";
   const [referenceNumber, setReferenceNumber] = useState(initialReferenceNumber);
@@ -113,13 +124,14 @@ export function PayNowButton({
   const referenceNumberRef = useRef(initialReferenceNumber);
   const isSubmitted = payment?.paymentStatus === "submitted";
   const isRejected = payment?.paymentStatus === "rejected";
+  const isBalanceMode = mode === "balance";
   const currentStepIndex = paymentSteps.findIndex((step) => step.id === paymentStep);
-  const isAmountValid = Number.isFinite(amount) && amount >= 1 && amount <= booking.totalPrice;
+  const isAmountValid = Number.isFinite(amount) && amount >= 1 && amount <= amountDue;
   const hasPaymentMethod = method === "gcash" || method === "bank_transfer";
   const hasReceiptImage = Boolean(receiptFileName);
   const hasReferenceNumber = referenceNumber.trim().length > 0;
   const allStepsComplete = isAmountValid && hasPaymentMethod && hasReceiptImage && hasReferenceNumber;
-  const remainingBalance = Math.max(booking.totalPrice - amount, 0);
+  const remainingBalance = Math.max(amountDue - amount, 0);
   const selectedMethodLabel = hasPaymentMethod ? methodLabel(method) : "Not selected";
 
   useEffect(() => () => {
@@ -144,6 +156,10 @@ export function PayNowButton({
 
   function openPaymentModal() {
     resetReceiptUpload();
+    if (isBalanceMode) {
+      setAmount(amountDue);
+      setPaymentPreset("balance");
+    }
     setPaymentStep("amount");
     setOpen(true);
   }
@@ -154,7 +170,7 @@ export function PayNowButton({
   }
 
   function stepValidationMessage(stepId: PaymentStepId) {
-    if (stepId === "amount" && !isAmountValid) return `Enter an amount from ${formatCurrency(1)} to ${formatCurrency(booking.totalPrice)}.`;
+    if (stepId === "amount" && !isAmountValid) return `Enter an amount from ${formatCurrency(1)} to ${formatCurrency(amountDue)}.`;
     if (stepId === "method" && !hasPaymentMethod) return "Choose GCash or bank transfer before continuing.";
     if (stepId === "proof" && !hasReceiptImage) return "Upload a receipt screenshot before continuing.";
     if (stepId === "proof" && !hasReferenceNumber) return "Enter the receipt number or transaction ID before continuing.";
@@ -179,6 +195,10 @@ export function PayNowButton({
   function updateAmountPreset(percent: string) {
     setPaymentPreset(percent);
     setStepMessage("");
+    if (percent === "balance") {
+      setAmount(amountDue);
+      return;
+    }
     if (percent === "custom") return;
     setAmount(Math.round((booking.totalPrice * Number(percent)) / 100));
   }
@@ -249,7 +269,7 @@ export function PayNowButton({
   }
 
   return (
-    <div className="mt-6">
+    <div className={wrapperClassName}>
       {isRejected && payment ? (
         <section className="mb-5 rounded-2xl border border-rose-100 bg-rose-50 p-5">
           <p className="font-semibold text-rose-800">Payment was rejected</p>
@@ -269,7 +289,7 @@ export function PayNowButton({
         className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#083f35] px-5 font-semibold text-white transition hover:bg-[#062f28]"
       >
         <ReceiptText size={18} />
-        {isRejected ? "Submit updated payment" : "Pay now"}
+        {triggerLabel ?? (isRejected ? "Submit updated payment" : "Pay now")}
       </button>
 
       {open ? (
@@ -312,8 +332,9 @@ export function PayNowButton({
                       <p className="font-semibold">{booking.guests}</p>
                     </div>
                     <div>
-                      <p className="text-black/45">Total due</p>
-                      <p className="font-bold text-[#083f35]">{formatCurrency(booking.totalPrice)}</p>
+                      <p className="text-black/45">{isBalanceMode ? "Balance due" : "Total due"}</p>
+                      <p className="font-bold text-[#083f35]">{formatCurrency(amountDue)}</p>
+                      {isBalanceMode ? <p className="mt-1 text-xs text-black/50">Already paid {formatCurrency(alreadyPaidAmount)}</p> : null}
                     </div>
                   </div>
                 </div>
@@ -357,16 +378,22 @@ export function PayNowButton({
                 <section hidden={paymentStep !== "amount"} className="rounded-2xl border border-black/[0.08] bg-[#f6faf8] p-4 shadow-sm">
                   <label className="block">
                     <span className="text-sm font-semibold">How much do you want to pay?</span>
-                    <select
-                      value={paymentPreset}
-                      onChange={(event) => updateAmountPreset(event.target.value)}
-                      className="mt-2 min-h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-base shadow-sm outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
-                    >
-                      <option value="100">Full payment (100%) - {formatCurrency(booking.totalPrice)}</option>
-                      <option value="50">50% downpayment - {formatCurrency(Math.round(booking.totalPrice * 0.5))}</option>
-                      <option value="30">30% downpayment - {formatCurrency(Math.round(booking.totalPrice * 0.3))}</option>
-                      <option value="custom">Custom amount</option>
-                    </select>
+                    {isBalanceMode ? (
+                      <div className="mt-2 rounded-xl border border-[#083f35]/10 bg-white px-3 py-3 text-base font-semibold text-[#083f35] shadow-sm">
+                        Remaining balance - {formatCurrency(amountDue)}
+                      </div>
+                    ) : (
+                      <select
+                        value={paymentPreset}
+                        onChange={(event) => updateAmountPreset(event.target.value)}
+                        className="mt-2 min-h-12 w-full rounded-xl border border-black/10 bg-white px-3 text-base shadow-sm outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
+                      >
+                        <option value="100">Full payment (100%) - {formatCurrency(booking.totalPrice)}</option>
+                        <option value="50">50% downpayment - {formatCurrency(Math.round(booking.totalPrice * 0.5))}</option>
+                        <option value="30">30% downpayment - {formatCurrency(Math.round(booking.totalPrice * 0.3))}</option>
+                        <option value="custom">Custom amount</option>
+                      </select>
+                    )}
                   </label>
                   <label className="mt-4 block rounded-2xl bg-white p-3 shadow-sm">
                     <span className="text-xs font-semibold uppercase tracking-[0.12em] text-black/45">Amount to pay now</span>
@@ -374,7 +401,7 @@ export function PayNowButton({
                       name="amount"
                       type="number"
                       min={1}
-                      max={booking.totalPrice}
+                      max={amountDue}
                       step={1}
                       value={amount}
                       onChange={(event) => {
@@ -382,6 +409,7 @@ export function PayNowButton({
                         setStepMessage("");
                         setAmount(Number(event.target.value));
                       }}
+                      readOnly={isBalanceMode}
                       className="mt-2 min-h-12 w-full rounded-xl border border-black/10 px-3 text-lg font-semibold outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
                       required
                     />
@@ -390,8 +418,13 @@ export function PayNowButton({
                     <span className="text-sm font-medium text-black/55">You&apos;ll pay now</span>
                     <span className="text-3xl font-bold leading-none text-[#083f35]">{formatCurrency(amount || 0)}</span>
                   </div>
-                  {amount > 0 && amount < booking.totalPrice ? (
+                  {!isBalanceMode && amount > 0 && amount < booking.totalPrice ? (
                     <p className="mt-1 text-xs font-medium text-amber-700">Remaining balance {formatCurrency(remainingBalance)} - must be fully paid before check-in.</p>
+                  ) : null}
+                  {isBalanceMode ? (
+                    <p className="mt-1 text-xs font-medium text-emerald-700">
+                      This will settle the remaining balance for your confirmed booking.
+                    </p>
                   ) : null}
                 </section>
 

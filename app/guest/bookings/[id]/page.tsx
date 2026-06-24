@@ -119,10 +119,27 @@ export default async function BookingDetailsPage({
           </p>
         ) : isPartiallyPaid ? (
           <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="font-semibold">Partially paid. Your booking is confirmed.</p>
-            <p className="mt-1">
-              Paid {formatCurrency(partialPaidAmount)}. Please pay the remaining balance of {formatCurrency(remainingBalance)} upon check-in.
-            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">Partially paid. Your booking is confirmed.</p>
+                <p className="mt-1">
+                  Paid {formatCurrency(partialPaidAmount)}. Please pay the remaining balance of {formatCurrency(remainingBalance)} upon check-in.
+                </p>
+              </div>
+              {remainingBalance > 0 ? (
+                <PayNowButton
+                  booking={booking}
+                  propertyTitle={property.title}
+                  propertyLocation={formatPropertyLocation(property)}
+                  payment={payment}
+                  csrfToken={csrfToken}
+                  mode="balance"
+                  balanceAmount={remainingBalance}
+                  triggerLabel="Pay the balance now"
+                  wrapperClassName="shrink-0"
+                />
+              ) : null}
+            </div>
           </div>
         ) : (
           <PayNowButton

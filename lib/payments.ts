@@ -119,15 +119,35 @@ export async function submitManualPayment({
   if (booking.status === "cancelled") throw new Error("Cancelled bookings cannot be paid.");
   if (booking.status === "completed") throw new Error("Completed bookings cannot accept new payment details.");
   if (booking.paymentStatus === "paid") throw new Error("This booking is already paid.");
-  if (paymentInput.amount > booking.totalPrice) throw new Error("Submitted amount cannot exceed the booking total.");
 
   const existingPayment = await getPaymentByBookingId(booking.id);
-  if (existingPayment && existingPayment.paymentStatus !== "rejected") {
+  const isBalancePayment = existingPayment?.paymentStatus === "partially_paid";
+  const alreadyPaidAmount = isBalancePayment ? existingPayment.amount : 0;
+  const remainingBalance = Math.max(booking.totalPrice - alreadyPaidAmount, 0);
+  const maximumPaymentAmount = isBalancePayment ? remainingBalance : booking.totalPrice;
+
+  if (existingPayment && existingPayment.paymentStatus !== "rejected" && !isBalancePayment) {
     throw new Error("Payment details are already submitted for this booking.");
   }
+  if (maximumPaymentAmount <= 0) throw new Error("This booking is already paid.");
+  if (paymentInput.amount > maximumPaymentAmount) {
+    throw new Error(isBalancePayment
+      ? "Submitted balance cannot exceed the remaining balance."
+      : "Submitted amount cannot exceed the booking total.");
+  }
+
+  const storedPaymentInput = isBalancePayment ? {
+    ...paymentInput,
+    amount: alreadyPaidAmount + paymentInput.amount,
+    notes: [
+      existingPayment?.notes,
+      `Balance payment submitted after confirmed partial payment (${existingPayment.transactionId}).`,
+      paymentInput.notes,
+    ].filter(Boolean).join("\n") || undefined,
+  } : paymentInput;
 
   if (usesPrismaPersistence()) {
-    await recordManualPaymentInDatabase(booking, paymentInput);
+    await recordManualPaymentInDatabase(booking, storedPaymentInput);
     return;
   }
 
@@ -144,12 +164,12 @@ export async function submitManualPayment({
     bookingId: booking.id,
     guestId: booking.guestId,
     hostId: booking.hostId,
-    amount: paymentInput.amount,
-    paymentMethod: paymentInput.paymentMethod,
+    amount: storedPaymentInput.amount,
+    paymentMethod: storedPaymentInput.paymentMethod,
     paymentStatus: "submitted",
-    transactionId: paymentInput.transactionId,
-    receiptImageUrl: paymentInput.receiptImageUrl,
-    notes: paymentInput.notes,
+    transactionId: storedPaymentInput.transactionId,
+    receiptImageUrl: storedPaymentInput.receiptImageUrl,
+    notes: storedPaymentInput.notes,
     submittedAt: now,
     createdAt: existingPayment?.createdAt ?? now,
     updatedAt: now,
@@ -159,7 +179,7 @@ export async function submitManualPayment({
     ? payments.map((item) => (item.id === existingPayment.id ? payment : item))
     : [payment, ...payments]);
   await writeStoredBookings(updateBookingPaymentState(bookings, booking.id, {
-    status: "pending",
+    status: isBalancePayment ? "confirmed" : "pending",
     paymentStatus: "submitted",
   }));
 }

@@ -99,6 +99,61 @@ describe("submitManualPayment", () => {
       }),
     ]);
   });
+
+  it("adds a balance submission to the confirmed partial amount", async () => {
+    const partialBooking = {
+      ...booking,
+      status: "confirmed",
+      paymentStatus: "partially_paid",
+    } satisfies Booking;
+    vi.mocked(readStoredPayments).mockResolvedValue([
+      {
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        hostId: booking.hostId,
+        amount: 2500,
+        paymentMethod: "gcash",
+        paymentStatus: "partially_paid",
+        transactionId: "partial-reference",
+        notes: "Down payment confirmed.",
+        createdAt: "2026-06-01",
+      },
+    ]);
+    vi.mocked(readStoredBookings).mockResolvedValue([partialBooking]);
+
+    await submitManualPayment({
+      guestId: "guest-1",
+      booking: partialBooking,
+      paymentInput: {
+        bookingId: booking.id,
+        paymentMethod: "gcash",
+        amount: 2500,
+        transactionId: "balance-reference",
+        receiptImageUrl: "/uploads/payment-receipts/guest-1/booking-1/balance.webp",
+        notes: "Balance paid.",
+      },
+    });
+
+    expect(writeStoredPayments).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "payment-booking-1",
+        bookingId: booking.id,
+        amount: booking.totalPrice,
+        paymentStatus: "submitted",
+        transactionId: "balance-reference",
+        receiptImageUrl: "/uploads/payment-receipts/guest-1/booking-1/balance.webp",
+        notes: expect.stringContaining("Balance payment submitted after confirmed partial payment"),
+      }),
+    ]);
+    expect(writeStoredBookings).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: booking.id,
+        status: "confirmed",
+        paymentStatus: "submitted",
+      }),
+    ]);
+  });
 });
 
 describe("payment launch mode", () => {
