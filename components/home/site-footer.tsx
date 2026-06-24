@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { footerColumns, futureGetaways } from "@/lib/home-data";
 import { seoLocations } from "@/lib/seo-locations";
+import { cn } from "@/lib/utils";
 
-export function SiteFooter() {
+export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
   return (
-    <footer className="mt-12 bg-[#083f35] px-4 pb-24 pt-10 text-white sm:px-6 md:mt-20 md:pb-12 lg:px-12">
+    <footer className={cn(!flushTop && "mt-12 md:mt-20", "bg-[#083f35] px-4 pb-24 pt-10 text-white sm:px-6 md:pb-12 lg:px-12")}>
       <section>
         <h2 className="text-xl font-semibold sm:text-2xl">Inspiration for future getaways</h2>
         <div className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">

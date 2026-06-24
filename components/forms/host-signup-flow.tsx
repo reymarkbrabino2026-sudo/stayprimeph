@@ -65,7 +65,7 @@ export function HostSignupFlow({ error, message, nextPath }: { error?: string; m
     <div className="flex min-h-dvh flex-col bg-white">
       <Navbar />
 
-      <section className="relative flex min-h-[44rem] flex-1 items-center justify-center overflow-hidden border-b p-4 sm:p-6">
+      <section className="relative flex min-h-[calc(100dvh-4.5rem)] flex-1 items-center justify-center overflow-hidden border-b p-4 sm:p-6">
         <div
           aria-hidden="true"
           className="absolute inset-0 bg-cover bg-center"
@@ -188,7 +188,7 @@ export function HostSignupFlow({ error, message, nextPath }: { error?: string; m
         </div>
       </section>
 
-      <SiteFooter />
+      <SiteFooter flushTop />
     </div>
   );
 }
