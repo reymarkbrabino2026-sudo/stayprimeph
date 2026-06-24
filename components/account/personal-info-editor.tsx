@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, X } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { savePersonalInfoAction } from "@/app/account-settings/actions";
 import type { PersonalInfoField, PersonalInfoState } from "@/lib/account-settings-types";
@@ -56,7 +57,7 @@ function displayValue(key: PersonalInfoField, value: string) {
   return value;
 }
 
-export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; initialProfile: PersonalInfoState }) {
+export function PersonalInfoEditor({ initialProfile, hasPassword = true }: { user: SessionUser; initialProfile: PersonalInfoState; hasPassword?: boolean }) {
   const [profile, setProfile] = useState<PersonalInfoState>(initialProfile);
   const [activeField, setActiveField] = useState<PersonalInfoField | null>(null);
   const [draftValue, setDraftValue] = useState("");
@@ -65,6 +66,7 @@ export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; init
   const [isPending, startTransition] = useTransition();
   const activeMeta = fieldMeta.find((item) => item.key === activeField);
   const emailRequiresReauth = activeMeta?.key === "email" && draftValue.trim().toLowerCase() !== profile.email.trim().toLowerCase();
+  const passwordHelpHref = `/forgot-password${profile.email ? `?email=${encodeURIComponent(profile.email)}` : ""}`;
 
   function openEditor(key: PersonalInfoField) {
     setActiveField(key);
@@ -174,7 +176,15 @@ export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; init
                   />
                 )}
                 {activeMeta.help ? <p className="mt-2 text-sm leading-5 text-black/60">{activeMeta.help}</p> : null}
-                {emailRequiresReauth ? (
+                {emailRequiresReauth && !hasPassword ? (
+                  <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p className="font-semibold">Set a StayPrimePH password first.</p>
+                    <p className="mt-1 text-amber-900/80">StayPrimePH never receives your Google password. Set a StayPrimePH password before changing your sign-in email.</p>
+                    <Link href={passwordHelpHref} className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-[#21170f] px-4 font-semibold text-white transition hover:bg-black">
+                      Set StayPrimePH password
+                    </Link>
+                  </div>
+                ) : emailRequiresReauth ? (
                   <div className="mt-5">
                     <label className="text-sm font-semibold" htmlFor="account-current-password">
                       Current password
@@ -187,7 +197,12 @@ export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; init
                       onChange={(event) => setCurrentPassword(event.target.value)}
                       className="mt-2 min-h-12 w-full rounded-xl border border-black/20 px-4 outline-none focus:border-black"
                     />
-                    <p className="mt-2 text-sm leading-5 text-black/60">Required to protect your account sign-in email.</p>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm leading-5 text-black/60">Required to protect your account sign-in email.</p>
+                      <Link href={passwordHelpHref} className="text-sm font-semibold text-[#a8431f] underline-offset-4 hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
                   </div>
                 ) : null}
                 <div className="mt-6 flex justify-end gap-3">
@@ -197,7 +212,7 @@ export function PersonalInfoEditor({ initialProfile }: { user: SessionUser; init
                   <button
                     type="button"
                     onClick={saveField}
-                    disabled={isPending || (emailRequiresReauth && !currentPassword)}
+                    disabled={isPending || (emailRequiresReauth && (!hasPassword || !currentPassword))}
                     className="min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/25"
                   >
                     {isPending ? "Saving..." : "Save"}

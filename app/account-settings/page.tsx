@@ -20,7 +20,7 @@ export default async function AccountSettingsPage() {
   return (
     <AccountSettingsShell active="Personal information">
       <h2 className="text-[2rem] font-semibold tracking-[-0.04em]">Personal information</h2>
-      <PersonalInfoEditor user={{ id: user.id, name: user.name, email: user.email, phone: user.phone }} initialProfile={accountSettings.personalInfo} />
+      <PersonalInfoEditor user={{ id: user.id, name: user.name, email: user.email, phone: user.phone }} initialProfile={accountSettings.personalInfo} hasPassword={Boolean(user.passwordHash)} />
       <div className="mt-12 rounded-2xl border border-black/15 px-6">
         {infoCards.map(({ title, body, icon: Icon }, index) => (
           <div key={title} className={`flex gap-5 py-6 ${index > 0 ? "border-t border-black/15" : ""}`}>

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { getCurrentUser } from "@/lib/auth";
+import type { UserRole } from "@/lib/types";
 import {
   Bell,
   BriefcaseBusiness,
@@ -24,7 +26,16 @@ const navItems = [
   { label: "Travel for work", href: "/account-settings/travel-for-work", icon: BriefcaseBusiness },
 ];
 
-export function AccountSettingsShell({ active, children }: { active: string; children: React.ReactNode }) {
+export function accountSettingsDoneHref(role?: UserRole) {
+  if (role === "host") return "/host/profile";
+  if (role === "admin") return "/admin/dashboard";
+  return "/guest/profile";
+}
+
+export async function AccountSettingsShell({ active, children }: { active: string; children: React.ReactNode }) {
+  const user = await getCurrentUser();
+  const doneHref = accountSettingsDoneHref(user?.role);
+
   return (
     <div className="min-h-screen bg-white text-[#222]">
       <header className="border-b border-black/10">
@@ -32,7 +43,7 @@ export function AccountSettingsShell({ active, children }: { active: string; chi
           <Link href="/" className="inline-flex" aria-label="StayPrimePH home">
             <BrandLogo className="h-7 w-auto" />
           </Link>
-          <Link href="/guest/profile" className="rounded-full bg-black/[0.06] px-8 py-3 text-sm font-semibold text-black transition hover:bg-black/[0.1]">
+          <Link href={doneHref} className="rounded-full bg-black/[0.06] px-8 py-3 text-sm font-semibold text-black transition hover:bg-black/[0.1]">
             Done
           </Link>
         </div>
