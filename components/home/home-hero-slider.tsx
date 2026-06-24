@@ -44,7 +44,7 @@ export function HomeHeroSlider() {
   }
 
   return (
-    <section className="relative hidden h-[51svh] min-h-[23rem] overflow-hidden bg-[#053f34] text-white md:block md:h-[51vh] md:min-h-0">
+    <section className="relative mt-[72px] block h-[14rem] overflow-hidden bg-[#053f34] text-white sm:h-[18rem] md:mt-0 md:h-[51vh] md:min-h-0">
       <Image
         key={slides[active].src}
         src={slides[active].src}
@@ -58,8 +58,8 @@ export function HomeHeroSlider() {
       <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-black/10" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
 
-      <div className="absolute inset-x-6 bottom-24 z-10 mx-auto max-w-5xl text-center sm:bottom-32">
-        <p className="text-4xl font-normal leading-[1.02] tracking-normal text-white [font-stretch:92%] drop-shadow-[0_2px_16px_rgb(0_0_0_/_0.55)] sm:text-5xl lg:text-[58px] xl:whitespace-nowrap">
+      <div className="absolute inset-x-5 bottom-11 z-10 mx-auto max-w-5xl text-center sm:bottom-16 md:bottom-24 lg:bottom-32">
+        <p className="text-[1.75rem] font-normal leading-[1.05] tracking-normal text-white [font-stretch:92%] drop-shadow-[0_2px_16px_rgb(0_0_0_/_0.55)] sm:text-4xl md:text-5xl lg:text-[58px] xl:whitespace-nowrap">
           Find your next{" "}
           <span className="-mx-2 inline-grid overflow-hidden px-2 py-1 align-bottom">
             <AnimatePresence mode="wait" initial={false}>
@@ -95,7 +95,7 @@ export function HomeHeroSlider() {
         <ChevronRight size={22} />
       </button>
 
-      <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+      <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2 md:bottom-8">
         {slides.map((slide, index) => (
           <button
             key={slide.src}

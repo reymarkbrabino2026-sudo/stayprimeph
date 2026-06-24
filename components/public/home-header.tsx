@@ -1,7 +1,6 @@
 "use client";
 
-import { ConciergeBell, Home, Search, Sparkles } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Home, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -11,11 +10,6 @@ import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
 const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay", "Davao", "Siargao"];
-const MOBILE_CATEGORIES: ReadonlyArray<{ label: string; href: string; icon: LucideIcon; active?: boolean; badge?: string }> = [
-  { label: "Homes", href: "/", icon: Home, active: true },
-  { label: "Experiences", href: "/newsroom", icon: Sparkles, badge: "NEW" },
-  { label: "Services", href: "/support", icon: ConciergeBell, badge: "NEW" },
-];
 
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);
@@ -72,26 +66,24 @@ export function HomeHeader() {
             : "border-black/10 md:border-transparent md:bg-transparent md:text-white md:shadow-none"
         }`}
       >
-        <nav className="flex h-[82px] items-end justify-center gap-8 px-4 pb-2 md:hidden" aria-label="Browse StayPrimePH">
-          {MOBILE_CATEGORIES.map(({ label, href, icon: Icon, active, badge }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`relative flex min-w-20 flex-col items-center justify-end gap-1.5 pb-2 text-xs font-medium ${
-                active ? "text-black" : "text-black/65"
-              }`}
-            >
-              {badge ? (
-                <span className="absolute -top-1 right-2 rounded-md bg-[#23344a] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white shadow-sm">
-                  {badge}
-                </span>
-              ) : null}
-              <Icon size={28} strokeWidth={active ? 2.25 : 1.9} />
-              <span>{label}</span>
-              {active ? <span className="absolute bottom-0 h-0.5 w-8 rounded-full bg-black" /> : null}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex h-[72px] items-center justify-between gap-3 px-4 md:hidden">
+          <Link href="/" aria-label="StayPrimePH home" className="flex min-w-0 shrink items-center">
+            <BrandLogo variant="green" className="h-8 w-auto" priority />
+          </Link>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {showHostCta ? (
+              <Link
+                href={hostCtaHref}
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#083f35]/15 px-3.5 text-sm font-semibold text-[#083f35] transition active:scale-95"
+              >
+                Become a host
+              </Link>
+            ) : null}
+            {session.user ? <NotificationBell variant="dark" /> : null}
+            <TravellerMenu />
+          </div>
+        </div>
 
         <div className="relative hidden h-[72px] items-center justify-between px-4 sm:px-6 md:flex lg:px-12">
           <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
