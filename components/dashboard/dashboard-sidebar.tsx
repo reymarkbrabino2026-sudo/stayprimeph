@@ -19,7 +19,7 @@ export function DashboardSidebar({
     .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
-    <aside className="hidden border-r bg-white p-6 lg:block">
+    <aside className="hidden border-r bg-white p-6 lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:overflow-y-auto">
       <Link href="/" aria-label="StayPrimePH home" className="inline-flex">
         <BrandLogo className="h-7 w-auto" />
       </Link>

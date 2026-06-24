@@ -2,7 +2,7 @@
 
 import { Banknote, ChevronRight, Download, Landmark, WalletCards, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
-import { saveFinancialSettingsAction } from "@/app/account-settings/actions";
+import { saveFinancialSettingsAction, verifyFinancialSettingsStepUpAction } from "@/app/account-settings/actions";
 import { StepUpPasswordField } from "@/components/account/step-up-password-field";
 import type { FinancialSettingsState, PayoutMethod } from "@/lib/account-settings-types";
 
@@ -70,10 +70,39 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
     });
   }
 
-  function openMethodForm(method?: PayoutMethod) {
+  function showMethodForm(method?: PayoutMethod) {
     setDraft(method ? { type: method.type, accountName: method.accountName, bankName: method.bankName, accountNumber: method.accountNumber, currency: method.currency } : emptyMethod);
     setEditingId(method?.id ?? null);
     setOpenPanel("method");
+  }
+
+  function openMethodForm(method?: PayoutMethod) {
+    if (isPending) return;
+
+    setMessage("");
+
+    if (!requiresStepUp) {
+      showMethodForm(method);
+      return;
+    }
+
+    if (!currentPassword.trim()) {
+      setMessage("Enter your current password before setting up payouts.");
+      setOpenPanel(null);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await verifyFinancialSettingsStepUpAction(currentPassword);
+      if (!result.ok) {
+        setMessage(result.error);
+        setCurrentPassword("");
+        setOpenPanel(null);
+        return;
+      }
+
+      showMethodForm(method);
+    });
   }
 
   function updateProvider(provider: string) {
@@ -128,7 +157,7 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
             ))}
           </div>
         ) : null}
-        <PrimaryButton onClick={() => openMethodForm()}>{methods.length > 0 ? "Add another payout method" : "Set up payouts"}</PrimaryButton>
+        <PrimaryButton onClick={() => openMethodForm()} disabled={isPending}>{methods.length > 0 ? "Add another payout method" : "Set up payouts"}</PrimaryButton>
         {openPanel === "method" ? (
           <Panel title={editingId ? "Edit payout method" : "Set up payouts"}>
             <label className="grid gap-2 font-semibold">
@@ -191,9 +220,9 @@ export function PayoutSettings({ initialFinancial, requiresStepUp = false }: { i
   );
 }
 
-function PrimaryButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function PrimaryButton({ children, disabled = false, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="mt-7 min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white transition hover:bg-black">
+    <button type="button" onClick={onClick} disabled={disabled} className="mt-7 min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-black/25">
       {children}
     </button>
   );

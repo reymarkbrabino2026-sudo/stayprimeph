@@ -38,7 +38,7 @@ vi.mock("@/lib/request-safety", () => ({
   assertTrustedRequestOrigin: vi.fn(),
 }));
 
-import { requestAccountDeletionAction, requestUserDataExportAction, saveFinancialSettingsAction, saveLocalizationPreferencesAction } from "@/app/account-settings/actions";
+import { requestAccountDeletionAction, requestUserDataExportAction, saveFinancialSettingsAction, saveLocalizationPreferencesAction, verifyFinancialSettingsStepUpAction } from "@/app/account-settings/actions";
 import { defaultFinancialSettings, defaultLocalizationPreferences } from "@/lib/account-settings-types";
 import { saveFinancialSettings, saveLocalizationPreferences } from "@/lib/account-settings";
 import { requestAccountDeletion } from "@/lib/account-deletion";
@@ -97,6 +97,25 @@ describe("financial settings step-up auth", () => {
 
     expect(result).toEqual({ ok: true, data: defaultFinancialSettings });
     expect(saveFinancialSettings).toHaveBeenCalledWith(hostUser, defaultFinancialSettings);
+  });
+
+  it("blocks payout setup when the current password is wrong", async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce(hostUser);
+    vi.mocked(verifyPassword).mockReturnValueOnce(false);
+
+    const result = await verifyFinancialSettingsStepUpAction("wrong-password");
+
+    expect(result).toEqual({ ok: false, error: "Current password is incorrect." });
+    expect(verifyPassword).toHaveBeenCalledWith("wrong-password", "hash");
+  });
+
+  it("allows payout setup after a valid current password", async () => {
+    vi.mocked(requireUser).mockResolvedValueOnce(hostUser);
+    vi.mocked(verifyPassword).mockReturnValueOnce(true);
+
+    const result = await verifyFinancialSettingsStepUpAction("correct-password");
+
+    expect(result).toEqual({ ok: true, data: { verified: true } });
   });
 
   it("does not require host step-up for guest financial settings", async () => {

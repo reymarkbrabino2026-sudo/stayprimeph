@@ -49,6 +49,15 @@ function revalidateAccountPaths() {
   revalidatePath("/host/profile");
 }
 
+function assertFinancialSettingsStepUp(user: Awaited<ReturnType<typeof requireUser>>, currentPassword?: string) {
+  if (user.role !== "host") return;
+
+  requireVerifiedEmail(user);
+  if (!user.passwordHash) throw new Error("Set a password before changing payment or payout settings.");
+  if (!currentPassword) throw new Error("Enter your current password before changing payment or payout settings.");
+  if (!verifyPassword(currentPassword, user.passwordHash)) throw new Error("Current password is incorrect.");
+}
+
 export async function savePersonalInfoAction(profile: PersonalInfoState, currentPassword?: string) {
   return withAccountAction(async () => {
     const user = await requireUser({ message: "Please sign in again before saving account settings." });
@@ -139,12 +148,7 @@ export async function saveLocalizationPreferencesAction(localization: Localizati
 export async function saveFinancialSettingsAction(financial: FinancialSettingsState, currentPassword?: string) {
   return withAccountAction(async () => {
     const user = await requireUser({ message: "Please sign in again before saving account settings." });
-    if (user.role === "host") {
-      requireVerifiedEmail(user);
-      if (!user.passwordHash) throw new Error("Set a password before changing payment or payout settings.");
-      if (!currentPassword) throw new Error("Enter your current password before changing payment or payout settings.");
-      if (!verifyPassword(currentPassword, user.passwordHash)) throw new Error("Current password is incorrect.");
-    }
+    assertFinancialSettingsStepUp(user, currentPassword);
     const next = await saveFinancialSettings(user, financial);
     revalidatePath("/account-settings/payments");
     revalidatePath("/account-settings/payments/payouts");
@@ -155,5 +159,13 @@ export async function saveFinancialSettingsAction(financial: FinancialSettingsSt
     revalidatePath("/host/earnings");
     revalidatePath("/host/payouts");
     return next;
+  });
+}
+
+export async function verifyFinancialSettingsStepUpAction(currentPassword?: string) {
+  return withAccountAction(async () => {
+    const user = await requireUser({ message: "Please sign in again before setting up payouts." });
+    assertFinancialSettingsStepUp(user, currentPassword);
+    return { verified: true };
   });
 }
