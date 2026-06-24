@@ -5,9 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { cancelBookingByGuest, getBookingById } from "@/lib/bookings";
+import { evaluateCancellationPolicy } from "@/lib/cancellation-policy";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { storePaymentReceiptImage } from "@/lib/payment-receipt-storage";
-import { readManualPaymentInput, submitManualPayment } from "@/lib/payments";
+import { getPaymentByBookingId, readManualPaymentInput, submitManualPayment } from "@/lib/payments";
 import { getPropertyById } from "@/lib/properties";
 import { canReviewBooking, createStayReview, getReviewForBooking } from "@/lib/reviews";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
@@ -71,7 +72,16 @@ export async function cancelGuestBooking(
     if (booking.status === "completed") throw new Error("Completed stays cannot be cancelled.");
     if (!isBeforeCheckIn(booking.checkIn)) throw new Error("Bookings can only be cancelled before check-in.");
 
-    await cancelBookingByGuest(booking, reason || undefined);
+    const payment = await getPaymentByBookingId(booking.id);
+    const policy = evaluateCancellationPolicy({ booking, payment });
+    await cancelBookingByGuest(booking, reason || undefined, {
+      status: policy.cancellationStatus,
+      policySummary: policy.adminSummary,
+      policyOutcome: policy.outcome,
+      refundPercent: policy.refundPercent,
+      refundAmount: policy.refundAmount,
+      paidAmount: policy.paidAmount,
+    });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Booking could not be cancelled." };
   }

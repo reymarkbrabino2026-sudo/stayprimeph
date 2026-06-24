@@ -9,6 +9,7 @@ import { ReviewCard } from "@/components/ui/review-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingById, isExpiredUnpaidBooking } from "@/lib/bookings";
+import { evaluateCancellationPolicy } from "@/lib/cancellation-policy";
 import { getCsrfToken } from "@/lib/csrf";
 import { guestLinks } from "@/lib/navigation";
 import { getPaymentByBookingId } from "@/lib/payments";
@@ -44,8 +45,7 @@ export default async function BookingDetailsPage({
   const isPartiallyPaid = booking.paymentStatus === "partially_paid";
   const partialPaidAmount = isPartiallyPaid ? payment?.amount ?? 0 : 0;
   const remainingBalance = Math.max(booking.totalPrice - partialPaidAmount, 0);
-  const cancellationRequiresReview =
-    booking.paymentStatus === "paid" || booking.paymentStatus === "partially_paid" || booking.paymentStatus === "submitted";
+  const cancellationPolicy = evaluateCancellationPolicy({ booking, payment });
 
   const messageHostHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(booking.hostId)}`;
 
@@ -166,7 +166,9 @@ export default async function BookingDetailsPage({
             checkOut={booking.checkOut}
             csrfToken={csrfToken}
             totalPrice={booking.totalPrice}
-            requiresReview={cancellationRequiresReview}
+            refundLabel={cancellationPolicy.refundLabel}
+            policyTitle={cancellationPolicy.title}
+            policyMessage={cancellationPolicy.message}
           />
         ) : null}
       </div>

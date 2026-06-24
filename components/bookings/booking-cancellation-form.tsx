@@ -15,7 +15,9 @@ export function BookingCancellationForm({
   checkOut,
   csrfToken,
   totalPrice,
-  requiresReview,
+  refundLabel,
+  policyTitle,
+  policyMessage,
 }: {
   bookingId: string;
   propertyTitle: string;
@@ -23,7 +25,9 @@ export function BookingCancellationForm({
   checkOut: string;
   csrfToken: string;
   totalPrice: number;
-  requiresReview: boolean;
+  refundLabel: string;
+  policyTitle: string;
+  policyMessage: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(cancelGuestBooking, initialState);
@@ -34,7 +38,7 @@ export function BookingCancellationForm({
         <div>
           <p className="font-semibold">Need to cancel?</p>
           <p className="mt-1 text-sm leading-6 text-black/60">
-            You can cancel before check-in. Paid or submitted payments may need review before any refund is processed.
+            You can cancel before check-in. Refund handling is based on payment timing and the check-in window.
           </p>
         </div>
         <button
@@ -79,14 +83,16 @@ export function BookingCancellationForm({
                 </div>
                 <div>
                   <p className="text-black/45">Refund</p>
-                  <p className="font-semibold">{requiresReview ? "Review required" : "No payment captured"}</p>
+                  <p className="font-semibold">{refundLabel}</p>
                 </div>
               </div>
             </div>
 
-            <p className="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-              Cancelling will release these dates for other guests. This action cannot be undone from your dashboard.
-            </p>
+            <div className="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <p className="font-semibold">{policyTitle}</p>
+              <p className="mt-1">{policyMessage}</p>
+              <p className="mt-3">Cancelling will release these dates for other guests. This action cannot be undone from your dashboard.</p>
+            </div>
 
             <form action={formAction} className="mt-5 space-y-4">
               <input type="hidden" name={csrfFieldName} value={csrfToken} />

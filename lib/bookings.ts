@@ -128,17 +128,31 @@ export async function markBookingPaid(bookingId: string, transactionId: string) 
   });
 }
 
+type CancellationOptions = {
+  status?: Cancellation["status"];
+  policySummary?: string;
+  policyOutcome?: string;
+  refundPercent?: number;
+  refundAmount?: number;
+  paidAmount?: number;
+};
+
 function getCancellationStatus(booking: Booking) {
-  return booking.paymentStatus === "paid" || booking.paymentStatus === "submitted" ? "review" : "closed";
+  return booking.paymentStatus === "paid" || booking.paymentStatus === "partially_paid" || booking.paymentStatus === "submitted" ? "review" : "closed";
 }
 
-export async function cancelBookingByGuest(booking: Booking, reason?: string): Promise<Cancellation> {
+function cancellationReasonWithPolicy(reason: string | undefined, policySummary: string | undefined) {
+  return [reason?.trim(), policySummary?.trim()].filter(Boolean).join("\n\n") || undefined;
+}
+
+export async function cancelBookingByGuest(booking: Booking, reason?: string, options: CancellationOptions = {}): Promise<Cancellation> {
+  const cancellationReason = cancellationReasonWithPolicy(reason, options.policySummary);
   const cancellation: Cancellation = {
     id: randomUUID(),
     bookingId: booking.id,
     propertyId: booking.propertyId,
-    reason,
-    status: getCancellationStatus(booking),
+    reason: cancellationReason,
+    status: options.status ?? getCancellationStatus(booking),
     createdAt: new Date().toISOString(),
   };
 
@@ -167,6 +181,10 @@ export async function cancelBookingByGuest(booking: Booking, reason?: string): P
       cancellationStatus: cancellation.status,
       paymentStatus: booking.paymentStatus,
       reason: reason ?? null,
+      policyOutcome: options.policyOutcome ?? null,
+      refundPercent: options.refundPercent ?? null,
+      refundAmount: options.refundAmount ?? null,
+      paidAmount: options.paidAmount ?? null,
     },
   });
 
