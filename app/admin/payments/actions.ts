@@ -119,17 +119,24 @@ export async function recordPayout(formData: FormData) {
   requireVerifiedEmail(admin);
 
   const hostId = String(formData.get("hostId") ?? "").trim();
+  const bookingId = String(formData.get("bookingId") ?? "").trim();
+  const paymentId = String(formData.get("paymentId") ?? "").trim();
   const amount = Number(formData.get("amount"));
   if (!hostId) throw new Error("Host is required.");
 
-  await recordHostPayout(hostId, amount);
+  await recordHostPayout(hostId, amount, {
+    bookingId: bookingId || undefined,
+    paymentId: paymentId || undefined,
+  });
   await appendAdminLog({
     adminId: admin.id,
     action: "settings.payout_recorded",
-    entityType: "host",
-    entityId: hostId,
+    entityType: bookingId ? "booking" : "host",
+    entityId: bookingId || hostId,
   });
   revalidatePath("/admin/payments");
+  revalidatePath("/host/payouts");
+  revalidatePath("/host/earnings");
 }
 
 export async function rejectSubmittedPayment(formData: FormData) {

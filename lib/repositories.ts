@@ -1058,10 +1058,23 @@ export async function deletePropertyInDatabase(hostId: string, propertyId: strin
   });
 }
 
-function toPayout(row: { id: string; hostId: string; amount: number; status: string; availableOn: Date; createdAt: Date }): Payout {
+type DatabasePayout = {
+  id: string;
+  hostId: string;
+  bookingId: string | null;
+  paymentId: string | null;
+  amount: number;
+  status: string;
+  availableOn: Date;
+  createdAt: Date;
+};
+
+function toPayout(row: DatabasePayout): Payout {
   return {
     id: row.id,
     hostId: row.hostId,
+    bookingId: row.bookingId ?? undefined,
+    paymentId: row.paymentId ?? undefined,
     amount: row.amount,
     status: row.status === "pending" ? "pending" : "paid",
     availableOn: row.availableOn.toISOString(),
@@ -1070,24 +1083,33 @@ function toPayout(row: { id: string; hostId: string; amount: number; status: str
 }
 
 export async function createPayoutInDatabase(payout: Payout) {
-  await prisma.payout.create({
-    data: {
-      id: payout.id,
-      hostId: payout.hostId,
-      amount: payout.amount,
-      status: payout.status,
-      availableOn: new Date(payout.availableOn),
-    },
-  });
+  await prisma.$executeRaw`
+    INSERT INTO "Payout" (
+      "id", "hostId", "bookingId", "paymentId", "amount", "status", "availableOn"
+    )
+    VALUES (
+      ${payout.id}, ${payout.hostId}, ${payout.bookingId ?? null}, ${payout.paymentId ?? null},
+      ${payout.amount}, ${payout.status}, ${new Date(payout.availableOn)}
+    )
+  `;
 }
 
 export async function getPayoutsForHostFromDatabase(hostId: string): Promise<Payout[]> {
-  const rows = await prisma.payout.findMany({ where: { hostId }, orderBy: { createdAt: "desc" } });
+  const rows = await prisma.$queryRaw<DatabasePayout[]>`
+    SELECT "id", "hostId", "bookingId", "paymentId", "amount", "status", "availableOn", "createdAt"
+    FROM "Payout"
+    WHERE "hostId" = ${hostId}
+    ORDER BY "createdAt" DESC
+  `;
   return rows.map(toPayout);
 }
 
 export async function getAllPayoutsFromDatabase(): Promise<Payout[]> {
-  const rows = await prisma.payout.findMany({ orderBy: { createdAt: "desc" } });
+  const rows = await prisma.$queryRaw<DatabasePayout[]>`
+    SELECT "id", "hostId", "bookingId", "paymentId", "amount", "status", "availableOn", "createdAt"
+    FROM "Payout"
+    ORDER BY "createdAt" DESC
+  `;
   return rows.map(toPayout);
 }
 

@@ -16,9 +16,9 @@ type PayoutRecord = {
 };
 
 const payoutRecords: PayoutRecord[] = [
-  { id: "PO-2041", date: "2026-05-27", description: "May hosting payout", amount: 12850, status: "Scheduled" },
-  { id: "PO-1988", date: "2026-04-30", description: "April hosting payout", amount: 9340, status: "Sent" },
-  { id: "PO-1902", date: "2026-03-30", description: "March hosting payout", amount: 7825, status: "Sent" },
+  { id: "PO-2041", date: "2026-05-27", description: "Booking transaction payout", amount: 12850, status: "Scheduled" },
+  { id: "PO-1988", date: "2026-04-30", description: "Booking transaction payout", amount: 9340, status: "Sent" },
+  { id: "PO-1902", date: "2026-03-30", description: "Booking transaction payout", amount: 7825, status: "Sent" },
 ];
 
 const emptyMethod: Omit<PayoutMethod, "id"> = {
@@ -222,10 +222,10 @@ export function PayoutSettings({
       <div className="mt-14 rounded-2xl border border-black/15 p-6">
         <h3 className="text-xl font-semibold">Need help?</h3>
         <HelpRow title="When you'll get your payout" open={openPanel === "timing"} onClick={() => setOpenPanel((current) => (current === "timing" ? null : "timing"))}>
-          <p className="text-sm text-black/65">Payouts are usually released 24 hours after guest check-in. Bank processing can take 1 to 5 business days depending on the provider.</p>
+          <p className="text-sm text-black/65">Payouts are sent per paid booking transaction. StayPrimePH aims to send the host payout as soon as possible and within 24 hours after the guest payment is received and approved.</p>
         </HelpRow>
         <HelpRow title="How payouts work" open={openPanel === "how"} onClick={() => setOpenPanel((current) => (current === "how" ? null : "how"))}>
-          <p className="text-sm text-black/65">StayPrimePH sends your earnings to the default payout method after fees, refunds, and adjustments are applied.</p>
+          <p className="text-sm text-black/65">The guest pays the booking total, StayPrimePH receives the payment, the 20% markup is added to the StayPrimePH balance, and the remaining host payout is sent to your saved payout method.</p>
         </HelpRow>
         <HelpRow title="Go to your transaction history" open={openPanel === "history"} onClick={() => setOpenPanel((current) => (current === "history" ? null : "history"))}>
           <div className="grid gap-3 sm:grid-cols-2">

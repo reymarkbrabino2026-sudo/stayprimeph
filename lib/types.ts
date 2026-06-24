@@ -121,6 +121,8 @@ export interface PlatformLedgerEntry {
 export interface Payout {
   id: string;
   hostId: string;
+  bookingId?: string;
+  paymentId?: string;
   amount: number;
   status: "paid" | "pending";
   availableOn: string;

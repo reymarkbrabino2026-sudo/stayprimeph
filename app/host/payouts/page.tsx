@@ -44,8 +44,8 @@ export default async function HostPayoutsPage() {
         <BalanceCard label="Paid out" value={formatCurrency(earnings.totalPaidOut)} />
       </section>
       <p className="mt-3 text-sm text-black/55">
-        You earn the full nightly subtotal — StayPrimePH covers the payment processing fees. Earnings clear 24 hours after each
-        guest checks out, then become available for payout to your saved account.
+        Each guest payment includes the host price plus the 20% StayPrimePH markup. The markup is added to the StayPrimePH
+        balance, and the host payout is sent per transaction within 24 hours after payment is received whenever possible.
       </p>
 
       {earnings.payouts.length > 0 ? (
@@ -56,7 +56,9 @@ export default async function HostPayoutsPage() {
               <li key={payout.id} className="flex items-center justify-between gap-4 p-5">
                 <div>
                   <p className="font-semibold">{formatCurrency(payout.amount)}</p>
-                  <p className="text-sm text-black/50">Sent {formatDate(payout.createdAt)}</p>
+                  <p className="text-sm text-black/50">
+                    Sent {formatDate(payout.createdAt)}{payout.bookingId ? ` - Booking ${payout.bookingId}` : ""}
+                  </p>
                 </div>
                 <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 capitalize">
                   {payout.status}

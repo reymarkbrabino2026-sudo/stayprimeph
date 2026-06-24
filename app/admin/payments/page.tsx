@@ -11,6 +11,16 @@ import { getHostPayoutQueue } from "@/lib/payouts";
 import { calculateHostPayoutFromTotal, calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { formatCurrency } from "@/lib/utils";
 
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export default async function AdminPaymentsPage() {
   const [payments, platformLedger, payoutQueue, csrfToken] = await Promise.all([getAdminPayments(), getPlatformLedger(), getHostPayoutQueue(), getCsrfToken()]);
   const stayprimeBalance = platformLedger.reduce((sum, entry) => sum + entry.amount, 0);
@@ -26,30 +36,38 @@ export default async function AdminPaymentsPage() {
       <section className="mb-6 overflow-hidden rounded-2xl border border-black/10 bg-white">
         <div className="flex items-center justify-between gap-3 border-b border-black/10 p-4">
           <h2 className="font-semibold">Host payouts</h2>
-          <span className="text-sm text-black/50">{payoutQueue.length} host{payoutQueue.length === 1 ? "" : "s"} owed</span>
+          <span className="text-sm text-black/50">{payoutQueue.length} transaction{payoutQueue.length === 1 ? "" : "s"} owed</span>
         </div>
         {payoutQueue.length === 0 ? (
-          <p className="p-4 text-sm text-black/55">No host payouts are due right now.</p>
+          <p className="p-4 text-sm text-black/55">No transaction payouts are due right now.</p>
         ) : (
           <ul className="divide-y divide-black/[0.06]">
             {payoutQueue.map((entry) => (
-              <li key={entry.host.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <li key={`${entry.bookingId}-${entry.paymentId ?? "booking"}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold">{entry.host.name}</p>
                   <p className="text-sm text-black/50">{entry.host.email}</p>
                   <p className="mt-1 text-sm text-black/60">
-                    Available {formatCurrency(entry.availableBalance)} · Clearing {formatCurrency(entry.pendingClearance)} · Paid {formatCurrency(entry.totalPaidOut)}
+                    Booking {entry.bookingId}{entry.transactionId ? ` - Ref ${entry.transactionId}` : ""}
+                  </p>
+                  <p className="mt-1 text-sm text-black/60">
+                    Guest paid {formatCurrency(entry.guestPaidTotal)} - StayPrimePH 20% {formatCurrency(entry.stayprimeMarkup)} - Host payout {formatCurrency(entry.hostPayout)}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-black/45">
+                    Received {formatDateTime(entry.receivedAt)} - Target by {formatDateTime(entry.targetPayoutBy)}
                   </p>
                 </div>
-                {entry.availableBalance > 0 ? (
+                {entry.status === "available" ? (
                   <form action={recordPayout} className="flex items-center gap-2">
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="hostId" value={entry.host.id} />
-                    <input name="amount" type="number" min="1" max={entry.availableBalance} defaultValue={entry.availableBalance} className="min-h-10 w-28 rounded-xl border px-3 text-sm" />
-                    <button className="min-h-10 shrink-0 rounded-full bg-[#083f35] px-4 text-xs font-semibold text-white">Record payout</button>
+                    <input type="hidden" name="bookingId" value={entry.bookingId} />
+                    {entry.paymentId ? <input type="hidden" name="paymentId" value={entry.paymentId} /> : null}
+                    <input type="hidden" name="amount" value={entry.hostPayout} />
+                    <button className="min-h-10 shrink-0 rounded-full bg-[#083f35] px-4 text-xs font-semibold text-white">Record transaction payout</button>
                   </form>
                 ) : (
-                  <span className="text-sm text-black/45">Still clearing</span>
+                  <span className="text-sm text-black/45">Clearing</span>
                 )}
               </li>
             ))}

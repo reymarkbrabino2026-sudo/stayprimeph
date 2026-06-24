@@ -438,6 +438,8 @@ model Cancellation {
 model Payout {
   id          String   @id
   hostId      String
+  bookingId   String?
+  paymentId   String?
   amount      Int
   status      String
   availableOn DateTime
@@ -445,6 +447,8 @@ model Payout {
   host        User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
   @@index([hostId, status])
+  @@unique([bookingId])
+  @@index([paymentId])
 }
 
 model Report {
