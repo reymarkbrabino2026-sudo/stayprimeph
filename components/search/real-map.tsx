@@ -12,6 +12,7 @@ import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
 import type { PublicListingSummary } from "@/lib/types";
 import { formatPropertyLocation, formatSearchLocationLabel, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
+import styles from "./real-map.module.css";
 
 type RealMapProps = {
   properties: PublicListingSummary[];
@@ -91,9 +92,7 @@ export function RealMap({ properties, location, onPreviewOpenChange }: RealMapPr
         zoom: destinationMarker ? 12 : 10,
         zoomControl: false,
       });
-      if (window.matchMedia("(min-width: 1024px)").matches) {
-        L.control.zoom({ position: "topright" }).addTo(map);
-      }
+      L.control.zoom({ position: "topright" }).addTo(map);
       map.on("click", () => setSelectedId(null));
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -175,7 +174,7 @@ export function RealMap({ properties, location, onPreviewOpenChange }: RealMapPr
   return (
     <div className="relative h-full w-full overflow-hidden rounded-none bg-[#e9f0ea] lg:rounded-[2rem]">
       <div className="absolute inset-0 bg-[linear-gradient(115deg,transparent_0_42%,rgb(255_255_255_/_0.55)_42%_44%,transparent_44%_100%),linear-gradient(25deg,transparent_0_52%,rgb(255_255_255_/_0.5)_52%_54%,transparent_54%_100%),radial-gradient(circle_at_28%_30%,rgb(76_156_111_/_0.32),transparent_16%),radial-gradient(circle_at_70%_58%,rgb(33_150_180_/_0.24),transparent_18%),radial-gradient(circle_at_44%_76%,rgb(232_190_93_/_0.26),transparent_13%)]" />
-      <div ref={mapRef} data-lenis-prevent className="relative z-10 h-full w-full" />
+      <div ref={mapRef} data-lenis-prevent className={`stayprimeph-search-map ${styles.map} relative z-10 h-full w-full`} />
 
       {selectedProperty ? (
         <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-[600] p-3 lg:bottom-0">

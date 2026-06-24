@@ -1,0 +1,32 @@
+.map :global(.leaflet-top.leaflet-right) {
+  top: calc(4.75rem + env(safe-area-inset-top));
+  right: 0.75rem;
+}
+
+.map :global(.leaflet-control) {
+  margin: 0;
+}
+
+.map :global(.leaflet-control-zoom) {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.875rem;
+  box-shadow: 0 10px 25px rgb(0 0 0 / 0.18);
+}
+
+.map :global(.leaflet-control-zoom a) {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-color: rgb(39 24 11 / 0.1);
+  color: #1f1b16;
+  font-family: var(--font-stayprimeph-sans);
+  font-size: 1.2rem;
+  line-height: 2.35rem;
+}
+
+@media (min-width: 1024px) {
+  .map :global(.leaflet-top.leaflet-right) {
+    top: 1.5rem;
+    right: 1.5rem;
+  }
+}
