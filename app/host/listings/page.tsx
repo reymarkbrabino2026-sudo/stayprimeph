@@ -12,7 +12,7 @@ import { getPropertiesForHost } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
-export default async function HostListingsPage({ searchParams }: { searchParams: Promise<{ published?: string }> }) {
+export default async function HostListingsPage({ searchParams }: { searchParams: Promise<{ deleted?: string; published?: string }> }) {
   noStore();
 
   const [user, query] = await Promise.all([getCurrentUser(), searchParams]);
@@ -21,6 +21,11 @@ export default async function HostListingsPage({ searchParams }: { searchParams:
   return (
     <DashboardShell title="My Listings" subtitle="Host dashboard" description="Manage listing status, pricing, and edits." links={hostLinks}>
       <HostDraftCleaner enabled={query.published === "1"} userId={user?.id} />
+      {query.deleted === "1" ? (
+        <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          Listing deleted successfully.
+        </div>
+      ) : null}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid gap-3 sm:grid-cols-3">
           <Summary label="Total" value={properties.length} />

@@ -431,7 +431,8 @@ export async function deleteListing(formData: FormData) {
 
   revalidatePublicListingSummaries();
   revalidatePath("/host/listings");
-  redirect("/host/listings");
+  revalidatePath(`/host/listings/${existing.id}`);
+  return { status: "deleted" as const };
 }
 
 export async function saveWizardListingDraft(input: unknown, csrfToken?: string) {
