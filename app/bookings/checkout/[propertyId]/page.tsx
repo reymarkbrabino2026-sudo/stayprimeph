@@ -191,7 +191,10 @@ export default async function BookingCheckoutPage({
 
             <section className="border-b pb-8">
               <h2 className="text-xl font-semibold">Cancellation policy</h2>
-              <p className="mt-3 text-black/70">Free cancellation for 48 hours after booking. After that, the host&apos;s cancellation rules apply.</p>
+              <p className="mt-3 text-black/70">
+                Cancel before check-in from your booking details page. If no payment was captured, no refund is needed.
+                Paid or partially paid cancellations are reviewed based on payment timing and the check-in window.
+              </p>
             </section>
 
             <section className="border-b pb-8">

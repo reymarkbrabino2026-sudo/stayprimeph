@@ -159,7 +159,7 @@ export default async function RoomPage({
     ],
     ["Are exact location details public?", "The neighbourhood is shown on the map. The exact arrival address is shared after a confirmed booking."],
     ["Can I change my dates later?", "Date changes depend on host approval and the home's availability calendar."],
-    ["What is the cancellation policy?", "Free cancellation for 48 hours after booking. After that the host's cancellation rules apply."],
+    ["What is the cancellation policy?", "You can cancel before check-in from your booking details page. Refund review depends on payment status, payment timing, and how close the stay is to check-in."],
   ];
 
   const breadcrumbItems: Crumb[] = [

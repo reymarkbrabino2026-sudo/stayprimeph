@@ -191,14 +191,34 @@ export const legalPages: LegalPage[] = [
     slug: "cancellation-policy",
     title: "Cancellation Policy",
     description: "A clear baseline for guest cancellations, host cancellations, refunds, and booking status changes.",
-    updatedAt: "June 7, 2026",
+    updatedAt: "June 24, 2026",
     sections: [
       {
         title: "Guest cancellations",
         body: [
-          "Guests should review the cancellation terms shown during checkout before confirming a booking.",
-          "Refund eligibility depends on the listing policy, booking status, payment status, and timing of the cancellation request.",
-          "When a refund is approved, timing depends on the payment provider, bank, card network, and original payment method.",
+          "Guests may cancel eligible bookings before check-in from the booking details page.",
+          "Cancelling releases the reserved dates for other guests. A cancelled booking cannot be restored from the guest dashboard.",
+          "Refund handling depends on payment status, the time since payment was submitted or confirmed, and how close the booking is to check-in.",
+        ],
+      },
+      {
+        title: "Guest refund baseline",
+        body: [
+          "If no payment has been submitted or approved, the cancellation is closed with no refund needed.",
+          "If payment proof is submitted but not yet verified, StayPrimePH support or an authorized reviewer must confirm whether money was received before closing or refunding the payment.",
+          "If a paid or partially paid booking is cancelled within 24 hours after payment and more than 48 hours before check-in, the paid amount is recommended for full refund review.",
+          "If cancellation happens just after the first day and the stay is still at least 7 days away, the paid amount is recommended for full refund review.",
+          "If cancellation happens 2 to 3 days after payment and more than 72 hours before check-in, 50% of the paid amount is recommended for refund review.",
+          "If cancellation happens 4 to 5 days after payment, StayPrimePH reviews host impact, check-in timing, and any exception before deciding the refund.",
+          "If cancellation happens within 48 hours of check-in or more than 5 days after payment, no refund is recommended by default unless support approves an exception.",
+        ],
+      },
+      {
+        title: "Partial payments and balance payments",
+        body: [
+          "For partially paid bookings, refund recommendations apply only to the amount already received, not to the unpaid remaining balance.",
+          "If the remaining balance is paid later online or in cash at check-in, the payment status may be updated by the host or platform reviewer according to the verified amount received.",
+          "Hosts and guests should keep payment references, receipts, and balance-payment notes available in case support needs to review the booking.",
         ],
       },
       {
@@ -213,8 +233,9 @@ export const legalPages: LegalPage[] = [
         title: "Changes and exceptional cases",
         body: [
           "Date changes, guest-count changes, and booking modifications depend on listing availability, host approval, and any price difference.",
-          "Safety incidents, verified emergencies, duplicate charges, failed payments, or platform errors may be reviewed separately from the standard cancellation flow.",
+          "Safety incidents, verified emergencies, duplicate charges, failed payments, payment-provider errors, or platform errors may be reviewed separately from the standard cancellation flow.",
           "StayPrimePH support may request evidence before changing a booking, issuing a refund, or reversing a cancellation decision.",
+          "Approved refunds may take additional time depending on the payment provider, bank, card network, wallet, or original payment method.",
         ],
       },
       operatorContactSection,
