@@ -13,7 +13,7 @@ const seasonalRateSchema = z.object({
   name: z.string().min(1).max(80),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  weekdayRate: z.number().int().min(1).max(1000000),
+  weekdayRate: z.number().int().min(0).max(1000000),
   weekendRate: z.number().int().min(0).max(1000000),
   holidayRate: z.number().int().min(0).max(1000000),
 }).refine((value) => value.endDate >= value.startDate, {
@@ -34,10 +34,10 @@ const bookingPackageSchema = z.object({
   holidayRate: z.number().int().min(0).max(1000000),
   holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]),
   seasonalRates: z.array(seasonalRateSchema).max(12).catch([]),
-  includedGuests: z.number().int().min(1).max(500),
-  maxGuests: z.number().int().min(1).max(500),
+  includedGuests: z.number().int().min(0).max(500),
+  maxGuests: z.number().int().min(0).max(500),
   sleepingCapacity: z.number().int().min(0).max(500),
-  durationHours: z.number().int().min(1).max(168),
+  durationHours: z.number().int().min(0).max(168),
   additionalGuestFee: z.number().int().min(0).max(1000000),
   extensionHourlyFee: z.number().int().min(0).max(1000000),
   checkInTime: z.string().min(1).max(40),
@@ -50,9 +50,45 @@ const bookingPackageSchema = z.object({
   minimumAdvanceBookingDays: z.number().int().min(0).max(365),
   blockedPackageIds: z.array(z.string().trim().min(1).max(100)).max(20),
   enabled: z.boolean(),
-}).refine((value) => value.maxGuests >= value.includedGuests, {
-  message: "Maximum guests must be greater than or equal to included guests.",
-  path: ["maxGuests"],
+}).superRefine((value, context) => {
+  if (value.maxGuests < value.includedGuests) {
+    context.addIssue({
+      code: "custom",
+      message: "Maximum guests must be greater than or equal to included guests.",
+      path: ["maxGuests"],
+    });
+  }
+
+  if (!value.enabled || value.status === "inactive") return;
+
+  if (value.weekdayRate < 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Enter a weekday rate for this package.",
+      path: ["weekdayRate"],
+    });
+  }
+  if (value.includedGuests < 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Enter how many guests are included.",
+      path: ["includedGuests"],
+    });
+  }
+  if (value.maxGuests < 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Enter the maximum guests.",
+      path: ["maxGuests"],
+    });
+  }
+  if (value.durationHours < 1) {
+    context.addIssue({
+      code: "custom",
+      message: "Enter the package length.",
+      path: ["durationHours"],
+    });
+  }
 });
 
 const propertyRoomSchema = z.object({

@@ -36,7 +36,7 @@ export function canAdvanceFromStep(step: WizardStepId, draft: HostListingDraft) 
     case "booking": return Boolean(draft.bookingType && draft.bookingMode);
     case "pricing": return draft.basePrice > 0;
     case "weekend-pricing": return draft.weekendPrice > 0;
-    case "booking-packages": return !isEntirePlacePrivacyType(draft.privacyType) || draft.bookingType === "stay" || draft.bookingPackages.some((item) => item.enabled && item.name.trim() && item.weekdayRate > 0 && item.includedGuests >= 1 && item.maxGuests >= item.includedGuests && item.availableDays.length > 0);
+    case "booking-packages": return !isEntirePlacePrivacyType(draft.privacyType) || draft.bookingType === "stay" || draft.bookingPackages.some((item) => item.enabled && item.status !== "inactive" && item.name.trim() && item.weekdayRate > 0 && item.includedGuests >= 1 && item.maxGuests >= item.includedGuests && item.durationHours > 0 && item.availableDays.length > 0);
     case "final-details": return Boolean(draft.residentialAddress.street && draft.residentialAddress.barangay && draft.residentialAddress.city && draft.residentialAddress.zipCode && draft.residentialAddress.province && draft.hostAsBusiness !== null);
     default: return true;
   }

@@ -5,8 +5,42 @@ import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-w
 
 const legacyStorageKey = "stayprimeph-host-wizard";
 const userStorageKeyPrefix = "stayprimeph-host-wizard:";
-const storageVersion = 2;
+const storageVersion = 3;
 const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
+
+const legacyDefaultPricing = {
+  basePrice: 2528,
+  weekendPrice: 2579,
+  weekendPremium: 2,
+  cleaningFee: 500,
+};
+
+const legacyDefaultPackageValues: Record<string, Partial<HostListingDraft["bookingPackages"][number]>> = {
+  "overnight-full-access": {
+    weekdayRate: 15000,
+    weekendRate: 18000,
+    holidayRate: 18000,
+    includedGuests: 18,
+    maxGuests: 20,
+    sleepingCapacity: 18,
+    durationHours: 21,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1500,
+    minimumAdvanceBookingDays: 1,
+  },
+  "daytime-ground-outdoor": {
+    weekdayRate: 8000,
+    weekendRate: 0,
+    holidayRate: 0,
+    includedGuests: 18,
+    maxGuests: 20,
+    sleepingCapacity: 0,
+    durationHours: 8,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1500,
+    minimumAdvanceBookingDays: 1,
+  },
+};
 
 const defaultBookingPackages = [
   {
@@ -17,17 +51,17 @@ const defaultBookingPackages = [
     displayOrder: 1,
     accessType: "Full access",
     unit: "night" as const,
-    weekdayRate: 15000,
-    weekendRate: 18000,
-    holidayRate: 18000,
+    weekdayRate: 0,
+    weekendRate: 0,
+    holidayRate: 0,
     holidayDates: [],
     seasonalRates: [],
-    includedGuests: 18,
-    maxGuests: 20,
-    sleepingCapacity: 18,
-    durationHours: 21,
-    additionalGuestFee: 500,
-    extensionHourlyFee: 1500,
+    includedGuests: 0,
+    maxGuests: 0,
+    sleepingCapacity: 0,
+    durationHours: 0,
+    additionalGuestFee: 0,
+    extensionHourlyFee: 0,
     checkInTime: "2:00 PM",
     checkOutTime: "11:00 AM",
     accessibleFloors: ["Ground Floor", "Second Floor"],
@@ -35,7 +69,7 @@ const defaultBookingPackages = [
     includedAmenities: ["Heated pool", "Karaoke", "WiFi", "Kitchen", "Board games"],
     excludedAmenities: [],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
-    minimumAdvanceBookingDays: 1,
+    minimumAdvanceBookingDays: 0,
     blockedPackageIds: ["daytime-ground-outdoor"],
     enabled: false,
   },
@@ -47,17 +81,17 @@ const defaultBookingPackages = [
     displayOrder: 2,
     accessType: "Ground floor and outdoor area only",
     unit: "day" as const,
-    weekdayRate: 8000,
+    weekdayRate: 0,
     weekendRate: 0,
     holidayRate: 0,
     holidayDates: [],
     seasonalRates: [],
-    includedGuests: 18,
-    maxGuests: 20,
+    includedGuests: 0,
+    maxGuests: 0,
     sleepingCapacity: 0,
-    durationHours: 8,
-    additionalGuestFee: 500,
-    extensionHourlyFee: 1500,
+    durationHours: 0,
+    additionalGuestFee: 0,
+    extensionHourlyFee: 0,
     checkInTime: "2:00 PM",
     checkOutTime: "10:00 PM",
     accessibleFloors: ["Ground Floor", "Outdoor Areas"],
@@ -65,7 +99,7 @@ const defaultBookingPackages = [
     includedAmenities: ["Heated pool", "Karaoke", "WiFi", "Kitchen", "Patio", "Board games"],
     excludedAmenities: ["Bedrooms", "Second floor access"],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
-    minimumAdvanceBookingDays: 1,
+    minimumAdvanceBookingDays: 0,
     blockedPackageIds: ["overnight-full-access"],
     enabled: false,
   },
@@ -81,7 +115,7 @@ const initialDraft: HostListingDraft = {
   country: "Philippines", street: "", barangay: "", city: "", province: "", zipCode: "", latitude: 14.5995, longitude: 120.9842, locationPinned: false, locationConfirmed: false, locationConfirmedAddress: "", lastAutoGeocodeAddress: "",
   propertyType: "", privacyType: "", preciseLocation: false, guests: 4, bedrooms: 1, beds: 1, bathrooms: 1, amenityIds: [], photos: [], title: "", highlights: [], description: "", virtualTourUrl: "",
   rooms: [],
-  bookingType: "stay", bookingMode: "request", pricingMode: "simple", basePrice: 2528, weekendPrice: 2579, holidayPrice: 0, holidayDates: [], seasonalRates: [], weekendPremium: 2, cleaningFee: 500, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
+  bookingType: "stay", bookingMode: "request", pricingMode: "simple", basePrice: 0, weekendPrice: 0, holidayPrice: 0, holidayDates: [], seasonalRates: [], weekendPremium: 0, cleaningFee: 0, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
   discounts: { newListing: true, lastMinute: true, weekly: true, monthly: true }, safetyDisclosures: { exteriorCamera: false, noiseMonitor: false, weapons: false },
   residentialAddress: { unit: "", building: "", street: "", barangay: "", city: "", zipCode: "", province: "" }, hostAsBusiness: null, status: "draft", bookingPackages: defaultBookingPackages,
 };
@@ -167,6 +201,40 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
     bookingPackages: draft?.bookingPackages?.length
       ? draft.bookingPackages.map((item, index) => normalizeBookingPackage(item, index))
       : initialDraft.bookingPackages.map((item, index) => normalizeBookingPackage(item, index)),
+  };
+}
+
+function resetLegacyNumber(value: number, legacyValues: Array<number | undefined>) {
+  return legacyValues.some((legacyValue) => legacyValue === value) ? 0 : value;
+}
+
+function migrateStoredDraftDefaults(draft: HostListingDraft, version?: number) {
+  if ((version ?? 0) >= storageVersion) return draft;
+
+  return {
+    ...draft,
+    basePrice: resetLegacyNumber(draft.basePrice, [legacyDefaultPricing.basePrice]),
+    weekendPrice: resetLegacyNumber(draft.weekendPrice, [legacyDefaultPricing.weekendPrice]),
+    weekendPremium: resetLegacyNumber(draft.weekendPremium, [legacyDefaultPricing.weekendPremium]),
+    cleaningFee: resetLegacyNumber(draft.cleaningFee, [legacyDefaultPricing.cleaningFee]),
+    bookingPackages: draft.bookingPackages.map((pkg) => {
+      const legacy = legacyDefaultPackageValues[pkg.id];
+      if (!legacy) return pkg;
+
+      return {
+        ...pkg,
+        weekdayRate: resetLegacyNumber(pkg.weekdayRate, [legacy.weekdayRate, legacyDefaultPricing.basePrice]),
+        weekendRate: resetLegacyNumber(pkg.weekendRate, [legacy.weekendRate, legacyDefaultPricing.weekendPrice]),
+        holidayRate: resetLegacyNumber(pkg.holidayRate, [legacy.holidayRate, legacyDefaultPricing.weekendPrice]),
+        includedGuests: resetLegacyNumber(pkg.includedGuests, [legacy.includedGuests]),
+        maxGuests: resetLegacyNumber(pkg.maxGuests, [legacy.maxGuests]),
+        sleepingCapacity: resetLegacyNumber(pkg.sleepingCapacity, [legacy.sleepingCapacity]),
+        durationHours: resetLegacyNumber(pkg.durationHours, [legacy.durationHours]),
+        additionalGuestFee: resetLegacyNumber(pkg.additionalGuestFee, [legacy.additionalGuestFee]),
+        extensionHourlyFee: resetLegacyNumber(pkg.extensionHourlyFee, [legacy.extensionHourlyFee]),
+        minimumAdvanceBookingDays: resetLegacyNumber(pkg.minimumAdvanceBookingDays, [legacy.minimumAdvanceBookingDays]),
+      };
+    }),
   };
 }
 
@@ -264,7 +332,7 @@ function readStoredDraft(user: WizardOwner): Pick<HostWizardState, "currentStep"
       return { currentStep: "address", draft: createInitialDraft() };
     }
 
-    const draft = mergeDraft(sanitizeHostWizardDraftForStorage(mergeDraft(stored.draft)));
+    const draft = migrateStoredDraftDefaults(mergeDraft(sanitizeHostWizardDraftForStorage(mergeDraft(stored.draft))), stored.version);
     window.localStorage.setItem(storageKey, JSON.stringify({
       version: storageVersion,
       ownerUserId: user.id,

@@ -68,14 +68,14 @@ const packagePricingFields: PackageScalarField[] = [
   { key: "weekdayRate", label: "Weekday rate", type: "number", min: 1 },
   { key: "weekendRate", label: "Weekend rate", type: "number" },
   { key: "holidayRate", label: "Holiday rate", type: "number" },
-  { key: "includedGuests", label: "Included guests", type: "number", min: 1 },
-  { key: "maxGuests", label: "Max guests", type: "number", min: 1 },
+  { key: "includedGuests", label: "Included guests", type: "number" },
+  { key: "maxGuests", label: "Max guests", type: "number" },
   { key: "sleepingCapacity", label: "Sleeping capacity", type: "number" },
   { key: "additionalGuestFee", label: "Extra guest fee", type: "number" },
 ];
 
 const packageTimingFields: PackageScalarField[] = [
-  { key: "durationHours", label: "Length in hours", type: "number", min: 1 },
+  { key: "durationHours", label: "Length in hours", type: "number" },
   { key: "checkInTime", label: "Start / check-in", type: "text" },
   { key: "checkOutTime", label: "End / check-out", type: "text" },
   { key: "extensionHourlyFee", label: "Extension / hour", type: "number" },
@@ -489,15 +489,6 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     updateDraft({ bookingType: "stay", pricingMode: "simple" });
   }
 
-  function selectBookingPackagesPricing() {
-    updateDraft({
-      bookingType: draft.bookingType === "stay" ? "both" : draft.bookingType,
-      pricingMode: "packages",
-      bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice),
-    });
-    setStep("booking-packages");
-  }
-
   if (!initialized || ownerUserId !== user.id) {
     return (
       <main className="grid min-h-dvh place-items-center bg-white px-4 text-center">
@@ -818,7 +809,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
           <section className="mx-auto max-w-2xl">
             <h1 className="text-3xl font-semibold">{step.title}</h1>
             <p className="mt-2 text-black/60">{step.description}</p>
-            <div className={`mt-8 grid gap-3 ${wholePlaceAccessEnabled ? "sm:grid-cols-2" : ""}`}>
+            <div className="mt-8 grid gap-3">
               <button
                 type="button"
                 onClick={selectSimpleNightlyPricing}
@@ -827,16 +818,6 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                 <span className="block font-semibold">Simple nightly pricing</span>
                 <span className={`mt-2 block text-sm ${draft.pricingMode === "simple" ? "text-white/70" : "text-black/60"}`}>Use one weekday and one weekend rate.</span>
               </button>
-              {wholePlaceAccessEnabled ? (
-                <button
-                  type="button"
-                  onClick={selectBookingPackagesPricing}
-                  className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
-                >
-                  <span className="block font-semibold">Booking packages</span>
-                  <span className={`mt-2 block text-sm ${draft.pricingMode === "packages" ? "text-white/70" : "text-black/60"}`}>Let guests choose overnight, daytime, or custom access.</span>
-                </button>
-              ) : null}
             </div>
             {draft.pricingMode === "simple" ? (
               <>
@@ -845,7 +826,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                   <input
                     aria-label="Base price"
                     type="range"
-                    min="500"
+                    min="0"
                     max="20000"
                     step="100"
                     value={draft.basePrice}

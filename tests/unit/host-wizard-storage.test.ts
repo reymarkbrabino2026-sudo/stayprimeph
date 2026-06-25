@@ -98,6 +98,43 @@ describe("host wizard local storage", () => {
     expect(serialized).toContain("Sensitive Barangay");
   });
 
+  test("starts untouched pricing and package values at zero", () => {
+    const stored = sanitizeHostWizardDraftForStorage({});
+    const packages = stored.bookingPackages ?? [];
+
+    expect(stored).toMatchObject({
+      basePrice: 0,
+      weekendPrice: 0,
+      weekendPremium: 0,
+      cleaningFee: 0,
+    });
+    expect(packages).toHaveLength(2);
+    expect(packages[0]).toMatchObject({
+      weekdayRate: 0,
+      weekendRate: 0,
+      holidayRate: 0,
+      includedGuests: 0,
+      maxGuests: 0,
+      sleepingCapacity: 0,
+      durationHours: 0,
+      additionalGuestFee: 0,
+      extensionHourlyFee: 0,
+      minimumAdvanceBookingDays: 0,
+    });
+    expect(packages[1]).toMatchObject({
+      weekdayRate: 0,
+      weekendRate: 0,
+      holidayRate: 0,
+      includedGuests: 0,
+      maxGuests: 0,
+      sleepingCapacity: 0,
+      durationHours: 0,
+      additionalGuestFee: 0,
+      extensionHourlyFee: 0,
+      minimumAdvanceBookingDays: 0,
+    });
+  });
+
   test("scopes stored draft keys by encoded user id", () => {
     expect(hostWizardStorageKey("host@example.com")).toBe("stayprimeph-host-wizard:host%40example.com");
   });

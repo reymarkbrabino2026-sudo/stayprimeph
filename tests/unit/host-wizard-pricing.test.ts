@@ -66,7 +66,7 @@ const packages = [
 ] satisfies HostBookingPackageDraft[];
 
 describe("host wizard pricing", () => {
-  test("syncs seeded booking package rates to the selected base and weekend prices", () => {
+  test("syncs seeded nonzero booking package rates to the selected base and weekend prices", () => {
     const synced = syncedBookingPackagesForPricing({
       packages,
       previousBasePrice: 2528,
@@ -77,7 +77,7 @@ describe("host wizard pricing", () => {
 
     expect(synced).toEqual([
       expect.objectContaining({ weekdayRate: 4800, weekendRate: 5664, holidayRate: 5664 }),
-      expect.objectContaining({ weekdayRate: 4800, weekendRate: 5664, holidayRate: 5664 }),
+      expect.objectContaining({ weekdayRate: 4800, weekendRate: 0, holidayRate: 0 }),
     ]);
   });
 
@@ -102,5 +102,25 @@ describe("host wizard pricing", () => {
       weekendRate: 9000,
       holidayRate: 10000,
     });
+  });
+
+  test("keeps untouched zero package rates at zero when base prices change", () => {
+    const synced = syncedBookingPackagesForPricing({
+      packages: packages.map((pkg) => ({
+        ...pkg,
+        weekdayRate: 0,
+        weekendRate: 0,
+        holidayRate: 0,
+      })),
+      previousBasePrice: 0,
+      previousWeekendPrice: 0,
+      nextBasePrice: 4800,
+      nextWeekendPrice: 5664,
+    });
+
+    expect(synced).toEqual([
+      expect.objectContaining({ weekdayRate: 0, weekendRate: 0, holidayRate: 0 }),
+      expect.objectContaining({ weekdayRate: 0, weekendRate: 0, holidayRate: 0 }),
+    ]);
   });
 });

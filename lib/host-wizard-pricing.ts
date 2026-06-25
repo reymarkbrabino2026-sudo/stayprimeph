@@ -14,7 +14,7 @@ const seededPackageRates: Record<string, Pick<HostBookingPackageDraft, "weekdayR
 };
 
 function shouldSyncRate(current: number, previous: number, seeded?: number) {
-  return current === previous || current === seeded;
+  return current > 0 && (current === previous || (seeded !== undefined && seeded > 0 && current === seeded));
 }
 
 export function syncedBookingPackagesForPricing({
