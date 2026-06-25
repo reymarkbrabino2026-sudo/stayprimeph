@@ -13,10 +13,6 @@ function isRenderableImage(src?: string) {
   return Boolean(src && (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://")));
 }
 
-function cssImageUrl(src: string) {
-  return `url("${src.replace(/["\\]/g, "\\$&")}")`;
-}
-
 export function RoomHeroSlideshow({ images, alt }: { images: Slide[]; alt: string }) {
   const slides = images.filter((image) => isRenderableImage(image.imageUrl));
   const [index, setIndex] = useState(0);
@@ -33,11 +29,6 @@ export function RoomHeroSlideshow({ images, alt }: { images: Slide[]; alt: strin
 
   return (
     <div className="absolute inset-0 bg-[#14120f]">
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 scale-105 bg-cover bg-center opacity-60 blur-xl sm:hidden"
-        style={{ backgroundImage: cssImageUrl(slides[index].imageUrl) }}
-      />
       <Image
         key={slides[index].id}
         src={slides[index].imageUrl}
@@ -45,7 +36,7 @@ export function RoomHeroSlideshow({ images, alt }: { images: Slide[]; alt: strin
         fill
         priority={index === 0}
         sizes="100vw"
-        className="object-contain transition-transform duration-[6500ms] ease-out sm:scale-110 sm:object-cover"
+        className="object-cover object-center transition-transform duration-[6500ms] ease-out sm:scale-110"
       />
 
       {slides.length > 1 ? (

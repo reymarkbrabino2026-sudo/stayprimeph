@@ -174,6 +174,7 @@ export default async function RoomPage({
     ...(property.barangay ? [{ label: property.barangay, href: `/search?location=${encodeURIComponent(property.barangay)}` }] : []),
     { label: property.title },
   ];
+  const heroBreadcrumbItems = breadcrumbItems.length > 1 ? breadcrumbItems.slice(0, -1) : breadcrumbItems;
 
   const listingUrl = `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`;
   const listingImages = property.images
@@ -236,20 +237,20 @@ export default async function RoomPage({
 
       <main>
         {/* Hero banner */}
-        <section className="relative h-[58svh] min-h-[24rem] overflow-hidden bg-[#14120f] text-white sm:h-[84svh] sm:min-h-0 md:h-screen">
+        <section className="relative h-[52svh] min-h-[22rem] max-h-[28rem] overflow-hidden bg-[#14120f] text-white sm:h-[84svh] sm:max-h-none sm:min-h-0 md:h-screen">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/75" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/42 via-black/10 to-black/68" />
           <div className="pointer-events-none absolute inset-x-0 top-28 z-20 px-3 sm:top-36 sm:px-5 md:top-44">
             <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
-              <Breadcrumbs items={breadcrumbItems} tone="light" className="pointer-events-auto" />
+              <Breadcrumbs items={heroBreadcrumbItems} tone="light" className="pointer-events-auto" />
             </div>
           </div>
-          <div className="relative z-10 flex h-full flex-col justify-end px-3 pb-[5.5rem] sm:px-5 sm:pb-44 md:pb-40">
+          <div className="relative z-10 flex h-full flex-col justify-end px-3 pb-8 sm:px-5 sm:pb-44 md:pb-40">
             <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
               <p className="mb-2 inline-flex items-center gap-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:gap-2 sm:text-sm sm:tracking-[0.28em]">
                 <MapPin className="size-3 sm:size-[15px]" /> {locationLabel}
               </p>
-              <h1 className="max-w-[18rem] text-[1.9rem] font-semibold leading-[1.04] tracking-normal drop-shadow min-[390px]:max-w-[21rem] min-[390px]:text-[2.2rem] sm:max-w-4xl sm:text-6xl sm:leading-[0.96] md:text-7xl">
+              <h1 className="max-w-[20rem] text-[1.85rem] font-semibold leading-[1.04] tracking-normal drop-shadow min-[390px]:max-w-[22rem] min-[390px]:text-[2.05rem] sm:max-w-4xl sm:text-6xl sm:leading-[0.96] md:text-7xl">
                 {property.title}
               </h1>
             </div>
@@ -258,9 +259,9 @@ export default async function RoomPage({
 
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
           {/* Intro */}
-          <section id="overview" className="scroll-mt-32 border-b border-black/10 py-16 text-center">
+          <section id="overview" className="scroll-mt-32 border-b border-black/10 py-12 text-center sm:py-16">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#8a6a3f]">The retreat</p>
-            <p className="mx-auto mt-5 max-w-3xl text-3xl font-medium leading-snug text-[#083f35] sm:text-[42px] sm:leading-[1.18]">
+            <p className="mx-auto mt-5 max-w-3xl text-[1.65rem] font-medium leading-[1.24] text-[#083f35] sm:text-[42px] sm:leading-[1.18]">
               {property.description}
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">

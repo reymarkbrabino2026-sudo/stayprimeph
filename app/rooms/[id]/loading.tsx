@@ -11,7 +11,7 @@ export default function Loading() {
       <span className="sr-only">Loading listing…</span>
 
       {/* Dark hero with transparent header + title, mirroring the listing page */}
-      <section className="relative h-[58svh] min-h-[24rem] overflow-hidden bg-[#14120f] sm:h-[84svh] sm:min-h-0">
+      <section className="relative h-[52svh] min-h-[22rem] max-h-[28rem] overflow-hidden bg-[#14120f] sm:h-[84svh] sm:max-h-none sm:min-h-0">
         <div className="sk-block is-dark absolute inset-0" />
 
         <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-4 sm:px-6 lg:px-12">
