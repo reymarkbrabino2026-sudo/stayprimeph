@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 
 function isRenderableImage(src?: string) {
   return Boolean(src && (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://")));
@@ -24,6 +25,18 @@ export function CardImageCarousel({
     const el = scrollRef.current;
     if (!el || el.clientWidth === 0) return;
     setActive(Math.round(el.scrollLeft / el.clientWidth));
+  }
+
+  function goToSlide(index: number, event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const nextIndex = Math.min(Math.max(index, 0), slides.length - 1);
+    setActive(nextIndex);
+    scrollRef.current?.scrollTo({
+      left: nextIndex * scrollRef.current.clientWidth,
+      behavior: "smooth",
+    });
   }
 
   if (slides.length === 0) return null;
@@ -49,14 +62,34 @@ export function CardImageCarousel({
         ))}
       </div>
       {slides.length > 1 ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-center justify-center gap-1.5">
-          {slides.map((_, index) => (
-            <span
-              key={index}
-              className={`rounded-full bg-white transition-all ${index === active ? "size-1.5 opacity-100" : "size-1.5 opacity-55"}`}
-            />
-          ))}
-        </div>
+        <>
+          <button
+            type="button"
+            onClick={(event) => goToSlide(active - 1, event)}
+            disabled={active === 0}
+            aria-label="Show previous photo"
+            className="absolute left-3 top-1/2 z-20 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0"
+          >
+            <ChevronLeft size={18} strokeWidth={2.4} />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => goToSlide(active + 1, event)}
+            disabled={active >= slides.length - 1}
+            aria-label="Show next photo"
+            className="absolute right-3 top-1/2 z-20 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0"
+          >
+            <ChevronRight size={18} strokeWidth={2.4} />
+          </button>
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-1.5">
+            {slides.map((_, index) => (
+              <span
+                key={index}
+                className={`rounded-full bg-white transition-all ${index === active ? "h-1.5 w-2 opacity-100" : "size-1.5 opacity-60"}`}
+              />
+            ))}
+          </div>
+        </>
       ) : null}
     </>
   );

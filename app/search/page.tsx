@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Tag } from "lucide-react";
 import { Navbar } from "@/components/public/navbar";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
@@ -7,6 +8,7 @@ import { DeferredRealMap } from "@/components/search/deferred-real-map";
 import { SearchFilters } from "@/components/search/search-filters";
 import { SearchResultCard } from "@/components/search/search-result-card";
 import { SearchResultsLayout } from "@/components/search/search-results-layout";
+import { propertyMatchesAmenityFilter } from "@/lib/amenity-filters";
 import { getPublicListingSummaries } from "@/lib/properties";
 import { formatSearchLocationLabel, normalizePropertyLocationSearchQuery, propertyMatchesLocationSearch } from "@/lib/property-location";
 import { resolvePropertyCoordinates } from "@/lib/property-map";
@@ -71,7 +73,7 @@ export default async function SearchPage({
     const matchesMin = minPrice > 0 ? property.pricePerNight >= minPrice : true;
     const matchesMax = maxPrice > 0 ? property.pricePerNight <= maxPrice : true;
     const matchesBeds = beds > 0 ? property.bedrooms >= beds : true;
-    const matchesAmenities = amenityFilter.length ? amenityFilter.every((amenity) => property.amenities.includes(amenity)) : true;
+    const matchesAmenities = amenityFilter.length ? amenityFilter.every((amenity) => propertyMatchesAmenityFilter(property.amenities, amenity)) : true;
     return matchesGuests && matchesLocation && matchesNearby && matchesType && matchesMin && matchesMax && matchesBeds && matchesAmenities;
   });
 
@@ -89,6 +91,13 @@ export default async function SearchPage({
     ? [...results].sort((a, b) => distanceKm(nearPoint, a) - distanceKm(nearPoint, b))
     : results;
   const resultsTitle = requestedNearby ? "Stays near you" : locationLabel ? `Stays in ${locationLabel}` : "Available stays";
+  const homesWithinMapAreaLabel = results.length > 1000
+    ? `Over ${results.length.toLocaleString("en-US")} homes within map area`
+    : `${results.length.toLocaleString("en-US")} ${results.length === 1 ? "home" : "homes"} within map area`;
+  const resultContextLabel = [
+    requestedNearby ? "Nearby" : locationLabel,
+    mapMetaLabel,
+  ].filter(Boolean).join(" | ");
   const filters = (
     <SearchFilters
       types={availableTypes}
@@ -144,21 +153,27 @@ export default async function SearchPage({
         results={
           <>
             <div className="py-6 lg:py-7">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-black/55">
-                    {results.length} {results.length === 1 ? "place" : "places"} available{mapMetaLabel ? ` | ${mapMetaLabel}` : ""}
-                  </p>
-                  <h1 className="mt-1 text-2xl font-semibold tracking-[-0.01em]">{resultsTitle}</h1>
+                  {resultContextLabel ? <p className="text-sm font-medium text-black/55">{resultContextLabel}</p> : null}
+                  <h1 className="mt-1 text-2xl font-semibold tracking-normal">{homesWithinMapAreaLabel}</h1>
                 </div>
-                {activeFilterLabels.length > 0 ? (
-                  <Link
-                    href={clearFiltersHref}
-                    className="inline-flex min-h-10 w-fit items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold transition hover:border-black/30 hover:bg-black/[0.03]"
-                  >
-                    Clear filters
-                  </Link>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-1 text-sm font-semibold text-black/80">
+                    <span className="grid size-9 place-items-center rounded-full bg-[#fff0f4] text-[#e61e4d]">
+                      <Tag size={18} fill="currentColor" strokeWidth={1.8} />
+                    </span>
+                    Prices include all fees
+                  </div>
+                  {activeFilterLabels.length > 0 ? (
+                    <Link
+                      href={clearFiltersHref}
+                      className="inline-flex min-h-10 w-fit items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold transition hover:border-black/30 hover:bg-black/[0.03]"
+                    >
+                      Clear filters
+                    </Link>
+                  ) : null}
+                </div>
               </div>
               {activeFilterLabels.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -203,7 +218,14 @@ export default async function SearchPage({
             ) : (
               <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-2">
                 {orderedResults.map((property, index) => (
-                  <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index < 2} />
+                  <SearchResultCard
+                    key={property.id}
+                    property={property}
+                    isAuthenticated={false}
+                    priority={index < 2}
+                    checkIn={query.checkIn}
+                    checkOut={query.checkOut}
+                  />
                 ))}
               </div>
             )}

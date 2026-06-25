@@ -30,6 +30,10 @@ export function usesPrismaPersistence() {
   return env.PERSISTENCE_DRIVER === "prisma";
 }
 
+function shouldSkipRuntimeSchemaEnsure() {
+  return process.env.NODE_ENV === "production" && process.env.STAYPRIMEPH_BUILD_PHASE !== "1";
+}
+
 let platformLedgerTableReady: Promise<void> | null = null;
 let listingBookingPackageTableReady: Promise<void> | null = null;
 let listingRoomTableReady: Promise<void> | null = null;
@@ -41,6 +45,9 @@ let passkeyTableReady: Promise<void> | null = null;
 let hostCustomerProfileTableReady: Promise<void> | null = null;
 
 function cacheGlobalEnsure(db: unknown, cached: Promise<void> | null, setCached: (promise: Promise<void> | null) => void, ensure: () => Promise<void>) {
+  // Production schema is managed by Prisma migrations; request-time DDL can block
+  // behind active traffic and trip database statement timeouts.
+  if (shouldSkipRuntimeSchemaEnsure()) return Promise.resolve();
   if (db !== prisma) return ensure();
   if (cached) return cached;
 
@@ -554,12 +561,14 @@ type DatabasePublicListingSummary = Prisma.PropertyGetPayload<{
     country: true;
     bookingType: true;
     pricePerNight: true;
+    pricing: true;
     bedrooms: true;
+    bathrooms: true;
     maxGuests: true;
     propertyType: true;
     rating: true;
     createdAt: true;
-    images: { take: 1 };
+    images: { take: 5 };
     location: true;
     amenities: { select: { amenity: { select: { name: true } } } };
   };
@@ -727,7 +736,12 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
     country: property.country,
     bookingType: normalizeListingBookingType(property.bookingType),
     pricePerNight: property.pricePerNight,
+    weekendPrice: property.pricing?.weekendPrice,
+    holidayPrice: property.pricing?.holidayPrice ?? undefined,
+    holidayDates: parseStringArray(property.pricing?.holidayDates),
+    seasonalRates: parseSeasonalRates(property.pricing?.seasonalRates),
     bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
     propertyType: property.propertyType,
     amenities: property.amenities.map((entry) => entry.amenity.name),
@@ -860,12 +874,14 @@ export async function listPublicListingSummariesFromDatabase(): Promise<PublicLi
       country: true,
       bookingType: true,
       pricePerNight: true,
+      pricing: true,
       bedrooms: true,
+      bathrooms: true,
       maxGuests: true,
       propertyType: true,
       rating: true,
       createdAt: true,
-      images: { take: 1 },
+      images: { take: 5 },
       location: true,
       amenities: { select: { amenity: { select: { name: true } } } },
     },

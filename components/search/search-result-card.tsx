@@ -1,72 +1,147 @@
 import Link from "next/link";
-import { BedDouble, Camera, MapPin, Star, Users } from "lucide-react";
+import { Bath, BedDouble, Star, Trophy } from "lucide-react";
 import { CardImageCarousel } from "@/components/search/card-image-carousel";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
-import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
+import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, nightsBetweenDateKeys } from "@/lib/pricing";
 import { formatPropertyLocation } from "@/lib/property-location";
-import type { PublicListingSummary } from "@/lib/types";
+import type { ListingDiscounts, PublicListingSummary } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+
+type DisplayDiscount = {
+  label: string;
+  percent: number;
+  amount: number;
+};
+
+function toTitleCase(value: string) {
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function pluralize(value: number, singular: string) {
+  return `${value} ${singular}${value === 1 ? "" : "s"}`;
+}
+
+function ratingLabel(rating: number) {
+  if (!rating) return "New";
+  return Number.isInteger(rating) ? rating.toFixed(1) : rating.toFixed(2).replace(/0$/, "");
+}
+
+function listingLabel(property: PublicListingSummary) {
+  const type = toTitleCase(property.propertyType || "Home");
+  const location = property.city || formatPropertyLocation(property);
+  return location ? `${type} in ${location}` : type;
+}
+
+function daysUntil(checkIn: string) {
+  return Math.ceil((new Date(`${checkIn}T00:00:00`).getTime() - Date.now()) / 86400000);
+}
+
+function bestDisplayDiscount({
+  discounts,
+  nights,
+  subtotal,
+  checkIn,
+}: {
+  discounts?: ListingDiscounts;
+  nights: number;
+  subtotal: number;
+  checkIn?: string;
+}): DisplayDiscount | null {
+  if (!discounts || nights <= 0 || subtotal <= 0) return null;
+
+  const candidates: Array<Omit<DisplayDiscount, "amount">> = [];
+  if (discounts.lastMinute && checkIn && daysUntil(checkIn) <= 14) candidates.push({ label: "Last-minute discount", percent: 3 });
+  if (discounts.weekly && nights >= 7) candidates.push({ label: "Weekly discount", percent: 10 });
+  if (discounts.monthly && nights >= 28) candidates.push({ label: "Monthly discount", percent: 20 });
+
+  return candidates
+    .map((discount) => ({ ...discount, amount: Math.round(subtotal * (discount.percent / 100)) }))
+    .filter((discount) => discount.amount > 0)
+    .sort((a, b) => b.amount - a.amount)[0] ?? null;
+}
+
+function priceSummary(property: PublicListingSummary, checkIn?: string, checkOut?: string) {
+  const nights = checkIn && checkOut ? nightsBetweenDateKeys(checkIn, checkOut) : 0;
+  const hasStayDates = nights > 0;
+  const staySubtotal = hasStayDates ? calculateNightlySubtotal(property, checkIn!, checkOut!) : null;
+  const subtotal = staySubtotal && staySubtotal.subtotal > 0 ? staySubtotal.subtotal : property.pricePerNight;
+  const discount = hasStayDates ? bestDisplayDiscount({ discounts: property.discounts, nights, subtotal, checkIn }) : null;
+  const discountedSubtotal = Math.max(0, subtotal - (discount?.amount ?? 0));
+
+  return {
+    discount,
+    price: calculateGuestPriceWithMarkup(discountedSubtotal),
+    originalPrice: discount ? calculateGuestPriceWithMarkup(subtotal) : null,
+    suffix: hasStayDates ? `for ${pluralize(nights, "night")}` : "night",
+  };
+}
 
 export function SearchResultCard({
   property,
   isAuthenticated,
   priority = false,
+  checkIn,
+  checkOut,
 }: {
   property: PublicListingSummary;
   isAuthenticated: boolean;
   priority?: boolean;
+  checkIn?: string;
+  checkOut?: string;
 }) {
-  const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
   const imageCount = property.images.length;
-  const ratingLabel = property.rating ? property.rating.toFixed(1) : "New";
-  const propertyType = property.propertyType
-    ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1)
-    : "Stay";
+  const displayPrice = priceSummary(property, checkIn, checkOut);
+  const favorite = property.rating >= 4.8;
+  const bedroomLabel = pluralize(property.bedrooms, "bedroom");
+  const bathroomLabel = pluralize(property.bathrooms, "bath");
 
   return (
     <Link
       href={`/rooms/${property.id}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block rounded-[1.5rem] transition active:scale-[0.985]"
+      className="group block transition active:scale-[0.985]"
       aria-label={`Open ${property.title}`}
     >
-      <div className={`relative aspect-[1.08/1] overflow-hidden rounded-[1.5rem] bg-gradient-to-br ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
+      <div className={`relative aspect-[1.34/1] overflow-hidden rounded-[1.25rem] bg-gradient-to-br ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
         <CardImageCarousel images={property.images} alt={property.title} priority={priority} />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-black/45 to-transparent opacity-80 transition group-hover:opacity-100" />
-        <span className="absolute left-3 top-3 z-20 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur">
-          {property.rating >= 4.8 ? "Guest favorite" : "New"}
+        <span className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur">
+          {favorite ? <Trophy size={13} className="text-[#a36b00]" /> : null}
+          {favorite ? "Guest favorite" : "New"}
         </span>
-        {imageCount > 1 ? (
-          <span className="absolute bottom-3 left-3 z-20 inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
-            <Camera size={13} />
-            {imageCount}
-          </span>
-        ) : null}
         <WishlistButton propertyId={property.id} isAuthenticated={isAuthenticated} />
       </div>
-      <div className="mt-3 space-y-2">
+
+      <div className="mt-3 space-y-1.5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="line-clamp-2 text-[15px] font-semibold leading-5 text-[#1f1b16]">{property.title}</h3>
-            <p className="mt-1 flex items-center gap-1 text-sm text-black/55">
-              <MapPin size={14} className="shrink-0" />
-              <span className="truncate">{formatPropertyLocation(property)}</span>
-            </p>
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.04] px-2 py-1 text-sm font-semibold">
+          <h3 className="min-w-0 truncate text-[15px] font-semibold leading-5 text-[#1f1b16]">{listingLabel(property)}</h3>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-[#1f1b16]">
             <Star size={14} fill="currentColor" />
-            {ratingLabel}
+            {ratingLabel(property.rating)}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/55">
-          <span>{propertyType}</span>
-          <span className="inline-flex items-center gap-1"><BedDouble size={14} /> {property.bedrooms} bed{property.bedrooms === 1 ? "" : "s"}</span>
-          <span className="inline-flex items-center gap-1"><Users size={14} /> {property.maxGuests} guest{property.maxGuests === 1 ? "" : "s"}</span>
-        </div>
-        <p className="text-sm text-black/70">
-          <span className="text-base font-semibold text-[#1f1b16]">{formatCurrency(guestPrice)}</span> night
+        <p className="truncate text-sm leading-5 text-black/55">{property.title}</p>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5 text-black/55">
+          <span className="inline-flex items-center gap-1"><BedDouble size={14} /> {bedroomLabel}</span>
+          <span className="inline-flex items-center gap-1"><Bath size={14} /> {bathroomLabel}</span>
+          {imageCount > 1 ? <span>{imageCount} photos</span> : null}
         </p>
+        <p className="pt-0.5 text-sm text-black/70">
+          {displayPrice.originalPrice ? (
+            <span className="mr-1.5 text-black/45 line-through">{formatCurrency(displayPrice.originalPrice)}</span>
+          ) : null}
+          <span className="font-semibold text-[#1f1b16]">{formatCurrency(displayPrice.price)}</span>{" "}
+          <span>{displayPrice.suffix}</span>
+        </p>
+        {displayPrice.discount ? (
+          <span className="inline-flex rounded-full bg-[#dff5e6] px-2 py-0.5 text-xs font-semibold text-[#08743e]">
+            {displayPrice.discount.label}
+          </span>
+        ) : null}
       </div>
     </Link>
   );

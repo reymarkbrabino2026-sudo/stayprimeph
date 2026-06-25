@@ -52,7 +52,7 @@ function property(overrides: Partial<Property>): Property {
 }
 
 describe("getPublicListingSummaries", () => {
-  it("returns approved, newest-first, first-image-only summaries from JSON storage", async () => {
+  it("returns approved, newest-first summaries with carousel/pricing fields from JSON storage", async () => {
     vi.mocked(readStoredProperties).mockResolvedValueOnce([
       property({ id: "old", slug: "old", status: "approved", createdAt: "2026-05-01" }),
       property({ id: "draft", slug: "draft", status: "draft", createdAt: "2026-06-15" }),
@@ -62,7 +62,9 @@ describe("getPublicListingSummaries", () => {
     const summaries = await getPublicListingSummaries();
 
     expect(summaries.map((summary) => summary.id)).toEqual(["new", "old"]);
-    expect(summaries[0].images).toHaveLength(1);
+    expect(summaries[0].images).toHaveLength(2);
+    expect(summaries[0].bathrooms).toBe(1);
+    expect(summaries[0].discounts).toBeUndefined();
     expect(summaries[0].amenities).toEqual(["Kitchen"]);
     expect(summaries[0]).not.toHaveProperty("rules");
     expect(summaries[0]).not.toHaveProperty("bookingPackages");

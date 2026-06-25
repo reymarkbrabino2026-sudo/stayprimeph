@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "test-results/**",
+    ".codex-worktrees/**",
     "*.log",
     "next-env.d.ts",
   ]),
