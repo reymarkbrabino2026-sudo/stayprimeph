@@ -223,6 +223,29 @@ function joinCsv(values: string[]) {
   return values.join(", ");
 }
 
+function RoomAmenitiesInput({
+  room,
+  onChange,
+}: {
+  room: HostPropertyRoomDraft;
+  onChange: (amenities: string[]) => void;
+}) {
+  const [value, setValue] = useState(() => joinCsv(room.amenities));
+
+  return (
+    <input
+      value={value}
+      onChange={(event) => {
+        const nextValue = event.target.value;
+        setValue(nextValue);
+        onChange(splitCsv(nextValue));
+      }}
+      className="min-h-12 w-full rounded-xl border px-3"
+      placeholder="Smart TV, Air conditioning"
+    />
+  );
+}
+
 function splitDateKeys(value: string) {
   return splitCsv(value).filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item));
 }
@@ -643,7 +666,10 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                     </label>
                     <label className="lg:col-span-2">
                       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Room amenities</span>
-                      <input value={joinCsv(room.amenities)} onChange={(event) => updateRoom(room.id, { amenities: splitCsv(event.target.value) })} className="min-h-12 w-full rounded-xl border px-3" placeholder="Smart TV, Air conditioning" />
+                      <RoomAmenitiesInput
+                        room={room}
+                        onChange={(amenities) => updateRoom(room.id, { amenities })}
+                      />
                     </label>
                     <div className="sm:col-span-2 lg:col-span-4">
                       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Room photos</span>
