@@ -112,7 +112,7 @@ export function PropertyRail({ title, items, isAuthenticated }: { title: string;
           </button>
         </div>
       </div>
-      <div ref={railRef} className="no-scrollbar touch-scroll -mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-6 pb-2 pt-1 md:mx-0 md:gap-4 md:px-0 md:pb-3 md:pt-2">
+      <div ref={railRef} className="no-scrollbar touch-scroll -mr-6 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pr-6 pb-2 pt-1 md:mx-0 md:gap-4 md:px-0 md:pb-3 md:pt-2">
         {items.map((property) => {
           const image = property.images[0]?.imageUrl;
           const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
