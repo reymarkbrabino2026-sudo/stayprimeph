@@ -35,10 +35,8 @@ describe("RoomAccessPreview", () => {
     const { container } = render(
       <RoomAccessPreview
         rooms={rooms}
-        bookingPackages={[]}
         listingImages={[]}
         stayBookingAllowed
-        packageBookingAllowed={false}
       />,
     );
 
@@ -47,5 +45,20 @@ describe("RoomAccessPreview", () => {
     fireEvent.mouseEnter(screen.getByRole("button", { name: /serene room/i }));
 
     expect(container.querySelector('[style*="/uploads/rooms/serene.jpg"]')).toBeInTheDocument();
+  });
+
+  test("keeps the right side as a room preview instead of package access cards", () => {
+    render(
+      <RoomAccessPreview
+        rooms={rooms}
+        listingImages={[]}
+        stayBookingAllowed
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Stay booking" })).toBeInTheDocument();
+    expect(screen.getAllByText("Sanctuary Suite")).toHaveLength(2);
+    expect(screen.queryByText("Included amenities")).not.toBeInTheDocument();
+    expect(screen.queryByText("Duration")).not.toBeInTheDocument();
   });
 });

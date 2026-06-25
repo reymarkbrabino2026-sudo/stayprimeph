@@ -28,7 +28,7 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
 import { env } from "@/lib/env";
-import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, getEnabledBookingPackages, isEntirePlaceListing } from "@/lib/pricing";
+import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, isEntirePlaceListing } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
@@ -144,7 +144,6 @@ export default async function RoomPage({
     : [{ id: "placeholder", propertyId: property.id, imageUrl: "", tone: "" }];
   const instantBook = property.rules.includes("Instant book enabled");
   const hostMessageHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(property.hostId)}`;
-  const bookingPackages = getEnabledBookingPackages(property);
   const stayBookingAllowed = allowsStayBooking(property);
   const packageBookingAllowed = allowsPackageBooking(property);
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
@@ -339,10 +338,8 @@ export default async function RoomPage({
               />
               <RoomAccessPreview
                 rooms={activeRooms}
-                bookingPackages={bookingPackages}
                 listingImages={property.images}
                 stayBookingAllowed={stayBookingAllowed}
-                packageBookingAllowed={packageBookingAllowed}
               />
             </div>
           </section>
