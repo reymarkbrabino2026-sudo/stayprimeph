@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { recentSearchStorageKey, type RecentSearchPayload } from "@/lib/recent-search";
 
 type Panel = "where" | "when" | "who" | null;
 
@@ -62,14 +63,16 @@ function toISODate(date: Date) {
 
 type SearchBarProps = {
   variant?: "responsive" | "desktop" | "mobile";
+  defaultPanel?: Panel;
+  onPanelChange?: (panel: Panel) => void;
 };
 
-export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
+export function SearchBar({ variant = "responsive", defaultPanel = null, onPanelChange }: SearchBarProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchRef = useRef<HTMLDivElement>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [panel, setPanel] = useState<Panel>(defaultPanel);
   const [location, setLocation] = useState(() => searchParams.get("location") ?? "");
   const [checkIn, setCheckIn] = useState<Date | null>(() => parseISODate(searchParams.get("checkIn")));
   const [checkOut, setCheckOut] = useState<Date | null>(() => parseISODate(searchParams.get("checkOut")));
@@ -178,15 +181,33 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
     const params = new URLSearchParams();
     const trimmedLocation = location.trim();
     const guestTotal = guests[0] + guests[1];
+    const checkInValue = checkIn ? toISODate(checkIn) : "";
+    const checkOutValue = checkOut ? toISODate(checkOut) : "";
     if (trimmedLocation) params.set("location", trimmedLocation);
     if (guestTotal > 0) params.set("guests", String(guestTotal));
-    if (checkIn) params.set("checkIn", toISODate(checkIn));
-    if (checkOut) params.set("checkOut", toISODate(checkOut));
+    if (checkInValue) params.set("checkIn", checkInValue);
+    if (checkOutValue) params.set("checkOut", checkOutValue);
     if (trimmedLocation === "Nearby" && nearCoords) {
       params.set("near", `${nearCoords.lat.toFixed(5)},${nearCoords.lng.toFixed(5)}`);
     }
     const query = params.toString();
-    router.push(query ? `/search?${query}` : "/search");
+    const href = query ? `/search?${query}` : "/search";
+    if (typeof window !== "undefined" && query) {
+      try {
+        const recentSearch: RecentSearchPayload = {
+          href,
+          location: trimmedLocation || undefined,
+          checkIn: checkInValue || undefined,
+          checkOut: checkOutValue || undefined,
+          guests: guestTotal > 0 ? guestTotal : undefined,
+          savedAt: Date.now(),
+        };
+        window.localStorage.setItem(recentSearchStorageKey, JSON.stringify(recentSearch));
+      } catch {
+        // Search should still continue if browser storage is unavailable.
+      }
+    }
+    router.push(href);
   }
 
   function mobileNext() {
@@ -206,6 +227,10 @@ export function SearchBar({ variant = "responsive" }: SearchBarProps = {}) {
       itemIndex === index ? Math.max(0, value + delta) : value
     )) as [number, number, number, number]);
   }
+
+  useEffect(() => {
+    onPanelChange?.(panel);
+  }, [onPanelChange, panel]);
 
   useEffect(() => {
     if (!panel) return;

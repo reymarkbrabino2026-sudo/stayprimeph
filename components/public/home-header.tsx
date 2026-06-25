@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Search } from "lucide-react";
+import { ConciergeBell, Globe2, Home, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -9,7 +9,11 @@ import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
-const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay", "Davao", "Siargao"];
+const MARKETPLACE_NAV = [
+  { label: "Homes", href: "/search", icon: Home, badge: "" },
+  { label: "Experiences", href: "/hosting/stayprimeph-your-experience", icon: Sparkles, badge: "New" },
+  { label: "Services", href: "/hosting/stayprimeph-your-service", icon: ConciergeBell, badge: "New" },
+] as const;
 
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);
@@ -94,18 +98,16 @@ export function HomeHeader() {
             <BrandLogo variant={collapsed ? "green" : "white"} className="h-10 w-auto" priority />
           </Link>
 
-          <nav className={`absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
-            <Link href="/search" className="flex items-center gap-2 py-2 font-semibold">
-              <Home size={24} strokeWidth={1.8} />
-              Stays
-            </Link>
-            {POPULAR_CITIES.map((city) => (
+          <nav className={`absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-3 text-sm transition-all duration-150 ease-out md:flex ${collapsed ? "pointer-events-none -translate-y-3 opacity-0" : "translate-y-0 opacity-100"}`}>
+            {MARKETPLACE_NAV.map(({ label, href, icon: Icon, badge }) => (
               <Link
-                key={city}
-                href={`/search?location=${encodeURIComponent(city)}`}
-                className="py-2 font-semibold text-current/85 transition hover:text-current"
+                key={href}
+                href={href}
+                className="flex min-h-11 items-center gap-2 rounded-full px-3 font-semibold text-current/90 transition hover:bg-white/15 hover:text-current"
               >
-                {city}
+                <Icon size={19} strokeWidth={1.9} />
+                <span>{label}</span>
+                {badge ? <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold leading-none">{badge}</span> : null}
               </Link>
             ))}
           </nav>
@@ -132,6 +134,13 @@ export function HomeHeader() {
                 Become a host
               </Link>
             ) : null}
+            <Link
+              href="/account-settings/languages-and-currency"
+              aria-label="Languages and currency"
+              className={`hidden size-10 place-items-center rounded-full transition md:grid ${collapsed ? "text-black hover:bg-black/[0.04]" : "text-white hover:bg-white/15"}`}
+            >
+              <Globe2 size={18} strokeWidth={2.1} />
+            </Link>
             {session.user ? <NotificationBell variant={collapsed ? "dark" : "light"} eager={false} /> : null}
             <TravellerMenu />
           </div>

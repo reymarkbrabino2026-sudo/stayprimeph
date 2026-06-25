@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { footerColumns, futureGetaways } from "@/lib/home-data";
+import { footerColumns, footerInspirationTabs, futureGetaways } from "@/lib/home-data";
 import { seoLocations } from "@/lib/seo-locations";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,24 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
     <footer className={cn(!flushTop && "mt-12 md:mt-20", "border-t border-black/10 bg-[#f7f2ea] text-[#1f1b16]")}>
       <div className="w-full px-6 py-8 sm:px-6 md:px-6 lg:px-9 2xl:px-10">
         <section>
+          <h2 className="text-xl font-semibold leading-tight text-[#083f35] sm:text-2xl">Inspiration for future getaways</h2>
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-3 text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {footerInspirationTabs.map((tab, index) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={cn(
+                  "inline-flex min-h-10 shrink-0 items-center rounded-full border px-4 font-semibold transition",
+                  index === 0
+                    ? "border-[#083f35] bg-[#083f35] text-white hover:bg-[#062f28]"
+                    : "border-black/15 bg-white/60 text-black/75 hover:border-[#083f35]/35 hover:text-[#083f35]",
+                  lightFocus,
+                )}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3 md:gap-x-10 lg:grid-cols-4 xl:grid-cols-6">
             {futureGetaways.slice(0, 17).map(([city, type]) => (
               <Link

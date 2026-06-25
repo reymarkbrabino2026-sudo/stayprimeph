@@ -2,7 +2,7 @@
 
 import { cloneElement, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, List, Map, SlidersHorizontal, X } from "lucide-react";
 
 type PreviewAwareMapProps = {
   onPreviewOpenChange?: (open: boolean) => void;
@@ -16,6 +16,7 @@ export function SearchResultsLayout({
   metaLabel = "",
   title = "Homes in map area",
   count,
+  showDesktopFilters = true,
 }: {
   results: ReactNode;
   map: ReactNode;
@@ -24,9 +25,12 @@ export function SearchResultsLayout({
   metaLabel?: string;
   title?: string;
   count?: number;
+  showDesktopFilters?: boolean;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mapPreviewOpen, setMapPreviewOpen] = useState(false);
+  const [mobileMapMode, setMobileMapMode] = useState(false);
+  const showMobileMap = mobileMapMode || mapPreviewOpen;
   const renderedMap = isValidElement<PreviewAwareMapProps>(map)
     ? cloneElement(map as ReactElement<PreviewAwareMapProps>, { onPreviewOpenChange: setMapPreviewOpen })
     : map;
@@ -79,7 +83,7 @@ export function SearchResultsLayout({
         </div>
       ) : null}
 
-      {filters ? (
+      {showDesktopFilters && filters ? (
         <div className="hidden shrink-0 border-b bg-white px-8 py-3 lg:block">
           <div className="mx-auto max-w-5xl">{filters}</div>
         </div>
@@ -92,7 +96,7 @@ export function SearchResultsLayout({
 
         <section
           data-lenis-prevent
-          className={`relative z-10 mt-[calc(90vh-9.75rem)] min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.14)] transition-opacity duration-150 sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:h-full lg:min-h-0 lg:w-1/2 lg:flex-none lg:overflow-y-auto lg:overscroll-contain lg:rounded-none lg:px-8 lg:pb-10 lg:pt-0 lg:opacity-100 lg:shadow-none ${mapPreviewOpen ? "pointer-events-none opacity-0 lg:pointer-events-auto lg:opacity-100" : "opacity-100"}`}
+          className={`relative z-10 mt-[calc(90vh-9.75rem)] min-h-screen rounded-t-[1.75rem] bg-white px-4 pb-28 pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.14)] transition-opacity duration-150 sm:px-6 lg:order-1 lg:z-auto lg:mt-0 lg:h-full lg:min-h-0 lg:w-1/2 lg:flex-none lg:overflow-y-auto lg:overscroll-contain lg:rounded-none lg:px-8 lg:pb-10 lg:pt-0 lg:opacity-100 lg:shadow-none ${showMobileMap ? "pointer-events-none opacity-0 lg:pointer-events-auto lg:opacity-100" : "opacity-100"}`}
         >
           <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-black/15 lg:hidden" />
           {typeof count === "number" ? (
@@ -103,6 +107,23 @@ export function SearchResultsLayout({
           {results}
         </section>
       </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (showMobileMap) {
+            setMobileMapMode(false);
+            setMapPreviewOpen(false);
+            return;
+          }
+          setMobileMapMode(true);
+        }}
+        aria-pressed={showMobileMap}
+        className="fixed bottom-[calc(5.2rem+env(safe-area-inset-bottom))] left-1/2 z-[115] inline-flex min-h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white shadow-[0_10px_28px_rgb(8_63_53_/_0.28)] transition active:scale-95 lg:hidden"
+      >
+        {showMobileMap ? <List size={17} strokeWidth={2.4} /> : <Map size={17} strokeWidth={2.4} />}
+        {showMobileMap ? "Show list" : "Show map"}
+      </button>
     </main>
   );
 }

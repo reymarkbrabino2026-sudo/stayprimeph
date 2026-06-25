@@ -61,6 +61,17 @@ export const futureGetaways = [
   ["Laoag", "Villa rentals"],
 ];
 
+export const footerInspirationTabs = [
+  { label: "Popular", href: "/search" },
+  { label: "Arts & culture", href: "/search?location=Vigan%2C%20Philippines" },
+  { label: "Beach", href: "/search?location=Boracay%2C%20Philippines" },
+  { label: "Mountains", href: "/search?location=Baguio%2C%20Philippines" },
+  { label: "Outdoors", href: "/search?location=Tagaytay%2C%20Philippines" },
+  { label: "Things to do", href: "/hosting/stayprimeph-your-experience" },
+  { label: "Guest services", href: "/hosting/stayprimeph-your-service" },
+  { label: "Travel tips", href: "/newsroom" },
+];
+
 export const footerColumns = [
   {
     title: "Support",

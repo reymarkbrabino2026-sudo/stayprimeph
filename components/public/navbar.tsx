@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { Home } from "lucide-react";
+import { ConciergeBell, Globe2, Home, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 
-const POPULAR_CITIES = ["Baguio", "Tagaytay", "Cebu", "Boracay", "Davao", "Siargao"];
+const MARKETPLACE_NAV = [
+  { label: "Homes", href: "/search", icon: Home, badge: "" },
+  { label: "Experiences", href: "/hosting/stayprimeph-your-experience", icon: Sparkles, badge: "New" },
+  { label: "Services", href: "/hosting/stayprimeph-your-service", icon: ConciergeBell, badge: "New" },
+] as const;
 
 export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { transparentOnTop?: boolean; hideBottomNav?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
@@ -71,17 +75,16 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
         <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
           <BrandLogo variant={transparent ? "white" : "green"} className="h-10 w-auto" priority />
         </Link>
-        <nav className="absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm md:flex">
-          <Link href="/search" className="flex items-center gap-2 font-semibold">
-            <Home size={16} /> Stays
-          </Link>
-          {POPULAR_CITIES.map((city) => (
+        <nav className="absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-3 text-sm md:flex">
+          {MARKETPLACE_NAV.map(({ label, href, icon: Icon, badge }) => (
             <Link
-              key={city}
-              href={`/search?location=${encodeURIComponent(city)}`}
-              className="font-semibold text-current/75 transition hover:text-current"
+              key={href}
+              href={href}
+              className={`flex min-h-11 items-center gap-2 rounded-full px-3 font-semibold transition ${transparent ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-black/75 hover:bg-black/[0.04] hover:text-black"}`}
             >
-              {city}
+              <Icon size={17} strokeWidth={1.9} />
+              <span>{label}</span>
+              {badge ? <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${transparent ? "bg-white/20 text-white" : "bg-[#e8f4ef] text-[#083f35]"}`}>{badge}</span> : null}
             </Link>
           ))}
         </nav>
@@ -91,6 +94,13 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
               Become a host
             </Link>
           ) : null}
+          <Link
+            href="/account-settings/languages-and-currency"
+            aria-label="Languages and currency"
+            className={`hidden size-10 place-items-center rounded-full transition md:grid ${transparent ? "text-white hover:bg-white/15" : "text-black hover:bg-black/[0.04]"}`}
+          >
+            <Globe2 size={18} strokeWidth={2.1} />
+          </Link>
           {session.user ? <NotificationBell variant={transparent ? "light" : "dark"} eager={false} /> : null}
           <TravellerMenu />
         </div>
