@@ -79,4 +79,13 @@ describe("host wizard location validation", () => {
   it("invalidates the confirmed pin when the address changes", () => {
     expect(canAdvanceFromStep("visibility", draft({ street: "456 Changed Street" }))).toBe(false);
   });
+
+  it("allows the virtual tour step to be skipped", () => {
+    expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "" }))).toBe(true);
+  });
+
+  it("requires a valid virtual tour URL when one is entered", () => {
+    expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "not a link" }))).toBe(false);
+    expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "https://my.matterport.com/show/?m=abc123" }))).toBe(true);
+  });
 });

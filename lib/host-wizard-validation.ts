@@ -1,4 +1,5 @@
 import type { HostListingDraft, WizardStepId } from "@/lib/host-wizard-types";
+import { isValidVirtualTourUrl } from "@/lib/virtual-tour";
 
 function formatDraftAddress(draft: HostListingDraft) {
   return [draft.street, draft.barangay, draft.city, draft.province, draft.country, draft.zipCode]
@@ -30,6 +31,7 @@ export function canAdvanceFromStep(step: WizardStepId, draft: HostListingDraft) 
     case "highlights": return draft.highlights.length > 0;
     case "title": return draft.title.trim().length > 0 && draft.title.length <= 50;
     case "description": return draft.description.trim().length >= 20 && draft.description.length <= 500;
+    case "virtual-tour": return isValidVirtualTourUrl(draft.virtualTourUrl);
     case "booking": return Boolean(draft.bookingType && draft.bookingMode);
     case "pricing": return draft.basePrice > 0;
     case "weekend-pricing": return draft.weekendPrice > 0;

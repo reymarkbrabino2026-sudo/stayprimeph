@@ -15,6 +15,7 @@ export const hostWizardSteps: WizardStepDefinition[] = [
   { id: "highlights", title: "Next, let’s describe your house", description: "Choose up to 2 highlights. We’ll use these to shape your description." },
   { id: "title", title: "Now, let’s give your house a title", description: "Short titles work best. You can always change it later." },
   { id: "description", title: "Create your description", description: "Share what makes your place special." },
+  { id: "virtual-tour", title: "Add a virtual tour", description: "Paste a Matterport, Kuula, YouTube 360, Vimeo, or CloudPano link so guests can walk through before booking." },
   { id: "finish-intro", eyebrow: "Step 3", title: "Finish up and publish", description: "Choose booking settings, price your stay, and finish the final trust details." },
   { id: "booking", title: "Pick your booking settings", description: "You can change this later." },
   { id: "pricing", title: "Now, set a weekday base price", description: "Start with a nightly price guests will see before taxes." },

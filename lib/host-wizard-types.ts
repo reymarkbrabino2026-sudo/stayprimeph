@@ -13,6 +13,7 @@ export type WizardStepId =
   | "highlights"
   | "title"
   | "description"
+  | "virtual-tour"
   | "finish-intro"
   | "booking"
   | "pricing"

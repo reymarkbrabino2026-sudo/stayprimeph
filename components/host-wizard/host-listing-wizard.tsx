@@ -22,6 +22,7 @@ import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propert
 import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import type { HostBookingPackageDraft, HostPropertyRoomDraft, HostSeasonalRateDraft } from "@/lib/host-wizard-types";
+import { isValidVirtualTourUrl } from "@/lib/virtual-tour";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
 const iconMap = {
@@ -214,6 +215,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const selectedAmenities = useMemo(() => new Set(draft.amenityIds), [draft.amenityIds]);
   const selectedAmenityLabels = useMemo(() => draft.amenityIds.map((id) => amenityLabelById.get(id) ?? id), [draft.amenityIds]);
   const activeRooms = useMemo(() => draft.rooms.filter((room) => room.active), [draft.rooms]);
+  const virtualTourUrlValid = isValidVirtualTourUrl(draft.virtualTourUrl);
   const availableFloors = useMemo(
     () => Array.from(new Set(draft.rooms.map((room) => room.floor.trim()).filter(Boolean))),
     [draft.rooms],
@@ -567,17 +569,36 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             </div>
             <HighlightPicker />
             <div className="mt-6"><DescriptionInput /></div>
-            <label className="mt-6 block rounded-3xl border border-black/10 bg-white p-5 shadow-[0_14px_40px_rgba(0,0,0,0.04)]">
+          </section>
+        ) : null}
+
+        {currentStep === "virtual-tour" ? (
+          <section className="mx-auto max-w-2xl">
+            <div className="max-w-xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black/45">Listing walkthrough</p>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{step.title}</h1>
+              <p className="mt-3 text-base leading-7 text-black/60">{step.description}</p>
+            </div>
+
+            <label className="mt-8 block rounded-3xl border border-black/10 bg-white p-5 shadow-[0_14px_40px_rgba(0,0,0,0.04)]">
               <span className="text-sm font-semibold text-black/70">Virtual tour URL</span>
               <input
                 type="url"
                 value={draft.virtualTourUrl}
                 onChange={(event) => updateDraft({ virtualTourUrl: event.target.value })}
-                className="mt-3 min-h-14 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-black"
+                className={`mt-3 min-h-14 w-full rounded-2xl border px-4 outline-none focus:border-black ${
+                  virtualTourUrlValid ? "border-black/10" : "border-red-300 bg-red-50/40"
+                }`}
                 placeholder="https://my.matterport.com/show/?m=..."
               />
-              <span className="mt-2 block text-sm leading-6 text-black/55">Optional Matterport, Kuula, YouTube 360, Vimeo, or CloudPano link.</span>
+              <span className="mt-2 block text-sm leading-6 text-black/55">Optional. Supported embed links include Matterport, Kuula, YouTube 360, Vimeo, and CloudPano.</span>
+              {!virtualTourUrlValid ? <span className="mt-2 block text-sm font-medium text-red-700">Use a valid http or https virtual tour link, or leave this blank.</span> : null}
             </label>
+
+            <div className="mt-5 rounded-3xl border border-[#083f35]/10 bg-[#083f35]/5 p-5">
+              <p className="font-semibold text-[#083f35]">Where it appears</p>
+              <p className="mt-2 text-sm leading-6 text-black/60">After the listing is approved, guests will see a Virtual tour section inside the listing page between the gallery and amenities.</p>
+            </div>
           </section>
         ) : null}
 
