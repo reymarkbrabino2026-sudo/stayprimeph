@@ -6,6 +6,7 @@ import { readStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments } from "@/lib/payment-store";
 import { readStoredPlatformLedger } from "@/lib/platform-ledger-store";
 import { readStoredProperties } from "@/lib/property-store";
+import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import { getAdminDashboardSummaryFromDatabase, listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredReviews } from "@/lib/review-store";
 import type { Dispute, Payment, PlatformLedgerEntry, Report, Review } from "@/lib/types";
@@ -29,11 +30,13 @@ export async function getAdminDashboardSummary() {
   if (usesPrismaPersistence()) return getAdminDashboardSummaryFromDatabase();
 
   const [properties, bookings] = await Promise.all([readStoredProperties(), readStoredBookings()]);
+  const grossBookingValue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
   return {
     pendingListings: properties.filter((property) => property.status === "pending").length,
     approvedListings: properties.filter((property) => property.status === "approved").length,
     openBookings: bookings.filter((booking) => booking.status === "pending").length,
-    grossBookingValue: bookings.reduce((sum, booking) => sum + booking.totalPrice, 0),
+    grossBookingValue,
+    stayprimeEarningsValue: calculateStayprimeMarkupFromTotal(grossBookingValue),
   };
 }
 

@@ -8,18 +8,23 @@ import { adminLinks } from "@/lib/navigation";
 import { getPropertiesByStatus } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 
+function formatPesoValue(value: number) {
+  return `PHP ${value.toLocaleString()}`;
+}
+
 export default async function AdminDashboardPage() {
   const [summary, pendingListings, csrfToken] = await Promise.all([getAdminDashboardSummary(), getPropertiesByStatus("pending"), getCsrfToken()]);
   const stats = [
     ["Pending listings", String(summary.pendingListings)],
     ["Approved listings", String(summary.approvedListings)],
     ["Open bookings", String(summary.openBookings)],
-    ["Gross booking value", `PHP ${summary.grossBookingValue.toLocaleString()}`],
+    ["Gross booking value", formatPesoValue(summary.grossBookingValue)],
+    ["StayPrimePH earnings", formatPesoValue(summary.stayprimeEarningsValue)],
   ];
 
   return (
     <DashboardShell title="Admin Overview" subtitle="Admin dashboard" links={adminLinks}>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {stats.map(([label, value]) => <StatsCard key={label} label={label} value={value} />)}
       </div>
 

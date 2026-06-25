@@ -1857,12 +1857,14 @@ export async function getAdminDashboardSummaryFromDatabase() {
     prisma.booking.count({ where: { status: "pending" } }),
     prisma.booking.aggregate({ _sum: { totalPrice: true } }),
   ]);
+  const grossBookingValueTotal = grossBookingValue._sum.totalPrice ?? 0;
 
   return {
     pendingListings,
     approvedListings,
     openBookings,
-    grossBookingValue: grossBookingValue._sum.totalPrice ?? 0,
+    grossBookingValue: grossBookingValueTotal,
+    stayprimeEarningsValue: calculateStayprimeMarkupFromTotal(grossBookingValueTotal),
   };
 }
 
