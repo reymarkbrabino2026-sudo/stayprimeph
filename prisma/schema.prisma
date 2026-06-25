@@ -3,73 +3,74 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id              String       @id
-  name            String
-  email           String       @unique
-  password        String?
-  role            String
-  avatar          String?
-  phone           String?
-  emailVerifiedAt DateTime?
+  id                String           @id
+  name              String
+  email             String           @unique
+  password          String?
+  role              String
+  avatar            String?
+  phone             String?
+  emailVerifiedAt   DateTime?
   passwordChangedAt DateTime?
-  createdAt       DateTime     @default(now())
-  properties      Property[]
-  bookings        Booking[]    @relation("GuestBookings")
-  hosted          Booking[]    @relation("HostBookings")
-  reviews         Review[]
-  sent            Message[]    @relation("SentMessages")
-  received        Message[]    @relation("ReceivedMessages")
-  wishlists       Wishlist[]
-  hostProfile     HostProfile?
-  payouts         Payout[]
-  adminLogs       AdminLog[]
-  authTokens      AuthToken[]
-  authSessions    AuthSession[]
-  passkeys        Passkey[]
-  accountSettings AccountSettings?
+  createdAt         DateTime         @default(now())
+  properties        Property[]
+  bookings          Booking[]        @relation("GuestBookings")
+  hosted            Booking[]        @relation("HostBookings")
+  reviews           Review[]
+  sent              Message[]        @relation("SentMessages")
+  received          Message[]        @relation("ReceivedMessages")
+  wishlists         Wishlist[]
+  hostProfile       HostProfile?
+  payouts           Payout[]
+  adminLogs         AdminLog[]
+  authTokens        AuthToken[]
+  authSessions      AuthSession[]
+  passkeys          Passkey[]
+  accountSettings   AccountSettings?
 }
 
 model Property {
-  id            String               @id
-  hostId        String
-  slug          String               @unique
-  title         String
-  description   String
-  address       String
-  city          String
-  country       String
-  bookingType   String               @default("stay")
-  pricePerNight Int
-  bedrooms      Int
-  bathrooms     Int
-  maxGuests     Int
-  propertyType  String
-  status        String               @default("pending")
-  rating        Float                @default(0)
-  rules         String
-  createdAt     DateTime             @default(now())
-  host          User                 @relation(fields: [hostId], references: [id])
-  images        PropertyImage[]
-  amenities     PropertyAmenity[]
-  bookings      Booking[]
-  reviews       Review[]
-  wishlists     Wishlist[]
-  location      ListingLocation?
-  pricing       ListingPricing?
-  availability  ListingAvailability?
-  rooms         ListingRoom[]
+  id              String                  @id
+  hostId          String
+  slug            String                  @unique
+  title           String
+  description     String
+  address         String
+  city            String
+  country         String
+  virtualTourUrl  String?
+  bookingType     String                  @default("stay")
+  pricePerNight   Int
+  bedrooms        Int
+  bathrooms       Int
+  maxGuests       Int
+  propertyType    String
+  status          String                  @default("pending")
+  rating          Float                   @default(0)
+  rules           String
+  createdAt       DateTime                @default(now())
+  host            User                    @relation(fields: [hostId], references: [id])
+  images          PropertyImage[]
+  amenities       PropertyAmenity[]
+  bookings        Booking[]
+  reviews         Review[]
+  wishlists       Wishlist[]
+  location        ListingLocation?
+  pricing         ListingPricing?
+  availability    ListingAvailability?
+  rooms           ListingRoom[]
   bookingPackages ListingBookingPackage[]
-  calendar      AvailabilityBlock[]
-  highlights    ListingHighlight[]
-  cancellations Cancellation[]
-  reports       Report[]
-  messages      Message[]
+  calendar        AvailabilityBlock[]
+  highlights      ListingHighlight[]
+  cancellations   Cancellation[]
+  reports         Report[]
+  messages        Message[]
 
   @@index([hostId])
   @@index([status, city])
@@ -99,43 +100,43 @@ model PropertyAmenity {
 }
 
 model ListingRoom {
-  id          String   @id
-  propertyId  String
-  name        String
-  capacity    Int
-  floor       String
-  description String?
-  photoUrls   Json?
-  amenities   Json?
-  active      Boolean  @default(true)
-  displayOrder Int     @default(0)
-  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id           String   @id
+  propertyId   String
+  name         String
+  capacity     Int
+  floor        String
+  description  String?
+  photoUrls    Json?
+  amenities    Json?
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId])
 }
 
 model Booking {
-  id            String        @id
-  propertyId    String
-  guestId       String
-  hostId        String
-  checkIn       DateTime
-  checkOut      DateTime
-  guests        Int
-  totalPrice    Int
-  status        String
-  paymentStatus String
+  id                 String                @id
+  propertyId         String
+  guestId            String
+  hostId             String
+  checkIn            DateTime
+  checkOut           DateTime
+  guests             Int
+  totalPrice         Int
+  status             String
+  paymentStatus      String
   bookingPackageId   String?
   bookingPackageName String?
   bookingPackageUnit String?
-  createdAt     DateTime      @default(now())
-  property      Property      @relation(fields: [propertyId], references: [id])
-  guest         User          @relation("GuestBookings", fields: [guestId], references: [id])
-  host          User          @relation("HostBookings", fields: [hostId], references: [id])
-  messages      Message[]
-  payment       Payment?
-  cancellation  Cancellation?
-  resourceLocks BookingResourceLock[]
+  createdAt          DateTime              @default(now())
+  property           Property              @relation(fields: [propertyId], references: [id])
+  guest              User                  @relation("GuestBookings", fields: [guestId], references: [id])
+  host               User                  @relation("HostBookings", fields: [hostId], references: [id])
+  messages           Message[]
+  payment            Payment?
+  cancellation       Cancellation?
+  resourceLocks      BookingResourceLock[]
 
   @@index([propertyId, checkIn, checkOut])
   @@index([guestId, status])
@@ -220,36 +221,36 @@ model Payment {
 }
 
 model ListingBookingPackage {
-  id                 String   @id
-  propertyId         String
-  name               String
-  description        String?
-  status             String   @default("active")
-  displayOrder       Int      @default(0)
-  accessType         String
-  unit               String
-  weekdayRate        Int
-  weekendRate        Int
-  holidayRate        Int?
-  holidayDates       Json?
-  seasonalRates      Json?
-  includedGuests     Int
-  maxGuests          Int
-  sleepingCapacity   Int?
-  durationHours      Int?
-  additionalGuestFee Int
-  extensionHourlyFee Int
-  checkInTime        String
-  checkOutTime       String
-  accessibleFloors   Json?
-  accessibleRoomIds  Json?
-  includedAmenities  Json?
-  excludedAmenities  Json?
-  availableDays      Json?
-  minimumAdvanceBookingDays Int @default(0)
-  blockedPackageIds  Json?
-  enabled            Boolean  @default(true)
-  property           Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id                        String   @id
+  propertyId                String
+  name                      String
+  description               String?
+  status                    String   @default("active")
+  displayOrder              Int      @default(0)
+  accessType                String
+  unit                      String
+  weekdayRate               Int
+  weekendRate               Int
+  holidayRate               Int?
+  holidayDates              Json?
+  seasonalRates             Json?
+  includedGuests            Int
+  maxGuests                 Int
+  sleepingCapacity          Int?
+  durationHours             Int?
+  additionalGuestFee        Int
+  extensionHourlyFee        Int
+  checkInTime               String
+  checkOutTime              String
+  accessibleFloors          Json?
+  accessibleRoomIds         Json?
+  includedAmenities         Json?
+  excludedAmenities         Json?
+  availableDays             Json?
+  minimumAdvanceBookingDays Int      @default(0)
+  blockedPackageIds         Json?
+  enabled                   Boolean  @default(true)
+  property                  Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId])
 }
@@ -285,15 +286,15 @@ model HostExpense {
 }
 
 model HostMonthlyReport {
-  id             String   @id
+  id             String    @id
   hostId         String
   month          String
   reportDate     DateTime?
   salesAmount    Float
   expensesAmount Float
   notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([hostId, month])
   @@index([month])
@@ -325,17 +326,17 @@ model AuthToken {
 }
 
 model AuthSession {
-  id          String   @id
-  userId      String
-  sessionHash String   @unique
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  userAgent   String?
-  ipAddress   String?
-  lastSeenAt  DateTime?
+  id            String    @id
+  userId        String
+  sessionHash   String    @unique
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  userAgent     String?
+  ipAddress     String?
+  lastSeenAt    DateTime?
   mfaVerifiedAt DateTime?
-  mfaRole     String?
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mfaRole       String?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
   @@index([userId, createdAt])
@@ -446,8 +447,8 @@ model Payout {
   createdAt   DateTime @default(now())
   host        User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
-  @@index([hostId, status])
   @@unique([bookingId])
+  @@index([hostId, status])
   @@index([paymentId])
 }
 

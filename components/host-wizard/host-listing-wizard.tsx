@@ -567,6 +567,17 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             </div>
             <HighlightPicker />
             <div className="mt-6"><DescriptionInput /></div>
+            <label className="mt-6 block rounded-3xl border border-black/10 bg-white p-5 shadow-[0_14px_40px_rgba(0,0,0,0.04)]">
+              <span className="text-sm font-semibold text-black/70">Virtual tour URL</span>
+              <input
+                type="url"
+                value={draft.virtualTourUrl}
+                onChange={(event) => updateDraft({ virtualTourUrl: event.target.value })}
+                className="mt-3 min-h-14 w-full rounded-2xl border border-black/10 px-4 outline-none focus:border-black"
+                placeholder="https://my.matterport.com/show/?m=..."
+              />
+              <span className="mt-2 block text-sm leading-6 text-black/55">Optional Matterport, Kuula, YouTube 360, Vimeo, or CloudPano link.</span>
+            </label>
           </section>
         ) : null}
 
@@ -1009,6 +1020,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                   ["Capacity", `${draft.guests} guests · ${draft.bedrooms} bedrooms · ${draft.beds} beds`],
                   ["Amenities", `${draft.amenityIds.length} selected`],
                   ["Photos", `${draft.photos.length} uploaded`],
+                  ["Virtual tour", draft.virtualTourUrl.trim() ? "Added" : "Not added"],
                   ["Pricing", `PHP ${draft.basePrice.toLocaleString()} weekday · PHP ${draft.weekendPrice.toLocaleString()} weekend`],
                 ].map(([label, value]) => <div key={label} className="rounded-2xl border p-4"><strong className="block">{label}</strong><span className="text-black/60">{value}</span></div>)}
               </div>

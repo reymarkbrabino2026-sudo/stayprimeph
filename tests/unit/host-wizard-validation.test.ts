@@ -33,6 +33,7 @@ function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
     title: "Prime stay",
     highlights: ["peaceful"],
     description: "A comfortable place for a family stay.",
+    virtualTourUrl: "",
     bookingType: "stay",
     bookingMode: "request",
     pricingMode: "simple",

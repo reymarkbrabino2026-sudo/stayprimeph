@@ -17,6 +17,7 @@ import { calculateDefaultWeekendPrice } from "@/lib/pricing";
 import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
+import { normalizeVirtualTourUrl } from "@/lib/virtual-tour";
 import type { Property } from "@/lib/types";
 
 const protectedListingDeleteMessage = "This listing has active bookings and cannot be deleted. Please resolve those bookings before deleting the listing.";
@@ -32,6 +33,13 @@ const integerValue = (min: number, max: number, fallback: number) =>
   z.preprocess((value) => Number(value), z.number().int().min(min).max(max)).catch(fallback);
 
 const dateKeyList = z.array(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]);
+
+const virtualTourFormUrl = z.preprocess(
+  (value) => typeof value === "string" ? value.trim() : "",
+  z.string().max(2048),
+).refine((value) => !value || Boolean(normalizeVirtualTourUrl(value)), {
+  message: "Enter a valid virtual tour link.",
+}).transform((value) => normalizeVirtualTourUrl(value));
 
 const seasonalRateDraftSchema = z.object({
   id: textValue(80),
@@ -123,6 +131,7 @@ const hostListingDraftSaveSchema = z.object({
   title: textValue(50),
   highlights: z.array(z.string().max(80)).max(2).catch([]),
   description: textValue(500),
+  virtualTourUrl: textValue(2048).transform((value) => normalizeVirtualTourUrl(value)),
   bookingType: z.enum(["stay", "package", "both"]).catch("stay"),
   bookingMode: z.enum(["request", "instant"]).catch("request"),
   pricingMode: z.enum(["simple", "packages"]).catch("simple"),
@@ -165,6 +174,7 @@ const listingFormSchema = z.object({
   id: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(1000),
+  virtualTourUrl: virtualTourFormUrl,
   address: z.string().trim().min(1).max(240),
   city: z.string().trim().min(1).max(80),
   country: z.string().trim().min(1).max(80),
@@ -339,6 +349,7 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
     slug: identity.slug,
     title: draftText(listing.title, "Untitled draft"),
     description: draftText(listing.description, "Draft listing saved from the host setup wizard."),
+    virtualTourUrl: listing.virtualTourUrl,
     address: draftText([listing.street, listing.barangay].filter(Boolean).join(", "), "Address pending"),
     city: draftText(listing.city, "City pending"),
     country: draftText(listing.country, "Philippines"),
@@ -390,6 +401,7 @@ export async function createListing(formData: FormData) {
   const parsed = listingFormSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
+    virtualTourUrl: formData.get("virtualTourUrl"),
     address: formData.get("address"),
     city: formData.get("city"),
     country: formData.get("country"),
@@ -412,6 +424,7 @@ export async function createListing(formData: FormData) {
   const {
     title,
     description,
+    virtualTourUrl,
     address,
     city,
     country,
@@ -437,6 +450,7 @@ export async function createListing(formData: FormData) {
     slug: `${slugify(title)}-${id.slice(0, 8)}`,
     title,
     description,
+    virtualTourUrl,
     address,
     city,
     country,
@@ -477,6 +491,7 @@ export async function updateListing(formData: FormData) {
     id: formData.get("id"),
     title: formData.get("title"),
     description: formData.get("description"),
+    virtualTourUrl: formData.get("virtualTourUrl"),
     address: formData.get("address"),
     city: formData.get("city"),
     country: formData.get("country"),
@@ -506,6 +521,7 @@ export async function updateListing(formData: FormData) {
     ...existing,
     title: parsed.data.title,
     description: parsed.data.description,
+    virtualTourUrl: parsed.data.virtualTourUrl,
     address: parsed.data.address,
     city: parsed.data.city,
     country: parsed.data.country,
@@ -536,6 +552,7 @@ export async function updateListing(formData: FormData) {
   revalidatePath("/host/listings");
   revalidatePath(`/host/listings/${nextProperty.id}`);
   revalidatePath(`/property/${nextProperty.slug}`);
+  revalidatePath(`/rooms/${nextProperty.id}`);
   redirect(`/host/listings/${nextProperty.id}?updated=1`);
 }
 
@@ -651,6 +668,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     slug: `${slugify(listing.title)}-${id.slice(0, 8)}`,
     title: listing.title,
     description: listing.description,
+    virtualTourUrl: listing.virtualTourUrl,
     address: `${listing.street}, ${listing.barangay}`,
     city: listing.city,
     country: listing.country,

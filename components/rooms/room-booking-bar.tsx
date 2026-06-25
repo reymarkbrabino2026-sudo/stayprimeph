@@ -8,9 +8,10 @@ import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { calculateGuestPriceWithMarkup, findBookingPackageById } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
+import { normalizeVirtualTourUrl } from "@/lib/virtual-tour";
 import { TODAY, buildReserveHref, computePrice, useReservationStore } from "@/stores/reservation-store";
 
-const navItems = [
+const baseNavItems = [
   { label: "About", href: "#overview" },
   { label: "Photos", href: "#gallery" },
   { label: "Amenities", href: "#amenities" },
@@ -27,9 +28,18 @@ function formatShortDate(value: string) {
 export function RoomBookingBar({ property, unavailableStays = [] }: { property: Property; unavailableStays?: UnavailableStay[] }) {
   const { checkIn, checkOut, guests, packageId } = useReservationStore();
   const barRef = useRef<HTMLDivElement>(null);
-  const [activeSection, setActiveSection] = useState(navItems[0].href);
+  const [activeSection, setActiveSection] = useState(baseNavItems[0].href);
   const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
   const [inlineReservationVisible, setInlineReservationVisible] = useState(false);
+  const navItems = useMemo(() => {
+    if (!normalizeVirtualTourUrl(property.virtualTourUrl)) return baseNavItems;
+    return [
+      baseNavItems[0],
+      baseNavItems[1],
+      { label: "Tour", href: "#virtual-tour" },
+      ...baseNavItems.slice(2),
+    ];
+  }, [property.virtualTourUrl]);
   const selectedPackage = useMemo(() => (packageId ? findBookingPackageById(property, packageId) : null), [packageId, property]);
   const relevantUnavailableStays = useMemo(
     () => unavailableStays.filter((stay) => "date" in stay || bookingBlocksRequestedPackage(stay, selectedPackage?.id, property.bookingPackages ?? [])),
@@ -93,7 +103,7 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
       window.removeEventListener("scroll", updateActiveSection);
       window.removeEventListener("resize", updateActiveSection);
     };
-  }, []);
+  }, [navItems]);
 
   useEffect(() => {
     const footer = document.querySelector("footer");

@@ -108,6 +108,7 @@ export interface HostListingDraft {
   title: string;
   highlights: string[];
   description: string;
+  virtualTourUrl: string;
   bookingType: HostListingBookingType;
   bookingMode: "request" | "instant";
   pricingMode: HostPricingMode;

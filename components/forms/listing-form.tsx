@@ -38,6 +38,17 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
           <textarea name="description" defaultValue={property?.description} required rows={6} maxLength={1000} className="w-full rounded-2xl border p-3 leading-7" placeholder="Describe what makes this stay special." />
         </label>
         <label className="block">
+          <span className="mb-2 block text-sm font-medium">Virtual tour URL</span>
+          <input
+            name="virtualTourUrl"
+            type="url"
+            defaultValue={property?.virtualTourUrl ?? ""}
+            className="min-h-12 w-full rounded-2xl border p-3"
+            placeholder="https://my.matterport.com/show/?m=..."
+          />
+          <span className="mt-2 block text-xs leading-5 text-black/55">Optional Matterport, Kuula, YouTube 360, Vimeo, or CloudPano link.</span>
+        </label>
+        <label className="block">
           <span className="mb-2 block text-sm font-medium">Property type</span>
           <select name="propertyType" defaultValue={property?.propertyType ?? "House"} className="min-h-12 w-full rounded-2xl border p-3">
             {propertyTypes.map((item) => (

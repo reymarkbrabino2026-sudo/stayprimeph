@@ -23,6 +23,10 @@ describe("content security policy", () => {
     expect(csp).toContain("https://vitals.vercel-insights.com");
     expect(csp).toContain("https://a.tile.openstreetmap.org");
     expect(csp).toContain("https://*.basemaps.cartocdn.com");
+    expect(csp).toContain("https://my.matterport.com");
+    expect(csp).toContain("https://kuula.co");
+    expect(csp).toContain("https://www.youtube.com");
+    expect(csp).toContain("https://player.vimeo.com");
     expect(csp).toContain("upgrade-insecure-requests");
   });
 

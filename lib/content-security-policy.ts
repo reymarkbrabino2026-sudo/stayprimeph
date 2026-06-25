@@ -1,3 +1,5 @@
+import { virtualTourFrameSources } from "@/lib/virtual-tour";
+
 export const cspNonceHeaderName = "x-nonce";
 
 type ContentSecurityPolicyOptions = {
@@ -77,7 +79,12 @@ export function buildContentSecurityPolicy({ nonce, isProduction = process.env.N
     "font-src 'self' https://fonts.gstatic.com data:",
     directive("img-src", imageSources),
     directive("connect-src", connectSources),
-    "frame-src https://checkout.stripe.com https://js.stripe.com https://hooks.stripe.com",
+    directive("frame-src", [
+      "https://checkout.stripe.com",
+      "https://js.stripe.com",
+      "https://hooks.stripe.com",
+      ...virtualTourFrameSources,
+    ]),
     "media-src 'self' blob: data:",
     "worker-src 'self' blob:",
     isProduction ? "upgrade-insecure-requests" : undefined,

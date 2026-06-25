@@ -36,6 +36,7 @@ import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
+import { RoomVirtualTour } from "@/components/rooms/room-virtual-tour";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { getAvailabilityBlocksForProperty } from "@/lib/availability";
 import { addDays } from "@/lib/availability-calendar";
@@ -408,6 +409,8 @@ export default async function RoomPage({
         </section>
 
         {/* Luxury amenities — full-bleed dark band */}
+        <RoomVirtualTour property={property} />
+
         <section id="amenities" className="scroll-mt-32 bg-[#053f34] py-20 text-white">
           <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
             <div className="grid gap-8 lg:grid-cols-[0.8fr_1fr] lg:items-end">
