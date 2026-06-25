@@ -28,12 +28,11 @@ export function RoomReservationCard({
   rating: string;
   unavailableStays?: UnavailableStay[];
 }) {
-  const { checkIn, checkOut, guests, packageId, setCheckIn, setCheckOut, setGuests, setPackageId } = useReservationStore();
+  const { bookingMode, checkIn, checkOut, guests, packageId, setBookingMode, setCheckIn, setCheckOut, setGuests, setPackageId } = useReservationStore();
   const instantBook = property.rules.includes("Instant book enabled");
   const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
   const stayBookingAllowed = allowsStayBooking(property);
   const packageBookingAllowed = allowsPackageBooking(property);
-  const [bookingMode, setBookingMode] = useState<"stay" | "package">(() => (stayBookingAllowed ? "stay" : "package"));
   const effectiveBookingMode = packageBookingAllowed && !stayBookingAllowed ? "package" : stayBookingAllowed && !packageBookingAllowed ? "stay" : bookingMode;
   const selectedPackage = useMemo(() => (packageBookingAllowed ? findBookingPackageById(property, packageId) : null), [packageBookingAllowed, packageId, property]);
   const displayedPackage = effectiveBookingMode === "package" ? selectedPackage ?? bookingPackages[0] ?? null : null;
@@ -90,6 +89,12 @@ export function RoomReservationCard({
   const calendarActiveField = activeField;
 
   useEffect(() => {
+    if (!stayBookingAllowed && packageBookingAllowed && bookingMode !== "package") {
+      setBookingMode("package");
+    } else if (stayBookingAllowed && !packageBookingAllowed && bookingMode !== "stay") {
+      setBookingMode("stay");
+    }
+
     if (!packageBookingAllowed) {
       if (packageId) setPackageId(null);
       return;
@@ -98,8 +103,8 @@ export function RoomReservationCard({
       setPackageId(null);
       return;
     }
-    if (effectiveBookingMode === "package" && !selectedPackage) setPackageId(bookingPackages[0].id);
-  }, [effectiveBookingMode, bookingPackages, packageBookingAllowed, packageId, selectedPackage, setPackageId]);
+    if (effectiveBookingMode === "package" && !selectedPackage && bookingPackages[0]?.id) setPackageId(bookingPackages[0].id);
+  }, [bookingMode, effectiveBookingMode, bookingPackages, packageBookingAllowed, packageId, selectedPackage, setBookingMode, setPackageId, stayBookingAllowed]);
 
   useEffect(() => {
     if (selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout) setPackageId(fullAccessPackage.id);

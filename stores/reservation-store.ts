@@ -64,10 +64,12 @@ export function buildReserveHref(propertyId: string, checkIn: string, checkOut: 
 }
 
 interface ReservationState {
+  bookingMode: "stay" | "package";
   checkIn: string;
   checkOut: string;
   guests: number;
   packageId: string | null;
+  setBookingMode: (value: "stay" | "package") => void;
   setCheckIn: (value: string) => void;
   setCheckOut: (value: string) => void;
   setGuests: (value: number) => void;
@@ -76,13 +78,15 @@ interface ReservationState {
 }
 
 export const useReservationStore = create<ReservationState>((set) => ({
+  bookingMode: "stay",
   checkIn: DEFAULT_CHECK_IN,
   checkOut: DEFAULT_CHECK_OUT,
   guests: 1,
   packageId: null,
+  setBookingMode: (bookingMode) => set({ bookingMode }),
   setCheckIn: (checkIn) => set({ checkIn }),
   setCheckOut: (checkOut) => set({ checkOut }),
   setGuests: (guests) => set({ guests: Math.max(1, guests) }),
   setPackageId: (packageId) => set({ packageId }),
-  reset: () => set({ checkIn: DEFAULT_CHECK_IN, checkOut: DEFAULT_CHECK_OUT, guests: 1, packageId: null }),
+  reset: () => set({ bookingMode: "stay", checkIn: DEFAULT_CHECK_IN, checkOut: DEFAULT_CHECK_OUT, guests: 1, packageId: null }),
 }));
