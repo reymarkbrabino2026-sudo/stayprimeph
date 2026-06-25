@@ -85,6 +85,10 @@ export function HomeHeader() {
           </div>
         </div>
 
+        <div className="px-4 pb-4 md:hidden">
+          <SearchBar variant="mobile" />
+        </div>
+
         <div className="relative hidden h-[72px] items-center justify-between px-4 sm:px-6 md:flex lg:px-12">
           <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
             <BrandLogo variant={collapsed ? "green" : "white"} className="h-10 w-auto" priority />

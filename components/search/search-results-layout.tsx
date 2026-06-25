@@ -12,6 +12,7 @@ export function SearchResultsLayout({
   results,
   map,
   filters,
+  mobileSearch,
   metaLabel = "",
   title = "Homes in map area",
   count,
@@ -19,6 +20,7 @@ export function SearchResultsLayout({
   results: ReactNode;
   map: ReactNode;
   filters?: ReactNode;
+  mobileSearch?: ReactNode;
   metaLabel?: string;
   title?: string;
   count?: number;
@@ -39,9 +41,13 @@ export function SearchResultsLayout({
         >
           <ArrowLeft size={18} />
         </Link>
-        <div className="min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 py-2 text-center shadow-md">
-          <p className="truncate text-sm font-semibold">{title}</p>
-          {metaLabel ? <p className="truncate text-xs text-black/55">{metaLabel}</p> : null}
+        <div className="min-w-0 flex-1">
+          {mobileSearch ?? (
+            <div className="rounded-full border border-black/10 bg-white px-4 py-2 text-center shadow-md">
+              <p className="truncate text-sm font-semibold">{title}</p>
+              {metaLabel ? <p className="truncate text-xs text-black/55">{metaLabel}</p> : null}
+            </div>
+          )}
         </div>
         <button
           type="button"

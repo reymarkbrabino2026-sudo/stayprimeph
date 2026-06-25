@@ -113,6 +113,7 @@ export default async function SearchPage({
         count={results.length}
         filters={filters}
         map={<DeferredRealMap properties={orderedResults} location={query.location} />}
+        mobileSearch={<SearchBar variant="mobile" />}
         results={
           <>
             <div className="py-6">
