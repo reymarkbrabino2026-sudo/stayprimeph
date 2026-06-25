@@ -8,49 +8,6 @@ const userStorageKeyPrefix = "stayprimeph-host-wizard:";
 const storageVersion = 2;
 const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
 
-const defaultRooms = [
-  {
-    id: "sanctuary-suite",
-    name: "Sanctuary Suite",
-    capacity: 2,
-    floor: "Second Floor",
-    description: "Private suite for overnight guests.",
-    photos: [],
-    amenities: ["Smart TV", "Air conditioning"],
-    active: true,
-  },
-  {
-    id: "serene-room",
-    name: "Serene Room",
-    capacity: 4,
-    floor: "Second Floor",
-    description: "Shared bedroom for families or groups.",
-    photos: [],
-    amenities: ["Air conditioning"],
-    active: true,
-  },
-  {
-    id: "nest-room",
-    name: "Nest Room",
-    capacity: 6,
-    floor: "Second Floor",
-    description: "Large sleeping room for overnight packages.",
-    photos: [],
-    amenities: ["Air conditioning"],
-    active: true,
-  },
-  {
-    id: "oasis-room",
-    name: "Oasis Room",
-    capacity: 8,
-    floor: "Ground Floor",
-    description: "Ground-floor room with extra guest capacity.",
-    photos: [],
-    amenities: ["Air conditioning"],
-    active: true,
-  },
-];
-
 const defaultBookingPackages = [
   {
     id: "overnight-full-access",
@@ -74,7 +31,7 @@ const defaultBookingPackages = [
     checkInTime: "2:00 PM",
     checkOutTime: "11:00 AM",
     accessibleFloors: ["Ground Floor", "Second Floor"],
-    accessibleRoomIds: ["sanctuary-suite", "serene-room", "nest-room", "oasis-room"],
+    accessibleRoomIds: [],
     includedAmenities: ["Heated pool", "Karaoke", "WiFi", "Kitchen", "Board games"],
     excludedAmenities: [],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
@@ -123,7 +80,7 @@ const initialDraft: HostListingDraft = {
   uploadScopeId: "",
   country: "Philippines", street: "", barangay: "", city: "", province: "", zipCode: "", latitude: 14.5995, longitude: 120.9842, locationPinned: false, locationConfirmed: false, locationConfirmedAddress: "", lastAutoGeocodeAddress: "",
   propertyType: "", privacyType: "", preciseLocation: false, guests: 4, bedrooms: 1, beds: 1, bathrooms: 1, amenityIds: [], photos: [], title: "", highlights: [], description: "", virtualTourUrl: "",
-  rooms: defaultRooms,
+  rooms: [],
   bookingType: "stay", bookingMode: "request", pricingMode: "simple", basePrice: 2528, weekendPrice: 2579, holidayPrice: 0, holidayDates: [], seasonalRates: [], weekendPremium: 2, cleaningFee: 500, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
   discounts: { newListing: true, lastMinute: true, weekly: true, monthly: true }, safetyDisclosures: { exteriorCamera: false, noiseMonitor: false, weapons: false },
   residentialAddress: { unit: "", building: "", street: "", barangay: "", city: "", zipCode: "", province: "" }, hostAsBusiness: null, status: "draft", bookingPackages: defaultBookingPackages,

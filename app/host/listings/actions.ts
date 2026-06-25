@@ -280,6 +280,18 @@ function propertyScopedRooms(input: Pick<HostListingInput, "rooms"> | Pick<HostL
     }));
 }
 
+function roomPhotoUrls(input: Pick<HostListingInput, "rooms"> | Pick<HostListingDraftSaveInput, "rooms">) {
+  return (input.rooms ?? []).flatMap((room) => room.photos);
+}
+
+function allUploadedListingPhotoUrlsBelongToScope(urls: string[], userId: string, uploadScopeId: string) {
+  return urls.every((url) => isIntendedListingPhotoUrl(url, {
+    userId,
+    listingId: uploadScopeId,
+    cloudName: env.CLOUDINARY_CLOUD_NAME,
+  }));
+}
+
 function scopedPackageId(propertyId: string, id: string) {
   return id.startsWith(`${propertyId}-`) ? id : `${propertyId}-${id}`;
 }
@@ -607,6 +619,16 @@ export async function saveWizardListingDraft(input: unknown, csrfToken?: string)
     uploadScopeId: parsed.data.uploadScopeId || `draft-${randomUUID()}`,
     status: "draft" as const,
   };
+  const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...roomPhotoUrls(listing)];
+  if (!allUploadedListingPhotoUrlsBelongToScope(uploadedUrls, user.id, listing.uploadScopeId)) {
+    logger.warn("wizard_draft_photo_scope_failed", {
+      userId: user.id,
+      uploadScopeId: listing.uploadScopeId,
+      photoCount: listing.photos.length,
+      roomPhotoCount: roomPhotoUrls(listing).length,
+    });
+    throw new Error("Listing photos must be uploaded through StayPrimePH before saving.");
+  }
   const identity = draftPropertyIdentity(user.id, listing.uploadScopeId);
 
   if (usesPrismaPersistence()) {
@@ -646,15 +668,14 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     return { status: "error" as const, error: "Please confirm the map pin for the current listing address before publishing." };
   }
 
-  if (!listing.photos.every((photo) => isIntendedListingPhotoUrl(photo.url, {
-    userId: user.id,
-    listingId: listing.uploadScopeId,
-    cloudName: env.CLOUDINARY_CLOUD_NAME,
-  }))) {
+  const roomPhotos = roomPhotoUrls(listing);
+  const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...roomPhotos];
+  if (!allUploadedListingPhotoUrlsBelongToScope(uploadedUrls, user.id, listing.uploadScopeId)) {
     logger.warn("wizard_publish_photo_scope_failed", {
       userId: user.id,
       uploadScopeId: listing.uploadScopeId,
       photoCount: listing.photos.length,
+      roomPhotoCount: roomPhotos.length,
     });
     return { status: "error" as const, error: "Listing photos must be uploaded through StayPrimePH before publishing." };
   }

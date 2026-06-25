@@ -15,7 +15,7 @@ import { z } from "zod";
 import { publishWizardListing, saveWizardListingDraft } from "@/app/host/listings/actions";
 import { AmenityCard, CounterInput, OptionCard } from "@/components/host-wizard/cards";
 import { DescriptionInput, ListingPreviewCard } from "@/components/host-wizard/content";
-import { ImageUploader, UploadCard } from "@/components/host-wizard/image-uploader";
+import { ImageUploader, RoomPhotoUploader, UploadCard } from "@/components/host-wizard/image-uploader";
 import { MapSelector } from "@/components/host-wizard/map-selector";
 import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout";
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
@@ -508,10 +508,15 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Room amenities</span>
                       <input value={joinCsv(room.amenities)} onChange={(event) => updateRoom(room.id, { amenities: splitCsv(event.target.value) })} className="min-h-12 w-full rounded-xl border px-3" placeholder="Smart TV, Air conditioning" />
                     </label>
-                    <label className="lg:col-span-2">
-                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Photo URLs</span>
-                      <input value={joinCsv(room.photos)} onChange={(event) => updateRoom(room.id, { photos: splitCsv(event.target.value) })} className="min-h-12 w-full rounded-xl border px-3" placeholder="Optional room photo URLs" />
-                    </label>
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Room photos</span>
+                      <RoomPhotoUploader
+                        photos={room.photos}
+                        roomName={room.name}
+                        csrfToken={csrfToken}
+                        onChange={(photos) => updateRoom(room.id, { photos })}
+                      />
+                    </div>
                     <label className="sm:col-span-2 lg:col-span-4">
                       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Description</span>
                       <textarea value={room.description} onChange={(event) => updateRoom(room.id, { description: event.target.value })} rows={2} className="w-full rounded-xl border p-3" />

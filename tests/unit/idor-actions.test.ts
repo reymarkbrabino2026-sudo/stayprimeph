@@ -772,6 +772,51 @@ describe("IDOR protections", () => {
     expect(writeStoredProperties).not.toHaveBeenCalled();
   });
 
+  it("does not publish a wizard listing with another host's uploaded room image", async () => {
+    authState.currentUser = hostUser;
+    vi.mocked(hostListingSchema.safeParse).mockReturnValueOnce({
+      success: true,
+      data: {
+        uploadScopeId: "draft-1",
+        locationConfirmedAddress: "123 Street, Barangay, Manila, Metro Manila, Philippines, 1000",
+        street: "123 Street",
+        barangay: "Barangay",
+        city: "Manila",
+        province: "Metro Manila",
+        country: "Philippines",
+        zipCode: "1000",
+        photos: [
+          {
+            id: "photo-1",
+            url: "https://store.public.blob.vercel-storage.com/uploads/listings/host-1/draft-1/photo.jpg",
+            name: "photo.jpg",
+            size: 100,
+            isCover: true,
+          },
+        ],
+        rooms: [
+          {
+            id: "room-1",
+            name: "Suite",
+            capacity: 2,
+            floor: "Ground Floor",
+            description: "",
+            photos: ["https://store.public.blob.vercel-storage.com/uploads/listings/host-2/draft-1/room.jpg"],
+            amenities: [],
+            active: true,
+          },
+        ],
+      },
+    } as never);
+
+    await expect(publishWizardListing({} as never, "csrf-test-token")).resolves.toEqual({
+      status: "error",
+      error: "Listing photos must be uploaded through StayPrimePH before publishing.",
+    });
+
+    expect(writeStoredProperties).not.toHaveBeenCalled();
+  });
+
   it("does not attach another guest's booking to a guest-host message", async () => {
     authState.currentUser = guestUser;
     vi.mocked(getPropertyById).mockResolvedValueOnce(property);
