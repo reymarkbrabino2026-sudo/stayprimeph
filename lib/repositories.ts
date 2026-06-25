@@ -35,6 +35,7 @@ let listingBookingPackageTableReady: Promise<void> | null = null;
 let listingRoomTableReady: Promise<void> | null = null;
 let bookingPackageColumnsReady: Promise<void> | null = null;
 let propertyAdvancedPricingColumnsReady: Promise<void> | null = null;
+let paymentColumnsReady: Promise<void> | null = null;
 let authSessionTableReady: Promise<void> | null = null;
 let passkeyTableReady: Promise<void> | null = null;
 let hostCustomerProfileTableReady: Promise<void> | null = null;
@@ -275,6 +276,24 @@ async function ensurePropertyAdvancedPricingColumns(db: Pick<typeof prisma, "$ex
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayDates" JSONB`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB`);
+  });
+}
+
+async function ensurePaymentColumns(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, paymentColumnsReady, (promise) => {
+    paymentColumnsReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "guestId" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "hostId" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "receiptImageUrl" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "notes" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "rejectionReason" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "confirmedBy" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "submittedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "confirmedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "rejectedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Payment_hostId_paymentStatus_createdAt_idx" ON "Payment"("hostId", "paymentStatus", "createdAt")`);
   });
 }
 
@@ -1769,6 +1788,7 @@ type DatabasePayment = {
 };
 
 export async function listPaymentsFromDatabase(): Promise<Payment[]> {
+  await ensurePaymentColumns();
   const payments = await prisma.$queryRaw<DatabasePayment[]>`
     SELECT
       "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",
@@ -1799,6 +1819,7 @@ export async function listPaymentsFromDatabase(): Promise<Payment[]> {
 }
 
 export async function listPaymentsForHostFromDatabase(hostId: string): Promise<Payment[]> {
+  await ensurePaymentColumns();
   const payments = await prisma.$queryRaw<DatabasePayment[]>`
     SELECT
       "id", "bookingId", "guestId", "hostId", "amount", "paymentMethod", "paymentStatus",

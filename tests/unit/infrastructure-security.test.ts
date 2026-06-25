@@ -89,6 +89,9 @@ describe("infrastructure security controls", () => {
     expect(repositories).toMatch(/export async function listPropertiesFromDatabase\(\): Promise<Property\[]> {[\s\S]*?await ensurePropertyAdvancedPricingColumns\(\);[\s\S]*?await ensureListingBookingPackageTable\(\);[\s\S]*?await ensureListingRoomTable\(\);/);
     expect(repositories).toMatch(/export async function findPropertyByIdFromDatabase\(id: string\): Promise<Property \| null> {[\s\S]*?await ensurePropertyAdvancedPricingColumns\(\);[\s\S]*?await ensureListingBookingPackageTable\(\);[\s\S]*?await ensureListingRoomTable\(\);/);
     expect(repositories).toMatch(/export async function listBookingsFromDatabase\(\): Promise<Booking\[]> {\s+await ensureBookingPackageColumns\(\);/);
+    expect(repositories).toMatch(/export async function listPaymentsFromDatabase\(\): Promise<Payment\[]> {\s+await ensurePaymentColumns\(\);/);
+    expect(repositories).toMatch(/ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "receiptImageUrl" TEXT/);
+    expect(repositories).toMatch(/ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP/);
   });
 
   test("keeps booking overlap prevention at the database layer", async () => {
