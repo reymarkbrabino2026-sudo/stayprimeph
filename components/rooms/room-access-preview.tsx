@@ -51,7 +51,7 @@ export function RoomAccessPreview({
           <h3 className="text-xl font-semibold">Rooms</h3>
           {rooms.length ? <span className="rounded-full bg-[#083f35]/10 px-3 py-1 text-sm font-semibold text-[#083f35]">{rooms.length} spaces</span> : null}
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2">
           {rooms.length ? rooms.map((room) => {
             const active = activeRoom?.id === room.id;
             return (
@@ -62,27 +62,22 @@ export function RoomAccessPreview({
                 onFocus={() => setActiveRoomId(room.id)}
                 onMouseEnter={() => setActiveRoomId(room.id)}
                 aria-pressed={active}
-                className={`flex min-h-[9.35rem] flex-col justify-between rounded-2xl bg-white p-4 text-left ring-1 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35] ${
+                className={`grid min-h-[4.35rem] grid-cols-[1fr_auto] items-center gap-3 rounded-2xl bg-white p-3 text-left ring-1 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35] ${
                   active
                     ? "shadow-[0_14px_30px_rgb(8_63_53_/_0.10)] ring-[#083f35]/35"
                     : "ring-black/10 hover:-translate-y-0.5 hover:ring-[#083f35]/25"
                 }`}
               >
-                <span>
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="line-clamp-1 block font-semibold">{room.name}</span>
-                      <span className="mt-0.5 block text-sm text-black/55">{room.floor}</span>
-                    </span>
-                    <span className="shrink-0 rounded-full bg-[#083f35]/10 px-2.5 py-1 text-xs font-semibold text-[#083f35]">{room.capacity} pax</span>
+                <span className="min-w-0">
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="line-clamp-1 font-semibold">{room.name}</span>
+                    <span className="text-sm text-black/55">{room.floor}</span>
                   </span>
-                  {room.description ? <span className="mt-2 line-clamp-2 block text-sm leading-5 text-black/62">{room.description}</span> : null}
+                  <span className="mt-1 line-clamp-1 block text-sm leading-5 text-black/62">
+                    {[room.description, room.amenities.length ? room.amenities.join(", ") : "Access details set by host"].filter(Boolean).join(" - ")}
+                  </span>
                 </span>
-                {room.amenities.length ? (
-                  <span className="mt-2 line-clamp-1 block text-xs text-black/45">{room.amenities.join(", ")}</span>
-                ) : (
-                  <span className="mt-2 block text-xs text-black/35">Access details set by host</span>
-                )}
+                <span className="shrink-0 rounded-full bg-[#083f35]/10 px-2.5 py-1 text-xs font-semibold text-[#083f35]">{room.capacity} pax</span>
               </button>
             );
           }) : (
@@ -91,7 +86,7 @@ export function RoomAccessPreview({
         </div>
       </div>
 
-      <div className="relative min-h-[28rem] overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#11382f] p-5 text-white shadow-[0_14px_44px_rgb(0_0_0_/_0.08)] sm:p-6 lg:h-full">
+      <div className="relative min-h-[25rem] overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#11382f] p-5 text-white shadow-[0_14px_44px_rgb(0_0_0_/_0.08)] sm:p-6 lg:h-full">
         {activeImage ? (
           <div
             key={activeImage}
@@ -104,7 +99,7 @@ export function RoomAccessPreview({
         )}
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/30 to-black/45" />
 
-        <div className="relative z-10 flex min-h-[calc(28rem-2.5rem)] flex-col gap-5 lg:h-full lg:min-h-0">
+        <div className="relative z-10 flex min-h-[calc(25rem-2.5rem)] flex-col gap-5 lg:h-full lg:min-h-0">
           <article className="max-w-md">
             <h3 className="text-xl font-semibold">{stayBookingAllowed ? "Stay booking" : "Room preview"}</h3>
             <p className="mt-2 text-sm leading-6 text-white/78">
