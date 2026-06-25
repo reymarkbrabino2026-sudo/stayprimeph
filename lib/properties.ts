@@ -40,15 +40,28 @@ function toPublicListingSummary(property: Property): PublicListingSummary {
   };
 }
 
+function propertyCreatedAtTime(property: Pick<Property, "createdAt">) {
+  const time = new Date(property.createdAt).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function sortPropertiesByCreatedAtDesc<T extends Pick<Property, "createdAt" | "id">>(properties: T[]) {
+  return [...properties].sort((a, b) => (
+    propertyCreatedAtTime(b) - propertyCreatedAtTime(a) ||
+    b.createdAt.localeCompare(a.createdAt) ||
+    b.id.localeCompare(a.id)
+  ));
+}
+
 export async function getProperties() {
   if (usesPrismaPersistence()) return listPropertiesFromDatabase();
   return readStoredProperties();
 }
 
 export async function getPropertiesForHost(hostId: string) {
-  if (usesPrismaPersistence()) return listPropertiesForHostFromDatabase(hostId);
+  if (usesPrismaPersistence()) return sortPropertiesByCreatedAtDesc(await listPropertiesForHostFromDatabase(hostId));
   const properties = await readStoredProperties();
-  return properties.filter((property) => property.hostId === hostId);
+  return sortPropertiesByCreatedAtDesc(properties.filter((property) => property.hostId === hostId));
 }
 
 export async function getPropertiesByStatus(status: Property["status"]) {

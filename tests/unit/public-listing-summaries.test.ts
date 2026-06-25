@@ -9,6 +9,8 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/repositories", () => ({
   findPropertyByIdFromDatabase: vi.fn(),
+  listPropertiesByStatusFromDatabase: vi.fn(),
+  listPropertiesForHostFromDatabase: vi.fn(),
   listPropertiesFromDatabase: vi.fn(),
   listPublicListingSummariesFromDatabase: vi.fn(),
   usesPrismaPersistence: vi.fn(() => false),
@@ -18,7 +20,7 @@ vi.mock("@/lib/property-store", () => ({
   readStoredProperties: vi.fn(),
 }));
 
-import { getPublicListingSummaries } from "@/lib/properties";
+import { getPropertiesForHost, getPublicListingSummaries } from "@/lib/properties";
 import { readStoredProperties } from "@/lib/property-store";
 
 function property(overrides: Partial<Property>): Property {
@@ -64,5 +66,19 @@ describe("getPublicListingSummaries", () => {
     expect(summaries[0].amenities).toEqual(["Kitchen"]);
     expect(summaries[0]).not.toHaveProperty("rules");
     expect(summaries[0]).not.toHaveProperty("bookingPackages");
+  });
+});
+
+describe("getPropertiesForHost", () => {
+  it("returns host listings newest-created-first from JSON storage", async () => {
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([
+      property({ id: "old", hostId: "host-1", slug: "old", createdAt: "2026-05-01" }),
+      property({ id: "other-host-new", hostId: "host-2", slug: "other-host-new", createdAt: "2026-07-01" }),
+      property({ id: "new", hostId: "host-1", slug: "new", createdAt: "2026-06-20" }),
+    ]);
+
+    const listings = await getPropertiesForHost("host-1");
+
+    expect(listings.map((listing) => listing.id)).toEqual(["new", "old"]);
   });
 });
