@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import {
   AlarmSmoke, Armchair, Baby, Bath, BedDouble, BriefcaseMedical, Building, Building2, CarFront, CookingPot, DoorOpen,
-  Check, FireExtinguisher, Flame, Home, Hotel, House, Lamp, Laptop, Layers, Leaf, MapPin, Mic, Palmtree, Projector,
+  Check, ChevronDown, FireExtinguisher, Flame, Home, Hotel, House, Lamp, Laptop, Layers, Leaf, MapPin, Mic, Palmtree, Projector,
   Plus, Puzzle, ShieldAlert, Snowflake, Sofa, Sparkles, Sun, Target, TentTree, Tractor, Trash2, TreePine, Tv, Umbrella, Users,
   UtensilsCrossed, WashingMachine, Waves, Wifi,
 } from "lucide-react";
@@ -49,6 +49,95 @@ const weekdayOptions = [
   ["Fri", 5],
   ["Sat", 6],
 ] as const;
+
+type PackageScalarField = {
+  key: keyof HostBookingPackageDraft;
+  label: string;
+  type: "number" | "text";
+  min?: number;
+  className?: string;
+};
+
+const packageBasicFields: PackageScalarField[] = [
+  { key: "name", label: "Package name", type: "text", className: "sm:col-span-2" },
+  { key: "accessType", label: "Guest access", type: "text", className: "sm:col-span-2" },
+  { key: "description", label: "Short description", type: "text", className: "sm:col-span-2" },
+];
+
+const packagePricingFields: PackageScalarField[] = [
+  { key: "weekdayRate", label: "Weekday rate", type: "number", min: 1 },
+  { key: "weekendRate", label: "Weekend rate", type: "number" },
+  { key: "holidayRate", label: "Holiday rate", type: "number" },
+  { key: "includedGuests", label: "Included guests", type: "number", min: 1 },
+  { key: "maxGuests", label: "Max guests", type: "number", min: 1 },
+  { key: "sleepingCapacity", label: "Sleeping capacity", type: "number" },
+  { key: "additionalGuestFee", label: "Extra guest fee", type: "number" },
+];
+
+const packageTimingFields: PackageScalarField[] = [
+  { key: "durationHours", label: "Length in hours", type: "number", min: 1 },
+  { key: "checkInTime", label: "Start / check-in", type: "text" },
+  { key: "checkOutTime", label: "End / check-out", type: "text" },
+  { key: "extensionHourlyFee", label: "Extension / hour", type: "number" },
+  { key: "minimumAdvanceBookingDays", label: "Advance notice", type: "number" },
+];
+
+const packageAdvancedFields: PackageScalarField[] = [
+  { key: "displayOrder", label: "Display order", type: "number" },
+];
+
+function formatPackageMoney(value: number) {
+  return `PHP ${Math.max(0, value || 0).toLocaleString("en-PH")}`;
+}
+
+function formatPackageDays(days: number[]) {
+  if (days.length === 7) return "Every day";
+  return weekdayOptions.filter(([, value]) => days.includes(value)).map(([label]) => label).join(", ");
+}
+
+function ChipCheckbox({ checked, label, sublabel, onChange }: { checked: boolean; label: string; sublabel?: string; onChange: () => void }) {
+  return (
+    <label
+      className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+        checked
+          ? "border-[#083f35] bg-[#083f35] text-white shadow-sm"
+          : "border-black/10 bg-white text-black/70 hover:border-black/25 hover:text-black"
+      }`}
+    >
+      <input type="checkbox" checked={checked} onChange={onChange} className="sr-only" />
+      <span
+        className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${
+          checked ? "border-white/30 bg-white text-[#083f35]" : "border-black/20 bg-white text-transparent"
+        }`}
+        aria-hidden="true"
+      >
+        <Check className="h-3 w-3" />
+      </span>
+      <span>
+        <span className="block leading-tight">{label}</span>
+        {sublabel ? <span className={`block text-xs ${checked ? "text-white/70" : "text-black/45"}`}>{sublabel}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+function PackageFieldInput({ pkg, field, onChange }: { pkg: HostBookingPackageDraft; field: PackageScalarField; onChange: (patch: Partial<HostBookingPackageDraft>) => void }) {
+  return (
+    <label className={field.className}>
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{field.label}</span>
+      <input
+        value={String(pkg[field.key])}
+        type={field.type}
+        min={field.type === "number" ? field.min ?? 0 : undefined}
+        onChange={(event) => {
+          const value = field.type === "number" ? Number(event.target.value) : event.target.value;
+          onChange({ [field.key]: value } as Partial<HostBookingPackageDraft>);
+        }}
+        className="min-h-12 w-full rounded-lg border border-black/10 px-3 outline-none transition focus:border-black"
+      />
+    </label>
+  );
+}
 
 function DynamicIcon({ name }: { name: keyof typeof iconMap | string }) {
   const Icon = iconMap[name as keyof typeof iconMap] ?? House;
@@ -228,6 +317,18 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     () => Array.from(new Set(draft.rooms.map((room) => room.floor.trim()).filter(Boolean))),
     [draft.rooms],
   );
+  const packageAccessAreaOptions = useMemo(
+    () => Array.from(new Set([...availableFloors, ...draft.bookingPackages.flatMap((pkg) => pkg.accessibleFloors)].filter(Boolean))),
+    [availableFloors, draft.bookingPackages],
+  );
+  const packageAmenityOptions = useMemo(
+    () => Array.from(new Set([...selectedAmenityLabels, ...draft.bookingPackages.flatMap((pkg) => pkg.includedAmenities)].filter(Boolean))),
+    [draft.bookingPackages, selectedAmenityLabels],
+  );
+  const bookablePackageCount = useMemo(
+    () => draft.bookingPackages.filter((pkg) => pkg.enabled && pkg.status !== "inactive").length,
+    [draft.bookingPackages],
+  );
 
   useEffect(() => {
     if (!initialized || !draft.privacyType || wholePlaceAccessEnabled) return;
@@ -359,6 +460,19 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
       nextBasePrice,
       nextWeekendPrice,
     });
+  }
+
+  function selectSimpleNightlyPricing() {
+    updateDraft({ bookingType: "stay", pricingMode: "simple" });
+  }
+
+  function selectBookingPackagesPricing() {
+    updateDraft({
+      bookingType: draft.bookingType === "stay" ? "both" : draft.bookingType,
+      pricingMode: "packages",
+      bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice),
+    });
+    setStep("booking-packages");
   }
 
   if (!initialized || ownerUserId !== user.id) {
@@ -679,7 +793,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <div className={`mt-8 grid gap-3 ${wholePlaceAccessEnabled ? "sm:grid-cols-2" : ""}`}>
               <button
                 type="button"
-                onClick={() => updateDraft({ bookingType: "stay", pricingMode: "simple" })}
+                onClick={selectSimpleNightlyPricing}
                 className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "simple" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
               >
                 <span className="block font-semibold">Simple nightly pricing</span>
@@ -688,7 +802,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
               {wholePlaceAccessEnabled ? (
                 <button
                   type="button"
-                  onClick={() => updateDraft({ bookingType: draft.bookingType === "stay" ? "both" : draft.bookingType, pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })}
+                  onClick={selectBookingPackagesPricing}
                   className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
                 >
                   <span className="block font-semibold">Booking packages</span>
@@ -696,57 +810,61 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                 </button>
               ) : null}
             </div>
-            <div className="mt-10 text-center">
-              <div className="text-6xl font-semibold sm:text-7xl">PHP {draft.basePrice.toLocaleString()}</div>
-              <input
-                aria-label="Base price"
-                type="range"
-                min="500"
-                max="20000"
-                step="100"
-                value={draft.basePrice}
-                onChange={(event) => {
-                  const basePrice = Number(event.target.value);
-                  const weekendPrice = Math.round(basePrice * (1 + draft.weekendPremium / 100));
-                  updateDraft({ basePrice, weekendPrice, bookingPackages: bookingPackagesForPrices(basePrice, weekendPrice) });
-                }}
-                className="mt-10 w-full"
-              />
-            </div>
-            <div className="mt-8 grid gap-4 rounded-3xl border border-black/10 bg-white p-5">
-              <h2 className="text-xl font-semibold">Holiday and seasonal stay pricing</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label>
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday nightly rate</span>
+            {draft.pricingMode === "simple" ? (
+              <>
+                <div className="mt-10 text-center">
+                  <div className="text-6xl font-semibold sm:text-7xl">PHP {draft.basePrice.toLocaleString()}</div>
                   <input
-                    type="number"
-                    min={0}
-                    value={draft.holidayPrice}
-                    onChange={(event) => updateDraft({ holidayPrice: Number(event.target.value) })}
-                    className="min-h-12 w-full rounded-xl border px-3"
+                    aria-label="Base price"
+                    type="range"
+                    min="500"
+                    max="20000"
+                    step="100"
+                    value={draft.basePrice}
+                    onChange={(event) => {
+                      const basePrice = Number(event.target.value);
+                      const weekendPrice = Math.round(basePrice * (1 + draft.weekendPremium / 100));
+                      updateDraft({ basePrice, weekendPrice, bookingPackages: bookingPackagesForPrices(basePrice, weekendPrice) });
+                    }}
+                    className="mt-10 w-full"
                   />
-                </label>
-                <label>
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday dates</span>
-                  <input
-                    value={joinCsv(draft.holidayDates)}
-                    onChange={(event) => updateDraft({ holidayDates: splitDateKeys(event.target.value) })}
-                    className="min-h-12 w-full rounded-xl border px-3"
-                    placeholder="2026-12-24, 2026-12-31"
-                  />
-                </label>
-              </div>
-              <label>
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Seasonal rate rows</span>
-                <textarea
-                  value={formatSeasonalRates(draft.seasonalRates)}
-                  onChange={(event) => updateDraft({ seasonalRates: parseSeasonalRates(event.target.value, draft.seasonalRates) })}
-                  rows={4}
-                  className="w-full rounded-xl border p-3 text-sm leading-6"
-                  placeholder="Summer | 2026-03-01 | 2026-05-31 | 5000 | 6500 | 7500"
-                />
-              </label>
-            </div>
+                </div>
+                <div className="mt-8 grid gap-4 rounded-3xl border border-black/10 bg-white p-5">
+                  <h2 className="text-xl font-semibold">Holiday and seasonal stay pricing</h2>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday nightly rate</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={draft.holidayPrice}
+                        onChange={(event) => updateDraft({ holidayPrice: Number(event.target.value) })}
+                        className="min-h-12 w-full rounded-xl border px-3"
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday dates</span>
+                      <input
+                        value={joinCsv(draft.holidayDates)}
+                        onChange={(event) => updateDraft({ holidayDates: splitDateKeys(event.target.value) })}
+                        className="min-h-12 w-full rounded-xl border px-3"
+                        placeholder="2026-12-24, 2026-12-31"
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Seasonal rate rows</span>
+                    <textarea
+                      value={formatSeasonalRates(draft.seasonalRates)}
+                      onChange={(event) => updateDraft({ seasonalRates: parseSeasonalRates(event.target.value, draft.seasonalRates) })}
+                      rows={4}
+                      className="w-full rounded-xl border p-3 text-sm leading-6"
+                      placeholder="Summer | 2026-03-01 | 2026-05-31 | 5000 | 6500 | 7500"
+                    />
+                  </label>
+                </div>
+              </>
+            ) : null}
           </section>
         ) : null}
 
@@ -775,213 +893,293 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
         ) : null}
 
         {currentStep === "booking-packages" ? (
-          <section className="mx-auto max-w-4xl">
-            <h1 className="text-3xl font-semibold">{step.title}</h1>
-            <p className="mt-2 max-w-2xl text-black/60">{step.description}</p>
+          <section className="mx-auto max-w-5xl">
+            <div className="max-w-3xl">
+              <h1 className="text-3xl font-semibold">{step.title}</h1>
+              <p className="mt-2 text-black/60">{step.description}</p>
+            </div>
             {draft.pricingMode === "simple" ? (
-              <div className="mt-8 rounded-2xl border border-black/10 bg-black/[0.03] p-5 text-black/65">
+              <div className="mt-8 rounded-lg border border-black/10 bg-black/[0.03] p-5 text-black/65">
                 Simple nightly pricing is selected, so guests will book using your weekday and weekend rates.
               </div>
             ) : (
-              <div className="mt-8 grid gap-5">
-                {draft.bookingPackages.map((pkg) => (
-                  <section key={pkg.id} className={`rounded-3xl border p-5 ${pkg.enabled ? "border-black bg-white" : "border-black/10 bg-black/[0.02]"}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <label className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={pkg.enabled}
-                          onChange={(event) => updateBookingPackage(pkg.id, { enabled: event.target.checked })}
-                          className="mt-1 h-5 w-5"
-                        />
-                        <span>
-                          <span className="block font-semibold">{pkg.name}</span>
-                          <span className="mt-1 block text-sm text-black/55">{pkg.accessType}</span>
-                        </span>
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        <select
-                          value={pkg.unit}
-                          onChange={(event) => updateBookingPackage(pkg.id, { unit: event.target.value as HostBookingPackageDraft["unit"] })}
-                          className="min-h-11 rounded-xl border px-3 text-sm"
-                        >
-                          <option value="night">Counts by night</option>
-                          <option value="day">Counts by day</option>
-                        </select>
-                        <select
-                          value={pkg.status}
-                          onChange={(event) => updateBookingPackage(pkg.id, { status: event.target.value as HostBookingPackageDraft["status"] })}
-                          className="min-h-11 rounded-xl border px-3 text-sm"
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      {[
-                        ["name", "Package name", "text"],
-                        ["accessType", "Access", "text"],
-                        ["description", "Description", "text"],
-                        ["weekdayRate", "Weekday rate", "number"],
-                        ["weekendRate", "Weekend rate", "number"],
-                        ["holidayRate", "Holiday rate", "number"],
-                        ["includedGuests", "Included guests", "number"],
-                        ["maxGuests", "Max guests", "number"],
-                        ["sleepingCapacity", "Sleeping capacity", "number"],
-                        ["durationHours", "Duration hours", "number"],
-                        ["additionalGuestFee", "Extra head fee", "number"],
-                        ["extensionHourlyFee", "Extension / hour", "number"],
-                        ["minimumAdvanceBookingDays", "Advance days", "number"],
-                        ["displayOrder", "Display order", "number"],
-                        ["checkInTime", "Start / check-in", "text"],
-                        ["checkOutTime", "End / check-out", "text"],
-                      ].map(([key, label, type]) => (
-                        <label key={key} className={key === "name" || key === "accessType" || key === "description" ? "lg:col-span-2" : ""}>
-                          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</span>
-                          <input
-                            value={String(pkg[key as keyof HostBookingPackageDraft])}
-                            type={type}
-                            min={type === "number" ? 0 : undefined}
-                            onChange={(event) => {
-                              const value = type === "number" ? Number(event.target.value) : event.target.value;
-                              updateBookingPackage(pkg.id, { [key]: value } as Partial<HostBookingPackageDraft>);
-                            }}
-                            className="min-h-12 w-full rounded-xl border px-3"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Accessible floors</legend>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {availableFloors.map((floor) => (
-                            <label key={floor} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={pkg.accessibleFloors.includes(floor)}
-                                onChange={() => togglePackageListValue(pkg.id, "accessibleFloors", floor)}
-                                className="mr-2"
-                              />
-                              {floor}
-                            </label>
-                          ))}
+              <>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-black/10 bg-white p-4">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Bookable</span>
+                    <strong className="mt-2 block text-2xl">{bookablePackageCount}</strong>
+                  </div>
+                  <div className="rounded-lg border border-black/10 bg-white p-4">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Booking type</span>
+                    <strong className="mt-2 block text-base">{draft.bookingType === "both" ? "Stay + packages" : "Packages only"}</strong>
+                  </div>
+                  <div className="rounded-lg border border-black/10 bg-white p-4">
+                    <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Base weekday</span>
+                    <strong className="mt-2 block text-base">{formatPackageMoney(draft.basePrice)}</strong>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-5">
+                  {draft.bookingPackages.map((pkg) => {
+                    const packageIsBookable = pkg.enabled && pkg.status !== "inactive";
+                    const otherPackages = draft.bookingPackages.filter((item) => item.id !== pkg.id);
+
+                    return (
+                      <section key={pkg.id} className={`rounded-lg border p-5 ${packageIsBookable ? "border-black bg-white shadow-sm" : "border-black/10 bg-black/[0.02]"}`}>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <span className="sr-only">Offer {pkg.name}</span>
+                            <span
+                              className={`mt-0.5 flex h-7 w-12 shrink-0 items-center rounded-full transition ${
+                                pkg.enabled ? "bg-[#083f35]" : "bg-black/15"
+                              }`}
+                              aria-hidden="true"
+                            >
+                              <span className={`h-5 w-5 rounded-full bg-white shadow-sm transition ${pkg.enabled ? "translate-x-6" : "translate-x-1"}`} />
+                            </span>
+                            <span>
+                              <span className="block text-lg font-semibold">{pkg.name || "Untitled package"}</span>
+                              <span className="mt-1 block max-w-2xl text-sm text-black/55">
+                                {pkg.accessType || "Guest access"} | {formatPackageMoney(pkg.weekdayRate)} weekday | {formatPackageDays(pkg.availableDays)}
+                              </span>
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={pkg.enabled}
+                              onChange={(event) => updateBookingPackage(pkg.id, { enabled: event.target.checked, status: event.target.checked ? "active" : pkg.status })}
+                              className="sr-only"
+                            />
+                          </label>
+
+                          <div className="grid w-full grid-cols-3 gap-2 text-sm sm:w-auto sm:min-w-[24rem]">
+                            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
+                              <span className="block text-xs text-black/45">Weekend</span>
+                              <strong className="block truncate">{pkg.weekendRate > 0 ? formatPackageMoney(pkg.weekendRate) : "Uses weekday"}</strong>
+                            </div>
+                            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
+                              <span className="block text-xs text-black/45">Guests</span>
+                              <strong className="block">{pkg.includedGuests}-{pkg.maxGuests}</strong>
+                            </div>
+                            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
+                              <span className="block text-xs text-black/45">Length</span>
+                              <strong className="block">{pkg.durationHours}h</strong>
+                            </div>
+                          </div>
                         </div>
-                        <input
-                          value={joinCsv(pkg.accessibleFloors)}
-                          onChange={(event) => updateCsvList(pkg.id, "accessibleFloors", event.target.value)}
-                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
-                          placeholder="Ground Floor, Second Floor"
-                        />
-                      </fieldset>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Accessible rooms</legend>
-                        <div className="mt-3 grid gap-2">
-                          {activeRooms.length ? activeRooms.map((room) => (
-                            <label key={room.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fbf7f2] px-3 py-2 text-sm">
-                              <span>{room.name} <span className="text-black/45">({room.floor})</span></span>
-                              <input
-                                type="checkbox"
-                                checked={pkg.accessibleRoomIds.includes(room.id)}
-                                onChange={() => togglePackageListValue(pkg.id, "accessibleRoomIds", room.id)}
-                              />
-                            </label>
-                          )) : <p className="text-sm text-black/55">No active rooms yet.</p>}
-                        </div>
-                      </fieldset>
+                        {!pkg.enabled ? (
+                          <p className="mt-4 border-t border-black/10 pt-4 text-sm text-black/55">
+                            Turn this on when guests can choose this package at checkout.
+                          </p>
+                        ) : (
+                          <div className="mt-6 space-y-6 border-t border-black/10 pt-5">
+                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
+                              <div className="space-y-6">
+                                <div>
+                                  <h2 className="text-sm font-semibold">Package basics</h2>
+                                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                    {packageBasicFields.map((field) => (
+                                      <PackageFieldInput key={field.key} pkg={pkg} field={field} onChange={(patch) => updateBookingPackage(pkg.id, patch)} />
+                                    ))}
+                                  </div>
+                                </div>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Included amenities</legend>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {selectedAmenityLabels.map((amenity) => (
-                            <label key={amenity} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={pkg.includedAmenities.includes(amenity)}
-                                onChange={() => togglePackageListValue(pkg.id, "includedAmenities", amenity)}
-                                className="mr-2"
-                              />
-                              {amenity}
-                            </label>
-                          ))}
-                        </div>
-                        <input
-                          value={joinCsv(pkg.includedAmenities)}
-                          onChange={(event) => updateCsvList(pkg.id, "includedAmenities", event.target.value)}
-                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
-                          placeholder="Heated pool, Karaoke, WiFi"
-                        />
-                      </fieldset>
+                                <div>
+                                  <h2 className="text-sm font-semibold">Guest pricing</h2>
+                                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                    {packagePricingFields.map((field) => (
+                                      <PackageFieldInput key={field.key} pkg={pkg} field={field} onChange={(patch) => updateBookingPackage(pkg.id, patch)} />
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Excluded amenities or spaces</legend>
-                        <input
-                          value={joinCsv(pkg.excludedAmenities)}
-                          onChange={(event) => updateCsvList(pkg.id, "excludedAmenities", event.target.value)}
-                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
-                          placeholder="Bedrooms, Second floor access"
-                        />
-                      </fieldset>
+                              <div className="space-y-6">
+                                <div>
+                                  <h2 className="text-sm font-semibold">Stay window</h2>
+                                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                    <div className="sm:col-span-2">
+                                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Counts by</span>
+                                      <span className="grid grid-cols-2 gap-2 rounded-lg bg-black/[0.04] p-1">
+                                        {(["night", "day"] as const).map((unit) => (
+                                          <button
+                                            key={unit}
+                                            type="button"
+                                            aria-pressed={pkg.unit === unit}
+                                            onClick={() => updateBookingPackage(pkg.id, { unit })}
+                                            className={`min-h-10 rounded-md px-3 text-sm font-semibold transition ${
+                                              pkg.unit === unit ? "bg-white text-black shadow-sm" : "text-black/55 hover:text-black"
+                                            }`}
+                                          >
+                                            {unit === "night" ? "Night" : "Day"}
+                                          </button>
+                                        ))}
+                                      </span>
+                                    </div>
+                                    {packageTimingFields.map((field) => (
+                                      <PackageFieldInput key={field.key} pkg={pkg} field={field} onChange={(patch) => updateBookingPackage(pkg.id, patch)} />
+                                    ))}
+                                  </div>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Holiday dates</legend>
-                        <input
-                          value={joinCsv(pkg.holidayDates ?? [])}
-                          onChange={(event) => updateBookingPackage(pkg.id, { holidayDates: splitDateKeys(event.target.value) })}
-                          className="mt-3 min-h-11 w-full rounded-xl border px-3 text-sm"
-                          placeholder="2026-12-24, 2026-12-31"
-                        />
-                      </fieldset>
+                                  <fieldset className="mt-4">
+                                    <legend className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Available days</legend>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {weekdayOptions.map(([label, value]) => (
+                                        <ChipCheckbox
+                                          key={value}
+                                          checked={pkg.availableDays.includes(value)}
+                                          label={label}
+                                          onChange={() => toggleAvailableDay(pkg.id, value)}
+                                        />
+                                      ))}
+                                    </div>
+                                  </fieldset>
+                                </div>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Seasonal package rates</legend>
-                        <textarea
-                          value={formatSeasonalRates(pkg.seasonalRates ?? [])}
-                          onChange={(event) => updateBookingPackage(pkg.id, { seasonalRates: parseSeasonalRates(event.target.value, pkg.seasonalRates ?? []) })}
-                          rows={4}
-                          className="mt-3 w-full rounded-xl border p-3 text-sm leading-6"
-                          placeholder="Peak season | 2026-03-01 | 2026-05-31 | 18000 | 22000 | 25000"
-                        />
-                      </fieldset>
+                                <div>
+                                  <h2 className="text-sm font-semibold">Guest access</h2>
+                                  <fieldset className="mt-3">
+                                    <legend className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Areas</legend>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {packageAccessAreaOptions.length ? packageAccessAreaOptions.map((floor) => (
+                                        <ChipCheckbox
+                                          key={floor}
+                                          checked={pkg.accessibleFloors.includes(floor)}
+                                          label={floor}
+                                          onChange={() => togglePackageListValue(pkg.id, "accessibleFloors", floor)}
+                                        />
+                                      )) : <p className="text-sm text-black/55">No floors added yet.</p>}
+                                    </div>
+                                  </fieldset>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Available days</legend>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {weekdayOptions.map(([label, value]) => (
-                            <label key={value} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={pkg.availableDays.includes(value)}
-                                onChange={() => toggleAvailableDay(pkg.id, value)}
-                                className="mr-2"
-                              />
-                              {label}
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
+                                  <fieldset className="mt-4">
+                                    <legend className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Rooms</legend>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {activeRooms.length ? activeRooms.map((room) => (
+                                        <ChipCheckbox
+                                          key={room.id}
+                                          checked={pkg.accessibleRoomIds.includes(room.id)}
+                                          label={room.name}
+                                          sublabel={room.floor}
+                                          onChange={() => togglePackageListValue(pkg.id, "accessibleRoomIds", room.id)}
+                                        />
+                                      )) : <p className="text-sm text-black/55">No active rooms yet.</p>}
+                                    </div>
+                                  </fieldset>
 
-                      <fieldset className="rounded-2xl border border-black/10 p-4">
-                        <legend className="px-1 text-sm font-semibold">Package conflicts</legend>
-                        <div className="mt-3 grid gap-2">
-                          {draft.bookingPackages.filter((item) => item.id !== pkg.id).map((item) => (
-                            <label key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#fbf7f2] px-3 py-2 text-sm">
-                              <span>{item.name}</span>
-                              <input
-                                type="checkbox"
-                                checked={pkg.blockedPackageIds.includes(item.id)}
-                                onChange={() => togglePackageListValue(pkg.id, "blockedPackageIds", item.id)}
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
-                    </div>
-                  </section>
-                ))}
-              </div>
+                                  <fieldset className="mt-4">
+                                    <legend className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Included amenities</legend>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {packageAmenityOptions.length ? packageAmenityOptions.map((amenity) => (
+                                        <ChipCheckbox
+                                          key={amenity}
+                                          checked={pkg.includedAmenities.includes(amenity)}
+                                          label={amenity}
+                                          onChange={() => togglePackageListValue(pkg.id, "includedAmenities", amenity)}
+                                        />
+                                      )) : <p className="text-sm text-black/55">No amenities selected yet.</p>}
+                                    </div>
+                                  </fieldset>
+
+                                  <label className="mt-4 block">
+                                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Not included</span>
+                                    <input
+                                      value={joinCsv(pkg.excludedAmenities)}
+                                      onChange={(event) => updateCsvList(pkg.id, "excludedAmenities", event.target.value)}
+                                      className="min-h-12 w-full rounded-lg border border-black/10 px-3 text-sm outline-none transition focus:border-black"
+                                      placeholder="Bedrooms, second floor access"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+
+                            <details className="group border-t border-black/10 pt-5">
+                              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-black/75 [&::-webkit-details-marker]:hidden">
+                                <span>Advanced rules</span>
+                                <ChevronDown className="h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
+                              </summary>
+
+                              <div className="mt-4 grid gap-5 lg:grid-cols-2">
+                                <label>
+                                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Package status</span>
+                                  <select
+                                    value={pkg.status}
+                                    onChange={(event) => updateBookingPackage(pkg.id, { status: event.target.value as HostBookingPackageDraft["status"] })}
+                                    className="min-h-12 w-full rounded-lg border border-black/10 px-3 text-sm outline-none transition focus:border-black"
+                                  >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Paused</option>
+                                  </select>
+                                </label>
+
+                                {packageAdvancedFields.map((field) => (
+                                  <PackageFieldInput key={field.key} pkg={pkg} field={field} onChange={(patch) => updateBookingPackage(pkg.id, patch)} />
+                                ))}
+
+                                <label>
+                                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Custom areas</span>
+                                  <input
+                                    value={joinCsv(pkg.accessibleFloors)}
+                                    onChange={(event) => updateCsvList(pkg.id, "accessibleFloors", event.target.value)}
+                                    className="min-h-12 w-full rounded-lg border border-black/10 px-3 text-sm outline-none transition focus:border-black"
+                                    placeholder="Ground Floor, Outdoor Areas"
+                                  />
+                                </label>
+
+                                <label>
+                                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Custom included amenities</span>
+                                  <input
+                                    value={joinCsv(pkg.includedAmenities)}
+                                    onChange={(event) => updateCsvList(pkg.id, "includedAmenities", event.target.value)}
+                                    className="min-h-12 w-full rounded-lg border border-black/10 px-3 text-sm outline-none transition focus:border-black"
+                                    placeholder="Heated pool, Karaoke, WiFi"
+                                  />
+                                </label>
+
+                                <label>
+                                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Holiday dates</span>
+                                  <input
+                                    value={joinCsv(pkg.holidayDates ?? [])}
+                                    onChange={(event) => updateBookingPackage(pkg.id, { holidayDates: splitDateKeys(event.target.value) })}
+                                    className="min-h-12 w-full rounded-lg border border-black/10 px-3 text-sm outline-none transition focus:border-black"
+                                    placeholder="2026-12-24, 2026-12-31"
+                                  />
+                                </label>
+
+                                <fieldset>
+                                  <legend className="text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Cannot overlap with</legend>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {otherPackages.map((item) => (
+                                      <ChipCheckbox
+                                        key={item.id}
+                                        checked={pkg.blockedPackageIds.includes(item.id)}
+                                        label={item.name}
+                                        onChange={() => togglePackageListValue(pkg.id, "blockedPackageIds", item.id)}
+                                      />
+                                    ))}
+                                  </div>
+                                </fieldset>
+
+                                <label className="lg:col-span-2">
+                                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Seasonal rates</span>
+                                  <textarea
+                                    value={formatSeasonalRates(pkg.seasonalRates ?? [])}
+                                    onChange={(event) => updateBookingPackage(pkg.id, { seasonalRates: parseSeasonalRates(event.target.value, pkg.seasonalRates ?? []) })}
+                                    rows={3}
+                                    className="w-full rounded-lg border border-black/10 p-3 text-sm leading-6 outline-none transition focus:border-black"
+                                    placeholder="Peak season | 2026-03-01 | 2026-05-31 | 18000 | 22000 | 25000"
+                                  />
+                                </label>
+                              </div>
+                            </details>
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </section>
         ) : null}

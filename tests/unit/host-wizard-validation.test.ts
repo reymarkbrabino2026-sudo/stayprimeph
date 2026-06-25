@@ -90,7 +90,7 @@ describe("host wizard location validation", () => {
     expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "https://my.matterport.com/show/?m=abc123" }))).toBe(true);
   });
 
-  it("only applies room and package access steps to entire-place listings", () => {
+  it("applies package access steps only to entire-place package pricing", () => {
     const privateRoomDraft = draft({
       privacyType: "private",
       bookingType: "package",
@@ -104,7 +104,16 @@ describe("host wizard location validation", () => {
     expect(canAdvanceFromStep("rooms", privateRoomDraft)).toBe(true);
     expect(canAdvanceFromStep("booking-packages", privateRoomDraft)).toBe(true);
 
-    expect(activeHostWizardSteps(draft()).map((step) => step.id)).toContain("rooms");
-    expect(activeHostWizardSteps(draft()).map((step) => step.id)).toContain("booking-packages");
+    const simpleSteps = activeHostWizardSteps(draft()).map((step) => step.id);
+    expect(simpleSteps).toContain("rooms");
+    expect(simpleSteps).toContain("pricing");
+    expect(simpleSteps).toContain("weekend-pricing");
+    expect(simpleSteps).not.toContain("booking-packages");
+
+    const packageSteps = activeHostWizardSteps(draft({ bookingType: "package", pricingMode: "packages" })).map((step) => step.id);
+    expect(packageSteps).toContain("rooms");
+    expect(packageSteps).not.toContain("pricing");
+    expect(packageSteps).not.toContain("weekend-pricing");
+    expect(packageSteps).toContain("booking-packages");
   });
 });
