@@ -22,9 +22,24 @@ function minimumPositiveRate(values: number[]) {
   return positiveValues.length ? Math.min(...positiveValues) : 0;
 }
 
+function maximumPositiveRate(values: number[]) {
+  const positiveValues = values.filter((value) => Number.isFinite(value) && value > 0);
+  return positiveValues.length ? Math.max(...positiveValues) : 0;
+}
+
+function packageDisplayRates(pkg: HostBookingPackageDraft) {
+  return [
+    pkg.weekdayRate,
+    pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate,
+  ];
+}
+
 export function getHostWizardPricingDisplay(input: Pick<HostListingDraft, "pricingMode" | "basePrice" | "weekendPrice" | "bookingPackages">) {
   const bookablePackages = input.bookingPackages.filter((pkg) => pkg.enabled && pkg.status !== "inactive");
   const usesPackagePrices = input.pricingMode === "packages" && bookablePackages.length > 0;
+  const packagePriceValues = bookablePackages.flatMap(packageDisplayRates);
+  const packageMinimumPrice = minimumPositiveRate(packagePriceValues);
+  const packageMaximumPrice = maximumPositiveRate(packagePriceValues);
 
   return {
     bookablePackages,
@@ -33,6 +48,8 @@ export function getHostWizardPricingDisplay(input: Pick<HostListingDraft, "prici
     weekendPrice: usesPackagePrices
       ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate))
       : input.weekendPrice,
+    minimumPrice: usesPackagePrices ? packageMinimumPrice : input.basePrice,
+    maximumPrice: usesPackagePrices ? packageMaximumPrice : input.weekendPrice,
     usesPackagePrices,
   };
 }

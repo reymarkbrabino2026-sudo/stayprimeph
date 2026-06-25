@@ -86,13 +86,15 @@ describe("host wizard pricing", () => {
       basePrice: 0,
       weekendPrice: 0,
       bookingPackages: [
-        { ...packages[0], enabled: true, weekdayRate: 9500, weekendRate: 10500 },
-        { ...packages[1], enabled: true, weekdayRate: 4500, weekendRate: 5500 },
+        { ...packages[0], enabled: true, weekdayRate: 9500, weekendRate: 12500 },
+        { ...packages[1], enabled: true, weekdayRate: 4500, weekendRate: 6500 },
       ],
     })).toMatchObject({
       bookablePackageCount: 2,
       weekdayPrice: 4500,
-      weekendPrice: 5500,
+      weekendPrice: 6500,
+      minimumPrice: 4500,
+      maximumPrice: 12500,
       usesPackagePrices: true,
     });
   });
@@ -110,6 +112,8 @@ describe("host wizard pricing", () => {
       bookablePackageCount: 2,
       weekdayPrice: 4500,
       weekendPrice: 4500,
+      minimumPrice: 4500,
+      maximumPrice: 4500,
       usesPackagePrices: true,
     });
   });

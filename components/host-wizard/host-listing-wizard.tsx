@@ -396,10 +396,19 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     }),
     [draft.basePrice, draft.bookingPackages, draft.pricingMode, draft.weekendPrice],
   );
-  const { bookablePackages, bookablePackageCount, weekdayPrice: displayedWeekdayPrice, weekendPrice: displayedWeekendPrice } = pricingDisplay;
+  const {
+    bookablePackages,
+    bookablePackageCount,
+    maximumPrice: displayedMaximumPrice,
+    minimumPrice: displayedMinimumPrice,
+    weekdayPrice: displayedWeekdayPrice,
+    weekendPrice: displayedWeekendPrice,
+  } = pricingDisplay;
   const pricingSummary = draft.pricingMode === "packages"
     ? bookablePackages.length
-      ? `Packages from ${formatPackageMoney(displayedWeekdayPrice)} weekday · ${formatPackageMoney(displayedWeekendPrice)} weekend`
+      ? displayedMinimumPrice === displayedMaximumPrice
+        ? `Packages from ${formatPackageMoney(displayedMinimumPrice)}`
+        : `Packages from ${formatPackageMoney(displayedMinimumPrice)} to ${formatPackageMoney(displayedMaximumPrice)}`
       : "No enabled package prices yet"
     : `${formatPackageMoney(displayedWeekdayPrice)} weekday · ${formatPackageMoney(displayedWeekendPrice)} weekend`;
   const firstIncompleteStep = useMemo(() => getFirstIncompleteHostWizardStep(draft), [draft]);
