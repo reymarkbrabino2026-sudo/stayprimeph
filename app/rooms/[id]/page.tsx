@@ -359,31 +359,28 @@ export default async function RoomPage({
         {/* Luxury amenities — full-bleed dark band */}
         <RoomVirtualTour property={property} />
 
-        <section id="amenities" className="scroll-mt-32 bg-[#053f34] py-20 text-white">
-          <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-            <div className="grid gap-8 lg:grid-cols-[0.8fr_1fr] lg:items-end">
+        <section id="amenities" className="scroll-mt-32 bg-[#053f34] py-14 text-white sm:py-16">
+          <div className="mx-auto max-w-6xl px-5 sm:px-8 lg:px-12">
+            <div className="max-w-3xl">
               <SectionHeader
                 eyebrow="Amenities"
                 title="Resort comforts, home-level control"
-                body="Everything this home comes equipped with for a comfortable stay."
+                body="Everything this home comes equipped with for a comfortable stay, from everyday essentials to standout extras."
                 light
               />
-              <p className="w-full max-w-md text-sm leading-6 text-white/60 lg:justify-self-end lg:text-right">
-                From everyday essentials to standout extras, here&apos;s what&apos;s included with your stay.
-              </p>
             </div>
-            <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-8 flex max-w-2xl flex-wrap gap-3">
               {property.amenities.map((amenity, index) => {
                 const Icon = amenityIcon(amenity);
                 const accent = index % 3 === 2;
                 return (
                   <div
                     key={amenity}
-                    className={`flex items-center gap-4 rounded-2xl px-5 py-4 ${
+                    className={`inline-flex min-w-[10.5rem] max-w-full items-center gap-3 rounded-2xl px-4 py-3.5 sm:min-w-[11.5rem] ${
                       accent ? "bg-[#c8f7bf] text-[#053f34]" : "bg-white/[0.06] text-white ring-1 ring-white/10"
                     }`}
                   >
-                    <Icon className={`shrink-0 ${accent ? "text-[#053f34]" : "text-[#f4d7a1]"}`} size={24} />
+                    <Icon className={`shrink-0 ${accent ? "text-[#053f34]" : "text-[#f4d7a1]"}`} size={22} />
                     <p className="text-base font-semibold leading-tight">{amenity}</p>
                   </div>
                 );
