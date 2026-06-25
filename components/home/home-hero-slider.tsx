@@ -69,7 +69,7 @@ export function HomeHeroSlider() {
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: -10, filter: "blur(8px)" }}
                 transition={{ duration: 0.45, ease: "easeOut" }}
-                className="col-start-1 row-start-1 inline-block italic"
+                className="col-start-1 row-start-1 inline-block font-bold"
               >
                 {headlinePhrases[phraseIndex]}
               </motion.span>
