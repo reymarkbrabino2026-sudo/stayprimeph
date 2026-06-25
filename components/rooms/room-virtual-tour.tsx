@@ -65,12 +65,12 @@ export function RoomVirtualTour({ property }: { property: Pick<Property, "title"
   }
 
   return (
-    <section className="border-t border-black/10 bg-[#f4efe7] py-16">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div>
+    <section className="overflow-x-hidden border-t border-black/10 bg-[#f4efe7] py-14 sm:py-16">
+      <div className="mx-auto w-full max-w-7xl min-w-0 px-5 sm:px-8 lg:px-12">
+        <div className="grid min-w-0 gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="min-w-0">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#8a6a3f]">3D virtual tour</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-normal sm:text-5xl lg:whitespace-nowrap">Walk through before you book</h2>
+            <h2 className="mt-3 max-w-full text-3xl font-semibold leading-tight tracking-normal sm:text-5xl lg:whitespace-nowrap">Walk through before you book</h2>
             <p className="mt-3 max-w-2xl leading-7 text-black/62 lg:max-w-none lg:whitespace-nowrap">Explore the space from room to room and get a clearer feel for the layout.</p>
           </div>
           {embed ? (
@@ -99,8 +99,8 @@ export function RoomVirtualTour({ property }: { property: Pick<Property, "title"
             ref={frameRef}
             className={
               fullscreenActive
-                ? "fixed inset-0 z-[100] h-[100dvh] w-screen overflow-hidden rounded-none border-0 bg-black shadow-none"
-                : "relative mt-8 aspect-video min-h-[18rem] max-h-[calc(100svh-13rem)] scroll-mt-32 overflow-hidden rounded-[1.25rem] border border-black/10 bg-black shadow-[0_18px_50px_rgb(0_0_0_/_0.14)] sm:min-h-[24rem]"
+                ? "fixed inset-0 z-[100] h-[100dvh] w-full max-w-full overflow-hidden rounded-none border-0 bg-black shadow-none"
+                : "relative mt-7 aspect-[4/3] w-full max-w-full scroll-mt-32 overflow-hidden rounded-[1.25rem] border border-black/10 bg-black shadow-[0_18px_50px_rgb(0_0_0_/_0.14)] sm:mt-8 sm:aspect-video sm:min-h-[24rem] sm:max-h-[calc(100svh-13rem)]"
             }
           >
             <iframe
