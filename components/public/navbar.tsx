@@ -91,7 +91,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
               Become a host
             </Link>
           ) : null}
-          {session.user ? <NotificationBell variant={transparent ? "light" : "dark"} /> : null}
+          {session.user ? <NotificationBell variant={transparent ? "light" : "dark"} eager={false} /> : null}
           <TravellerMenu />
         </div>
       </header>

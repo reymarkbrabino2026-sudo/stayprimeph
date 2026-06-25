@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Bell, Check, Clock3, LoaderCircle } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types";
 
@@ -23,6 +23,7 @@ type NotificationsResponse = {
 
 type NotificationBellProps = {
   variant?: "light" | "dark" | "panel";
+  eager?: boolean;
 };
 
 function notificationsHref(role: UserRole | null) {
@@ -51,9 +52,10 @@ function readStoredIds(key: string) {
   }
 }
 
-export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
+export function NotificationBell({ variant = "dark", eager = true }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [requested, setRequested] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [notifications, setNotifications] = useState<ActivityNotification[]>([]);
@@ -62,35 +64,65 @@ export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
 
   const storageKey = userId ? `stayprimeph:notification-read:${userId}` : null;
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadNotifications() {
-      try {
-        const response = await fetch("/api/notifications", { cache: "no-store" });
-        if (!response.ok) {
-          if (active) setLoaded(true);
-          return;
-        }
-        const data = (await response.json()) as NotificationsResponse;
-        if (!active) return;
-        setUserId(data.userId);
-        setRole(data.role);
-        setNotifications(data.notifications);
-        if (data.userId) setReadIds(readStoredIds(`stayprimeph:notification-read:${data.userId}`));
+  const loadNotifications = useCallback(async (signal?: AbortSignal) => {
+    setRequested(true);
+    try {
+      const response = await fetch("/api/notifications", { cache: "no-store", signal });
+      if (signal?.aborted) return;
+      if (!response.ok) {
         setLoaded(true);
-      } catch {
-        if (active) setLoaded(true);
+        return;
       }
+      const data = (await response.json()) as NotificationsResponse;
+      if (signal?.aborted) return;
+      setUserId(data.userId);
+      setRole(data.role);
+      setNotifications(data.notifications);
+      if (data.userId) setReadIds(readStoredIds(`stayprimeph:notification-read:${data.userId}`));
+      setLoaded(true);
+    } catch {
+      if (!signal?.aborted) setLoaded(true);
     }
+  }, []);
 
-    loadNotifications();
-    const interval = window.setInterval(loadNotifications, 60000);
+  useEffect(() => {
+    if (!eager) return;
+
+    const controller = new AbortController();
+    const initialLoad = window.setTimeout(() => {
+      void loadNotifications(controller.signal);
+    }, 0);
+    const interval = window.setInterval(() => {
+      void loadNotifications();
+    }, 60000);
     return () => {
-      active = false;
+      window.clearTimeout(initialLoad);
+      controller.abort();
       window.clearInterval(interval);
     };
-  }, []);
+  }, [eager, loadNotifications]);
+
+  useEffect(() => {
+    if (!open || requested) return;
+    const initialLoad = window.setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+    return () => {
+      window.clearTimeout(initialLoad);
+    };
+  }, [loadNotifications, open, requested]);
+
+  useEffect(() => {
+    if (!open || !loaded) return;
+    if (eager) return;
+
+    const interval = window.setInterval(() => {
+      void loadNotifications();
+    }, 60000);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [eager, loadNotifications, loaded, open]);
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -121,7 +153,7 @@ export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
     window.localStorage.setItem(storageKey, JSON.stringify(Array.from(nextIds).slice(0, 100)));
   }
 
-  if (loaded && !userId) return null;
+  if (requested && loaded && !userId) return null;
 
   const buttonClassName = cn(
     "relative grid size-10 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
@@ -139,7 +171,7 @@ export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
         aria-label={unreadCount > 0 ? `Open notifications, ${unreadCount} unread` : "Open notifications"}
         aria-expanded={open}
       >
-        {loaded ? <Bell size={19} /> : <LoaderCircle size={18} className="animate-spin" />}
+        {requested && !loaded ? <LoaderCircle size={18} className="animate-spin" /> : <Bell size={19} />}
         {unreadCount > 0 ? (
           <span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-[#f97316] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -167,7 +199,12 @@ export function NotificationBell({ variant = "dark" }: NotificationBellProps) {
             </div>
 
             <div data-lenis-prevent className="max-h-[min(26rem,70vh)] overflow-y-auto p-2">
-              {notifications.length === 0 ? (
+              {requested && !loaded ? (
+                <div className="flex items-center gap-2 p-5 text-sm text-black/55">
+                  <LoaderCircle size={16} className="animate-spin" />
+                  Loading activity...
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="p-5 text-sm text-black/55">No activity yet. New bookings, messages, payments, and listing updates will appear here.</div>
               ) : (
                 notifications.slice(0, 6).map((notification) => {

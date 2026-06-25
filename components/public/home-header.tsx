@@ -80,7 +80,7 @@ export function HomeHeader() {
                 Become a host
               </Link>
             ) : null}
-            {session.user ? <NotificationBell variant="dark" /> : null}
+            {session.user ? <NotificationBell variant="dark" eager={false} /> : null}
             <TravellerMenu />
           </div>
         </div>
@@ -128,7 +128,7 @@ export function HomeHeader() {
                 Become a host
               </Link>
             ) : null}
-            {session.user ? <NotificationBell variant={collapsed ? "dark" : "light"} /> : null}
+            {session.user ? <NotificationBell variant={collapsed ? "dark" : "light"} eager={false} /> : null}
             <TravellerMenu />
           </div>
         </div>

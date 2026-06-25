@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolvePrismaDatasourceUrl } from "@/lib/prisma-datasource-url";
 
 describe("resolvePrismaDatasourceUrl", () => {
-  it("adds conservative Prisma pool settings for the Supabase transaction pooler", () => {
+  it("adds pooled Prisma settings for the Supabase transaction pooler", () => {
     const resolved = resolvePrismaDatasourceUrl(
       "postgresql://user:pass@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?schema=public",
       { isServerless: false },
@@ -10,8 +10,8 @@ describe("resolvePrismaDatasourceUrl", () => {
     const url = new URL(resolved);
 
     expect(url.searchParams.get("schema")).toBe("public");
-    expect(url.searchParams.get("connection_limit")).toBe("1");
-    expect(url.searchParams.get("pool_timeout")).toBe("20");
+    expect(url.searchParams.get("connection_limit")).toBe("5");
+    expect(url.searchParams.get("pool_timeout")).toBe("30");
     expect(url.searchParams.get("connect_timeout")).toBe("30");
   });
 
