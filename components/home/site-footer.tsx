@@ -102,7 +102,7 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
                     <li key={link.href}>
                       <Link
                         className={cn(
-                          "inline-flex min-h-8 items-center rounded-md px-2 py-1 text-white/80 transition hover:bg-white/10 hover:text-white",
+                          "inline-flex min-h-8 items-center rounded-md font-medium text-white/80 transition hover:text-white",
                           darkFocus,
                         )}
                         href={link.href}
