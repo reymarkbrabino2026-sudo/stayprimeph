@@ -215,6 +215,25 @@ function csvDateKeys(value: FormDataEntryValue | null) {
     .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item));
 }
 
+function textLineValues(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return [];
+  return value
+    .split(/\r?\n/)
+    .map((item) => item.trim().replace(/\s+/g, " "))
+    .filter(Boolean);
+}
+
+function submittedAmenityValues(formData: FormData) {
+  const values = [
+    ...formData.getAll("amenities"),
+    ...textLineValues(formData.get("customAmenities")),
+  ]
+    .map((item) => typeof item === "string" ? item.trim().replace(/\s+/g, " ") : "")
+    .filter(Boolean);
+
+  return Array.from(new Set(values)).slice(0, 50);
+}
+
 function buildHouseRules(input: Pick<HostListingInput, "safetyDisclosures" | "bookingMode">) {
   const rules = ["No smoking", "No parties or events", "Quiet hours after 10 PM"];
   if (input.safetyDisclosures.exteriorCamera) rules.push("Exterior security camera present");
@@ -440,7 +459,7 @@ export async function createListing(formData: FormData) {
     bedrooms: formData.get("bedrooms"),
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
-    amenities: formData.getAll("amenities"),
+    amenities: submittedAmenityValues(formData),
   });
   if (!parsed.success) throw new Error("Please complete all required listing fields.");
 
@@ -531,7 +550,7 @@ export async function updateListing(formData: FormData) {
     bedrooms: formData.get("bedrooms"),
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
-    amenities: formData.getAll("amenities"),
+    amenities: submittedAmenityValues(formData),
   });
   if (!parsed.success || !parsed.data.id) throw new Error("Please complete all required listing fields.");
 

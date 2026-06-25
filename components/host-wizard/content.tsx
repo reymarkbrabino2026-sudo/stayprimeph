@@ -44,7 +44,9 @@ function ListingPreviewIllustration() {
 export function ListingPreviewCard() {
   const draft = useHostWizardStore((state) => state.draft);
   const cover = draft.photos.find((photo) => photo.isCover) ?? draft.photos[0];
-  const selectedAmenities = amenityGroups.flatMap((group) => group.items).filter((item) => draft.amenityIds.includes(item.id));
+  const selectedAmenities = amenityGroups
+    .flatMap((group) => group.items)
+    .filter((item, index, items) => draft.amenityIds.includes(item.id) && items.findIndex((candidate) => candidate.id === item.id) === index);
   const propertyType = propertyTypes.find((item) => item.id === draft.propertyType)?.label ?? "Home";
   const selectedHighlights = highlightOptions.filter((item) => draft.highlights.includes(item.id));
 

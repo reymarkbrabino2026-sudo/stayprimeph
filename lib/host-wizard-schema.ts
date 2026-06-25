@@ -120,7 +120,7 @@ export const hostListingSchema = z.object({
   guests: z.number().int().min(1).max(50), bedrooms: z.number().int().min(0).max(50), beds: z.number().int().min(1).max(100), bathrooms: z.number().min(1).max(50), rooms: z.array(propertyRoomSchema).max(30), amenityIds: z.array(z.string().max(80)).min(1).max(50),
   photos: z.array(z.object({ id: z.string().min(1).max(160), url: z.string().min(1).max(2048), name: z.string().max(180), size: z.number().int().min(0).max(10 * 1024 * 1024), isCover: z.boolean() })).min(5).max(20),
   title: z.string().min(1).max(50), highlights: z.array(z.string()).max(2), description: z.string().min(20).max(500), virtualTourUrl: virtualTourUrlSchema,
-  bookingType: z.enum(["stay", "package", "both"]).catch("stay"), bookingMode: z.enum(["request", "instant"]), pricingMode: z.enum(["simple", "packages"]), basePrice: z.number().int().min(1).max(1000000), weekendPrice: z.number().int().min(1).max(1000000), holidayPrice: z.number().int().min(0).max(1000000).catch(0), holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]), seasonalRates: z.array(seasonalRateSchema).max(12).catch([]), weekendPremium: z.number().int().min(0).max(99),
+  bookingType: z.enum(["stay", "package", "both"]).catch("stay"), bookingMode: z.enum(["request", "instant"]), pricingMode: z.enum(["simple", "packages"]), basePrice: z.number().int().min(0).max(1000000), weekendPrice: z.number().int().min(0).max(1000000), holidayPrice: z.number().int().min(0).max(1000000).catch(0), holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]), seasonalRates: z.array(seasonalRateSchema).max(12).catch([]), weekendPremium: z.number().int().min(0).max(99),
   cleaningFee: z.number().int().min(0).max(1000000), securityDeposit: z.number().int().min(0).max(1000000), currency: z.string().min(3).max(8), cancellationPolicy: z.enum(["flexible", "moderate", "strict"]),
   discounts: z.object({ newListing: z.boolean(), lastMinute: z.boolean(), weekly: z.boolean(), monthly: z.boolean() }),
   safetyDisclosures: z.object({ exteriorCamera: z.boolean(), noiseMonitor: z.boolean(), weapons: z.boolean() }),
@@ -128,6 +128,12 @@ export const hostListingSchema = z.object({
   hostAsBusiness: z.boolean(),
   status: z.enum(["draft", "pending", "published"]),
   bookingPackages: z.array(bookingPackageSchema).max(8),
+}).refine((value) => value.pricingMode !== "simple" || value.basePrice > 0, {
+  message: "Set a weekday base price.",
+  path: ["basePrice"],
+}).refine((value) => value.pricingMode !== "simple" || value.weekendPrice > 0, {
+  message: "Set a weekend price.",
+  path: ["weekendPrice"],
 }).refine((value) => value.pricingMode === "simple" || value.bookingPackages.some((item) => item.enabled && item.status !== "inactive"), {
   message: "Add at least one enabled booking package.",
   path: ["bookingPackages"],

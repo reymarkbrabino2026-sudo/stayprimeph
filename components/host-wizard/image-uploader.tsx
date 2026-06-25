@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ImagePlus, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { csrfHeaderName } from "@/lib/csrf-fields";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
@@ -16,6 +16,8 @@ interface UploadResponse {
   url: string;
   bytes: number;
 }
+
+type RoomPhotoChange = string[] | ((currentPhotos: string[]) => string[]);
 
 function uploadOne(file: File, listingId: string, csrfToken: string, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
@@ -183,14 +185,19 @@ export function RoomPhotoUploader({
   photos: string[];
   roomName: string;
   csrfToken: string;
-  onChange: (photos: string[]) => void;
+  onChange: (photos: RoomPhotoChange) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const latestPhotosRef = useRef(photos);
   const uploadScopeId = useHostWizardStore((state) => state.draft.uploadScopeId);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    latestPhotosRef.current = photos;
+  }, [photos]);
 
   async function handleFiles(files: FileList | null) {
     if (!files) return;
@@ -200,7 +207,7 @@ export function RoomPhotoUploader({
       setError("Upload JPG, PNG, WebP, or AVIF room photos.");
       return;
     }
-    if (photos.length + accepted.length > maxRoomPhotos) {
+    if (latestPhotosRef.current.length + accepted.length > maxRoomPhotos) {
       setError(`You can add up to ${maxRoomPhotos} photos per room.`);
       return;
     }
@@ -224,7 +231,7 @@ export function RoomPhotoUploader({
         return result.url;
       }));
       setUploadProgress(100);
-      onChange([...photos, ...uploaded]);
+      onChange((currentPhotos) => [...currentPhotos, ...uploaded].slice(0, maxRoomPhotos));
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
     } finally {
@@ -259,7 +266,7 @@ export function RoomPhotoUploader({
                 <span className="truncate text-black/60">Photo {index + 1}</span>
                 <button
                   type="button"
-                  onClick={() => onChange(photos.filter((_, photoIndex) => photoIndex !== index))}
+                  onClick={() => onChange((currentPhotos) => currentPhotos.filter((_, photoIndex) => photoIndex !== index))}
                   className="grid size-8 place-items-center rounded-full text-rose-700 transition hover:bg-rose-50"
                   aria-label={`Remove room photo ${index + 1}`}
                   title="Remove photo"

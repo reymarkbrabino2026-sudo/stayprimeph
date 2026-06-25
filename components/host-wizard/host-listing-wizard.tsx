@@ -22,7 +22,8 @@ import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propert
 import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import { findAdjacentApplicableHostWizardStep, hostWizardStepAppliesToDraft, isEntirePlacePrivacyType } from "@/lib/host-wizard-steps";
-import type { HostBookingPackageDraft, HostListingDraft, HostPropertyRoomDraft, HostSeasonalRateDraft } from "@/lib/host-wizard-types";
+import { getFirstIncompleteHostWizardStep } from "@/lib/host-wizard-validation";
+import type { HostBookingPackageDraft, HostListingDraft, HostPropertyRoomDraft, HostSeasonalRateDraft, WizardStepId } from "@/lib/host-wizard-types";
 import { isValidVirtualTourUrl } from "@/lib/virtual-tour";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
@@ -39,6 +40,27 @@ const iconMap = {
 const amenityLabelById = new Map(
   amenityGroups.flatMap((group) => group.items.map((item) => [item.id, item.label] as const)),
 );
+
+const amenityIdByNormalizedLabel = new Map(
+  amenityGroups.flatMap((group) => group.items.map((item) => [normalizeAmenityText(item.label), item.id] as const)),
+);
+
+const maxAmenities = 50;
+
+function normalizeAmenityText(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function cleanAmenityText(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function splitCustomAmenityInput(value: string) {
+  return value
+    .split(/\r?\n|;/)
+    .map(cleanAmenityText)
+    .filter(Boolean);
+}
 
 const weekdayOptions = [
   ["Sun", 0],
@@ -88,6 +110,11 @@ const packageAdvancedFields: PackageScalarField[] = [
 
 function formatPackageMoney(value: number) {
   return `PHP ${Math.max(0, value || 0).toLocaleString("en-PH")}`;
+}
+
+function minimumPositiveRate(values: number[]) {
+  const positiveValues = values.filter((value) => Number.isFinite(value) && value > 0);
+  return positiveValues.length ? Math.min(...positiveValues) : 0;
 }
 
 function formatPackageDays(days: number[]) {
@@ -142,6 +169,19 @@ function PackageFieldInput({ pkg, field, onChange }: { pkg: HostBookingPackageDr
 function DynamicIcon({ name }: { name: keyof typeof iconMap | string }) {
   const Icon = iconMap[name as keyof typeof iconMap] ?? House;
   return <Icon className="h-7 w-7" />;
+}
+
+function StepValidationNotice({ title, messages }: { title: string; messages: string[] }) {
+  return (
+    <section className="mx-auto mb-6 max-w-2xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-sm text-rose-800" role="alert">
+      <p className="font-semibold">{title}</p>
+      <ul className="mt-2 list-disc space-y-1 pl-5">
+        {messages.map((message) => (
+          <li key={message}>{message}</li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function HighlightPicker() {
@@ -295,6 +335,8 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [customAmenityInput, setCustomAmenityInput] = useState("");
+  const [stepValidationNotice, setStepValidationNotice] = useState<{ stepId: WizardStepId; title: string; messages: string[] } | null>(null);
   const step = hostWizardSteps.find((item) => item.id === currentStep) ?? hostWizardSteps[0];
 
   useEffect(() => {
@@ -333,6 +375,8 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const titleRemaining = 50 - draft.title.length;
   const selectedAmenities = useMemo(() => new Set(draft.amenityIds), [draft.amenityIds]);
   const selectedAmenityLabels = useMemo(() => draft.amenityIds.map((id) => amenityLabelById.get(id) ?? id), [draft.amenityIds]);
+  const customAmenities = useMemo(() => draft.amenityIds.filter((id) => !amenityLabelById.has(id)), [draft.amenityIds]);
+  const customAmenityLimitReached = draft.amenityIds.length >= maxAmenities;
   const activeRooms = useMemo(() => draft.rooms.filter((room) => room.active), [draft.rooms]);
   const virtualTourUrlValid = isValidVirtualTourUrl(draft.virtualTourUrl);
   const wholePlaceAccessEnabled = isEntirePlacePrivacyType(draft.privacyType);
@@ -348,16 +392,85 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     () => Array.from(new Set([...selectedAmenityLabels, ...draft.bookingPackages.flatMap((pkg) => pkg.includedAmenities)].filter(Boolean))),
     [draft.bookingPackages, selectedAmenityLabels],
   );
-  const bookablePackageCount = useMemo(
-    () => draft.bookingPackages.filter((pkg) => pkg.enabled && pkg.status !== "inactive").length,
+  const bookablePackages = useMemo(
+    () => draft.bookingPackages.filter((pkg) => pkg.enabled && pkg.status !== "inactive"),
     [draft.bookingPackages],
   );
+  const bookablePackageCount = bookablePackages.length;
+  const displayedWeekdayPrice = useMemo(
+    () => draft.pricingMode === "packages" && bookablePackages.length
+      ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekdayRate))
+      : draft.basePrice,
+    [bookablePackages, draft.basePrice, draft.pricingMode],
+  );
+  const displayedWeekendPrice = useMemo(
+    () => draft.pricingMode === "packages" && bookablePackages.length
+      ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate))
+      : draft.weekendPrice,
+    [bookablePackages, draft.pricingMode, draft.weekendPrice],
+  );
+  const pricingSummary = draft.pricingMode === "packages"
+    ? bookablePackages.length
+      ? `Packages from ${formatPackageMoney(displayedWeekdayPrice)} weekday · ${formatPackageMoney(displayedWeekendPrice)} weekend`
+      : "No enabled package prices yet"
+    : `${formatPackageMoney(displayedWeekdayPrice)} weekday · ${formatPackageMoney(displayedWeekendPrice)} weekend`;
+  const firstIncompleteStep = useMemo(() => getFirstIncompleteHostWizardStep(draft), [draft]);
+  const visibleStepValidationNotice =
+    stepValidationNotice?.stepId === currentStep && firstIncompleteStep?.step.id === stepValidationNotice.stepId
+      ? { ...stepValidationNotice, messages: firstIncompleteStep.messages }
+      : null;
 
   useEffect(() => {
     if (!initialized || !draft.privacyType || wholePlaceAccessEnabled) return;
     if (draft.bookingType === "stay" && draft.pricingMode === "simple") return;
     updateDraft({ bookingType: "stay", pricingMode: "simple" });
   }, [draft.bookingType, draft.pricingMode, draft.privacyType, initialized, updateDraft, wholePlaceAccessEnabled]);
+
+  function jumpToMissingStep(requirement: NonNullable<typeof firstIncompleteStep>) {
+    setStepValidationNotice({
+      stepId: requirement.step.id,
+      title: `Finish this step: ${requirement.step.title}`,
+      messages: requirement.messages,
+    });
+    setStep(requirement.step.id);
+
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+    }
+  }
+
+  function addCustomAmenities(values: string[]) {
+    const cleanedValues = values.map(cleanAmenityText).filter(Boolean);
+    if (!cleanedValues.length) return;
+
+    updateDraft((currentDraft) => {
+      const amenityIds = [...currentDraft.amenityIds];
+
+      for (const value of cleanedValues) {
+        const normalized = normalizeAmenityText(value);
+        const existingId = amenityIdByNormalizedLabel.get(normalized);
+        const nextId = existingId ?? value;
+        const alreadySelected = amenityIds.some((id) => normalizeAmenityText(amenityLabelById.get(id) ?? id) === normalized);
+
+        if (!alreadySelected && amenityIds.length < maxAmenities) {
+          amenityIds.push(nextId);
+        }
+      }
+
+      return { amenityIds };
+    });
+  }
+
+  function submitCustomAmenity() {
+    addCustomAmenities(splitCustomAmenityInput(customAmenityInput));
+    setCustomAmenityInput("");
+  }
+
+  function removeCustomAmenity(value: string) {
+    updateDraft((currentDraft) => ({
+      amenityIds: currentDraft.amenityIds.filter((id) => id !== value),
+    }));
+  }
 
   async function saveAndExit() {
     if (isSavingDraft) return;
@@ -379,11 +492,16 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     if (isPublishing) return;
     setPublishError("");
 
+    const missingRequirement = getFirstIncompleteHostWizardStep(draft);
+    if (missingRequirement) {
+      jumpToMissingStep(missingRequirement);
+      return;
+    }
+
     const parsed = hostListingSchema.safeParse({ ...draft, status: "pending" });
     if (!parsed.success) {
-      const message = draft.locationConfirmed ? "Please finish the missing steps before publishing your listing." : "Please confirm the map pin before publishing your listing.";
+      const message = parsed.error.issues[0]?.message ?? "Please finish the missing steps before publishing your listing.";
       setPublishError(message);
-      alert(message);
       return;
     }
 
@@ -421,39 +539,43 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     updateDraft(patch);
   }
 
-  function updateRoom(id: string, patch: Partial<HostPropertyRoomDraft>) {
-    updateDraft({
-      rooms: draft.rooms.map((item) => item.id === id ? { ...item, ...patch } : item),
-    });
+  function updateRoom(id: string, patch: Partial<HostPropertyRoomDraft> | ((room: HostPropertyRoomDraft) => Partial<HostPropertyRoomDraft>)) {
+    updateDraft((currentDraft) => ({
+      rooms: currentDraft.rooms.map((item) => {
+        if (item.id !== id) return item;
+        const nextPatch = typeof patch === "function" ? patch(item) : patch;
+        return { ...item, ...nextPatch };
+      }),
+    }));
   }
 
   function addRoom() {
     const id = `room-${Date.now().toString(36)}`;
-    updateDraft({
+    updateDraft((currentDraft) => ({
       rooms: [
-        ...draft.rooms,
+        ...currentDraft.rooms,
         {
           id,
           name: "New room",
           capacity: 2,
-          floor: draft.rooms.at(-1)?.floor || "Ground Floor",
+          floor: currentDraft.rooms.at(-1)?.floor || "Ground Floor",
           description: "",
           photos: [],
           amenities: [],
           active: true,
         },
       ],
-    });
+    }));
   }
 
   function removeRoom(id: string) {
-    updateDraft({
-      rooms: draft.rooms.filter((item) => item.id !== id),
-      bookingPackages: draft.bookingPackages.map((item) => ({
+    updateDraft((currentDraft) => ({
+      rooms: currentDraft.rooms.filter((item) => item.id !== id),
+      bookingPackages: currentDraft.bookingPackages.map((item) => ({
         ...item,
         accessibleRoomIds: item.accessibleRoomIds.filter((roomId) => roomId !== id),
       })),
-    });
+    }));
   }
 
   function updateCsvList<T extends keyof HostBookingPackageDraft>(packageId: string, key: T, value: string) {
@@ -516,6 +638,10 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   return (
     <StepLayout onSaveAndExit={saveAndExit} isSavingDraft={isSavingDraft}>
       <StepTransition stepKey={currentStep}>
+        {visibleStepValidationNotice ? (
+          <StepValidationNotice title={visibleStepValidationNotice.title} messages={visibleStepValidationNotice.messages} />
+        ) : null}
+
         {currentStep === "address" ? (
           <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_28rem]">
             <div>
@@ -668,7 +794,9 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                         photos={room.photos}
                         roomName={room.name}
                         csrfToken={csrfToken}
-                        onChange={(photos) => updateRoom(room.id, { photos })}
+                        onChange={(photos) => updateRoom(room.id, (currentRoom) => ({
+                          photos: typeof photos === "function" ? photos(currentRoom.photos) : photos,
+                        }))}
                       />
                     </div>
                     <label className="sm:col-span-2 lg:col-span-4">
@@ -708,6 +836,55 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                   </div>
                 </section>
               ))}
+              <section className="rounded-2xl border border-dashed border-black/15 bg-black/[0.015] p-4 sm:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">Custom amenities</h2>
+                    <p className="mt-1 text-sm text-black/55">{draft.amenityIds.length}/{maxAmenities} selected</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    value={customAmenityInput}
+                    onChange={(event) => setCustomAmenityInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        submitCustomAmenity();
+                      }
+                    }}
+                    disabled={customAmenityLimitReached}
+                    className="min-h-12 flex-1 rounded-xl border border-black/10 bg-white px-3 outline-none transition focus:border-black disabled:cursor-not-allowed disabled:bg-black/[0.04]"
+                    placeholder="Extra fridge"
+                  />
+                  <button
+                    type="button"
+                    onClick={submitCustomAmenity}
+                    disabled={customAmenityLimitReached || !customAmenityInput.trim()}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/15"
+                  >
+                    <Plus size={16} /> Add
+                  </button>
+                </div>
+                {customAmenities.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {customAmenities.map((amenity) => (
+                      <span key={amenity} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-black/10 bg-white px-3 text-sm font-medium text-black/75">
+                        {amenity}
+                        <button
+                          type="button"
+                          onClick={() => removeCustomAmenity(amenity)}
+                          className="grid size-7 place-items-center rounded-full text-black/45 transition hover:bg-black/[0.05] hover:text-black"
+                          aria-label={`Remove ${amenity}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {customAmenityLimitReached ? <p className="mt-3 text-sm font-medium text-rose-700">Amenity limit reached.</p> : null}
+              </section>
             </div>
           </section>
         ) : null}
@@ -923,8 +1100,8 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                     <strong className="mt-2 block text-base">{draft.bookingType === "both" ? "Stay + packages" : "Packages only"}</strong>
                   </div>
                   <div className="rounded-lg border border-black/10 bg-white p-4">
-                    <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Base weekday</span>
-                    <strong className="mt-2 block text-base">{formatPackageMoney(draft.basePrice)}</strong>
+                    <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">From weekday</span>
+                    <strong className="mt-2 block text-base">{formatPackageMoney(displayedWeekdayPrice)}</strong>
                   </div>
                 </div>
 
@@ -1292,7 +1469,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                   ["Amenities", `${draft.amenityIds.length} selected`],
                   ["Photos", `${draft.photos.length} uploaded`],
                   ["Virtual tour", draft.virtualTourUrl.trim() ? "Added" : "Not added"],
-                  ["Pricing", `PHP ${draft.basePrice.toLocaleString()} weekday · PHP ${draft.weekendPrice.toLocaleString()} weekend`],
+                  ["Pricing", pricingSummary],
                 ].map(([label, value]) => <div key={label} className="rounded-2xl border p-4"><strong className="block">{label}</strong><span className="text-black/60">{value}</span></div>)}
               </div>
             </div>
@@ -1304,7 +1481,15 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
           <section className="mx-auto max-w-2xl text-center">
             <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-rose-50 text-4xl">?</div>
             <h1 className="mt-6 text-4xl font-semibold">{step.title}</h1>
-            <p className="mt-3 text-black/60">{step.description}</p>
+            <p className="mt-3 text-black/60">
+              {firstIncompleteStep ? "A required step still needs attention before your listing can be submitted." : step.description}
+            </p>
+            {firstIncompleteStep ? (
+              <div className="mx-auto mt-5 max-w-md rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-sm text-rose-800">
+                <p className="font-semibold">{firstIncompleteStep.step.title}</p>
+                <p className="mt-1">{firstIncompleteStep.messages[0]}</p>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={submitListing}
@@ -1313,7 +1498,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
               className="mt-8 inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#083f35] px-8 font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-[#083f35]/70"
             >
               {isPublishing ? <span className="size-5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" /> : null}
-              {isPublishing ? "Publishing..." : "Publish listing"}
+              {isPublishing ? "Publishing..." : firstIncompleteStep ? "Go to missing step" : "Publish listing"}
             </button>
             {isPublishing ? <p className="mt-3 text-sm text-black/55" role="status">Submitting your listing for approval...</p> : null}
             {publishError ? <p className="mx-auto mt-3 max-w-md text-sm font-medium text-rose-700" role="alert">{publishError}</p> : null}

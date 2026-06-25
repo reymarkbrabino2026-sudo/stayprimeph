@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { hostListingAddressSchema } from "@/lib/host-wizard-schema";
+import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import { activeHostWizardSteps } from "@/lib/host-wizard-steps";
-import { canAdvanceFromStep } from "@/lib/host-wizard-validation";
+import { canAdvanceFromStep, getFirstIncompleteHostWizardStep, getMissingRequirementsForStep } from "@/lib/host-wizard-validation";
 import type { HostListingDraft } from "@/lib/host-wizard-types";
 
 function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
@@ -58,6 +58,16 @@ function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
   };
 }
 
+function photos() {
+  return Array.from({ length: 5 }, (_, index) => ({
+    id: `photo-${index}`,
+    url: `/uploads/listings/host-1/draft-test/photo-${index}.jpg`,
+    name: `Photo ${index}`,
+    size: 100,
+    isCover: index === 0,
+  }));
+}
+
 describe("host wizard location validation", () => {
   it("validates address fields without deriving from the refined publish schema", () => {
     const parsed = hostListingAddressSchema.safeParse({
@@ -75,6 +85,13 @@ describe("host wizard location validation", () => {
   it("requires a confirmed pin before leaving the location step", () => {
     expect(canAdvanceFromStep("location", draft({ locationConfirmed: false }))).toBe(false);
     expect(canAdvanceFromStep("location", draft())).toBe(true);
+  });
+
+  it("explains why a step cannot continue", () => {
+    expect(getMissingRequirementsForStep("address", draft({ street: "1" }))).toEqual([
+      "Check the listing address. Street address and ZIP code need to be complete.",
+    ]);
+    expect(canAdvanceFromStep("address", draft({ street: "1" }))).toBe(false);
   });
 
   it("invalidates the confirmed pin when the address changes", () => {
@@ -115,5 +132,112 @@ describe("host wizard location validation", () => {
     expect(packageSteps).not.toContain("pricing");
     expect(packageSteps).not.toContain("weekend-pricing");
     expect(packageSteps).toContain("booking-packages");
+  });
+
+  it("finds the first incomplete publish requirement", () => {
+    const missing = getFirstIncompleteHostWizardStep(draft({ photos: [] }));
+
+    expect(missing?.step.id).toBe("photos");
+    expect(missing?.messages).toEqual(["Upload 5 more photos."]);
+  });
+
+  it("points to enabled booking packages that still need required fields", () => {
+    const missing = getFirstIncompleteHostWizardStep(draft({
+      photos: photos(),
+      bookingType: "package",
+      pricingMode: "packages",
+      bookingPackages: [{
+        id: "package-1",
+        name: "Day pass",
+        description: "",
+        status: "active",
+        displayOrder: 1,
+        accessType: "Pool area",
+        unit: "day",
+        weekdayRate: 0,
+        weekendRate: 0,
+        holidayRate: 0,
+        holidayDates: [],
+        seasonalRates: [],
+        includedGuests: 0,
+        maxGuests: 0,
+        sleepingCapacity: 0,
+        durationHours: 0,
+        additionalGuestFee: 0,
+        extensionHourlyFee: 0,
+        checkInTime: "9:00 AM",
+        checkOutTime: "5:00 PM",
+        accessibleFloors: [],
+        accessibleRoomIds: [],
+        includedAmenities: [],
+        excludedAmenities: [],
+        availableDays: [],
+        minimumAdvanceBookingDays: 0,
+        blockedPackageIds: [],
+        enabled: true,
+      }],
+    }));
+
+    expect(missing?.step.id).toBe("booking-packages");
+    expect(missing?.messages[0]).toContain("weekday rate");
+    expect(missing?.messages[0]).toContain("available days");
+  });
+
+  it("allows package pricing to publish using enabled package rates when simple prices are zero", () => {
+    const parsed = hostListingSchema.safeParse(draft({
+      photos: photos(),
+      bookingType: "both",
+      pricingMode: "packages",
+      basePrice: 0,
+      weekendPrice: 0,
+      status: "pending",
+      bookingPackages: [{
+        id: "package-1",
+        name: "Overnight Full Access",
+        description: "Whole-villa overnight package.",
+        status: "active",
+        displayOrder: 1,
+        accessType: "Full access",
+        unit: "night",
+        weekdayRate: 9500,
+        weekendRate: 10500,
+        holidayRate: 11500,
+        holidayDates: [],
+        seasonalRates: [],
+        includedGuests: 4,
+        maxGuests: 15,
+        sleepingCapacity: 15,
+        durationHours: 21,
+        additionalGuestFee: 500,
+        extensionHourlyFee: 1500,
+        checkInTime: "2:00 PM",
+        checkOutTime: "11:00 AM",
+        accessibleFloors: ["Ground Floor"],
+        accessibleRoomIds: [],
+        includedAmenities: ["Wifi"],
+        excludedAmenities: [],
+        availableDays: [0, 1, 2, 3, 4, 5, 6],
+        minimumAdvanceBookingDays: 0,
+        blockedPackageIds: [],
+        enabled: true,
+      }],
+    }));
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still requires simple pricing when simple nightly pricing is selected", () => {
+    const parsed = hostListingSchema.safeParse(draft({
+      photos: photos(),
+      pricingMode: "simple",
+      basePrice: 0,
+      weekendPrice: 0,
+      status: "pending",
+    }));
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.map((issue) => issue.path.join("."))).toEqual(expect.arrayContaining(["basePrice", "weekendPrice"]));
+    }
   });
 });

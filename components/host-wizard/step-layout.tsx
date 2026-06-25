@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { canAdvanceFromStep } from "@/lib/host-wizard-validation";
+import { canAdvanceFromStep, getMissingRequirementsForStep } from "@/lib/host-wizard-validation";
 import { activeHostWizardSteps } from "@/lib/host-wizard-steps";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import type { WizardStepDefinition } from "@/lib/host-wizard-types";
 
@@ -52,19 +53,47 @@ export function StepHeader({ onSaveAndExit, isSavingDraft = false }: { onSaveAnd
 
 export function StepFooter({ currentIndex, steps }: { currentIndex: number; steps: WizardStepDefinition[] }) {
   const { currentStep, draft, setStep } = useHostWizardStore();
+  const [validationStep, setValidationStep] = useState<string | null>(null);
   const prev = steps[currentIndex - 1];
   const next = steps[currentIndex + 1];
+  const validationMessages = getMissingRequirementsForStep(currentStep, draft);
   const canContinue = canAdvanceFromStep(currentStep, draft);
+  const showValidation = validationStep === currentStep && !canContinue && validationMessages.length > 0;
+
+  function goNext() {
+    if (!next) return;
+    if (!canContinue) {
+      setValidationStep(currentStep);
+      return;
+    }
+
+    setValidationStep(null);
+    setStep(next.id);
+  }
 
   return (
     <footer className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 backdrop-blur">
       <ProgressBar currentIndex={currentIndex} steps={steps} />
+      {next && showValidation && validationMessages.length ? (
+        <div className="mx-auto max-w-6xl px-4 pt-3 sm:px-8 lg:px-12">
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert">
+            {validationMessages[0]}
+          </p>
+        </div>
+      ) : null}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-8 lg:px-12">
         <button type="button" disabled={!prev} onClick={() => prev && setStep(prev.id)} className="min-h-12 rounded-2xl px-4 font-semibold disabled:opacity-30">
           Back
         </button>
         {next ? (
-          <button type="button" disabled={!canContinue} onClick={() => setStep(next.id)} className="min-h-12 rounded-2xl bg-[#222] px-7 font-semibold text-white disabled:bg-black/10">
+          <button
+            type="button"
+            aria-disabled={!canContinue}
+            onClick={goNext}
+            className={`min-h-12 rounded-2xl px-7 font-semibold transition ${
+              canContinue ? "bg-[#222] text-white hover:bg-black" : "bg-black/10 text-black/45 hover:bg-black/15"
+            }`}
+          >
             Next
           </button>
         ) : null}

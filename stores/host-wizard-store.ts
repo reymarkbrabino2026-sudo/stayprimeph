@@ -66,7 +66,7 @@ const defaultBookingPackages = [
     checkOutTime: "11:00 AM",
     accessibleFloors: ["Ground Floor", "Second Floor"],
     accessibleRoomIds: [],
-    includedAmenities: ["Heated pool", "Karaoke", "WiFi", "Kitchen", "Board games"],
+    includedAmenities: ["Heated pool (3ft-5ft)", "Karaoke", "WiFi", "Kitchen", "Board games"],
     excludedAmenities: [],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
     minimumAdvanceBookingDays: 0,
@@ -96,7 +96,7 @@ const defaultBookingPackages = [
     checkOutTime: "10:00 PM",
     accessibleFloors: ["Ground Floor", "Outdoor Areas"],
     accessibleRoomIds: [],
-    includedAmenities: ["Heated pool", "Karaoke", "WiFi", "Kitchen", "Patio", "Board games"],
+    includedAmenities: ["Heated pool (3ft-5ft)", "Karaoke", "WiFi", "Kitchen", "Patio", "Board games"],
     excludedAmenities: ["Bedrooms", "Second floor access"],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
     minimumAdvanceBookingDays: 0,
@@ -129,6 +129,8 @@ type StoredHostWizardDraft = {
   updatedAt?: string;
 };
 
+type HostWizardDraftPatch = Partial<HostListingDraft> | ((draft: HostListingDraft) => Partial<HostListingDraft>);
+
 interface HostWizardState {
   ownerUserId: string | null;
   ownerEmail: string | null;
@@ -137,7 +139,7 @@ interface HostWizardState {
   draft: HostListingDraft;
   initializeForUser: (user: WizardOwner, options?: { fresh?: boolean }) => void;
   setStep: (step: WizardStepId) => void;
-  updateDraft: (patch: Partial<HostListingDraft>) => void;
+  updateDraft: (patch: HostWizardDraftPatch) => void;
   toggleAmenity: (id: string) => void;
   toggleHighlight: (id: string) => void;
   addPhotos: (photos: UploadedPhoto[]) => void;
@@ -407,7 +409,8 @@ export const useHostWizardStore = create<HostWizardState>()((set) => ({
     return next;
   }),
   updateDraft: (patch) => set((state) => {
-    const next = { ...state, draft: { ...state.draft, ...patch } };
+    const nextPatch = typeof patch === "function" ? patch(state.draft) : patch;
+    const next = { ...state, draft: { ...state.draft, ...nextPatch } };
     persistState(next);
     return next;
   }),

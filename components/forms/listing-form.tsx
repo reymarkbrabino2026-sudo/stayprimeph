@@ -4,8 +4,19 @@ import { csrfFieldName } from "@/lib/csrf-fields";
 import { amenityGroups, propertyTypes } from "@/lib/host-wizard-data";
 import type { Property } from "@/lib/types";
 
+function normalizeAmenityName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+const presetAmenityNames = new Set(
+  amenityGroups.flatMap((group) => group.items.map((item) => normalizeAmenityName(item.label))),
+);
+
 export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "Edit"; property?: Property; csrfToken?: string }) {
   const canCreate = mode === "Create";
+  const propertyAmenities = property?.amenities ?? [];
+  const selectedAmenityNames = new Set(propertyAmenities.map(normalizeAmenityName));
+  const customAmenities = propertyAmenities.filter((amenity) => !presetAmenityNames.has(normalizeAmenityName(amenity)));
   const fields: Array<{ label: string; name: string; type: "text" | "number"; defaultValue?: string | number }> = [
     { label: "Title", name: "title", type: "text", defaultValue: property?.title },
     { label: "Address", name: "address", type: "text", defaultValue: property?.address },
@@ -105,13 +116,24 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
                 <div className="flex flex-wrap gap-2">
                   {group.items.map((item) => (
                     <label key={item.id} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2">
-                      <input type="checkbox" name="amenities" value={item.label} defaultChecked={property?.amenities.includes(item.label)} className="mr-2" />
+                      <input type="checkbox" name="amenities" value={item.label} defaultChecked={selectedAmenityNames.has(normalizeAmenityName(item.label))} className="mr-2" />
                       {item.label}
                     </label>
                   ))}
                 </div>
               </fieldset>
             ))}
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-black/45">Custom amenities</span>
+              <textarea
+                name="customAmenities"
+                defaultValue={customAmenities.join("\n")}
+                rows={4}
+                maxLength={2000}
+                className="w-full rounded-2xl border p-3 leading-6"
+                placeholder="One amenity per line"
+              />
+            </label>
           </div>
         </div>
       </div>
