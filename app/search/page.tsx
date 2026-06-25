@@ -125,8 +125,8 @@ export default async function SearchPage({
   const clearFiltersHref = `/search${clearFilterParams.toString() ? `?${clearFilterParams.toString()}` : ""}`;
 
   return (
-    <div className="bg-white">
-      <div className="hidden border-b lg:block">
+    <div className="bg-white lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+      <div className="hidden shrink-0 border-b lg:block">
         <Navbar hideBottomNav />
         <div className="mx-auto max-w-4xl px-4 pb-5 pt-6 sm:px-6">
           <SearchBar />
