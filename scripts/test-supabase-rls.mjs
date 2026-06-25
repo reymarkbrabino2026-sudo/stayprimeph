@@ -192,14 +192,18 @@ async function seedFixtures() {
     DELETE FROM "Report" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Payout" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Cancellation" WHERE "id" LIKE 'rls-%';
+    DELETE FROM "HostCustomerProfile" WHERE "id" LIKE 'rls-%';
+    DELETE FROM "Passkey" WHERE "id" LIKE 'rls-%' OR "credentialId" LIKE 'rls-%';
     DELETE FROM "AuthSession" WHERE "id" LIKE 'rls-%';
     DELETE FROM "AuthToken" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Payment" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Message" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Review" WHERE "id" LIKE 'rls-%';
     DELETE FROM "Wishlist" WHERE "id" LIKE 'rls-%' OR "id" LIKE 'rlscheck-%';
+    DELETE FROM "BookingResourceLock" WHERE "bookingId" LIKE 'rls-%';
     DELETE FROM "Booking" WHERE "id" LIKE 'rls-%';
     DELETE FROM "ListingBookingPackage" WHERE "id" LIKE 'rls-%';
+    DELETE FROM "ListingRoom" WHERE "id" LIKE 'rls-%';
     DELETE FROM "AvailabilityBlock" WHERE "id" LIKE 'rls-%';
     DELETE FROM "ListingAvailability" WHERE "id" LIKE 'rls-%';
     DELETE FROM "ListingPricing" WHERE "id" LIKE 'rls-%';
@@ -239,6 +243,13 @@ async function seedFixtures() {
     VALUES
       ('rls-enabled-package', 'rls-approved-property', 'Enabled Package', 'overnight', 'night', 1000, 1200, 2, 4, 100, 50, '14:00', '11:00', true),
       ('rls-disabled-package', 'rls-approved-property', 'Disabled Package', 'overnight', 'night', 1000, 1200, 2, 4, 100, 50, '14:00', '11:00', false);
+
+    INSERT INTO "ListingRoom" (
+      "id", "propertyId", "name", "capacity", "floor", "description", "photoUrls", "amenities", "active", "displayOrder"
+    )
+    VALUES
+      ('rls-active-room', 'rls-approved-property', 'Active room', 2, 'Ground floor', 'Visible room', '[]'::jsonb, '[]'::jsonb, true, 0),
+      ('rls-inactive-room', 'rls-approved-property', 'Inactive room', 2, 'Ground floor', 'Host-only room', '[]'::jsonb, '[]'::jsonb, false, 1);
 
     INSERT INTO "Booking" (
       "id", "propertyId", "guestId", "hostId", "checkIn", "checkOut", "guests", "totalPrice", "status", "paymentStatus"
@@ -283,11 +294,21 @@ async function seedFixtures() {
     INSERT INTO "HostMonthlyReport" ("id", "hostId", "month", "salesAmount", "expensesAmount")
     VALUES ('rls-host-monthly-report', ${sqlString(users.host)}, '2026-06', 1000, 100);
 
+    INSERT INTO "HostCustomerProfile" ("id", "hostId", "guestId", "classification")
+    VALUES ('rls-host-customer-profile', ${sqlString(users.host)}, ${sqlString(users.guest)}, 'vip');
+
     INSERT INTO "AuthToken" ("id", "userId", "tokenHash", "type", "expiresAt")
     VALUES ('rls-auth-token', ${sqlString(users.guest)}, 'rls-token-hash', 'email_verification', now() + interval '1 day');
 
     INSERT INTO "AuthSession" ("id", "userId", "sessionHash", "expiresAt")
     VALUES ('rls-auth-session', ${sqlString(users.guest)}, 'rls-session-hash', now() + interval '1 day');
+
+    INSERT INTO "Passkey" (
+      "id", "userId", "credentialId", "publicKey", "counter", "name", "deviceType", "backedUp"
+    )
+    VALUES (
+      'rls-passkey', ${sqlString(users.guest)}, 'rls-passkey-credential', 'rls-public-key', 0, 'RLS passkey', 'singleDevice', false
+    );
 
     INSERT INTO "AccountSettings" (
       "id", "userId", "personalInfo", "notificationPreferences", "privacy", "bookingPermissions",
@@ -378,6 +399,9 @@ const checks = [
   ["anon cannot read bookings", countCheck(contexts.anon, "Booking", `"id" LIKE 'rls-%'`, 0)],
   ["anon cannot read payments", countCheck(contexts.anon, "Payment", `"id" LIKE 'rls-%'`, 0)],
   ["anon cannot read auth sessions", countCheck(contexts.anon, "AuthSession", `"id" LIKE 'rls-%'`, 0)],
+  ["anon sees active rooms for approved listings", countCheck(contexts.anon, "ListingRoom", `"id" LIKE 'rls-%'`, 1)],
+  ["anon cannot read booking resource locks", countCheck(contexts.anon, "BookingResourceLock", `"bookingId" LIKE 'rls-%'`, 0)],
+  ["anon cannot read passkeys", countCheck(contexts.anon, "Passkey", `"id" LIKE 'rls-%'`, 0)],
 
   ["guest sees approved listing only", countCheck(contexts.guest, "Property", `"id" LIKE 'rls-%'`, 1)],
   ["guest sees own booking only", countCheck(contexts.guest, "Booking", `"id" LIKE 'rls-%'`, 1)],
@@ -385,10 +409,14 @@ const checks = [
   ["guest sees own message only", countCheck(contexts.guest, "Message", `"id" LIKE 'rls-%'`, 1)],
   ["guest sees own wishlist only", countCheck(contexts.guest, "Wishlist", `"id" LIKE 'rls-%'`, 1)],
   ["guest sees own account settings", countCheck(contexts.guest, "AccountSettings", `"id" LIKE 'rls-%'`, 1)],
+  ["guest sees active rooms for approved listings", countCheck(contexts.guest, "ListingRoom", `"id" LIKE 'rls-%'`, 1)],
   ["guest cannot read auth tokens", countCheck(contexts.guest, "AuthToken", `"id" LIKE 'rls-%'`, 0)],
   ["guest cannot read admin logs", countCheck(contexts.guest, "AdminLog", `"id" LIKE 'rls-%'`, 0)],
   ["guest cannot read audit logs", countCheck(contexts.guest, "AuditLog", `"id" LIKE 'rls-%'`, 0)],
   ["guest cannot read platform ledger", countCheck(contexts.guest, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 0)],
+  ["guest cannot read booking resource locks", countCheck(contexts.guest, "BookingResourceLock", `"bookingId" LIKE 'rls-%'`, 0)],
+  ["guest cannot read passkeys through client role", countCheck(contexts.guest, "Passkey", `"id" LIKE 'rls-%'`, 0)],
+  ["guest cannot read host customer profiles", countCheck(contexts.guest, "HostCustomerProfile", `"id" LIKE 'rls-%'`, 0)],
   ["guest can insert own wishlist", () => canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rlscheck-temp-wishlist', ${sqlString(users.guest)}, 'rlscheck-approved-property')`)],
   ["guest cannot insert wishlist for another user", async () => !(await canInsertAs(contexts.guest, "Wishlist", `("id", "userId", "propertyId") VALUES ('rlscheck-temp-bad-wishlist', ${sqlString(users.otherGuest)}, 'rlscheck-approved-property')`))],
 
@@ -399,16 +427,23 @@ const checks = [
   ["host sees own host expense", countCheck(contexts.host, "HostExpense", `"id" LIKE 'rls-%'`, 1)],
   ["host sees own monthly report", countCheck(contexts.host, "HostMonthlyReport", `"id" LIKE 'rls-%'`, 1)],
   ["host sees disabled package for own listing", countCheck(contexts.host, "ListingBookingPackage", `"id" = 'rls-disabled-package'`, 1)],
+  ["host sees inactive room for own listing", countCheck(contexts.host, "ListingRoom", `"id" LIKE 'rls-%'`, 2)],
+  ["host sees own host customer profile", countCheck(contexts.host, "HostCustomerProfile", `"id" LIKE 'rls-%'`, 1)],
   ["host cannot read platform ledger", countCheck(contexts.host, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 0)],
+  ["host cannot read booking resource locks", countCheck(contexts.host, "BookingResourceLock", `"bookingId" LIKE 'rls-%'`, 0)],
 
   ["admin sees all RLS listings", countCheck(contexts.admin, "Property", `"id" LIKE 'rls-%'`, 3)],
   ["admin sees all bookings", countCheck(contexts.admin, "Booking", `"id" LIKE 'rls-%'`, 2)],
   ["admin sees all payments", countCheck(contexts.admin, "Payment", `"id" LIKE 'rls-%'`, 2)],
+  ["admin sees all RLS rooms", countCheck(contexts.admin, "ListingRoom", `"id" LIKE 'rls-%'`, 2)],
+  ["admin sees host customer profiles", countCheck(contexts.admin, "HostCustomerProfile", `"id" LIKE 'rls-%'`, 1)],
   ["admin sees admin logs", countCheck(contexts.admin, "AdminLog", `"id" LIKE 'rls-%'`, 1)],
   ["admin sees audit logs", countCheck(contexts.admin, "AuditLog", `"id" LIKE 'rls-%'`, 1)],
   ["admin sees platform ledger", countCheck(contexts.admin, "PlatformLedgerEntry", `"id" LIKE 'rls-%'`, 1)],
   ["admin cannot read auth sessions through client role", countCheck(contexts.admin, "AuthSession", `"id" LIKE 'rls-%'`, 0)],
   ["admin cannot read auth tokens through client role", countCheck(contexts.admin, "AuthToken", `"id" LIKE 'rls-%'`, 0)],
+  ["admin cannot read passkeys through client role", countCheck(contexts.admin, "Passkey", `"id" LIKE 'rls-%'`, 0)],
+  ["admin cannot read booking resource locks through client role", countCheck(contexts.admin, "BookingResourceLock", `"bookingId" LIKE 'rls-%'`, 0)],
 ];
 
 async function runChecks() {

@@ -8,6 +8,7 @@ In the Supabase dashboard, open **Project Settings > API** and set the default t
 
 - Turn off **Automatically expose new tables**.
 - Turn on **Enable automatic RLS**.
+- Turn on **Leaked password protection** in **Authentication > Policies**. Supabase requires the Pro plan or above for this hosted Auth setting; Free projects must upgrade before this Security Advisor warning can be cleared.
 
 This means new database tables start private. A table only becomes accessible through Supabase's public API after we intentionally add grants and row-level security policies.
 
@@ -23,6 +24,9 @@ supabase/migrations/0004_platform_ledger_rls.sql
 supabase/migrations/0005_secure_recent_app_tables.sql
 supabase/migrations/0006_allow_security_definer_rls_helpers.sql
 supabase/migrations/0007_secure_audit_logs.sql
+supabase/migrations/0008_harden_security_advisor_warnings.sql
+supabase/migrations/0009_secure_late_app_tables.sql
+supabase/migrations/0010_harden_booking_resource_lock_function_search_paths.sql
 ```
 
 Run the normal Prisma migrations first, then apply the Supabase RLS migration:
@@ -42,6 +46,9 @@ supabase/migrations/0004_platform_ledger_rls.sql
 supabase/migrations/0005_secure_recent_app_tables.sql
 supabase/migrations/0006_allow_security_definer_rls_helpers.sql
 supabase/migrations/0007_secure_audit_logs.sql
+supabase/migrations/0008_harden_security_advisor_warnings.sql
+supabase/migrations/0009_secure_late_app_tables.sql
+supabase/migrations/0010_harden_booking_resource_lock_function_search_paths.sql
 ```
 
 Run them in that order. The first file creates the shared policy helpers and
@@ -51,8 +58,10 @@ Prisma's `_prisma_migrations` metadata table so Supabase Security Advisor stops
 flagging it as public. The third file pins the helper function search paths so
 the functions cannot accidentally resolve objects from an attacker-controlled
 schema. The later files protect the platform ledger, host reports, server-side
-sessions, listing booking packages, helper lookup-table access, and append-only
-audit logs added by newer Prisma migrations.
+sessions, listing booking packages, helper lookup-table access, append-only
+audit logs, security-advisor function warnings, booking resource locks, listing
+rooms, passkeys, host customer profiles, and booking resource-lock helper
+function search paths added by newer Prisma migrations.
 
 ## What the policy protects
 
@@ -69,7 +78,11 @@ The migration:
 - Keeps listing, booking, payment, auth, and admin write operations behind the trusted Next.js server.
 - Keeps auth tokens inaccessible from browser clients.
 - Keeps server-side auth sessions inaccessible from browser clients.
+- Keeps booking resource locks inaccessible from browser clients.
+- Keeps passkeys inaccessible from browser clients.
 - Allows booking packages to be read only when their listing is visible, and hides disabled packages from public visitors.
+- Allows listing rooms to be read only when their listing is visible, and hides inactive rooms from public visitors.
+- Allows host customer profiles to be read only by the host owner or admins.
 - Allows hosts to read only their own host expenses and monthly reports.
 - Keeps payments read-only for the guest, host, or admin.
 - Keeps admin logs visible only to admins.

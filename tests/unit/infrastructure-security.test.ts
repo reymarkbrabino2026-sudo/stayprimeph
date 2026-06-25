@@ -83,6 +83,50 @@ describe("infrastructure security controls", () => {
     expect(dockerfile).not.toContain("sk_live_");
   });
 
+  test("enables RLS on late app tables flagged by Supabase Security Advisor", async () => {
+    const [migration, docs] = await Promise.all([
+      readRepoFile("supabase/migrations/0009_secure_late_app_tables.sql"),
+      readRepoFile("docs/supabase-security.md"),
+    ]);
+    const tables = ["BookingResourceLock", "ListingRoom", "Passkey", "HostCustomerProfile"];
+
+    for (const table of tables) {
+      expect(migration).toContain(`ALTER TABLE IF EXISTS "${table}" ENABLE ROW LEVEL SECURITY`);
+      expect(migration).toContain(`ALTER TABLE IF EXISTS "${table}" FORCE ROW LEVEL SECURITY`);
+      expect(docs).toContain("supabase/migrations/0009_secure_late_app_tables.sql");
+    }
+
+    expect(migration).toContain("booking_resource_lock_no_client_access");
+    expect(migration).toContain("listing_room_visible_read");
+    expect(migration).toContain("passkey_no_client_access");
+    expect(migration).toContain("host_customer_profile_owner_or_admin_read");
+  });
+
+  test("pins search paths for booking resource lock functions flagged by Supabase Security Advisor", async () => {
+    const [migration, docs] = await Promise.all([
+      readRepoFile("supabase/migrations/0010_harden_booking_resource_lock_function_search_paths.sql"),
+      readRepoFile("docs/supabase-security.md"),
+    ]);
+    const functionSignatures = [
+      "stayprimeph_jsonb_text_array(jsonb)",
+      "stayprimeph_all_package_resource_keys(text)",
+      "stayprimeph_booking_resource_lock_keys(text, text)",
+      "stayprimeph_refresh_booking_resource_locks(text)",
+      "stayprimeph_booking_resource_locks_trigger()",
+      "stayprimeph_refresh_property_booking_resource_locks(text)",
+      "stayprimeph_listing_booking_package_locks_trigger()",
+    ];
+
+    for (const signature of functionSignatures) {
+      expect(migration).toContain(`ALTER FUNCTION public.${signature}`);
+      expect(migration).toContain("SET search_path = public, pg_temp;");
+    }
+
+    expect(docs).toContain("supabase/migrations/0010_harden_booking_resource_lock_function_search_paths.sql");
+    expect(docs).toContain("Leaked password protection");
+    expect(docs).toContain("Pro plan or above");
+  });
+
   test("self-heals additive listing schema before raw ERP queries", async () => {
     const repositories = await readRepoFile("lib/repositories.ts");
 
