@@ -47,7 +47,7 @@ export default async function HomePage() {
         )}
       </main>
 
-      <SiteFooter />
+      <SiteFooter flushTop />
     </div>
   );
 }

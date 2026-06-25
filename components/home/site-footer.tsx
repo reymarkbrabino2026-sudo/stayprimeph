@@ -11,25 +11,15 @@ const darkFocus = "focus-visible:outline-none focus-visible:ring-2 focus-visible
 export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
   return (
     <footer className={cn(!flushTop && "mt-12 md:mt-20", "border-t border-black/10 bg-[#f7f2ea] text-[#1f1b16]")}>
-      <div className="w-full px-6 py-10 sm:px-6 md:px-6 lg:px-9 lg:py-12 2xl:px-10">
+      <div className="w-full px-6 py-8 sm:px-6 md:px-6 lg:px-9 2xl:px-10">
         <section>
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a6a3f]">Explore the Philippines</p>
-            <h2 className="mt-3 text-2xl font-semibold leading-tight tracking-normal text-[#083f35] sm:text-3xl">
-              Inspiration for future getaways
-            </h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-black/65 sm:text-base">
-              Browse popular city searches and stay types without digging through the whole marketplace.
-            </p>
-          </div>
-
-          <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 md:gap-x-10 lg:grid-cols-4 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3 md:gap-x-10 lg:grid-cols-4 xl:grid-cols-6">
             {futureGetaways.slice(0, 17).map(([city, type]) => (
               <Link
                 key={city}
                 href={{ pathname: "/search", query: { location: `${city}, Philippines` } }}
                 className={cn(
-                  "group block rounded-md py-1 transition hover:text-[#083f35]",
+                  "group block rounded-md transition hover:text-[#083f35]",
                   lightFocus,
                 )}
               >
@@ -40,7 +30,7 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
             <Link
               href="/search"
               className={cn(
-                "inline-flex min-h-10 items-start gap-1 rounded-md py-1 text-sm font-semibold leading-5 text-[#1f1b16] transition hover:text-[#083f35]",
+                "inline-flex items-start gap-1 rounded-md text-sm font-semibold leading-5 text-[#1f1b16] transition hover:text-[#083f35]",
                 lightFocus,
               )}
             >
@@ -67,7 +57,7 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
                 key={location.slug}
                 href={`/staycation/${location.slug}`}
                 className={cn(
-                  "inline-flex min-h-10 items-center rounded-full border border-black/10 bg-white px-4 font-semibold text-black/75 shadow-sm transition hover:border-[#083f35]/30 hover:text-[#083f35]",
+                  "inline-flex min-h-10 items-center rounded-full border border-black/20 bg-transparent px-4 font-semibold text-black/75 transition hover:border-[#083f35]/40 hover:text-[#083f35]",
                   lightFocus,
                 )}
               >
