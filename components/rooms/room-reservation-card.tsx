@@ -219,11 +219,13 @@ export function RoomReservationCard({
       ) : null}
 
       {activePackage ? (
-        <div className="mt-4 grid gap-2 rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-xs text-black/60">
-          <PackageAccessLine label="Floors" items={activePackage.accessibleFloors ?? []} fallback={activePackage.accessType} />
-          <PackageAccessLine label="Rooms" items={selectedPackageRooms.map((room) => room.name)} fallback="No bedroom access" />
-          <PackageAccessLine label="Included" items={activePackage.includedAmenities ?? []} fallback="Property amenities apply" />
-          {(activePackage.excludedAmenities ?? []).length ? <PackageAccessLine label="Excluded" items={activePackage.excludedAmenities ?? []} fallback="" /> : null}
+        <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.02] px-4 py-3 text-xs leading-5 text-black/60">
+          <PackageAccessSummary
+            floors={activePackage.accessibleFloors ?? []}
+            rooms={selectedPackageRooms.map((room) => room.name)}
+            included={activePackage.includedAmenities ?? []}
+            accessType={activePackage.accessType}
+          />
         </div>
       ) : null}
 
@@ -340,20 +342,15 @@ export function RoomReservationCard({
         {instantBook ? "Reserve now" : "Request to book"}
       </Link>
 
-      <p className="mt-3 text-center text-xs text-black/50">
-        {selectedHasUnavailableNight
-          ? "Some selected nights are already booked. Choose only available dates."
-          : selectedStartsUnavailable
-            ? "Choose an available check-in date."
-          : validStay
-            ? "You won't be charged until your host confirms"
-            : "Select your check-in and checkout dates."}
-      </p>
-
-      <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-black/45">
-        <ShieldCheck size={13} className="shrink-0" />
-        Protected booking — keep payments and messages inside StayPrimePH.
-      </p>
+      {!canReserve ? (
+        <p className="mt-3 text-center text-xs text-black/50">
+          {selectedHasUnavailableNight
+            ? "Some selected nights are already booked. Choose only available dates."
+            : selectedStartsUnavailable
+              ? "Choose an available check-in date."
+              : "Select your check-in and checkout dates."}
+        </p>
+      ) : null}
 
       {validStay && !selectedHasUnavailableNight ? (
         <div className="mt-5 space-y-3 border-t border-black/10 pt-5 text-sm">
@@ -467,16 +464,36 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
   );
 }
 
-function PackageAccessLine({ label, items, fallback }: { label: string; items: string[]; fallback: string }) {
-  const visibleItems = items.filter(Boolean);
-  if (!visibleItems.length && !fallback) return null;
+function PackageAccessSummary({
+  floors,
+  rooms,
+  included,
+  accessType,
+}: {
+  floors: string[];
+  rooms: string[];
+  included: string[];
+  accessType: string;
+}) {
+  const floorText = formatShortList(floors) || accessType;
+  const roomText = rooms.filter(Boolean).length ? `${formatShortList(rooms)} room access` : "no bedroom access";
+  const amenityText = formatShortList(included, 3);
 
   return (
-    <p className="grid gap-1 min-[390px]:grid-cols-[5rem_1fr]">
-      <span className="font-semibold text-black/45">{label}</span>
-      <span>{visibleItems.length ? visibleItems.join(", ") : fallback}</span>
+    <p>
+      <span className="font-semibold text-black/70">Access: </span>
+      {floorText}; {roomText}
+      {amenityText ? `; includes ${amenityText}.` : "."}
     </p>
   );
+}
+
+function formatShortList(items: string[], limit = 2) {
+  const visibleItems = items.map((item) => item.trim()).filter(Boolean);
+  if (!visibleItems.length) return "";
+  const shown = visibleItems.slice(0, limit);
+  const remaining = visibleItems.length - shown.length;
+  return `${shown.join(", ")}${remaining > 0 ? ` +${remaining} more` : ""}`;
 }
 
 type CalendarDay = {
