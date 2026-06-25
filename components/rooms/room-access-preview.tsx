@@ -75,7 +75,7 @@ export function RoomAccessPreview({
           <h3 className="text-xl font-semibold">Rooms</h3>
           {rooms.length ? <span className="rounded-full bg-[#083f35]/10 px-3 py-1 text-sm font-semibold text-[#083f35]">{rooms.length} spaces</span> : null}
         </div>
-        <div data-testid="room-access-list" className="mt-4 grid min-h-0 gap-1.5 overflow-y-auto overscroll-contain pr-1">
+        <div data-testid="room-access-list" className="-mx-1 mt-3.5 grid min-h-0 gap-1.5 overflow-y-auto overscroll-contain px-1 py-1">
           {rooms.length ? rooms.map((room) => {
             const active = activeRoom?.id === room.id;
             return (
