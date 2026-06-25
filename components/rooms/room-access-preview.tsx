@@ -34,7 +34,6 @@ export function RoomAccessPreview({
 }: {
   rooms: PropertyRoom[];
   listingImages: PropertyImage[];
-  stayBookingAllowed: boolean;
 }) {
   const [activeRoomId, setActiveRoomId] = useState(rooms[0]?.id);
   const [activeSlide, setActiveSlide] = useState(0);

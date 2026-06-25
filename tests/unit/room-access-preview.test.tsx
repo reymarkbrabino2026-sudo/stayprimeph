@@ -36,7 +36,6 @@ describe("RoomAccessPreview", () => {
       <RoomAccessPreview
         rooms={rooms}
         listingImages={[]}
-        stayBookingAllowed
       />,
     );
 
@@ -56,7 +55,6 @@ describe("RoomAccessPreview", () => {
       <RoomAccessPreview
         rooms={rooms}
         listingImages={[]}
-        stayBookingAllowed
       />,
     );
 
@@ -82,7 +80,6 @@ describe("RoomAccessPreview", () => {
       <RoomAccessPreview
         rooms={[{ ...rooms[0], photos: [] }]}
         listingImages={fallbackListingImages}
-        stayBookingAllowed
       />,
     );
 
@@ -102,7 +99,6 @@ describe("RoomAccessPreview", () => {
       <RoomAccessPreview
         rooms={manyRooms}
         listingImages={[]}
-        stayBookingAllowed
       />,
     );
 

@@ -28,7 +28,7 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
 import { env } from "@/lib/env";
-import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, isEntirePlaceListing } from "@/lib/pricing";
+import { allowsPackageBooking, calculateGuestPriceWithMarkup, isEntirePlaceListing } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
@@ -144,11 +144,10 @@ export default async function RoomPage({
     : [{ id: "placeholder", propertyId: property.id, imageUrl: "", tone: "" }];
   const instantBook = property.rules.includes("Instant book enabled");
   const hostMessageHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(property.hostId)}`;
-  const stayBookingAllowed = allowsStayBooking(property);
   const packageBookingAllowed = allowsPackageBooking(property);
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
   const activeRooms = wholePlaceAccessEnabled ? (property.rooms ?? []).filter((room) => room.active) : [];
-  const showRoomAccessPreview = wholePlaceAccessEnabled && (packageBookingAllowed || activeRooms.length > 0);
+  const showListingSpacesPreview = wholePlaceAccessEnabled && (packageBookingAllowed || activeRooms.length > 0);
 
   const stats = [
     { icon: Users, label: `${property.maxGuests} guests` },
@@ -327,19 +326,18 @@ export default async function RoomPage({
           </section>
         </div>
 
-        {/* Photo carousel — full-bleed, 980x580 slides */}
-        {showRoomAccessPreview ? (
-          <section id="booking-options" className="scroll-mt-32 border-t border-black/10 bg-white py-16">
+        {/* Rooms and access preview */}
+        {showListingSpacesPreview ? (
+          <section id="listing-spaces" className="scroll-mt-32 border-t border-black/10 bg-white py-16">
             <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
               <SectionHeader
-                eyebrow="Booking options"
-                title={stayBookingAllowed && packageBookingAllowed ? "Choose a stay or a package" : packageBookingAllowed ? "Choose a package" : "Rooms and access"}
-                body="Compare the spaces, capacity, and included access before you reserve."
+                eyebrow="Inside the listing"
+                title="Rooms and access"
+                body="A quick look at the rooms, guest capacity, and access included with this listing."
               />
               <RoomAccessPreview
                 rooms={activeRooms}
                 listingImages={property.images}
-                stayBookingAllowed={stayBookingAllowed}
               />
             </div>
           </section>
