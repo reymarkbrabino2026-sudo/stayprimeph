@@ -71,12 +71,12 @@ export function RoomAccessPreview({
 
   return (
     <div className="mt-6 grid gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
-      <div className="rounded-[1.35rem] border border-black/10 bg-[#fbfaf7] p-4 sm:p-5">
+      <div className="flex max-h-[25rem] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#fbfaf7] p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-xl font-semibold">Rooms</h3>
           {rooms.length ? <span className="rounded-full bg-[#083f35]/10 px-3 py-1 text-sm font-semibold text-[#083f35]">{rooms.length} spaces</span> : null}
         </div>
-        <div className="mt-4 grid gap-1.5">
+        <div data-testid="room-access-list" className="mt-4 grid min-h-0 gap-1.5 overflow-y-auto overscroll-contain pr-1">
           {rooms.length ? rooms.map((room) => {
             const active = activeRoom?.id === room.id;
             return (

@@ -90,4 +90,23 @@ describe("RoomAccessPreview", () => {
     expect(screen.queryByRole("button", { name: /next room image/i })).not.toBeInTheDocument();
     expect(screen.queryByText("1 / 2")).not.toBeInTheDocument();
   });
+
+  test("keeps many rooms inside a scrollable list", () => {
+    const manyRooms = Array.from({ length: 10 }, (_, index) => ({
+      ...rooms[0],
+      id: `room-${index + 1}`,
+      name: `Room ${index + 1}`,
+    }));
+
+    render(
+      <RoomAccessPreview
+        rooms={manyRooms}
+        listingImages={[]}
+        stayBookingAllowed
+      />,
+    );
+
+    expect(screen.getByTestId("room-access-list")).toHaveClass("overflow-y-auto");
+    expect(screen.getByText("10 spaces")).toBeInTheDocument();
+  });
 });
