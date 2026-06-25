@@ -10,7 +10,7 @@ const rooms: PropertyRoom[] = [
     capacity: 2,
     floor: "Second Floor",
     description: "Private suite for overnight guests.",
-    photos: ["/uploads/rooms/sanctuary.jpg"],
+    photos: ["/uploads/rooms/sanctuary.jpg", "/uploads/rooms/sanctuary-2.jpg"],
     amenities: ["Smart TV", "Air conditioning"],
     active: true,
   },
@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 describe("RoomAccessPreview", () => {
-  test("uses the hovered room photo as the preview background", () => {
+  test("uses clicked room photo as the preview background", () => {
     const { container } = render(
       <RoomAccessPreview
         rooms={rooms}
@@ -44,11 +44,15 @@ describe("RoomAccessPreview", () => {
 
     fireEvent.mouseEnter(screen.getByRole("button", { name: /serene room/i }));
 
+    expect(container.querySelector('[style*="/uploads/rooms/sanctuary.jpg"]')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /serene room/i }));
+
     expect(container.querySelector('[style*="/uploads/rooms/serene.jpg"]')).toBeInTheDocument();
   });
 
-  test("keeps the right side as a room preview instead of package access cards", () => {
-    render(
+  test("keeps the right side as an image-only carousel", () => {
+    const { container } = render(
       <RoomAccessPreview
         rooms={rooms}
         listingImages={[]}
@@ -56,9 +60,13 @@ describe("RoomAccessPreview", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Stay booking" })).toBeInTheDocument();
-    expect(screen.getAllByText("Sanctuary Suite")).toHaveLength(2);
+    expect(screen.queryByRole("heading", { name: "Stay booking" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Sanctuary Suite")).toHaveLength(1);
     expect(screen.queryByText("Included amenities")).not.toBeInTheDocument();
     expect(screen.queryByText("Duration")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /next room image/i }));
+
+    expect(container.querySelector('[style*="/uploads/rooms/sanctuary-2.jpg"]')).toBeInTheDocument();
   });
 });
