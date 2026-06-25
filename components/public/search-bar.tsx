@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
 type Panel = "where" | "when" | "who" | null;
+type NearbyStatus = "idle" | "locating" | "ready" | "error";
+type LatLng = { lat: number; lng: number };
 
 const destinations = [
   { name: "Nearby", description: "Find what's around you", icon: Navigation },
@@ -60,6 +62,33 @@ function toISODate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function isNearbySearch(value: string) {
+  return value.trim().toLowerCase() === "nearby";
+}
+
+function parseNearCoordinates(value: string | null): LatLng | null {
+  const parts = (value ?? "").split(",").map(Number);
+  if (parts.length !== 2 || !parts.every(Number.isFinite)) return null;
+  const [lat, lng] = parts;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+function geolocationErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message === "secure-context") {
+    return "Location needs a secure HTTPS connection. Open the live site on your phone, then try Nearby again.";
+  }
+  if (error instanceof Error && error.message === "unsupported") {
+    return "This browser does not support location search.";
+  }
+
+  const code = typeof error === "object" && error && "code" in error ? Number((error as { code: unknown }).code) : 0;
+  if (code === 1) return "Location permission is blocked. Allow location access in your phone browser settings, then try Nearby again.";
+  if (code === 2) return "Your phone could not find its location right now. Check GPS or mobile data, then try again.";
+  if (code === 3) return "Location took too long. Move somewhere with a clearer signal, then try Nearby again.";
+  return "We could not get your location. Please allow location access and try Nearby again.";
+}
+
 type SearchBarProps = {
   variant?: "responsive" | "desktop" | "mobile";
   defaultPanel?: Panel;
@@ -71,6 +100,7 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
   const searchParams = useSearchParams();
   const searchRef = useRef<HTMLDivElement>(null);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const nearbyRequestRef = useRef<Promise<LatLng | null> | null>(null);
   const [panel, setPanel] = useState<Panel>(defaultPanel);
   const [location, setLocation] = useState(() => searchParams.get("location") ?? "");
   const [checkIn, setCheckIn] = useState<Date | null>(() => parseISODate(searchParams.get("checkIn")));
@@ -79,7 +109,9 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
     const total = Math.max(0, Number(searchParams.get("guests") ?? 0) || 0);
     return [total, 0, 0, 0];
   });
-  const [nearCoords, setNearCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [nearCoords, setNearCoords] = useState<LatLng | null>(() => parseNearCoordinates(searchParams.get("near")));
+  const [nearbyStatus, setNearbyStatus] = useState<NearbyStatus>(() => (parseNearCoordinates(searchParams.get("near")) ? "ready" : "idle"));
+  const [nearbyMessage, setNearbyMessage] = useState("");
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const months = useMemo(() => {
@@ -155,16 +187,55 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
     return `${label}. Select as check-in date.`;
   }
 
-  function requestNearby() {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearCoords(null);
-      return;
+  function clearNearby() {
+    setNearCoords(null);
+    setNearbyStatus("idle");
+    setNearbyMessage("");
+  }
+
+  function readCurrentPosition() {
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      return Promise.reject(new Error("secure-context"));
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) => setNearCoords({ lat: position.coords.latitude, lng: position.coords.longitude }),
-      () => setNearCoords(null),
-      { timeout: 8000, maximumAge: 60000 },
-    );
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      return Promise.reject(new Error("unsupported"));
+    }
+
+    return new Promise<LatLng>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        reject,
+        { timeout: 10000, maximumAge: 120000, enableHighAccuracy: false },
+      );
+    });
+  }
+
+  async function requestNearby() {
+    if (nearCoords && nearbyStatus === "ready") return nearCoords;
+    if (nearbyRequestRef.current) return nearbyRequestRef.current;
+
+    setNearbyStatus("locating");
+    setNearbyMessage("");
+
+    const request = readCurrentPosition()
+      .then((coords) => {
+        setNearCoords(coords);
+        setNearbyStatus("ready");
+        setNearbyMessage("");
+        return coords;
+      })
+      .catch((error: unknown) => {
+        setNearbyStatus("error");
+        setNearbyMessage(geolocationErrorMessage(error));
+        setNearCoords(null);
+        return null;
+      })
+      .finally(() => {
+        nearbyRequestRef.current = null;
+      });
+
+    nearbyRequestRef.current = request;
+    return request;
   }
 
   function resetSearch() {
@@ -172,30 +243,42 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
     setCheckIn(null);
     setCheckOut(null);
     setGuests([0, 0, 0, 0]);
-    setNearCoords(null);
+    clearNearby();
   }
 
-  function search() {
-    setPanel(null);
+  async function search() {
     const params = new URLSearchParams();
     const trimmedLocation = location.trim();
+    const nearbySearch = isNearbySearch(trimmedLocation);
+    const resolvedNearCoords = nearbySearch ? nearCoords ?? await requestNearby() : null;
+
+    if (nearbySearch && !resolvedNearCoords) {
+      setPanel("where");
+      return;
+    }
+
+    setPanel(null);
     const guestTotal = guests[0] + guests[1];
     const checkInValue = checkIn ? toISODate(checkIn) : "";
     const checkOutValue = checkOut ? toISODate(checkOut) : "";
-    if (trimmedLocation) params.set("location", trimmedLocation);
+    if (trimmedLocation) params.set("location", nearbySearch ? "Nearby" : trimmedLocation);
     if (guestTotal > 0) params.set("guests", String(guestTotal));
     if (checkInValue) params.set("checkIn", checkInValue);
     if (checkOutValue) params.set("checkOut", checkOutValue);
-    if (trimmedLocation === "Nearby" && nearCoords) {
-      params.set("near", `${nearCoords.lat.toFixed(5)},${nearCoords.lng.toFixed(5)}`);
+    if (nearbySearch && resolvedNearCoords) {
+      params.set("near", `${resolvedNearCoords.lat.toFixed(5)},${resolvedNearCoords.lng.toFixed(5)}`);
     }
     const query = params.toString();
     const href = query ? `/search?${query}` : "/search";
     router.push(href);
   }
 
-  function mobileNext() {
+  async function mobileNext() {
     if (panel === "where") {
+      if (isNearbySearch(location)) {
+        const coords = nearCoords ?? await requestNearby();
+        if (!coords) return;
+      }
       setPanel("when");
       return;
     }
@@ -203,7 +286,7 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
       setPanel("who");
       return;
     }
-    search();
+    await search();
   }
 
   function updateGuest(index: number, delta: number) {
@@ -243,35 +326,58 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
   const inactiveSection = "active:bg-[#ebebeb] md:hover:bg-[#ebebeb]";
   const showMobile = variant !== "desktop";
   const showDesktop = variant !== "mobile";
+  const isLocatingNearby = nearbyStatus === "locating";
+  const nearbyFeedback =
+    nearbyStatus === "locating"
+      ? "Getting your current location..."
+      : nearbyStatus === "ready"
+        ? "Location ready."
+        : nearbyStatus === "error"
+          ? nearbyMessage
+          : "";
 
   function destinationList() {
     return (
       <div className="mt-4 space-y-3">
-        {filteredDestinations.map(({ name, description, icon: Icon }) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => {
-              setLocation(name);
-              if (name === "Nearby") requestNearby();
-              else setNearCoords(null);
-              setPanel("when");
-            }}
-            className="flex min-h-14 w-full items-center gap-4 rounded-2xl p-2 text-left active:bg-black/[0.04] md:hover:bg-black/[0.04]"
-          >
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e8f4ef] text-[#083f35]">
-              <Icon size={25} strokeWidth={1.8} />
-            </span>
-            <span>
-              <span className="block font-semibold">{name}</span>
-              <span className="block text-sm text-black/55">{description}</span>
-            </span>
-          </button>
-        ))}
+        {filteredDestinations.map(({ name, description, icon: Icon }) => {
+          const nearbyOption = isNearbySearch(name);
+          const descriptionText = nearbyOption && isNearbySearch(location) && nearbyFeedback ? nearbyFeedback : description;
+
+          return (
+            <button
+              key={name}
+              type="button"
+              disabled={nearbyOption && isLocatingNearby}
+              onClick={() => {
+                setLocation(name);
+                if (nearbyOption) {
+                  void requestNearby().then((coords) => {
+                    if (coords) setPanel("when");
+                  });
+                  return;
+                }
+                clearNearby();
+                setPanel("when");
+              }}
+              className="flex min-h-14 w-full items-center gap-4 rounded-2xl p-2 text-left active:bg-black/[0.04] disabled:cursor-wait disabled:opacity-70 md:hover:bg-black/[0.04]"
+            >
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e8f4ef] text-[#083f35]">
+                <Icon size={25} strokeWidth={1.8} />
+              </span>
+              <span>
+                <span className="block font-semibold">{name}</span>
+                <span className="block text-sm text-black/55">{descriptionText}</span>
+              </span>
+            </button>
+          );
+        })}
         {filteredDestinations.length === 0 && (
           <button
             type="button"
-            onClick={() => setPanel("when")}
+            onClick={() => {
+              if (!isNearbySearch(location)) clearNearby();
+              setPanel("when");
+            }}
             className="flex min-h-14 w-full items-center gap-4 rounded-2xl p-2 text-left active:bg-black/[0.04] md:hover:bg-black/[0.04]"
           >
             <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#e8f4ef] text-[#083f35]">
@@ -280,6 +386,16 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
             <span className="block font-semibold">Search for &quot;{location.trim()}&quot;</span>
           </button>
         )}
+        {isNearbySearch(location) && nearbyFeedback ? (
+          <p
+            role={nearbyStatus === "error" ? "alert" : "status"}
+            className={`rounded-2xl px-4 py-3 text-sm leading-5 ${
+              nearbyStatus === "error" ? "bg-red-50 text-red-700" : "bg-[#e8f4ef] text-[#083f35]"
+            }`}
+          >
+            {nearbyFeedback}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -410,7 +526,11 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
               <input
                 type="text"
                 value={location}
-                onChange={(event) => setLocation(event.target.value)}
+                onChange={(event) => {
+                  const nextLocation = event.target.value;
+                  setLocation(nextLocation);
+                  if (!isNearbySearch(nextLocation)) clearNearby();
+                }}
                 placeholder="Search destinations"
                 aria-label="Search destinations"
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-black/55"
@@ -496,12 +616,13 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
               </button>
               <button
                 type="button"
-                onClick={mobileNext}
-                aria-label={panel === "who" ? "Search selected stays" : "Continue search"}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#083f35] px-6 text-sm font-semibold text-white shadow-[0_8px_24px_rgb(8_63_53_/_0.22)]"
+                onClick={() => void mobileNext()}
+                disabled={isLocatingNearby}
+                aria-label={isLocatingNearby ? "Getting current location" : panel === "who" ? "Search selected stays" : "Continue search"}
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#083f35] px-6 text-sm font-semibold text-white shadow-[0_8px_24px_rgb(8_63_53_/_0.22)] disabled:cursor-wait disabled:opacity-70"
               >
-                {panel === "who" ? <Search size={16} strokeWidth={3} /> : null}
-                {panel === "who" ? "Search" : "Next"}
+                {panel === "who" && !isLocatingNearby ? <Search size={16} strokeWidth={3} /> : null}
+                {isLocatingNearby ? "Locating" : panel === "who" ? "Search" : "Next"}
               </button>
             </div>
           </div>
@@ -515,10 +636,21 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
           <input
             type="text"
             value={location}
-            onChange={(event) => setLocation(event.target.value)}
+            onChange={(event) => {
+              const nextLocation = event.target.value;
+              setLocation(nextLocation);
+              if (!isNearbySearch(nextLocation)) clearNearby();
+            }}
             onFocus={() => setPanel("where")}
             onKeyDown={(event) => {
-              if (event.key === "Enter") setPanel("when");
+              if (event.key !== "Enter") return;
+              if (isNearbySearch(location)) {
+                void requestNearby().then((coords) => {
+                  if (coords) setPanel("when");
+                });
+                return;
+              }
+              setPanel("when");
             }}
             placeholder="Search destinations"
             aria-label="Where"
@@ -533,9 +665,15 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
           <p className="text-xs font-semibold">Who</p>
           <p className="mt-1 text-sm text-black/60">{guestLabel}</p>
         </button>
-        <button type="button" onClick={search} aria-label="Search stays" className="m-2 flex h-14 w-auto items-center justify-center justify-self-end rounded-full bg-[#083f35] px-5 text-base font-semibold text-white">
+        <button
+          type="button"
+          onClick={() => void search()}
+          disabled={isLocatingNearby}
+          aria-label={isLocatingNearby ? "Getting current location" : "Search stays"}
+          className="m-2 flex h-14 w-auto items-center justify-center justify-self-end rounded-full bg-[#083f35] px-5 text-base font-semibold text-white disabled:cursor-wait disabled:opacity-70"
+        >
           <Search size={17} strokeWidth={3} />
-          <span className="ml-2">Search</span>
+          <span className="ml-2">{isLocatingNearby ? "Locating" : "Search"}</span>
         </button>
       </div>
       ) : null}

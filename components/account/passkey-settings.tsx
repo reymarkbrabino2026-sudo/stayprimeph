@@ -4,6 +4,7 @@ import { Fingerprint, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { browserSupportsWebAuthn, startRegistration } from "@simplewebauthn/browser";
 import { csrfHeaderName } from "@/lib/csrf-fields";
+import { passkeyClientErrorMessage } from "@/lib/passkey-client-errors";
 
 type PublicPasskey = {
   id: string;
@@ -78,7 +79,7 @@ export function PasskeySettings({
         if (verified.passkeys) savePasskeys(verified.passkeys);
         setMessage("Passkey added.");
       } catch (error) {
-        setMessage(error instanceof Error && error.message ? error.message : "Passkey setup failed.");
+        setMessage(passkeyClientErrorMessage(error, "Passkey setup failed."));
       }
     });
   }

@@ -3,6 +3,7 @@
 import { Fingerprint } from "lucide-react";
 import { useState, useTransition } from "react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
+import { passkeyClientErrorMessage } from "@/lib/passkey-client-errors";
 
 type PasskeySignInButtonProps = {
   requestedRole?: "guest" | "host" | "admin";
@@ -56,7 +57,7 @@ export function PasskeySignInButton({ requestedRole, nextPath }: PasskeySignInBu
         if (!verified.redirectUrl) throw new Error("Passkey sign-in did not return a destination.");
         window.location.assign(verified.redirectUrl);
       } catch (error) {
-        setMessage(error instanceof Error && error.message ? error.message : "Passkey sign-in failed.");
+        setMessage(passkeyClientErrorMessage(error, "Passkey sign-in failed."));
       }
     });
   }
