@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { recentSearchStorageKey, type RecentSearchPayload } from "@/lib/recent-search";
 
 type Panel = "where" | "when" | "who" | null;
 
@@ -192,21 +191,6 @@ export function SearchBar({ variant = "responsive", defaultPanel = null, onPanel
     }
     const query = params.toString();
     const href = query ? `/search?${query}` : "/search";
-    if (typeof window !== "undefined" && query) {
-      try {
-        const recentSearch: RecentSearchPayload = {
-          href,
-          location: trimmedLocation || undefined,
-          checkIn: checkInValue || undefined,
-          checkOut: checkOutValue || undefined,
-          guests: guestTotal > 0 ? guestTotal : undefined,
-          savedAt: Date.now(),
-        };
-        window.localStorage.setItem(recentSearchStorageKey, JSON.stringify(recentSearch));
-      } catch {
-        // Search should still continue if browser storage is unavailable.
-      }
-    }
     router.push(href);
   }
 

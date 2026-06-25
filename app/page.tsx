@@ -1,6 +1,5 @@
 import { HomeHeroSlider } from "@/components/home/home-hero-slider";
 import { PropertyRail } from "@/components/home/property-rail";
-import { RecentSearchCard } from "@/components/home/recent-search-card";
 import { SiteFooter } from "@/components/home/site-footer";
 import { HomeHeader } from "@/components/public/home-header";
 import Link from "next/link";
@@ -23,7 +22,6 @@ export default async function HomePage() {
       <HomeHeroSlider />
 
       <main className="w-full space-y-8 px-6 pb-24 pt-6 sm:px-6 md:space-y-10 md:px-6 md:pb-12 md:pt-12 lg:px-9 2xl:px-10">
-        <RecentSearchCard />
         {propertyRails.length > 0 ? (
           propertyRails.map((rail) => (
             <PropertyRail key={rail.title} title={rail.title} items={rail.items} isAuthenticated={false} />

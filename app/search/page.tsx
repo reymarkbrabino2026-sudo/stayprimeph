@@ -199,7 +199,7 @@ export default async function SearchPage({
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-1 text-sm font-semibold text-black/80">
-                    <span className="grid size-9 place-items-center rounded-full bg-[#fff0f4] text-[#e61e4d]">
+                    <span className="grid size-9 place-items-center rounded-full bg-[#e8f4ef] text-[#083f35]">
                       <Tag size={18} fill="currentColor" strokeWidth={1.8} />
                     </span>
                     Prices include all fees

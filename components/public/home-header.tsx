@@ -1,6 +1,6 @@
 "use client";
 
-import { ConciergeBell, Globe2, Home, Search, Sparkles } from "lucide-react";
+import { ConciergeBell, Home, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -134,13 +134,6 @@ export function HomeHeader() {
                 Become a host
               </Link>
             ) : null}
-            <Link
-              href="/account-settings/languages-and-currency"
-              aria-label="Languages and currency"
-              className={`hidden size-10 place-items-center rounded-full transition md:grid ${collapsed ? "text-black hover:bg-black/[0.04]" : "text-white hover:bg-white/15"}`}
-            >
-              <Globe2 size={18} strokeWidth={2.1} />
-            </Link>
             {session.user ? <NotificationBell variant={collapsed ? "dark" : "light"} eager={false} /> : null}
             <TravellerMenu />
           </div>

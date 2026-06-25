@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ConciergeBell, Globe2, Home, Sparkles } from "lucide-react";
+import { ConciergeBell, Home, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -94,13 +94,6 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
               Become a host
             </Link>
           ) : null}
-          <Link
-            href="/account-settings/languages-and-currency"
-            aria-label="Languages and currency"
-            className={`hidden size-10 place-items-center rounded-full transition md:grid ${transparent ? "text-white hover:bg-white/15" : "text-black hover:bg-black/[0.04]"}`}
-          >
-            <Globe2 size={18} strokeWidth={2.1} />
-          </Link>
           {session.user ? <NotificationBell variant={transparent ? "light" : "dark"} eager={false} /> : null}
           <TravellerMenu />
         </div>

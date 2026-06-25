@@ -105,7 +105,7 @@ export function SearchPageHeader({ summary, filters }: SearchPageHeaderProps) {
             <span className="shrink-0">{summary.dates}</span>
             <span className="mx-4 h-6 w-px shrink-0 bg-black/10" />
             <span className="min-w-[5.75rem] shrink-0 text-left">{summary.guests}</span>
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e61e4d] text-white">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#083f35] text-white">
               <Search size={16} strokeWidth={3} />
             </span>
           </button>
