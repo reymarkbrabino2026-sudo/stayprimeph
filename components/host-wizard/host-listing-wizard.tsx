@@ -19,7 +19,7 @@ import { ImageUploader, RoomPhotoUploader, UploadCard } from "@/components/host-
 import { MapSelector } from "@/components/host-wizard/map-selector";
 import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout";
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
-import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
+import { getHostWizardPricingDisplay, syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import { findAdjacentApplicableHostWizardStep, hostWizardStepAppliesToDraft, isEntirePlacePrivacyType } from "@/lib/host-wizard-steps";
 import { getFirstIncompleteHostWizardStep } from "@/lib/host-wizard-validation";
@@ -110,11 +110,6 @@ const packageAdvancedFields: PackageScalarField[] = [
 
 function formatPackageMoney(value: number) {
   return `PHP ${Math.max(0, value || 0).toLocaleString("en-PH")}`;
-}
-
-function minimumPositiveRate(values: number[]) {
-  const positiveValues = values.filter((value) => Number.isFinite(value) && value > 0);
-  return positiveValues.length ? Math.min(...positiveValues) : 0;
 }
 
 function formatPackageDays(days: number[]) {
@@ -392,23 +387,16 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     () => Array.from(new Set([...selectedAmenityLabels, ...draft.bookingPackages.flatMap((pkg) => pkg.includedAmenities)].filter(Boolean))),
     [draft.bookingPackages, selectedAmenityLabels],
   );
-  const bookablePackages = useMemo(
-    () => draft.bookingPackages.filter((pkg) => pkg.enabled && pkg.status !== "inactive"),
-    [draft.bookingPackages],
+  const pricingDisplay = useMemo(
+    () => getHostWizardPricingDisplay({
+      pricingMode: draft.pricingMode,
+      basePrice: draft.basePrice,
+      weekendPrice: draft.weekendPrice,
+      bookingPackages: draft.bookingPackages,
+    }),
+    [draft.basePrice, draft.bookingPackages, draft.pricingMode, draft.weekendPrice],
   );
-  const bookablePackageCount = bookablePackages.length;
-  const displayedWeekdayPrice = useMemo(
-    () => draft.pricingMode === "packages" && bookablePackages.length
-      ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekdayRate))
-      : draft.basePrice,
-    [bookablePackages, draft.basePrice, draft.pricingMode],
-  );
-  const displayedWeekendPrice = useMemo(
-    () => draft.pricingMode === "packages" && bookablePackages.length
-      ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate))
-      : draft.weekendPrice,
-    [bookablePackages, draft.pricingMode, draft.weekendPrice],
-  );
+  const { bookablePackages, bookablePackageCount, weekdayPrice: displayedWeekdayPrice, weekendPrice: displayedWeekendPrice } = pricingDisplay;
   const pricingSummary = draft.pricingMode === "packages"
     ? bookablePackages.length
       ? `Packages from ${formatPackageMoney(displayedWeekdayPrice)} weekday · ${formatPackageMoney(displayedWeekendPrice)} weekend`

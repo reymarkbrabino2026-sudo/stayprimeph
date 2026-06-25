@@ -62,4 +62,33 @@ describe("host wizard store", () => {
       "https://assets.example/room-photo.jpg",
     ]);
   });
+
+  it("keeps overnight access checked for all active rooms and selected amenities", () => {
+    useHostWizardStore.getState().updateDraft((currentDraft) => ({
+      amenityIds: ["wifi", "tv", "workspace", "Custom arcade"],
+      rooms: [
+        room({ id: "room-1", name: "Nest Room", floor: "Second Floor" }),
+        room({ id: "room-2", name: "Oasis Room", floor: "Ground Floor" }),
+        room({ id: "room-3", name: "Maintenance Room", floor: "Ground Floor", active: false }),
+      ],
+      bookingPackages: currentDraft.bookingPackages.map((pkg) => (
+        pkg.id === "overnight-full-access"
+          ? {
+              ...pkg,
+              accessibleFloors: ["Ground Floor"],
+              accessibleRoomIds: [],
+              includedAmenities: ["WiFi"],
+              excludedAmenities: ["Bedrooms", "Second floor access"],
+            }
+          : pkg
+      )),
+    }));
+
+    const overnightPackage = useHostWizardStore.getState().draft.bookingPackages.find((pkg) => pkg.id === "overnight-full-access");
+
+    expect(overnightPackage?.accessibleFloors).toEqual(["Second Floor", "Ground Floor", "Outdoor Areas"]);
+    expect(overnightPackage?.accessibleRoomIds).toEqual(["room-1", "room-2"]);
+    expect(overnightPackage?.includedAmenities).toEqual(expect.arrayContaining(["WiFi", "TV", "Workspace", "Custom arcade"]));
+    expect(overnightPackage?.excludedAmenities).toEqual([]);
+  });
 });

@@ -1,4 +1,4 @@
-import type { HostBookingPackageDraft } from "@/lib/host-wizard-types";
+import type { HostBookingPackageDraft, HostListingDraft } from "@/lib/host-wizard-types";
 
 const seededPackageRates: Record<string, Pick<HostBookingPackageDraft, "weekdayRate" | "weekendRate" | "holidayRate">> = {
   "overnight-full-access": {
@@ -15,6 +15,26 @@ const seededPackageRates: Record<string, Pick<HostBookingPackageDraft, "weekdayR
 
 function shouldSyncRate(current: number, previous: number, seeded?: number) {
   return current > 0 && (current === previous || (seeded !== undefined && seeded > 0 && current === seeded));
+}
+
+function minimumPositiveRate(values: number[]) {
+  const positiveValues = values.filter((value) => Number.isFinite(value) && value > 0);
+  return positiveValues.length ? Math.min(...positiveValues) : 0;
+}
+
+export function getHostWizardPricingDisplay(input: Pick<HostListingDraft, "pricingMode" | "basePrice" | "weekendPrice" | "bookingPackages">) {
+  const bookablePackages = input.bookingPackages.filter((pkg) => pkg.enabled && pkg.status !== "inactive");
+  const usesPackagePrices = input.pricingMode === "packages" && bookablePackages.length > 0;
+
+  return {
+    bookablePackages,
+    bookablePackageCount: bookablePackages.length,
+    weekdayPrice: usesPackagePrices ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekdayRate)) : input.basePrice,
+    weekendPrice: usesPackagePrices
+      ? minimumPositiveRate(bookablePackages.map((pkg) => pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate))
+      : input.weekendPrice,
+    usesPackagePrices,
+  };
 }
 
 export function syncedBookingPackagesForPricing({

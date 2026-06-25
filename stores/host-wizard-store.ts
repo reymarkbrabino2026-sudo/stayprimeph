@@ -1,12 +1,19 @@
 "use client";
 
 import { create } from "zustand";
+import { amenityGroups } from "@/lib/host-wizard-data";
 import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-wizard-types";
 
 const legacyStorageKey = "stayprimeph-host-wizard";
 const userStorageKeyPrefix = "stayprimeph-host-wizard:";
-const storageVersion = 3;
+const storageVersion = 4;
 const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
+const overnightAccessArea = "Outdoor Areas";
+const overnightAccessPackageId = "overnight-full-access";
+
+const amenityLabelById = new Map(
+  amenityGroups.flatMap((group) => group.items.map((item) => [item.id, item.label] as const)),
+);
 
 const legacyDefaultPricing = {
   basePrice: 2528,
@@ -64,9 +71,9 @@ const defaultBookingPackages = [
     extensionHourlyFee: 0,
     checkInTime: "2:00 PM",
     checkOutTime: "11:00 AM",
-    accessibleFloors: ["Ground Floor", "Second Floor"],
+    accessibleFloors: ["Ground Floor", "Second Floor", overnightAccessArea],
     accessibleRoomIds: [],
-    includedAmenities: ["Heated pool (3ft-5ft)", "Karaoke", "WiFi", "Kitchen", "Board games"],
+    includedAmenities: ["Heated pool (3ft-5ft)", "Karaoke", "WiFi", "Kitchen", "Board games", "Patio"],
     excludedAmenities: [],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
     minimumAdvanceBookingDays: 0,
@@ -150,7 +157,7 @@ interface HostWizardState {
 }
 
 function createInitialDraft(): HostListingDraft {
-  return {
+  return syncOvernightAccessPackages({
     ...initialDraft,
     uploadScopeId: newUploadScopeId(),
     amenityIds: [...initialDraft.amenityIds],
@@ -163,7 +170,7 @@ function createInitialDraft(): HostListingDraft {
     discounts: { ...initialDraft.discounts },
     safetyDisclosures: { ...initialDraft.safetyDisclosures },
     residentialAddress: { ...initialDraft.residentialAddress },
-  };
+  });
 }
 
 function normalizeBookingPackage(pkg: Partial<HostListingDraft["bookingPackages"][number]>, index: number) {
@@ -189,7 +196,7 @@ function normalizeBookingPackage(pkg: Partial<HostListingDraft["bookingPackages"
 }
 
 function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
-  return {
+  return syncOvernightAccessPackages({
     ...createInitialDraft(),
     ...draft,
     uploadScopeId: draft?.uploadScopeId || newUploadScopeId(),
@@ -203,7 +210,84 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
     bookingPackages: draft?.bookingPackages?.length
       ? draft.bookingPackages.map((item, index) => normalizeBookingPackage(item, index))
       : initialDraft.bookingPackages.map((item, index) => normalizeBookingPackage(item, index)),
-  };
+  });
+}
+
+function cleanTextValue(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function uniqueTextValues(values: string[], limit = Number.POSITIVE_INFINITY) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    const cleaned = cleanTextValue(value);
+    if (!cleaned) continue;
+
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(cleaned);
+    if (result.length >= limit) break;
+  }
+
+  return result;
+}
+
+function sameStringList(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function amenityLabelForId(id: string) {
+  return amenityLabelById.get(id) ?? id;
+}
+
+function isOvernightAccessPackage(pkg: HostListingDraft["bookingPackages"][number]) {
+  const searchable = `${pkg.id} ${pkg.name} ${pkg.accessType} ${pkg.description}`.toLowerCase();
+  return pkg.id === overnightAccessPackageId || pkg.unit === "night" || searchable.includes("overnight");
+}
+
+function syncOvernightAccessPackages(draft: HostListingDraft): HostListingDraft {
+  if (!draft.bookingPackages.length) return draft;
+
+  const activeRooms = draft.rooms.filter((room) => room.active);
+  const fullAccessFloors = uniqueTextValues([
+    ...activeRooms.map((room) => room.floor),
+    ...draft.bookingPackages.flatMap((pkg) => pkg.accessibleFloors),
+    overnightAccessArea,
+  ], 20);
+  const fullAccessRoomIds = uniqueTextValues(activeRooms.map((room) => room.id), 50);
+  const fullAccessAmenities = uniqueTextValues([
+    ...draft.amenityIds.map(amenityLabelForId),
+    ...draft.bookingPackages.flatMap((pkg) => pkg.includedAmenities),
+  ], 80);
+
+  let changed = false;
+  const bookingPackages = draft.bookingPackages.map((pkg) => {
+    if (!isOvernightAccessPackage(pkg)) return pkg;
+
+    const excludedAmenities: string[] = [];
+    const pkgChanged =
+      !sameStringList(pkg.accessibleFloors, fullAccessFloors) ||
+      !sameStringList(pkg.accessibleRoomIds, fullAccessRoomIds) ||
+      !sameStringList(pkg.includedAmenities, fullAccessAmenities) ||
+      !sameStringList(pkg.excludedAmenities, excludedAmenities);
+
+    if (!pkgChanged) return pkg;
+
+    changed = true;
+    return {
+      ...pkg,
+      accessibleFloors: fullAccessFloors,
+      accessibleRoomIds: fullAccessRoomIds,
+      includedAmenities: fullAccessAmenities,
+      excludedAmenities,
+    };
+  });
+
+  return changed ? { ...draft, bookingPackages } : draft;
 }
 
 function resetLegacyNumber(value: number, legacyValues: Array<number | undefined>) {
@@ -211,33 +295,37 @@ function resetLegacyNumber(value: number, legacyValues: Array<number | undefined
 }
 
 function migrateStoredDraftDefaults(draft: HostListingDraft, version?: number) {
-  if ((version ?? 0) >= storageVersion) return draft;
+  let nextDraft = draft;
 
-  return {
-    ...draft,
-    basePrice: resetLegacyNumber(draft.basePrice, [legacyDefaultPricing.basePrice]),
-    weekendPrice: resetLegacyNumber(draft.weekendPrice, [legacyDefaultPricing.weekendPrice]),
-    weekendPremium: resetLegacyNumber(draft.weekendPremium, [legacyDefaultPricing.weekendPremium]),
-    cleaningFee: resetLegacyNumber(draft.cleaningFee, [legacyDefaultPricing.cleaningFee]),
-    bookingPackages: draft.bookingPackages.map((pkg) => {
-      const legacy = legacyDefaultPackageValues[pkg.id];
-      if (!legacy) return pkg;
+  if ((version ?? 0) < 3) {
+    nextDraft = {
+      ...nextDraft,
+      basePrice: resetLegacyNumber(nextDraft.basePrice, [legacyDefaultPricing.basePrice]),
+      weekendPrice: resetLegacyNumber(nextDraft.weekendPrice, [legacyDefaultPricing.weekendPrice]),
+      weekendPremium: resetLegacyNumber(nextDraft.weekendPremium, [legacyDefaultPricing.weekendPremium]),
+      cleaningFee: resetLegacyNumber(nextDraft.cleaningFee, [legacyDefaultPricing.cleaningFee]),
+      bookingPackages: nextDraft.bookingPackages.map((pkg) => {
+        const legacy = legacyDefaultPackageValues[pkg.id];
+        if (!legacy) return pkg;
 
-      return {
-        ...pkg,
-        weekdayRate: resetLegacyNumber(pkg.weekdayRate, [legacy.weekdayRate, legacyDefaultPricing.basePrice]),
-        weekendRate: resetLegacyNumber(pkg.weekendRate, [legacy.weekendRate, legacyDefaultPricing.weekendPrice]),
-        holidayRate: resetLegacyNumber(pkg.holidayRate, [legacy.holidayRate, legacyDefaultPricing.weekendPrice]),
-        includedGuests: resetLegacyNumber(pkg.includedGuests, [legacy.includedGuests]),
-        maxGuests: resetLegacyNumber(pkg.maxGuests, [legacy.maxGuests]),
-        sleepingCapacity: resetLegacyNumber(pkg.sleepingCapacity, [legacy.sleepingCapacity]),
-        durationHours: resetLegacyNumber(pkg.durationHours, [legacy.durationHours]),
-        additionalGuestFee: resetLegacyNumber(pkg.additionalGuestFee, [legacy.additionalGuestFee]),
-        extensionHourlyFee: resetLegacyNumber(pkg.extensionHourlyFee, [legacy.extensionHourlyFee]),
-        minimumAdvanceBookingDays: resetLegacyNumber(pkg.minimumAdvanceBookingDays, [legacy.minimumAdvanceBookingDays]),
-      };
-    }),
-  };
+        return {
+          ...pkg,
+          weekdayRate: resetLegacyNumber(pkg.weekdayRate, [legacy.weekdayRate, legacyDefaultPricing.basePrice]),
+          weekendRate: resetLegacyNumber(pkg.weekendRate, [legacy.weekendRate, legacyDefaultPricing.weekendPrice]),
+          holidayRate: resetLegacyNumber(pkg.holidayRate, [legacy.holidayRate, legacyDefaultPricing.weekendPrice]),
+          includedGuests: resetLegacyNumber(pkg.includedGuests, [legacy.includedGuests]),
+          maxGuests: resetLegacyNumber(pkg.maxGuests, [legacy.maxGuests]),
+          sleepingCapacity: resetLegacyNumber(pkg.sleepingCapacity, [legacy.sleepingCapacity]),
+          durationHours: resetLegacyNumber(pkg.durationHours, [legacy.durationHours]),
+          additionalGuestFee: resetLegacyNumber(pkg.additionalGuestFee, [legacy.additionalGuestFee]),
+          extensionHourlyFee: resetLegacyNumber(pkg.extensionHourlyFee, [legacy.extensionHourlyFee]),
+          minimumAdvanceBookingDays: resetLegacyNumber(pkg.minimumAdvanceBookingDays, [legacy.minimumAdvanceBookingDays]),
+        };
+      }),
+    };
+  }
+
+  return (version ?? 0) < storageVersion ? syncOvernightAccessPackages(nextDraft) : nextDraft;
 }
 
 export function sanitizeHostWizardDraftForStorage(draft: HostListingDraft | Partial<HostListingDraft>): Partial<HostListingDraft> {
@@ -410,17 +498,17 @@ export const useHostWizardStore = create<HostWizardState>()((set) => ({
   }),
   updateDraft: (patch) => set((state) => {
     const nextPatch = typeof patch === "function" ? patch(state.draft) : patch;
-    const next = { ...state, draft: { ...state.draft, ...nextPatch } };
+    const next = { ...state, draft: syncOvernightAccessPackages({ ...state.draft, ...nextPatch }) };
     persistState(next);
     return next;
   }),
   toggleAmenity: (id) => set((state) => {
+    const amenityIds = state.draft.amenityIds.includes(id)
+      ? state.draft.amenityIds.filter((item) => item !== id)
+      : [...state.draft.amenityIds, id];
     const next = {
       ...state,
-      draft: {
-        ...state.draft,
-        amenityIds: state.draft.amenityIds.includes(id) ? state.draft.amenityIds.filter((item) => item !== id) : [...state.draft.amenityIds, id],
-      },
+      draft: syncOvernightAccessPackages({ ...state.draft, amenityIds }),
     };
     persistState(next);
     return next;

@@ -135,6 +135,19 @@ describe("host wizard local storage", () => {
     });
   });
 
+  test("defaults overnight full access to every visible package access option", () => {
+    const stored = sanitizeHostWizardDraftForStorage({});
+    const packages = stored.bookingPackages ?? [];
+    const overnightPackage = packages.find((item) => item.id === "overnight-full-access");
+
+    const visibleAreas = Array.from(new Set(packages.flatMap((item) => item.accessibleFloors)));
+    const visibleAmenities = Array.from(new Set(packages.flatMap((item) => item.includedAmenities)));
+
+    expect(overnightPackage?.accessibleFloors).toEqual(visibleAreas);
+    expect(overnightPackage?.includedAmenities).toEqual(visibleAmenities);
+    expect(overnightPackage?.excludedAmenities).toEqual([]);
+  });
+
   test("scopes stored draft keys by encoded user id", () => {
     expect(hostWizardStorageKey("host@example.com")).toBe("stayprimeph-host-wizard:host%40example.com");
   });

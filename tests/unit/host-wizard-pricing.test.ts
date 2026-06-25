@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
+import { getHostWizardPricingDisplay, syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import type { HostBookingPackageDraft } from "@/lib/host-wizard-types";
 
 const packages = [
@@ -66,6 +66,54 @@ const packages = [
 ] satisfies HostBookingPackageDraft[];
 
 describe("host wizard pricing", () => {
+  test("shows simple nightly prices when simple pricing is selected", () => {
+    expect(getHostWizardPricingDisplay({
+      pricingMode: "simple",
+      basePrice: 3200,
+      weekendPrice: 4100,
+      bookingPackages: packages,
+    })).toMatchObject({
+      bookablePackageCount: 0,
+      weekdayPrice: 3200,
+      weekendPrice: 4100,
+      usesPackagePrices: false,
+    });
+  });
+
+  test("shows package prices when package pricing is selected", () => {
+    expect(getHostWizardPricingDisplay({
+      pricingMode: "packages",
+      basePrice: 0,
+      weekendPrice: 0,
+      bookingPackages: [
+        { ...packages[0], enabled: true, weekdayRate: 9500, weekendRate: 10500 },
+        { ...packages[1], enabled: true, weekdayRate: 4500, weekendRate: 5500 },
+      ],
+    })).toMatchObject({
+      bookablePackageCount: 2,
+      weekdayPrice: 4500,
+      weekendPrice: 5500,
+      usesPackagePrices: true,
+    });
+  });
+
+  test("ignores zero package rates when another enabled package has a real rate", () => {
+    expect(getHostWizardPricingDisplay({
+      pricingMode: "packages",
+      basePrice: 0,
+      weekendPrice: 0,
+      bookingPackages: [
+        { ...packages[0], enabled: true, weekdayRate: 0, weekendRate: 0 },
+        { ...packages[1], enabled: true, weekdayRate: 4500, weekendRate: 0 },
+      ],
+    })).toMatchObject({
+      bookablePackageCount: 2,
+      weekdayPrice: 4500,
+      weekendPrice: 4500,
+      usesPackagePrices: true,
+    });
+  });
+
   test("syncs seeded nonzero booking package rates to the selected base and weekend prices", () => {
     const synced = syncedBookingPackagesForPricing({
       packages,
