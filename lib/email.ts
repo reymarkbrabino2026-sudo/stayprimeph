@@ -12,6 +12,8 @@ const ctaColor = "#004236";
 const textColor = "#222222";
 const mutedColor = "#717171";
 const borderColor = "#dddddd";
+const codeHighlightBackground = "#eef8f5";
+const codeHighlightBorder = "#c4ddd5";
 
 function escapeHtml(value: string) {
   return value
@@ -88,7 +90,11 @@ function emailShell(content: string, preview = "StayPrimePH update") {
   `;
 }
 
-function simpleEmail(input: { headline: string; body: string; buttonText?: string; buttonUrl?: string }) {
+function highlightedEmailCode(value: string) {
+  return `<span style="display:inline-block;margin:0 2px;padding:2px 10px;border:1px solid ${codeHighlightBorder};border-radius:8px;background:${codeHighlightBackground};color:${brandColor};font-family:'Courier New',Courier,monospace;font-size:20px;line-height:26px;font-weight:800;letter-spacing:.12em;">${escapeHtml(value)}</span>`;
+}
+
+function simpleEmail(input: { headline: string; body: string; trustedBodyHtml?: string; buttonText?: string; buttonUrl?: string }) {
   const button = input.buttonText && input.buttonUrl
     ? `
       <tr>
@@ -103,7 +109,7 @@ function simpleEmail(input: { headline: string; body: string; buttonText?: strin
     <tr>
       <td style="padding:0 32px 24px;">
         <h1 style="margin:0 0 12px;font-size:34px;line-height:40px;font-weight:800;color:${textColor};">${escapeHtml(input.headline)}</h1>
-        <p style="margin:0;font-size:17px;line-height:27px;color:${textColor};">${escapeHtml(input.body)}</p>
+        <p style="margin:0;font-size:17px;line-height:27px;color:${textColor};">${input.trustedBodyHtml ?? escapeHtml(input.body)}</p>
       </td>
     </tr>
     ${button}
@@ -271,13 +277,15 @@ export async function sendWelcomeEmail(to: string, name: string) {
 
 export async function sendVerificationEmail(input: { to: string; name: string; token: string; code: string }) {
   const url = `${env.NEXT_PUBLIC_APP_URL}/verify-email/${encodeURIComponent(input.token)}`;
+  const body = `Hi ${input.name}, use code ${input.code} to verify your StayPrimePH account. This code expires in 1 hour. You can also use the verification button below.`;
   await sendEmail({
     to: input.to,
     subject: "Your StayPrimePH verification code",
     consent: { kind: "essential" },
     html: simpleEmail({
       headline: "Verify your email",
-      body: `Hi ${input.name}, use code ${input.code} to verify your StayPrimePH account. This code expires in 1 hour. You can also use the verification button below.`,
+      body,
+      trustedBodyHtml: `Hi ${escapeHtml(input.name)}, use code ${highlightedEmailCode(input.code)} to verify your StayPrimePH account. This code expires in 1 hour. You can also use the verification button below.`,
       buttonText: "Verify Email",
       buttonUrl: url,
     }),
@@ -302,13 +310,15 @@ export async function sendEmailChangeVerificationEmail(input: { to: string; name
 export async function sendPrivilegedMfaEmail(input: { to: string; name: string; code: string; role: "admin" | "host" }) {
   const roleLabel = input.role === "admin" ? "admin" : "host";
   const destination = input.role === "admin" ? "admin area" : "host dashboard";
+  const body = `Hi ${input.name}, use code ${input.code} to finish signing in to the StayPrimePH ${destination}. This code expires in 10 minutes. If this was not you, change your password immediately.`;
   await sendEmail({
     to: input.to,
     subject: `Your StayPrimePH ${roleLabel} sign-in code`,
     consent: { kind: "essential" },
     html: simpleEmail({
       headline: `${roleLabel[0].toUpperCase()}${roleLabel.slice(1)} sign-in code`,
-      body: `Hi ${input.name}, use code ${input.code} to finish signing in to the StayPrimePH ${destination}. This code expires in 10 minutes. If this was not you, change your password immediately.`,
+      body,
+      trustedBodyHtml: `Hi ${escapeHtml(input.name)}, use code ${highlightedEmailCode(input.code)} to finish signing in to the StayPrimePH ${escapeHtml(destination)}. This code expires in 10 minutes. If this was not you, change your password immediately.`,
     }),
   });
 }
