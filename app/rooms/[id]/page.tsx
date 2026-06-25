@@ -371,14 +371,14 @@ export default async function RoomPage({
                 light
               />
             </div>
-            <div className="mt-8 flex max-w-2xl flex-wrap gap-3">
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
               {property.amenities.map((amenity, index) => {
                 const Icon = amenityIcon(amenity);
                 const accent = index % 3 === 2;
                 return (
                   <div
                     key={amenity}
-                    className={`inline-flex min-w-[10.5rem] max-w-full items-center gap-3 rounded-2xl px-4 py-3.5 sm:min-w-[11.5rem] ${
+                    className={`flex min-h-14 items-center gap-3 rounded-2xl px-4 py-3.5 ${
                       accent ? "bg-[#c8f7bf] text-[#053f34]" : "bg-white/[0.06] text-white ring-1 ring-white/10"
                     }`}
                   >
