@@ -69,13 +69,13 @@ export function RoomAccessPreview({
   }
 
   return (
-    <div className="mt-6 grid gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
-      <div className="flex max-h-[25rem] flex-col overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#fbfaf7] p-4 sm:p-5">
+    <div className="mt-5 grid gap-4 sm:mt-6 sm:gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:items-stretch">
+      <div className="flex max-h-[20rem] flex-col overflow-hidden rounded-[1.25rem] border border-black/10 bg-[#fbfaf7] p-3.5 sm:max-h-[25rem] sm:rounded-[1.35rem] sm:p-5">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-xl font-semibold">Rooms</h3>
-          {rooms.length ? <span className="rounded-full bg-[#083f35]/10 px-3 py-1 text-sm font-semibold text-[#083f35]">{rooms.length} spaces</span> : null}
+          <h3 className="text-lg font-semibold sm:text-xl">Rooms</h3>
+          {rooms.length ? <span className="shrink-0 rounded-full bg-[#083f35]/10 px-2.5 py-1 text-xs font-semibold text-[#083f35] sm:px-3 sm:text-sm">{rooms.length} spaces</span> : null}
         </div>
-        <div data-testid="room-access-list" className="-mx-1 mt-3.5 grid min-h-0 gap-1.5 overflow-y-auto overscroll-contain px-1 py-1">
+        <div data-testid="room-access-list" className="-mx-1 mt-3 grid min-h-0 gap-2 overflow-y-auto overscroll-contain px-1 py-1 sm:mt-3.5 sm:gap-1.5">
           {rooms.length ? rooms.map((room) => {
             const active = activeRoom?.id === room.id;
             return (
@@ -84,22 +84,23 @@ export function RoomAccessPreview({
                 type="button"
                 onClick={() => selectRoom(room.id)}
                 aria-pressed={active}
-                className={`grid min-h-[3.7rem] grid-cols-[1fr_auto] items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35] ${
+                className={`grid min-h-[3.25rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-left ring-1 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35] sm:min-h-[3.7rem] sm:gap-3 sm:rounded-2xl sm:p-2.5 ${
                   active
                     ? "shadow-[0_14px_30px_rgb(8_63_53_/_0.10)] ring-[#083f35]/35"
                     : "ring-black/10 hover:-translate-y-0.5 hover:ring-[#083f35]/25"
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <span className="line-clamp-1 font-semibold">{room.name}</span>
-                    <span className="text-sm text-black/55">{room.floor}</span>
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="truncate font-semibold leading-tight">{room.name}</span>
+                    <span className="hidden shrink-0 text-xs text-black/55 min-[380px]:inline sm:text-sm">{room.floor}</span>
                   </span>
-                  <span className="mt-1 line-clamp-1 block text-sm leading-5 text-black/62">
+                  <span className="mt-0.5 block truncate text-xs text-black/55 min-[380px]:hidden">{room.floor}</span>
+                  <span className="mt-1 hidden line-clamp-1 text-sm leading-5 text-black/62 sm:block">
                     {[room.description, room.amenities.length ? room.amenities.join(", ") : "Access details set by host"].filter(Boolean).join(" - ")}
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-[#083f35]/10 px-2 py-0.5 text-xs font-semibold text-[#083f35]">{room.capacity} pax</span>
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-[#083f35]/10 px-2.5 py-1 text-[11px] font-semibold text-[#083f35] sm:px-2 sm:py-0.5 sm:text-xs">{room.capacity} pax</span>
               </button>
             );
           }) : (
@@ -108,7 +109,7 @@ export function RoomAccessPreview({
         </div>
       </div>
 
-      <div className="relative min-h-[25rem] overflow-hidden rounded-[1.35rem] border border-black/10 bg-[#11382f] text-white shadow-[0_14px_44px_rgb(0_0_0_/_0.08)] lg:h-full">
+      <div className="relative min-h-[21rem] overflow-hidden rounded-[1.25rem] border border-black/10 bg-[#11382f] text-white shadow-[0_14px_44px_rgb(0_0_0_/_0.08)] sm:min-h-[25rem] sm:rounded-[1.35rem] lg:h-full">
         {activeImage ? (
           <div
             key={activeImage}

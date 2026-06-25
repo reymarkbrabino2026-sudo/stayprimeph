@@ -236,7 +236,7 @@ export default async function RoomPage({
 
       <main>
         {/* Hero banner */}
-        <section className="relative min-h-[100svh] overflow-hidden bg-[#14120f] text-white sm:min-h-[84svh] md:min-h-screen">
+        <section className="relative h-[58svh] min-h-[24rem] overflow-hidden bg-[#14120f] text-white sm:h-[84svh] sm:min-h-0 md:h-screen">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/75" />
           <div className="pointer-events-none absolute inset-x-0 top-28 z-20 px-3 sm:top-36 sm:px-5 md:top-44">
@@ -244,7 +244,7 @@ export default async function RoomPage({
               <Breadcrumbs items={breadcrumbItems} tone="light" className="pointer-events-auto" />
             </div>
           </div>
-          <div className="relative z-10 flex min-h-[100svh] flex-col justify-end px-3 pb-[5.5rem] sm:min-h-[84svh] sm:px-5 sm:pb-44 md:min-h-screen md:pb-40">
+          <div className="relative z-10 flex h-full flex-col justify-end px-3 pb-[5.5rem] sm:px-5 sm:pb-44 md:pb-40">
             <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
               <p className="mb-2 inline-flex items-center gap-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:gap-2 sm:text-sm sm:tracking-[0.28em]">
                 <MapPin className="size-3 sm:size-[15px]" /> {locationLabel}
@@ -334,6 +334,7 @@ export default async function RoomPage({
                 eyebrow="Inside the listing"
                 title="Rooms and access"
                 body="A quick look at the rooms, guest capacity, and access included with this listing."
+                bodyClassName="hidden sm:block"
               />
               <RoomAccessPreview
                 rooms={activeRooms}
@@ -530,11 +531,13 @@ function SectionHeader({
   title,
   body,
   light,
+  bodyClassName,
 }: {
   eyebrow: string;
   title: string;
   body: string;
   light?: boolean;
+  bodyClassName?: string;
 }) {
   return (
     <div>
@@ -542,7 +545,7 @@ function SectionHeader({
         {eyebrow}
       </p>
       <h2 className="mt-3 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">{title}</h2>
-      <p className={`mt-3 max-w-2xl leading-7 ${light ? "text-white/65" : "text-black/62"}`}>{body}</p>
+      <p className={`mt-3 max-w-2xl leading-7 ${light ? "text-white/65" : "text-black/62"} ${bodyClassName ?? ""}`}>{body}</p>
     </div>
   );
 }
