@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Tag } from "lucide-react";
-import { Navbar } from "@/components/public/navbar";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { DeferredRealMap } from "@/components/search/deferred-real-map";
+import { SearchPageHeader } from "@/components/search/search-page-header";
 import { SearchFilters } from "@/components/search/search-filters";
 import { SearchResultCard } from "@/components/search/search-result-card";
 import { SearchResultsLayout } from "@/components/search/search-results-layout";
@@ -26,6 +26,31 @@ export const metadata: Metadata = {
 
 type LatLng = { lat: number; lng: number };
 const NEARBY_RADIUS_KM = 75;
+
+function parseQueryDate(value?: string) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatCompactDate(date: Date, includeYear = false) {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(includeYear ? { year: "numeric" as const } : {}),
+  });
+}
+
+function formatCompactStayDates(checkInValue?: string, checkOutValue?: string) {
+  const checkIn = parseQueryDate(checkInValue);
+  const checkOut = parseQueryDate(checkOutValue);
+  if (!checkIn) return "Any week";
+  if (!checkOut) return formatCompactDate(checkIn);
+  const sameMonth = checkIn.getFullYear() === checkOut.getFullYear() && checkIn.getMonth() === checkOut.getMonth();
+  if (sameMonth) return `${formatCompactDate(checkIn)} - ${checkOut.getDate()}`;
+  const includeYear = checkIn.getFullYear() !== checkOut.getFullYear();
+  return `${formatCompactDate(checkIn, includeYear)} - ${formatCompactDate(checkOut, includeYear)}`;
+}
 
 function distanceKm(from: LatLng, property: PublicListingSummary) {
   const coords = resolvePropertyCoordinates(property);
@@ -91,6 +116,11 @@ export default async function SearchPage({
     ? [...results].sort((a, b) => distanceKm(nearPoint, a) - distanceKm(nearPoint, b))
     : results;
   const resultsTitle = requestedNearby ? "Stays near you" : locationLabel ? `Stays in ${locationLabel}` : "Available stays";
+  const compactSearchSummary = {
+    location: locationLabel && !requestedNearby ? `Homes in ${locationLabel}` : "Homes in map area",
+    dates: formatCompactStayDates(query.checkIn, query.checkOut),
+    guests: requestedGuests > 0 ? `${requestedGuests} guest${requestedGuests === 1 ? "" : "s"}` : "Add guests",
+  };
   const homesWithinMapAreaLabel = results.length > 1000
     ? `Over ${results.length.toLocaleString("en-US")} homes within map area`
     : `${results.length.toLocaleString("en-US")} ${results.length === 1 ? "home" : "homes"} within map area`;
@@ -135,12 +165,20 @@ export default async function SearchPage({
 
   return (
     <div className="bg-white lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
-      <div className="hidden shrink-0 border-b lg:block">
-        <Navbar hideBottomNav />
-        <div className="mx-auto max-w-4xl px-4 pb-5 pt-6 sm:px-6">
-          <SearchBar />
-        </div>
-      </div>
+      <SearchPageHeader
+        summary={compactSearchSummary}
+        filters={{
+          types: availableTypes,
+          amenities: availableAmenities,
+          current: {
+            type: typeFilter,
+            minPrice: query.minPrice ?? "",
+            maxPrice: query.maxPrice ?? "",
+            beds: query.beds ?? "",
+            amenities: amenityFilter,
+          },
+        }}
+      />
       <PublicBottomNav />
 
       <SearchResultsLayout
@@ -148,6 +186,7 @@ export default async function SearchPage({
         title={resultsTitle}
         count={results.length}
         filters={filters}
+        showDesktopFilters={false}
         map={<DeferredRealMap properties={orderedResults} location={query.location} near={query.near} />}
         mobileSearch={<SearchBar variant="mobile" />}
         results={

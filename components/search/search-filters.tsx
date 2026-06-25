@@ -18,14 +18,15 @@ type SearchFiltersProps = {
     beds: string;
     amenities: string[];
   };
+  compact?: boolean;
 };
 
 const BED_OPTIONS = ["1", "2", "3", "4"];
 const FILTER_KEYS = ["type", "minPrice", "maxPrice", "beds", "amenities"];
 
-function Panel({ children }: { children: ReactNode }) {
+function Panel({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
   return (
-    <div className="absolute left-0 top-[calc(100%+8px)] z-[60] w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-black/10 bg-white p-4 shadow-[0_18px_50px_rgb(0_0_0_/_0.18)]">
+    <div className={`absolute top-[calc(100%+8px)] z-[60] w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-black/10 bg-white p-4 shadow-[0_18px_50px_rgb(0_0_0_/_0.18)] ${align === "right" ? "right-0" : "left-0"}`}>
       {children}
     </div>
   );
@@ -49,7 +50,7 @@ function sameAmenity(a: string, b: string) {
   return normalizeAmenityLabel(a) === normalizeAmenityLabel(b);
 }
 
-export function SearchFilters({ types, amenities, current }: SearchFiltersProps) {
+export function SearchFilters({ types, amenities, current, compact = false }: SearchFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -152,7 +153,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="no-scrollbar touch-scroll flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+      <div className={`no-scrollbar touch-scroll flex min-w-0 items-center gap-2 overflow-x-auto ${compact ? "" : "pb-1"}`}>
         <button type="button" onClick={toggleFiltersPanel} className={chip(activeCount > 0)}>
           <SlidersHorizontal size={16} />
           <span>Filters</span>
@@ -163,7 +164,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
           ) : null}
         </button>
 
-        {quickFilters.map((filter) => {
+        {!compact && quickFilters.map((filter) => {
           const active = current.amenities.some((amenity) => sameAmenity(amenity, filter.value));
           return (
             <button
@@ -177,7 +178,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
           );
         })}
 
-        {activeCount > 0 ? (
+        {!compact && activeCount > 0 ? (
           <button type="button" onClick={clearAll} className="min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold text-[#083f35] underline underline-offset-4">
             Clear all
           </button>
@@ -185,7 +186,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
       </div>
 
       {open ? (
-        <Panel>
+        <Panel align={compact ? "right" : "left"}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-base font-semibold">Filters</p>
