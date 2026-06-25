@@ -8,7 +8,9 @@ import { SearchFilters } from "@/components/search/search-filters";
 import { SearchResultCard } from "@/components/search/search-result-card";
 import { SearchResultsLayout } from "@/components/search/search-results-layout";
 import { getPublicListingSummaries } from "@/lib/properties";
-import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
+import { formatSearchLocationLabel, normalizePropertyLocationSearchQuery, propertyMatchesLocationSearch } from "@/lib/property-location";
+import { resolvePropertyCoordinates } from "@/lib/property-map";
+import type { PublicListingSummary } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export const revalidate = 60;
@@ -21,13 +23,16 @@ export const metadata: Metadata = {
 };
 
 type LatLng = { lat: number; lng: number };
+const NEARBY_RADIUS_KM = 75;
 
-function distanceKm(from: LatLng, property: { latitude?: number; longitude?: number }) {
-  if (!Number.isFinite(property.latitude) || !Number.isFinite(property.longitude)) return Number.POSITIVE_INFINITY;
+function distanceKm(from: LatLng, property: PublicListingSummary) {
+  const coords = resolvePropertyCoordinates(property);
+  if (!coords) return Number.POSITIVE_INFINITY;
+  const [lat, lng] = coords;
   const toRad = (value: number) => (value * Math.PI) / 180;
-  const dLat = toRad(property.latitude! - from.lat);
-  const dLng = toRad(property.longitude! - from.lng);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.lat)) * Math.cos(toRad(property.latitude!)) * Math.sin(dLng / 2) ** 2;
+  const dLat = toRad(lat - from.lat);
+  const dLng = toRad(lng - from.lng);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(a));
 }
 
@@ -46,6 +51,11 @@ export default async function SearchPage({
   const mapMetaLabel = [stayRange, requestedGuests > 0 ? `${requestedGuests} guest${requestedGuests === 1 ? "" : "s"}` : ""].filter(Boolean).join(" | ");
   const location = normalizePropertyLocationSearchQuery(query.location);
   const locationLabel = formatSearchLocationLabel(query.location);
+  const requestedNearby = location === "nearby" || Boolean(query.near);
+  const nearParts = (query.near ?? "").split(",").map(Number);
+  const nearPoint: LatLng | null = nearParts.length === 2 && nearParts.every(Number.isFinite)
+    ? { lat: nearParts[0], lng: nearParts[1] }
+    : null;
 
   const typeFilter = query.type ?? "";
   const minPrice = Number(query.minPrice ?? "");
@@ -55,15 +65,14 @@ export default async function SearchPage({
 
   const results = approved.filter((property) => {
     const matchesGuests = requestedGuests > 0 ? property.maxGuests >= requestedGuests : true;
-    const matchesLocation = location && location !== "search destinations" && location !== "nearby"
-      ? getPropertyLocationSearchText(property).includes(location)
-      : true;
+    const matchesLocation = requestedNearby ? true : propertyMatchesLocationSearch(property, query.location);
+    const matchesNearby = requestedNearby ? (nearPoint ? distanceKm(nearPoint, property) <= NEARBY_RADIUS_KM : false) : true;
     const matchesType = typeFilter ? property.propertyType === typeFilter : true;
     const matchesMin = minPrice > 0 ? property.pricePerNight >= minPrice : true;
     const matchesMax = maxPrice > 0 ? property.pricePerNight <= maxPrice : true;
     const matchesBeds = beds > 0 ? property.bedrooms >= beds : true;
     const matchesAmenities = amenityFilter.length ? amenityFilter.every((amenity) => property.amenities.includes(amenity)) : true;
-    return matchesGuests && matchesLocation && matchesType && matchesMin && matchesMax && matchesBeds && matchesAmenities;
+    return matchesGuests && matchesLocation && matchesNearby && matchesType && matchesMin && matchesMax && matchesBeds && matchesAmenities;
   });
 
   const typeLabels: Record<string, string> = {
@@ -76,14 +85,10 @@ export default async function SearchPage({
     .map((value) => ({ value, label: typeLabels[value] ?? value.charAt(0).toUpperCase() + value.slice(1) }));
   const availableAmenities = Array.from(new Set(approved.flatMap((property) => property.amenities))).sort();
 
-  const nearParts = (query.near ?? "").split(",").map(Number);
-  const nearPoint: LatLng | null = nearParts.length === 2 && nearParts.every(Number.isFinite)
-    ? { lat: nearParts[0], lng: nearParts[1] }
-    : null;
   const orderedResults = nearPoint
     ? [...results].sort((a, b) => distanceKm(nearPoint, a) - distanceKm(nearPoint, b))
     : results;
-  const resultsTitle = nearPoint ? "Stays near you" : locationLabel ? `Stays in ${locationLabel}` : "Available stays";
+  const resultsTitle = requestedNearby ? "Stays near you" : locationLabel ? `Stays in ${locationLabel}` : "Available stays";
   const filters = (
     <SearchFilters
       types={availableTypes}
@@ -134,7 +139,7 @@ export default async function SearchPage({
         title={resultsTitle}
         count={results.length}
         filters={filters}
-        map={<DeferredRealMap properties={orderedResults} location={query.location} />}
+        map={<DeferredRealMap properties={orderedResults} location={query.location} near={query.near} />}
         mobileSearch={<SearchBar variant="mobile" />}
         results={
           <>
@@ -169,10 +174,12 @@ export default async function SearchPage({
             {results.length === 0 ? (
               <div className="rounded-[1.5rem] border border-black/10 bg-[#fbf7f2] p-8 text-center sm:p-10">
                 <h2 className="text-xl font-semibold">
-                  {locationLabel ? `No stays in ${locationLabel} yet` : "No stays match your search yet"}
+                  {requestedNearby ? "No nearby stays yet" : locationLabel ? `No stays in ${locationLabel} yet` : "No stays match your search yet"}
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-black/55">
-                  {activeFilterLabels.length > 0
+                  {requestedNearby && !nearPoint
+                    ? "Allow location access and search Nearby again so we can find homes around your current area."
+                    : activeFilterLabels.length > 0
                     ? "Try widening the price, bedroom, or amenity filters. New homes are being added across the Philippines regularly."
                     : "New homes are being added across the Philippines regularly. Browse again soon or try a specific destination."}
                 </p>

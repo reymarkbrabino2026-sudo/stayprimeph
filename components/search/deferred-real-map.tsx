@@ -9,6 +9,7 @@ const desktopMediaQuery = "(min-width: 1024px)";
 type DeferredRealMapProps = {
   properties: PublicListingSummary[];
   location?: string;
+  near?: string;
   onPreviewOpenChange?: (open: boolean) => void;
 };
 
@@ -24,7 +25,7 @@ function MapPlaceholder() {
   );
 }
 
-export function DeferredRealMap({ properties, location, onPreviewOpenChange }: DeferredRealMapProps) {
+export function DeferredRealMap({ properties, location, near, onPreviewOpenChange }: DeferredRealMapProps) {
   const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const loadMap = useCallback(() => setShouldLoadMap(true), []);
 
@@ -78,7 +79,7 @@ export function DeferredRealMap({ properties, location, onPreviewOpenChange }: D
   }, [loadMap, shouldLoadMap]);
 
   if (shouldLoadMap) {
-    return <RealMap properties={properties} location={location} onPreviewOpenChange={onPreviewOpenChange} />;
+    return <RealMap properties={properties} location={location} near={near} onPreviewOpenChange={onPreviewOpenChange} />;
   }
 
   return (

@@ -17,6 +17,7 @@ import styles from "./real-map.module.css";
 type RealMapProps = {
   properties: PublicListingSummary[];
   location?: string;
+  near?: string;
   onPreviewOpenChange?: (open: boolean) => void;
 };
 
@@ -33,14 +34,21 @@ function normalizeLocation(location?: string) {
   return normalizePropertyLocationSearchQuery(location);
 }
 
-function getDestinationMarker(location: string | undefined, markers: Array<{ coords: [number, number] }>) {
+function parseNearCoordinates(near?: string) {
+  const parts = (near ?? "").split(",").map(Number);
+  if (parts.length !== 2 || !parts.every(Number.isFinite)) return null;
+  return parts as [number, number];
+}
+
+function getDestinationMarker(location: string | undefined, near: string | undefined, markers: Array<{ coords: [number, number] }>) {
   const normalized = normalizeLocation(location);
   if (!normalized || normalized === "search destinations") return null;
+  const nearCoords = normalized === "nearby" ? parseNearCoordinates(near) : null;
   const coords = resolveLocationCoordinates(location) ?? averageCoordinates(markers);
-  if (!coords) return null;
+  if (!nearCoords && !coords) return null;
   return {
-    title: formatSearchLocationLabel(location) || normalized,
-    coords,
+    title: nearCoords ? "Nearby" : formatSearchLocationLabel(location) || normalized,
+    coords: nearCoords ?? coords!,
   };
 }
 
@@ -53,11 +61,11 @@ function ratingLabel(rating: number) {
   return Number.isInteger(rating) ? String(rating) : rating.toFixed(2).replace(/0$/, "");
 }
 
-export function RealMap({ properties, location, onPreviewOpenChange }: RealMapProps) {
+export function RealMap({ properties, location, near, onPreviewOpenChange }: RealMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
   const markers = useMemo(() => getListingMarkers(properties), [properties]);
-  const destinationMarker = useMemo(() => getDestinationMarker(location, markers), [location, markers]);
+  const destinationMarker = useMemo(() => getDestinationMarker(location, near, markers), [location, near, markers]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedProperty = useMemo(
     () => properties.find((property) => property.id === selectedId) ?? null,
