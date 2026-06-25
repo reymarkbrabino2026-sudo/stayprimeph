@@ -662,15 +662,17 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                 </section>
               ))}
             </div>
-            <div className="mt-6 flex justify-center pb-4 sm:justify-end">
-              <button
-                type="button"
-                onClick={addRoom}
-                className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28]"
-              >
-                <Plus size={16} /> Add room
-              </button>
-            </div>
+            {draft.rooms.length ? (
+              <div className="mt-6 flex justify-center pb-4 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={addRoom}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28]"
+                >
+                  <Plus size={16} /> Add room
+                </button>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
