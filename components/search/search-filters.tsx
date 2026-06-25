@@ -103,7 +103,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
           {current.type ? types.find((t) => t.value === current.type)?.label ?? "Type" : "Type of place"}
         </button>
         <button type="button" onClick={() => setOpen(open === "price" ? null : "price")} className={chip(hasPrice)}>
-          Price{hasPrice ? " ✓" : ""}
+          {hasPrice ? "Price set" : "Price"}
         </button>
         <button type="button" onClick={() => setOpen(open === "beds" ? null : "beds")} className={chip(Boolean(current.beds))}>
           {current.beds ? `${current.beds}+ beds` : "Rooms & beds"}
@@ -136,7 +136,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
 
       {open === "price" ? (
         <Panel>
-          <p className="mb-3 text-sm font-semibold">Price per night (₱)</p>
+          <p className="mb-3 text-sm font-semibold">Price per night (PHP)</p>
           <div className="flex items-center gap-3">
             <input
               inputMode="numeric"
@@ -146,7 +146,7 @@ export function SearchFilters({ types, amenities, current }: SearchFiltersProps)
               aria-label="Minimum price"
               className="w-28 rounded-xl border border-black/15 px-3 py-2 text-sm outline-none focus:border-[#083f35]"
             />
-            <span className="text-black/40">–</span>
+            <span className="text-black/40">-</span>
             <input
               inputMode="numeric"
               value={maxPrice}

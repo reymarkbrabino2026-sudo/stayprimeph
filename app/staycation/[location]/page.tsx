@@ -91,11 +91,22 @@ export default async function StaycationLocationPage({ params }: { params: Promi
         </header>
 
         <section className="mt-10">
-          <h2 className="text-xl font-semibold sm:text-2xl">
-            {listings.length > 0 ? `${listings.length} stay${listings.length === 1 ? "" : "s"} in ${location.name}` : `Stays in ${location.name}`}
-          </h2>
+          <div className="flex flex-col gap-4 border-b border-black/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-black/55">{location.region}</p>
+              <h2 className="mt-1 text-xl font-semibold sm:text-2xl">
+                {listings.length > 0 ? `${listings.length} stay${listings.length === 1 ? "" : "s"} in ${location.name}` : `Stays in ${location.name}`}
+              </h2>
+            </div>
+            <Link
+              href={`/search?location=${encodeURIComponent(location.name)}`}
+              className="inline-flex min-h-10 w-fit items-center rounded-full border border-black/10 px-4 text-sm font-semibold transition hover:border-black/30 hover:bg-black/[0.03]"
+            >
+              Search this area
+            </Link>
+          </div>
           {listings.length > 0 ? (
-            <div className="mt-5 grid gap-x-4 gap-y-9 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="mt-6 grid gap-x-5 gap-y-9 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {listings.map((property, index) => (
                 <SearchResultCard key={property.id} property={property} isAuthenticated={false} priority={index === 0} />
               ))}
@@ -106,9 +117,14 @@ export default async function StaycationLocationPage({ params }: { params: Promi
                 title={`New ${location.name} stays coming soon`}
                 body={`Hosts are publishing homes in ${location.name} now. Check back soon, or explore stays across the Philippines.`}
               />
-              <Link href="/search" className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
-                Browse all stays
-              </Link>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <Link href="/search" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
+                  Browse all stays
+                </Link>
+                <Link href="/register?role=host" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/10 px-6 font-semibold transition hover:border-black/30 hover:bg-black/[0.03]">
+                  Become a host
+                </Link>
+              </div>
             </div>
           )}
         </section>
@@ -116,7 +132,7 @@ export default async function StaycationLocationPage({ params }: { params: Promi
         <section className="mt-16 rounded-[1.75rem] border border-black/10 bg-[#fbf7f2] p-6 sm:p-8">
           <h2 className="text-xl font-semibold sm:text-2xl">Have a property in {location.name}?</h2>
           <p className="mt-2 max-w-2xl text-black/65">
-            List your condo, house, or private resort on StayPrime and earn from short-term rentals — a simple, direct-booking
+            List your condo, house, or private resort on StayPrime and earn from short-term rentals - a simple, direct-booking
             alternative for hosts in {location.name}.
           </p>
           <Link href="/register?role=host" className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-6 font-semibold text-white transition hover:bg-black/85">

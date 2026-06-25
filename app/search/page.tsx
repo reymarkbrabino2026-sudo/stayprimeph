@@ -9,6 +9,7 @@ import { SearchResultCard } from "@/components/search/search-result-card";
 import { SearchResultsLayout } from "@/components/search/search-results-layout";
 import { getPublicListingSummaries } from "@/lib/properties";
 import { formatSearchLocationLabel, getPropertyLocationSearchText, normalizePropertyLocationSearchQuery } from "@/lib/property-location";
+import { formatCurrency } from "@/lib/utils";
 
 export const revalidate = 60;
 
@@ -40,9 +41,9 @@ export default async function SearchPage({
   const requestedGuests = Number(query.guests ?? 0);
 
   const stayRange = query.checkIn && query.checkOut
-    ? `${new Date(`${query.checkIn}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(`${query.checkOut}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+    ? `${new Date(`${query.checkIn}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(`${query.checkOut}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
     : "";
-  const mapMetaLabel = [stayRange, requestedGuests > 0 ? `${requestedGuests} guest${requestedGuests === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+  const mapMetaLabel = [stayRange, requestedGuests > 0 ? `${requestedGuests} guest${requestedGuests === 1 ? "" : "s"}` : ""].filter(Boolean).join(" | ");
   const location = normalizePropertyLocationSearchQuery(query.location);
   const locationLabel = formatSearchLocationLabel(query.location);
 
@@ -96,6 +97,27 @@ export default async function SearchPage({
       }}
     />
   );
+  const selectedTypeLabel = typeFilter ? availableTypes.find((type) => type.value === typeFilter)?.label ?? typeFilter : "";
+  const priceFilterLabel =
+    minPrice > 0 && maxPrice > 0
+      ? `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`
+      : minPrice > 0
+        ? `From ${formatCurrency(minPrice)}`
+        : maxPrice > 0
+          ? `Up to ${formatCurrency(maxPrice)}`
+          : "";
+  const activeFilterLabels = [
+    selectedTypeLabel,
+    priceFilterLabel,
+    beds > 0 ? `${beds}+ bedrooms` : "",
+    amenityFilter.length ? `${amenityFilter.length} amenity${amenityFilter.length === 1 ? "" : "ies"}` : "",
+  ].filter(Boolean);
+  const clearFilterParams = new URLSearchParams();
+  for (const key of ["location", "guests", "checkIn", "checkOut", "near"] as const) {
+    const value = query[key];
+    if (value) clearFilterParams.set(key, value);
+  }
+  const clearFiltersHref = `/search${clearFilterParams.toString() ? `?${clearFilterParams.toString()}` : ""}`;
 
   return (
     <div className="bg-white">
@@ -116,25 +138,60 @@ export default async function SearchPage({
         mobileSearch={<SearchBar variant="mobile" />}
         results={
           <>
-            <div className="py-6">
-              <p className="text-sm text-black/55">{results.length} places available</p>
-              <h1 className="mt-1 text-2xl font-semibold">{resultsTitle}</h1>
+            <div className="py-6 lg:py-7">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-black/55">
+                    {results.length} {results.length === 1 ? "place" : "places"} available{mapMetaLabel ? ` | ${mapMetaLabel}` : ""}
+                  </p>
+                  <h1 className="mt-1 text-2xl font-semibold tracking-[-0.01em]">{resultsTitle}</h1>
+                </div>
+                {activeFilterLabels.length > 0 ? (
+                  <Link
+                    href={clearFiltersHref}
+                    className="inline-flex min-h-10 w-fit items-center justify-center rounded-full border border-black/10 px-4 text-sm font-semibold transition hover:border-black/30 hover:bg-black/[0.03]"
+                  >
+                    Clear filters
+                  </Link>
+                ) : null}
+              </div>
+              {activeFilterLabels.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {activeFilterLabels.map((label) => (
+                    <span key={label} className="rounded-full bg-[#eef4ef] px-3 py-1 text-sm font-medium text-[#083f35]">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {results.length === 0 ? (
-              <div className="rounded-[2rem] border border-black/10 bg-[#fbf7f2] p-10 text-center">
+              <div className="rounded-[1.5rem] border border-black/10 bg-[#fbf7f2] p-8 text-center sm:p-10">
                 <h2 className="text-xl font-semibold">
                   {locationLabel ? `No stays in ${locationLabel} yet` : "No stays match your search yet"}
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-black/55">
-                  We&apos;re adding new homes across the Philippines all the time. Try a nearby city, or browse everything available right now.
+                  {activeFilterLabels.length > 0
+                    ? "Try widening the price, bedroom, or amenity filters. New homes are being added across the Philippines regularly."
+                    : "New homes are being added across the Philippines regularly. Browse again soon or try a specific destination."}
                 </p>
-                <Link
-                  href="/search"
-                  className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#083f35] px-6 text-sm font-semibold text-white transition hover:bg-[#062f28]"
-                >
-                  Browse all stays
-                </Link>
+                <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  {activeFilterLabels.length > 0 ? (
+                    <Link
+                      href={clearFiltersHref}
+                      className="inline-flex min-h-11 items-center rounded-full bg-[#083f35] px-6 text-sm font-semibold text-white transition hover:bg-[#062f28]"
+                    >
+                      Clear filters
+                    </Link>
+                  ) : null}
+                  <Link
+                    href="/search"
+                    className="inline-flex min-h-11 items-center rounded-full border border-black/10 px-6 text-sm font-semibold transition hover:border-black/30 hover:bg-white"
+                  >
+                    Browse all stays
+                  </Link>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-x-6 gap-y-8 xl:grid-cols-2">
