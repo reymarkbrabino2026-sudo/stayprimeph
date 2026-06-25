@@ -101,7 +101,7 @@ export default async function SearchPage({
     <div className="bg-white">
       <div className="hidden border-b lg:block">
         <Navbar hideBottomNav />
-        <div className="mx-auto max-w-4xl px-4 pb-5 pt-4 sm:px-6 md:pt-0">
+        <div className="mx-auto max-w-4xl px-4 pb-5 pt-6 sm:px-6">
           <SearchBar />
         </div>
       </div>
