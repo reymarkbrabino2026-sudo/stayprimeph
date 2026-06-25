@@ -1,0 +1,1 @@
+ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "privacyType" TEXT NOT NULL DEFAULT 'entire';

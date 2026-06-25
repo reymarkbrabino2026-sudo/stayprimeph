@@ -51,6 +51,7 @@ model Property {
   bathrooms       Int
   maxGuests       Int
   propertyType    String
+  privacyType     String                  @default("entire")
   status          String                  @default("pending")
   rating          Float                   @default(0)
   rules           String

@@ -95,6 +95,9 @@ export const hostListingSchema = z.object({
 }).refine((value) => value.pricingMode === "simple" || value.bookingPackages.some((item) => item.enabled && item.status !== "inactive"), {
   message: "Add at least one enabled booking package.",
   path: ["bookingPackages"],
+}).refine((value) => value.privacyType === "entire" || (value.bookingType === "stay" && value.pricingMode === "simple"), {
+  message: "Booking packages are only available for entire-place listings.",
+  path: ["privacyType"],
 }).refine((value) => value.bookingType !== "package" || value.pricingMode === "packages", {
   message: "Package-only listings need booking packages.",
   path: ["pricingMode"],

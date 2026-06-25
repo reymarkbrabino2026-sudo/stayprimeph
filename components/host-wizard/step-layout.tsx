@@ -4,13 +4,16 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { canAdvanceFromStep } from "@/lib/host-wizard-validation";
-import { hostWizardSteps } from "@/lib/host-wizard-data";
+import { activeHostWizardSteps } from "@/lib/host-wizard-steps";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 import type { ReactNode } from "react";
+import type { WizardStepDefinition } from "@/lib/host-wizard-types";
 
 export function StepLayout({ children, onSaveAndExit, isSavingDraft = false }: { children: ReactNode; onSaveAndExit?: () => void; isSavingDraft?: boolean }) {
   const currentStep = useHostWizardStore((state) => state.currentStep);
-  const currentIndex = Math.max(0, hostWizardSteps.findIndex((step) => step.id === currentStep));
+  const draft = useHostWizardStore((state) => state.draft);
+  const steps = activeHostWizardSteps(draft);
+  const currentIndex = Math.max(0, steps.findIndex((step) => step.id === currentStep));
 
   return (
     <main className="flex min-h-dvh flex-col bg-white text-[#222]">
@@ -18,7 +21,7 @@ export function StepLayout({ children, onSaveAndExit, isSavingDraft = false }: {
       <div className="flex-1 px-4 pb-28 pt-6 sm:px-8 lg:px-12 lg:pb-32 lg:pt-10">
         <div className="mx-auto max-w-6xl">{children}</div>
       </div>
-      <StepFooter currentIndex={currentIndex} />
+      <StepFooter currentIndex={currentIndex} steps={steps} />
     </main>
   );
 }
@@ -47,15 +50,15 @@ export function StepHeader({ onSaveAndExit, isSavingDraft = false }: { onSaveAnd
   );
 }
 
-export function StepFooter({ currentIndex }: { currentIndex: number }) {
+export function StepFooter({ currentIndex, steps }: { currentIndex: number; steps: WizardStepDefinition[] }) {
   const { currentStep, draft, setStep } = useHostWizardStore();
-  const prev = hostWizardSteps[currentIndex - 1];
-  const next = hostWizardSteps[currentIndex + 1];
+  const prev = steps[currentIndex - 1];
+  const next = steps[currentIndex + 1];
   const canContinue = canAdvanceFromStep(currentStep, draft);
 
   return (
     <footer className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 backdrop-blur">
-      <ProgressBar currentIndex={currentIndex} />
+      <ProgressBar currentIndex={currentIndex} steps={steps} />
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-8 lg:px-12">
         <button type="button" disabled={!prev} onClick={() => prev && setStep(prev.id)} className="min-h-12 rounded-2xl px-4 font-semibold disabled:opacity-30">
           Back
@@ -70,10 +73,10 @@ export function StepFooter({ currentIndex }: { currentIndex: number }) {
   );
 }
 
-export function ProgressBar({ currentIndex }: { currentIndex: number }) {
+export function ProgressBar({ currentIndex, steps }: { currentIndex: number; steps: WizardStepDefinition[] }) {
   return (
-    <div className="grid gap-1 px-0" style={{ gridTemplateColumns: `repeat(${hostWizardSteps.length}, minmax(0, 1fr))` }}>
-      {hostWizardSteps.map((step, index) => (
+    <div className="grid gap-1 px-0" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+      {steps.map((step, index) => (
         <span key={step.id} className={`h-1.5 ${index <= currentIndex ? "bg-[#222]" : "bg-black/10"}`} />
       ))}
     </div>

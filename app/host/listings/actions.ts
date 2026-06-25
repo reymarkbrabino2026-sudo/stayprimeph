@@ -261,11 +261,21 @@ function readSubmittedImages(formData: FormData, existing: Property, userId: str
   }));
 }
 
-function enabledBookingPackages(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages">) {
-  return input.bookingType !== "stay" && input.pricingMode === "packages" ? input.bookingPackages.filter((item) => item.enabled && item.status !== "inactive") : [];
+function isEntirePlaceListingInput(input: Pick<HostListingInput, "privacyType"> | Pick<HostListingDraftSaveInput, "privacyType">) {
+  return input.privacyType === "entire";
 }
 
-function propertyScopedRooms(input: Pick<HostListingInput, "rooms"> | Pick<HostListingDraftSaveInput, "rooms">, propertyId: string) {
+function enabledBookingPackages(input: Pick<HostListingInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages">) {
+  return isEntirePlaceListingInput(input) && input.bookingType !== "stay" && input.pricingMode === "packages" ? input.bookingPackages.filter((item) => item.enabled && item.status !== "inactive") : [];
+}
+
+function listingBookingTypeForStorage(input: Pick<HostListingInput, "privacyType" | "bookingType"> | Pick<HostListingDraftSaveInput, "privacyType" | "bookingType">) {
+  return isEntirePlaceListingInput(input) ? input.bookingType : "stay";
+}
+
+function propertyScopedRooms(input: Pick<HostListingInput, "privacyType" | "rooms"> | Pick<HostListingDraftSaveInput, "privacyType" | "rooms">, propertyId: string) {
+  if (!isEntirePlaceListingInput(input)) return [];
+
   return input.rooms
     .filter((room) => room.active && room.name.trim())
     .map((room) => ({
@@ -314,7 +324,7 @@ function validSeasonalRates(rates: Array<{ id?: string; name: string; startDate:
     }));
 }
 
-function propertyScopedBookingPackages(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages">, propertyId: string) {
+function propertyScopedBookingPackages(input: Pick<HostListingInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages"> | Pick<HostListingDraftSaveInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages">, propertyId: string) {
   return enabledBookingPackages(input).map((item, index) => ({
     ...item,
     id: scopedPackageId(propertyId, item.id),
@@ -326,12 +336,12 @@ function propertyScopedBookingPackages(input: Pick<HostListingInput, "bookingTyp
   }));
 }
 
-function minimumPackageWeekdayRate(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages" | "basePrice"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages" | "basePrice">) {
+function minimumPackageWeekdayRate(input: Pick<HostListingInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages" | "basePrice"> | Pick<HostListingDraftSaveInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages" | "basePrice">) {
   const packages = enabledBookingPackages(input);
   return packages.length ? Math.min(...packages.map((item) => item.weekdayRate)) : input.basePrice;
 }
 
-function minimumPackageWeekendRate(input: Pick<HostListingInput, "bookingType" | "pricingMode" | "bookingPackages" | "weekendPrice"> | Pick<HostListingDraftSaveInput, "bookingType" | "pricingMode" | "bookingPackages" | "weekendPrice">) {
+function minimumPackageWeekendRate(input: Pick<HostListingInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages" | "weekendPrice"> | Pick<HostListingDraftSaveInput, "privacyType" | "bookingType" | "pricingMode" | "bookingPackages" | "weekendPrice">) {
   const packages = enabledBookingPackages(input);
   if (!packages.length) return input.weekendPrice;
   return Math.min(...packages.map((item) => item.weekendRate > 0 ? item.weekendRate : item.weekdayRate));
@@ -371,7 +381,7 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
     latitude: listing.latitude,
     longitude: listing.longitude,
     preciseLocation: listing.preciseLocation,
-    bookingType: listing.bookingType,
+    bookingType: listingBookingTypeForStorage(listing),
     pricePerNight: minimumPackageWeekdayRate(listing),
     weekendPrice: minimumPackageWeekendRate(listing),
     holidayPrice: listing.holidayPrice,
@@ -384,6 +394,7 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
     bathrooms: listing.bathrooms,
     maxGuests: bookingPackages.length ? Math.max(...bookingPackages.map((item) => item.maxGuests)) : listing.guests,
     propertyType: draftText(listing.propertyType, "Property"),
+    privacyType: listing.privacyType || "entire",
     status: "draft",
     rating: 0,
     amenities: toAmenityLabels(listing.amenityIds),
@@ -478,6 +489,7 @@ export async function createListing(formData: FormData) {
     bathrooms,
     maxGuests,
     propertyType,
+    privacyType: "entire",
     status: "pending",
     rating: 0,
     amenities,
@@ -619,13 +631,14 @@ export async function saveWizardListingDraft(input: unknown, csrfToken?: string)
     uploadScopeId: parsed.data.uploadScopeId || `draft-${randomUUID()}`,
     status: "draft" as const,
   };
-  const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...roomPhotoUrls(listing)];
+  const scopedRoomPhotoUrls = isEntirePlaceListingInput(listing) ? roomPhotoUrls(listing) : [];
+  const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...scopedRoomPhotoUrls];
   if (!allUploadedListingPhotoUrlsBelongToScope(uploadedUrls, user.id, listing.uploadScopeId)) {
     logger.warn("wizard_draft_photo_scope_failed", {
       userId: user.id,
       uploadScopeId: listing.uploadScopeId,
       photoCount: listing.photos.length,
-      roomPhotoCount: roomPhotoUrls(listing).length,
+      roomPhotoCount: scopedRoomPhotoUrls.length,
     });
     throw new Error("Listing photos must be uploaded through StayPrimePH before saving.");
   }
@@ -668,7 +681,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     return { status: "error" as const, error: "Please confirm the map pin for the current listing address before publishing." };
   }
 
-  const roomPhotos = roomPhotoUrls(listing);
+  const roomPhotos = isEntirePlaceListingInput(listing) ? roomPhotoUrls(listing) : [];
   const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...roomPhotos];
   if (!allUploadedListingPhotoUrlsBelongToScope(uploadedUrls, user.id, listing.uploadScopeId)) {
     logger.warn("wizard_publish_photo_scope_failed", {
@@ -699,7 +712,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     latitude: listing.latitude,
     longitude: listing.longitude,
     preciseLocation: listing.preciseLocation,
-    bookingType: listing.bookingType,
+    bookingType: listingBookingTypeForStorage(listing),
     pricePerNight: minimumPackageWeekdayRate(listing),
     weekendPrice: minimumPackageWeekendRate(listing),
     holidayPrice: listing.holidayPrice,
@@ -712,6 +725,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     bathrooms: listing.bathrooms,
     maxGuests: bookingPackages.length ? Math.max(...bookingPackages.map((item) => item.maxGuests)) : listing.guests,
     propertyType: listing.propertyType,
+    privacyType: listing.privacyType,
     status: "pending",
     rating: 0,
     amenities: toAmenityLabels(listing.amenityIds),

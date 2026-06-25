@@ -1,7 +1,6 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { appendAdminLogInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import type { AdminLog } from "@/lib/types";
@@ -16,8 +15,6 @@ type AdminLogInput = {
 const storeFileName = "admin-logs.json";
 
 export async function appendAdminLog(input: AdminLogInput) {
-  await enforceDataRetentionOncePerDay();
-
   const adminLog: AdminLog = {
     id: randomUUID(),
     adminId: input.adminId,

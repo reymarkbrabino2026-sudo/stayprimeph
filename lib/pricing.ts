@@ -157,7 +157,13 @@ export function calculateNightlySubtotal(rates: NightlyRates, checkIn: string, c
   return { nights, weekdayNights, weekendNights, subtotal };
 }
 
-export function getEnabledBookingPackages(property: Pick<Property, "bookingPackages">) {
+export function isEntirePlaceListing(property: Pick<Property, "privacyType">) {
+  return !property.privacyType || property.privacyType === "entire";
+}
+
+export function getEnabledBookingPackages(property: Pick<Property, "bookingPackages" | "privacyType">) {
+  if (!isEntirePlaceListing(property)) return [];
+
   return (property.bookingPackages ?? [])
     .filter((item) => item.enabled && item.status !== "inactive")
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || a.name.localeCompare(b.name));
@@ -171,16 +177,16 @@ export function allowsStayBooking(property: Pick<Property, "bookingType">) {
   return getListingBookingType(property) !== "package";
 }
 
-export function allowsPackageBooking(property: Pick<Property, "bookingType" | "bookingPackages">) {
+export function allowsPackageBooking(property: Pick<Property, "bookingType" | "bookingPackages" | "privacyType">) {
   return getListingBookingType(property) !== "stay" && getEnabledBookingPackages(property).length > 0;
 }
 
-export function findBookingPackageById(property: Pick<Property, "bookingPackages">, packageId?: string | null) {
+export function findBookingPackageById(property: Pick<Property, "bookingPackages" | "privacyType">, packageId?: string | null) {
   if (!packageId) return null;
   return getEnabledBookingPackages(property).find((item) => item.id === packageId) ?? null;
 }
 
-export function getBookingPackageById(property: Pick<Property, "bookingPackages">, packageId?: string | null) {
+export function getBookingPackageById(property: Pick<Property, "bookingPackages" | "privacyType">, packageId?: string | null) {
   const packages = getEnabledBookingPackages(property);
   if (!packages.length) return null;
   return packages.find((item) => item.id === packageId) ?? packages[0];

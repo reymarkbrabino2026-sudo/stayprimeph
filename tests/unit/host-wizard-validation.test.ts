@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hostListingAddressSchema } from "@/lib/host-wizard-schema";
+import { activeHostWizardSteps } from "@/lib/host-wizard-steps";
 import { canAdvanceFromStep } from "@/lib/host-wizard-validation";
 import type { HostListingDraft } from "@/lib/host-wizard-types";
 
@@ -87,5 +88,23 @@ describe("host wizard location validation", () => {
   it("requires a valid virtual tour URL when one is entered", () => {
     expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "not a link" }))).toBe(false);
     expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "https://my.matterport.com/show/?m=abc123" }))).toBe(true);
+  });
+
+  it("only applies room and package access steps to entire-place listings", () => {
+    const privateRoomDraft = draft({
+      privacyType: "private",
+      bookingType: "package",
+      pricingMode: "packages",
+      rooms: [{ id: "room-1", name: "", capacity: 0, floor: "", description: "", photos: [], amenities: [], active: true }],
+      bookingPackages: [],
+    });
+
+    expect(activeHostWizardSteps(privateRoomDraft).map((step) => step.id)).not.toContain("rooms");
+    expect(activeHostWizardSteps(privateRoomDraft).map((step) => step.id)).not.toContain("booking-packages");
+    expect(canAdvanceFromStep("rooms", privateRoomDraft)).toBe(true);
+    expect(canAdvanceFromStep("booking-packages", privateRoomDraft)).toBe(true);
+
+    expect(activeHostWizardSteps(draft()).map((step) => step.id)).toContain("rooms");
+    expect(activeHostWizardSteps(draft()).map((step) => step.id)).toContain("booking-packages");
   });
 });

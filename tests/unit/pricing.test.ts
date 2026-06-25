@@ -7,6 +7,8 @@ import {
   calculateStayprimeMarkupFromTotal,
   calculatePackageSubtotal,
   getBestDiscount,
+  allowsPackageBooking,
+  getEnabledBookingPackages,
   STAYPRIME_MARKUP_RATE,
 } from "@/lib/pricing";
 import type { Booking, Property } from "@/lib/types";
@@ -143,5 +145,36 @@ describe("calculatePackageSubtotal", () => {
       extraGuestFee: 5000,
       subtotal: 83000,
     });
+  });
+});
+
+describe("listing privacy package access", () => {
+  const packageListing = {
+    ...property,
+    bookingType: "package" as const,
+    bookingPackages: [{
+      id: "daytime-ground-outdoor",
+      name: "Daytime Ground Floor & Outdoor",
+      accessType: "Ground floor and outdoor area only",
+      unit: "day" as const,
+      weekdayRate: 8000,
+      weekendRate: 0,
+      includedGuests: 10,
+      maxGuests: 12,
+      additionalGuestFee: 500,
+      extensionHourlyFee: 1000,
+      checkInTime: "2:00 PM",
+      checkOutTime: "10:00 PM",
+      enabled: true,
+    }],
+  } satisfies Property;
+
+  it("only exposes enabled booking packages for entire-place listings", () => {
+    expect(allowsPackageBooking({ ...packageListing, privacyType: "private" })).toBe(false);
+    expect(getEnabledBookingPackages({ ...packageListing, privacyType: "shared" })).toEqual([]);
+
+    expect(allowsPackageBooking(packageListing)).toBe(true);
+    expect(allowsPackageBooking({ ...packageListing, privacyType: "entire" })).toBe(true);
+    expect(getEnabledBookingPackages({ ...packageListing, privacyType: "entire" })).toHaveLength(1);
   });
 });

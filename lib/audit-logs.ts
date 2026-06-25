@@ -2,7 +2,6 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { readStoredAuditLogs, writeStoredAuditLogs } from "@/lib/audit-log-store";
-import { enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { appendAuditLogInDatabase, listAuditLogsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import type { AuditLog, AuditLogAction } from "@/lib/types";
 
@@ -16,8 +15,6 @@ type AuditInput = {
 };
 
 export async function appendAuditLog(input: AuditInput) {
-  await enforceDataRetentionOncePerDay();
-
   const auditLog: AuditLog = {
     id: randomUUID(),
     actorId: input.actorId,
@@ -40,8 +37,6 @@ export async function appendAuditLog(input: AuditInput) {
 }
 
 export async function getAuditLogs(limit = 50) {
-  await enforceDataRetentionOncePerDay();
-
   if (usesPrismaPersistence()) return listAuditLogsFromDatabase(limit);
   const logs = await readStoredAuditLogs();
   return logs

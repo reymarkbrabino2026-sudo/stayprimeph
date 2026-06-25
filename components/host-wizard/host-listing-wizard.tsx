@@ -21,7 +21,8 @@ import { StepLayout, StepTransition } from "@/components/host-wizard/step-layout
 import { amenityGroups, highlightOptions, hostWizardSteps, privacyTypes, propertyTypes } from "@/lib/host-wizard-data";
 import { syncedBookingPackagesForPricing } from "@/lib/host-wizard-pricing";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
-import type { HostBookingPackageDraft, HostPropertyRoomDraft, HostSeasonalRateDraft } from "@/lib/host-wizard-types";
+import { findAdjacentApplicableHostWizardStep, hostWizardStepAppliesToDraft, isEntirePlacePrivacyType } from "@/lib/host-wizard-steps";
+import type { HostBookingPackageDraft, HostListingDraft, HostPropertyRoomDraft, HostSeasonalRateDraft } from "@/lib/host-wizard-types";
 import { isValidVirtualTourUrl } from "@/lib/virtual-tour";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
@@ -196,8 +197,14 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   useEffect(() => {
     if (!hostWizardSteps.some((item) => item.id === currentStep)) {
       setStep("address");
+      return;
     }
-  }, [currentStep, setStep]);
+
+    if (!hostWizardStepAppliesToDraft(currentStep, draft)) {
+      const adjacentStep = findAdjacentApplicableHostWizardStep(currentStep, draft, 1) ?? findAdjacentApplicableHostWizardStep(currentStep, draft, -1);
+      setStep(adjacentStep?.id ?? "address");
+    }
+  }, [currentStep, draft, setStep]);
 
   const addressForm = useForm<AddressValues>({
     resolver: zodResolver(addressSchema),
@@ -216,10 +223,17 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const selectedAmenityLabels = useMemo(() => draft.amenityIds.map((id) => amenityLabelById.get(id) ?? id), [draft.amenityIds]);
   const activeRooms = useMemo(() => draft.rooms.filter((room) => room.active), [draft.rooms]);
   const virtualTourUrlValid = isValidVirtualTourUrl(draft.virtualTourUrl);
+  const wholePlaceAccessEnabled = isEntirePlacePrivacyType(draft.privacyType);
   const availableFloors = useMemo(
     () => Array.from(new Set(draft.rooms.map((room) => room.floor.trim()).filter(Boolean))),
     [draft.rooms],
   );
+
+  useEffect(() => {
+    if (!initialized || !draft.privacyType || wholePlaceAccessEnabled) return;
+    if (draft.bookingType === "stay" && draft.pricingMode === "simple") return;
+    updateDraft({ bookingType: "stay", pricingMode: "simple" });
+  }, [draft.bookingType, draft.pricingMode, draft.privacyType, initialized, updateDraft, wholePlaceAccessEnabled]);
 
   async function saveAndExit() {
     if (isSavingDraft) return;
@@ -272,6 +286,15 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     updateDraft({
       bookingPackages: draft.bookingPackages.map((item) => item.id === id ? { ...item, ...patch } : item),
     });
+  }
+
+  function selectPrivacyType(privacyType: string) {
+    const patch: Partial<HostListingDraft> = { privacyType };
+    if (!isEntirePlacePrivacyType(privacyType)) {
+      patch.bookingType = "stay";
+      patch.pricingMode = "simple";
+    }
+    updateDraft(patch);
   }
 
   function updateRoom(id: string, patch: Partial<HostPropertyRoomDraft>) {
@@ -415,7 +438,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <h1 className="text-3xl font-semibold">{step.title}</h1>
             <div className="mt-8 grid gap-3">
               {privacyTypes.map((item) => (
-                <OptionCard key={item.id} selected={draft.privacyType === item.id} title={item.label} description={item.description} icon={<DynamicIcon name={item.icon} />} onClick={() => updateDraft({ privacyType: item.id })} />
+                <OptionCard key={item.id} selected={draft.privacyType === item.id} title={item.label} description={item.description} icon={<DynamicIcon name={item.icon} />} onClick={() => selectPrivacyType(item.id)} />
               ))}
             </div>
           </section>
@@ -625,8 +648,12 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <h2 className="mt-8 text-xl font-semibold">What can guests book?</h2>
             <div className="mt-4 grid gap-3">
               <OptionCard selected={draft.bookingType === "stay"} title="Stay bookings only" description="Guests reserve dates and guests using classic nightly booking." icon={<DynamicIcon name="house" />} onClick={() => updateDraft({ bookingType: "stay", pricingMode: "simple" })} />
-              <OptionCard selected={draft.bookingType === "package"} title="Package bookings only" description="Guests must choose an overnight, daytime, event, or custom package." icon={<DynamicIcon name="layers" />} onClick={() => updateDraft({ bookingType: "package", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
-              <OptionCard selected={draft.bookingType === "both"} title="Stay and package bookings" description="Offer traditional stays plus packages on the same listing." icon={<DynamicIcon name="sparkles" />} onClick={() => updateDraft({ bookingType: "both", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
+              {wholePlaceAccessEnabled ? (
+                <>
+                  <OptionCard selected={draft.bookingType === "package"} title="Package bookings only" description="Guests must choose an overnight, daytime, event, or custom package." icon={<DynamicIcon name="layers" />} onClick={() => updateDraft({ bookingType: "package", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
+                  <OptionCard selected={draft.bookingType === "both"} title="Stay and package bookings" description="Offer traditional stays plus packages on the same listing." icon={<DynamicIcon name="sparkles" />} onClick={() => updateDraft({ bookingType: "both", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
+                </>
+              ) : null}
             </div>
             <h2 className="mt-8 text-xl font-semibold">How are reservations confirmed?</h2>
             <div className="mt-4 grid gap-3">
@@ -640,7 +667,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
           <section className="mx-auto max-w-2xl">
             <h1 className="text-3xl font-semibold">{step.title}</h1>
             <p className="mt-2 text-black/60">{step.description}</p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <div className={`mt-8 grid gap-3 ${wholePlaceAccessEnabled ? "sm:grid-cols-2" : ""}`}>
               <button
                 type="button"
                 onClick={() => updateDraft({ bookingType: "stay", pricingMode: "simple" })}
@@ -649,14 +676,16 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                 <span className="block font-semibold">Simple nightly pricing</span>
                 <span className={`mt-2 block text-sm ${draft.pricingMode === "simple" ? "text-white/70" : "text-black/60"}`}>Use one weekday and one weekend rate.</span>
               </button>
-              <button
-                type="button"
-                onClick={() => updateDraft({ bookingType: draft.bookingType === "stay" ? "both" : draft.bookingType, pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })}
-                className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
-              >
-                <span className="block font-semibold">Booking packages</span>
-                <span className={`mt-2 block text-sm ${draft.pricingMode === "packages" ? "text-white/70" : "text-black/60"}`}>Let guests choose overnight, daytime, or custom access.</span>
-              </button>
+              {wholePlaceAccessEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => updateDraft({ bookingType: draft.bookingType === "stay" ? "both" : draft.bookingType, pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })}
+                  className={`rounded-2xl border p-5 text-left transition ${draft.pricingMode === "packages" ? "border-2 border-black bg-black text-white" : "border-black/10 bg-white hover:border-black/30"}`}
+                >
+                  <span className="block font-semibold">Booking packages</span>
+                  <span className={`mt-2 block text-sm ${draft.pricingMode === "packages" ? "text-white/70" : "text-black/60"}`}>Let guests choose overnight, daytime, or custom access.</span>
+                </button>
+              ) : null}
             </div>
             <div className="mt-10 text-center">
               <div className="text-6xl font-semibold sm:text-7xl">PHP {draft.basePrice.toLocaleString()}</div>

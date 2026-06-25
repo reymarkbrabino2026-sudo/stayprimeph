@@ -271,6 +271,7 @@ async function ensurePropertyAdvancedPricingColumns(db: Pick<typeof prisma, "$ex
   }, async () => {
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "bookingType" TEXT NOT NULL DEFAULT 'stay'`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "virtualTourUrl" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "privacyType" TEXT NOT NULL DEFAULT 'entire'`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayDates" JSONB`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB`);
@@ -679,6 +680,7 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
     propertyType: property.propertyType,
+    privacyType: property.privacyType,
     status: property.status as Property["status"],
     rating: property.rating,
     amenities: property.amenities.map(({ amenity }) => amenity.name),
@@ -923,6 +925,7 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
     propertyType: property.propertyType,
+    privacyType: property.privacyType ?? "entire",
     status: property.status,
     rating: property.rating,
     rules: JSON.stringify(property.rules),
@@ -1122,7 +1125,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "amenities" | "images"
+  "virtualTourUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1144,6 +1147,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         bathrooms: property.bathrooms,
         maxGuests: property.maxGuests,
         propertyType: property.propertyType,
+        privacyType: property.privacyType ?? "entire",
         amenities: {
           deleteMany: {},
           create: amenityIds.map((amenityId) => ({ amenityId })),

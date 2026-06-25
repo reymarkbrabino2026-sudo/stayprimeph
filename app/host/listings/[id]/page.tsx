@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { getCsrfToken } from "@/lib/csrf";
 import { hostLinks } from "@/lib/navigation";
+import { isEntirePlaceListing } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
@@ -17,6 +18,9 @@ export default async function EditListingPage({ params, searchParams }: { params
   if (!property || property.hostId !== user?.id) notFound();
 
   const cover = property.images[0]?.imageUrl;
+  const wholePlaceAccessEnabled = isEntirePlaceListing(property);
+  const visibleRooms = wholePlaceAccessEnabled ? property.rooms?.filter((room) => room.active) ?? [] : [];
+  const visibleBookingPackages = wholePlaceAccessEnabled ? property.bookingPackages ?? [] : [];
 
   return (
     <DashboardShell title="Listing Details" subtitle="Host dashboard" description="Review the listing guests and admins will see." links={hostLinks}>
@@ -35,23 +39,23 @@ export default async function EditListingPage({ params, searchParams }: { params
             <Info label="Bathrooms" value={String(property.bathrooms)} />
           </div>
           <p className="mt-5 leading-7 text-black/65">{property.description}</p>
-          {(property.rooms?.length || property.bookingPackages?.length) ? (
+          {(visibleRooms.length || visibleBookingPackages.length) ? (
             <div className="mt-6 space-y-4 border-t border-black/10 pt-5">
-              {property.rooms?.length ? (
+              {visibleRooms.length ? (
                 <div>
                   <h3 className="font-semibold">Rooms</h3>
                   <div className="mt-3 grid gap-2">
-                    {property.rooms.filter((room) => room.active).map((room) => (
+                    {visibleRooms.map((room) => (
                       <Info key={room.id} label={`${room.name} (${room.floor})`} value={`${room.capacity} pax`} />
                     ))}
                   </div>
                 </div>
               ) : null}
-              {property.bookingPackages?.length ? (
+              {visibleBookingPackages.length ? (
                 <div>
                   <h3 className="font-semibold">Booking packages</h3>
                   <div className="mt-3 grid gap-2">
-                    {property.bookingPackages.map((pkg) => (
+                    {visibleBookingPackages.map((pkg) => (
                       <div key={pkg.id} className="rounded-2xl bg-[#fbf7f2] p-4 text-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>

@@ -1,5 +1,4 @@
 import { readStoredMessages, writeStoredMessages } from "@/lib/message-store";
-import { enforceDataRetentionOncePerDay } from "@/lib/data-retention";
 import { createMessageInDatabase, listMessagesFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import type { Message } from "@/lib/types";
 
@@ -8,7 +7,6 @@ function byCreatedAt(a: Message, b: Message) {
 }
 
 export async function getMessages(): Promise<Message[]> {
-  await enforceDataRetentionOncePerDay();
   const messages = usesPrismaPersistence() ? await listMessagesFromDatabase() : await readStoredMessages();
   return messages.toSorted(byCreatedAt);
 }

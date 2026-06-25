@@ -405,15 +405,13 @@ function addAdminNotifications({
 }
 
 export async function getNotificationsForUser(user: User, limit = 25): Promise<ActivityNotification[]> {
-  const [bookings, messages, payments, properties, users, auditLogs, reviews] = await Promise.all([
-    getBookings(),
-    getMessages(),
-    getPayments(),
-    getProperties(),
-    getUsers(),
-    user.role === "admin" ? getAuditLogs(25) : Promise.resolve([]),
-    user.role === "guest" || user.role === "host" ? getReviews() : Promise.resolve<Review[]>([]),
-  ]);
+  const bookings = await getBookings();
+  const messages = await getMessages();
+  const payments = await getPayments();
+  const properties = await getProperties();
+  const users = await getUsers();
+  const auditLogs = user.role === "admin" ? await getAuditLogs(25) : [];
+  const reviews = user.role === "guest" || user.role === "host" ? await getReviews() : [];
 
   const notifications: ActivityNotification[] = [];
   const paymentsByBookingId = new Map(payments.map((payment) => [payment.bookingId, payment]));
