@@ -20,7 +20,7 @@ export const hostWizardSteps: WizardStepDefinition[] = [
   { id: "booking", title: "Pick your booking settings", description: "You can change this later." },
   { id: "pricing", title: "Now, set a weekday base price", description: "Start with a nightly price guests will see before taxes." },
   { id: "weekend-pricing", title: "Set a weekend price", description: "Add a premium for Fridays, Saturdays, and Sundays." },
-  { id: "booking-packages", title: "Add booking packages", description: "Use packages when guests can choose overnight, daytime, full-access, or custom stay options." },
+  { id: "booking-packages", title: "Add booking packages", description: "Turn on the choices guests can book, then confirm the price, timing, and access for each one." },
   { id: "discounts", title: "Add discounts", description: "Help your place stand out and earn your first reviews." },
   { id: "safety", title: "Share safety details", description: "Guests need to know these before they book." },
   { id: "final-details", title: "Provide a few final details", description: "This helps prevent fraud and keeps payouts compliant." },
