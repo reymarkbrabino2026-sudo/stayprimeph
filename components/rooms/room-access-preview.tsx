@@ -20,12 +20,9 @@ function backgroundImageStyle(src?: string) {
   return src ? { backgroundImage: `url(${JSON.stringify(src)})` } : undefined;
 }
 
-function roomImages(room: PropertyRoom, index: number, listingImages: PropertyImage[]) {
+function listingFallbackImage(index: number, listingImages: PropertyImage[]) {
   const listingFallbacks = listingImages.map((image) => image.imageUrl);
-  const uploadedRoomImages = renderableImages(room.photos);
-  if (uploadedRoomImages.length) return uploadedRoomImages;
-
-  return renderableImages([
+  return firstRenderableImage([
     listingFallbacks[index % Math.max(listingFallbacks.length, 1)],
     ...listingFallbacks,
   ]);
@@ -42,15 +39,22 @@ export function RoomAccessPreview({
   const [activeRoomId, setActiveRoomId] = useState(rooms[0]?.id);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const roomPreviewImages = useMemo(
-    () => new Map(rooms.map((room, index) => [room.id, roomImages(room, index, listingImages)])),
+  const roomPhotoImages = useMemo(
+    () => new Map(rooms.map((room) => [room.id, renderableImages(room.photos)])),
+    [rooms],
+  );
+  const roomFallbackImages = useMemo(
+    () => new Map(rooms.map((room, index) => [room.id, listingFallbackImage(index, listingImages)])),
     [listingImages, rooms],
   );
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? rooms[0];
-  const fallbackImage = firstRenderableImage([...rooms.flatMap((room) => room.photos), ...listingImages.map((image) => image.imageUrl)]);
-  const activeImages = activeRoom ? roomPreviewImages.get(activeRoom.id) ?? [] : [];
-  const activeImage = activeImages.length ? activeImages[activeSlide % activeImages.length] : fallbackImage;
-  const currentSlide = activeImages.length ? activeSlide % activeImages.length : 0;
+  const fallbackImage = firstRenderableImage(listingImages.map((image) => image.imageUrl));
+  const activeRoomImages = activeRoom ? roomPhotoImages.get(activeRoom.id) ?? [] : [];
+  const activeFallbackImage = activeRoom ? roomFallbackImages.get(activeRoom.id) : undefined;
+  const activeImage = activeRoomImages.length ? activeRoomImages[activeSlide % activeRoomImages.length] : activeFallbackImage ?? fallbackImage;
+  const currentSlide = activeRoomImages.length ? activeSlide % activeRoomImages.length : 0;
+  const hasRoomCarousel = activeRoomImages.length > 1;
+  const hasRoomImageCount = activeRoomImages.length > 0;
 
   function selectRoom(roomId: string) {
     setActiveRoomId(roomId);
@@ -58,11 +62,11 @@ export function RoomAccessPreview({
   }
 
   function showPreviousImage() {
-    setActiveSlide((index) => (activeImages.length ? (index - 1 + activeImages.length) % activeImages.length : 0));
+    setActiveSlide((index) => (activeRoomImages.length ? (index - 1 + activeRoomImages.length) % activeRoomImages.length : 0));
   }
 
   function showNextImage() {
-    setActiveSlide((index) => (activeImages.length ? (index + 1) % activeImages.length : 0));
+    setActiveSlide((index) => (activeRoomImages.length ? (index + 1) % activeRoomImages.length : 0));
   }
 
   return (
@@ -117,7 +121,13 @@ export function RoomAccessPreview({
           <div aria-hidden="true" className="absolute inset-0 bg-[#d8d5cc]" />
         )}
 
-        {activeImages.length > 1 ? (
+        {hasRoomImageCount ? (
+          <span className="absolute bottom-4 right-4 z-10 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_20px_rgb(0_0_0_/_0.20)]">
+            {currentSlide + 1} / {activeRoomImages.length}
+          </span>
+        ) : null}
+
+        {hasRoomCarousel ? (
           <>
             <button
               type="button"
@@ -136,7 +146,7 @@ export function RoomAccessPreview({
               <ChevronRight size={20} />
             </button>
             <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
-              {activeImages.map((image, index) => (
+              {activeRoomImages.map((image, index) => (
                 <button
                   key={`${image}-${index}`}
                   type="button"
