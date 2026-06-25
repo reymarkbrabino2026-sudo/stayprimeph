@@ -334,7 +334,7 @@ export default async function RoomPage({
                 title={stayBookingAllowed && packageBookingAllowed ? "Choose a stay or a package" : packageBookingAllowed ? "Choose a package" : "Rooms and access"}
                 body="Compare the spaces, capacity, and included access before you reserve."
               />
-              <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
                 <div className="rounded-[1.75rem] border border-black/10 bg-[#fbfaf7] p-6">
                   <h3 className="text-xl font-semibold">Rooms</h3>
                   <div className="mt-5 grid gap-3">
@@ -356,7 +356,7 @@ export default async function RoomPage({
                   </div>
                 </div>
 
-                <div className="grid gap-4">
+                <div className="grid content-start gap-4">
                   {packageBookingAllowed ? bookingPackages.map((pkg) => {
                     const rooms = (property.rooms ?? []).filter((room) => pkg.accessibleRoomIds?.includes(room.id));
                     return (
@@ -384,9 +384,9 @@ export default async function RoomPage({
                       </article>
                     );
                   }) : stayBookingAllowed ? (
-                    <article className="rounded-[1.75rem] border border-black/10 bg-white p-6">
+                    <article className="rounded-[1.75rem] border border-black/10 bg-white p-6 shadow-[0_14px_44px_rgb(0_0_0_/_0.04)]">
                       <h3 className="text-xl font-semibold">Stay booking</h3>
-                      <p className="mt-2 text-sm leading-6 text-black/62">This listing is available for traditional accommodation booking using the date and guest selector.</p>
+                      <p className="mt-2 text-sm leading-6 text-black/62">This listing is available for traditional accommodation booking. Use the reservation card to choose dates and guests.</p>
                     </article>
                   ) : null}
                 </div>
