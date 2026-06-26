@@ -131,6 +131,7 @@ export function RoomStickyReservationCard({
     >
       <div
         ref={cardRef}
+        data-lenis-prevent-wheel
         className={`${metrics.mode === "fixed" ? "fixed z-40" : metrics.mode === "absolute" ? "absolute z-40" : ""}`}
         style={metrics.mode === "fixed" ? fixedStyle : metrics.mode === "absolute" ? absoluteStyle : undefined}
       >
