@@ -36,6 +36,7 @@ import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomAccessPreview } from "@/components/rooms/room-access-preview";
+import { RoomDescriptionDisclosure } from "@/components/rooms/room-description-disclosure";
 import { RoomReservationCard, RoomStickyReservationCard } from "@/components/rooms/room-reservation-card";
 import { RoomVirtualTour } from "@/components/rooms/room-virtual-tour";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -316,9 +317,16 @@ export default async function RoomPage({
               {propertyTypeLabel} living in {cityLabel}.
             </h2>
             <div className="mt-12 grid gap-10 lg:grid-cols-[0.72fr_1fr] lg:pl-[12%]">
-              <p className="text-2xl font-medium leading-10 text-black sm:text-3xl">
-                {property.description}
-              </p>
+              <RoomDescriptionDisclosure
+                description={property.description}
+                propertyTypeLabel={propertyTypeLabel}
+                locationLabel={locationLabel}
+                bedroomsLabel={bedroomsLabel}
+                bathsLabel={bathsLabel}
+                maxGuests={property.maxGuests}
+                amenities={property.amenities}
+                rules={property.rules}
+              />
               <div className="space-y-5 text-lg leading-8 text-black/70">
                 <p>
                   Set around {areaLabel}, this listing keeps the essentials visible: location, inclusions,
