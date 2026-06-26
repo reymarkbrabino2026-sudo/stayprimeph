@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import type { WheelEvent } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft } from "lucide-react";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
@@ -148,6 +149,49 @@ export function RoomGalleryShowcase({
     if (hasPhotoTourParam()) updatePhotoTourParam(false, "replace");
   }
 
+  const photoTourDialog = open ? (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      onWheel={scrollDialogOnWheel}
+      data-lenis-prevent
+      className="fixed inset-0 z-[1000] overflow-y-auto overscroll-contain bg-white text-[#111111]"
+    >
+      <div className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex min-h-16 max-w-[88rem] items-center gap-4 px-5 py-3 sm:px-8 lg:px-12">
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={closePhotoTour}
+            aria-label="Back to listing"
+            className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-[#111111] transition hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+          >
+            <ArrowLeft size={20} />
+            <span className="hidden sm:inline">Back</span>
+          </button>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-[#0f5750]">Gallery</p>
+            <h2 id={titleId} className="truncate text-lg font-semibold sm:text-xl">
+              Photo tour
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
+        <div className="border-b border-black/10 pb-7">
+          <p className="text-sm font-semibold uppercase text-[#0f5750]">Gallery</p>
+          <h3 className="mt-3 text-4xl font-semibold leading-tight sm:text-5xl">Photo tour</h3>
+          <p className="mt-4 max-w-2xl leading-7 text-black/62">
+            Featured views, room spaces, and extra listing images from this stay.
+          </p>
+        </div>
+        <RoomPhotoTour groups={groups} />
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <RoomGalleryCarousel
@@ -156,48 +200,7 @@ export function RoomGalleryShowcase({
         onShowAllPhotos={canShowPhotoTour ? openPhotoTour : undefined}
       />
 
-      {open ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          onWheel={scrollDialogOnWheel}
-          data-lenis-prevent
-          className="fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-white text-[#111111]"
-        >
-          <div className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur">
-            <div className="mx-auto flex min-h-16 max-w-[88rem] items-center gap-4 px-5 py-3 sm:px-8 lg:px-12">
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={closePhotoTour}
-                aria-label="Back to listing"
-                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-[#111111] transition hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
-              >
-                <ArrowLeft size={20} />
-                <span className="hidden sm:inline">Back</span>
-              </button>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase text-[#0f5750]">Gallery</p>
-                <h2 id={titleId} className="truncate text-lg font-semibold sm:text-xl">
-                  Photo tour
-                </h2>
-              </div>
-            </div>
-          </div>
-
-          <div className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
-            <div className="border-b border-black/10 pb-7">
-              <p className="text-sm font-semibold uppercase text-[#0f5750]">Gallery</p>
-              <h3 className="mt-3 text-4xl font-semibold leading-tight sm:text-5xl">Photo tour</h3>
-              <p className="mt-4 max-w-2xl leading-7 text-black/62">
-                Featured views, room spaces, and extra listing images from this stay.
-              </p>
-            </div>
-            <RoomPhotoTour groups={groups} />
-          </div>
-        </div>
-      ) : null}
+      {photoTourDialog ? createPortal(photoTourDialog, document.body) : null}
     </>
   );
 }

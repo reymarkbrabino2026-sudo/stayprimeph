@@ -159,7 +159,7 @@ describe("room photo tour", () => {
     const dialog = screen.getByRole("dialog", { name: "Photo tour" });
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute("data-lenis-prevent");
-    expect(dialog).toHaveClass("z-[120]");
+    expect(dialog).toHaveClass("z-[1000]");
     expect(screen.getByRole("button", { name: "Back to listing" })).toBeInTheDocument();
     expect(document.body.style.position).toBe("fixed");
     expect(document.documentElement.style.overflow).toBe("hidden");
