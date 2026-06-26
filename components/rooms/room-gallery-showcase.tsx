@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import type { WheelEvent } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
 import type { PhotoTourGroup } from "@/lib/room-photo-tour";
@@ -14,6 +14,18 @@ interface GalleryImage {
 
 const PHOTO_TOUR_MODAL = "PHOTO_TOUR_SCROLLABLE";
 const PHOTO_TOUR_MODAL_EVENT = "stayprimeph:photo-tour-modal";
+
+type ScrollLockSnapshot = {
+  scrollY: number;
+  bodyOverflow: string;
+  bodyPosition: string;
+  bodyTop: string;
+  bodyWidth: string;
+  bodyPaddingRight: string;
+  htmlOverflow: string;
+  htmlOverscrollBehavior: string;
+  lenisWasStopped: boolean;
+};
 
 function hasPhotoTourParam() {
   if (typeof window === "undefined") return false;
@@ -49,8 +61,49 @@ function scrollDialogOnWheel(event: WheelEvent<HTMLDivElement>) {
   const dialog = event.currentTarget;
   if (dialog.scrollHeight <= dialog.clientHeight) return;
 
+  event.stopPropagation();
   event.preventDefault();
   dialog.scrollTop += event.deltaY;
+}
+
+function lockDocumentScroll(): ScrollLockSnapshot {
+  const scrollY = window.scrollY;
+  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+  const lenisWasStopped = document.documentElement.classList.contains("lenis-stopped");
+  const snapshot = {
+    scrollY,
+    bodyOverflow: document.body.style.overflow,
+    bodyPosition: document.body.style.position,
+    bodyTop: document.body.style.top,
+    bodyWidth: document.body.style.width,
+    bodyPaddingRight: document.body.style.paddingRight,
+    htmlOverflow: document.documentElement.style.overflow,
+    htmlOverscrollBehavior: document.documentElement.style.overscrollBehavior,
+    lenisWasStopped,
+  };
+
+  document.documentElement.style.overflow = "hidden";
+  document.documentElement.style.overscrollBehavior = "none";
+  document.documentElement.classList.add("lenis-stopped");
+  document.body.style.overflow = "hidden";
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = "100%";
+  if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+
+  return snapshot;
+}
+
+function unlockDocumentScroll(snapshot: ScrollLockSnapshot) {
+  document.body.style.overflow = snapshot.bodyOverflow;
+  document.body.style.position = snapshot.bodyPosition;
+  document.body.style.top = snapshot.bodyTop;
+  document.body.style.width = snapshot.bodyWidth;
+  document.body.style.paddingRight = snapshot.bodyPaddingRight;
+  document.documentElement.style.overflow = snapshot.htmlOverflow;
+  document.documentElement.style.overscrollBehavior = snapshot.htmlOverscrollBehavior;
+  if (!snapshot.lenisWasStopped) document.documentElement.classList.remove("lenis-stopped");
+  window.scrollTo(0, snapshot.scrollY);
 }
 
 export function RoomGalleryShowcase({
@@ -64,7 +117,7 @@ export function RoomGalleryShowcase({
 }) {
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const previousOverflowRef = useRef<string | null>(null);
+  const scrollLockSnapshotRef = useRef<ScrollLockSnapshot | null>(null);
   const open = useSyncExternalStore(subscribePhotoTourParam, hasPhotoTourParam, getServerPhotoTourSnapshot);
   const canShowPhotoTour = groups.length > 0;
 
@@ -72,8 +125,7 @@ export function RoomGalleryShowcase({
     if (!open) return;
 
     closeButtonRef.current?.focus();
-    previousOverflowRef.current = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    scrollLockSnapshotRef.current = lockDocumentScroll();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") closePhotoTour();
@@ -82,8 +134,8 @@ export function RoomGalleryShowcase({
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflowRef.current ?? "";
-      previousOverflowRef.current = null;
+      if (scrollLockSnapshotRef.current) unlockDocumentScroll(scrollLockSnapshotRef.current);
+      scrollLockSnapshotRef.current = null;
     };
   }, [open]);
 
@@ -110,7 +162,8 @@ export function RoomGalleryShowcase({
           aria-modal="true"
           aria-labelledby={titleId}
           onWheel={scrollDialogOnWheel}
-          className="fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-white text-[#111111]"
+          data-lenis-prevent
+          className="fixed inset-0 z-[120] overflow-y-auto overscroll-contain bg-white text-[#111111]"
         >
           <div className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur">
             <div className="mx-auto flex min-h-16 max-w-[88rem] items-center gap-4 px-5 py-3 sm:px-8 lg:px-12">
@@ -118,10 +171,11 @@ export function RoomGalleryShowcase({
                 ref={closeButtonRef}
                 type="button"
                 onClick={closePhotoTour}
-                aria-label="Close photo tour"
-                className="grid size-10 shrink-0 place-items-center rounded-full text-[#111111] transition hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+                aria-label="Back to listing"
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-[#111111] transition hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
               >
-                <X size={22} />
+                <ArrowLeft size={20} />
+                <span className="hidden sm:inline">Back</span>
               </button>
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase text-[#0f5750]">Gallery</p>

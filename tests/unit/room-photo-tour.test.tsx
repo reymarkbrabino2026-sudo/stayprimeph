@@ -1,7 +1,7 @@
 import React from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { RoomGalleryShowcase } from "@/components/rooms/room-gallery-showcase";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
 import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
@@ -49,9 +49,20 @@ const rooms: PropertyRoom[] = [
   },
 ];
 
+beforeEach(() => {
+  Object.defineProperty(window, "scrollTo", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(),
+  });
+});
+
 afterEach(() => {
   cleanup();
   window.history.replaceState(null, "", "/");
+  document.body.removeAttribute("style");
+  document.documentElement.removeAttribute("style");
+  document.documentElement.classList.remove("lenis-stopped");
 });
 
 describe("room photo tour", () => {
@@ -122,6 +133,7 @@ describe("room photo tour", () => {
     expect(screen.getAllByText("Featured photos")).toHaveLength(2);
     expect(screen.getAllByText("Sanctuary Suite")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /sanctuary suite/i })).toHaveAttribute("href", "#photo-tour-sanctuary");
+    expect(screen.getByRole("heading", { name: "Sanctuary Suite" }).parentElement).toHaveClass("lg:sticky");
     expect(screen.getByAltText("Prime Stay Sanctuary Suite photo 1")).toBeInTheDocument();
   });
 
@@ -144,11 +156,20 @@ describe("room photo tour", () => {
 
     await user.click(screen.getByRole("button", { name: "Show all photos" }));
 
-    expect(screen.getByRole("dialog", { name: "Photo tour" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Photo tour" });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("data-lenis-prevent");
+    expect(dialog).toHaveClass("z-[120]");
+    expect(screen.getByRole("button", { name: "Back to listing" })).toBeInTheDocument();
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.documentElement).toHaveClass("lenis-stopped");
     expect(new URL(window.location.href).searchParams.get("modal")).toBe("PHOTO_TOUR_SCROLLABLE");
 
-    await user.click(screen.getByRole("button", { name: "Close photo tour" }));
+    await user.click(screen.getByRole("button", { name: "Back to listing" }));
     expect(screen.queryByRole("dialog", { name: "Photo tour" })).not.toBeInTheDocument();
+    expect(document.body.style.position).toBe("");
+    expect(document.documentElement.style.overflow).toBe("");
     expect(new URL(window.location.href).searchParams.get("modal")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Show all photos for Prime Stay" }));

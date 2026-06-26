@@ -91,11 +91,13 @@ export function RoomPhotoTour({ groups }: { groups: PhotoTourGroup[] }) {
           <article
             key={group.id}
             id={group.id}
-            className="grid scroll-mt-32 gap-5 py-8 first:pt-7 sm:scroll-mt-36 sm:py-12 sm:first:pt-9 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
+            className="grid scroll-mt-32 gap-5 py-8 first:pt-7 sm:scroll-mt-36 sm:py-12 sm:first:pt-9 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start lg:gap-12 xl:grid-cols-[18rem_minmax(0,1fr)]"
           >
-            <div className="lg:sticky lg:top-36 lg:self-start">
-              <h3 className="break-words text-base font-semibold text-[#111111]">{group.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-black/55">{group.summary || photoCountLabel(group.photos.length)}</p>
+            <div className="lg:sticky lg:top-[9.5rem] lg:self-start lg:pr-4">
+              <h3 className="break-words text-2xl font-semibold leading-tight text-[#111111] sm:text-3xl lg:text-4xl">
+                {group.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-black/55 lg:mt-4">{group.summary || photoCountLabel(group.photos.length)}</p>
             </div>
             <div className={gridClassName(group.photos.length)}>
               {group.photos.map((photo, index) => (
