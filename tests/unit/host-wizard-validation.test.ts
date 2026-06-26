@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import { activeHostWizardSteps } from "@/lib/host-wizard-steps";
 import { canAdvanceFromStep, getFirstIncompleteHostWizardStep, getMissingRequirementsForStep } from "@/lib/host-wizard-validation";
-import type { HostListingDraft } from "@/lib/host-wizard-types";
+import type { HostBookingPackageDraft, HostListingDraft } from "@/lib/host-wizard-types";
 
 function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
   const address = "123 Prime Street, Mamacao, Santa Maria, Davao Occidental, Philippines, 8011";
@@ -66,6 +66,40 @@ function photos() {
     size: 100,
     isCover: index === 0,
   }));
+}
+
+function bookingPackage(overrides: Partial<HostBookingPackageDraft> = {}): HostBookingPackageDraft {
+  return {
+    id: "package-1",
+    name: "Overnight Full Access",
+    description: "Whole-villa overnight package.",
+    status: "active",
+    displayOrder: 1,
+    accessType: "Full access",
+    unit: "night",
+    weekdayRate: 9500,
+    weekendRate: 10500,
+    holidayRate: 11500,
+    holidayDates: [],
+    seasonalRates: [],
+    includedGuests: 4,
+    maxGuests: 15,
+    sleepingCapacity: 15,
+    durationHours: 21,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1500,
+    checkInTime: "2:00 PM",
+    checkOutTime: "11:00 AM",
+    accessibleFloors: ["Ground Floor"],
+    accessibleRoomIds: [],
+    includedAmenities: ["Wifi"],
+    excludedAmenities: [],
+    availableDays: [0, 1, 2, 3, 4, 5, 6],
+    minimumAdvanceBookingDays: 0,
+    blockedPackageIds: [],
+    enabled: true,
+    ...overrides,
+  };
 }
 
 describe("host wizard location validation", () => {
@@ -191,39 +225,51 @@ describe("host wizard location validation", () => {
       basePrice: 0,
       weekendPrice: 0,
       status: "pending",
-      bookingPackages: [{
-        id: "package-1",
-        name: "Overnight Full Access",
-        description: "Whole-villa overnight package.",
-        status: "active",
-        displayOrder: 1,
-        accessType: "Full access",
-        unit: "night",
-        weekdayRate: 9500,
-        weekendRate: 10500,
-        holidayRate: 11500,
-        holidayDates: [],
-        seasonalRates: [],
-        includedGuests: 4,
-        maxGuests: 15,
-        sleepingCapacity: 15,
-        durationHours: 21,
-        additionalGuestFee: 500,
-        extensionHourlyFee: 1500,
-        checkInTime: "2:00 PM",
-        checkOutTime: "11:00 AM",
-        accessibleFloors: ["Ground Floor"],
-        accessibleRoomIds: [],
-        includedAmenities: ["Wifi"],
-        excludedAmenities: [],
-        availableDays: [0, 1, 2, 3, 4, 5, 6],
-        minimumAdvanceBookingDays: 0,
-        blockedPackageIds: [],
-        enabled: true,
-      }],
+      bookingPackages: [bookingPackage()],
     }));
 
     expect(parsed.success).toBe(true);
+  });
+
+  it("allows simple pricing to publish with disabled package templates at zero", () => {
+    const parsed = hostListingSchema.safeParse(draft({
+      photos: photos(),
+      pricingMode: "simple",
+      bookingType: "stay",
+      status: "pending",
+      bookingPackages: [
+        bookingPackage({
+          weekdayRate: 0,
+          weekendRate: 0,
+          holidayRate: 0,
+          includedGuests: 0,
+          maxGuests: 0,
+          sleepingCapacity: 0,
+          durationHours: 0,
+          accessType: "Full access",
+          enabled: false,
+        }),
+      ],
+    }));
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("still requires a weekday rate for enabled packages", () => {
+    const parsed = hostListingSchema.safeParse(draft({
+      photos: photos(),
+      bookingType: "package",
+      pricingMode: "packages",
+      basePrice: 0,
+      weekendPrice: 0,
+      status: "pending",
+      bookingPackages: [bookingPackage({ weekdayRate: 0 })],
+    }));
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.map((issue) => issue.message)).toContain("Enter a weekday rate for this package.");
+    }
   });
 
   it("still requires simple pricing when simple nightly pricing is selected", () => {

@@ -32,7 +32,7 @@ const bookingPackageSchema = z.object({
   displayOrder: z.number().int().min(0).max(100),
   accessType: z.string().min(1).max(120),
   unit: z.enum(["night", "day"]),
-  weekdayRate: z.number().int().min(1).max(1000000),
+  weekdayRate: z.number().int().min(0).max(1000000),
   weekendRate: z.number().int().min(0).max(1000000),
   holidayRate: z.number().int().min(0).max(1000000),
   holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]),
