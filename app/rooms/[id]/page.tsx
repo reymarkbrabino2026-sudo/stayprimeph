@@ -355,7 +355,7 @@ export default async function RoomPage({
           </div>
         </section>
 
-        <section id="booking" className="scroll-mt-32 bg-[#f8f6f1] py-16 sm:py-24">
+        <section id="booking" data-reservation-sticky-boundary className="scroll-mt-32 bg-[#f8f6f1] py-16 sm:py-24">
           <div className="mx-auto grid max-w-[88rem] gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_minmax(360px,400px)] lg:gap-16 lg:px-12">
             <div className="space-y-10">
               <div>

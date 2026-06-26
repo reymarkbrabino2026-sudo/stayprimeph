@@ -66,12 +66,13 @@ export function RoomStickyReservationCard({
 
         const shellRect = shell.getBoundingClientRect();
         const cardRect = card.getBoundingClientRect();
-        const footer = document.querySelector("footer");
-        const footerTop = footer ? window.scrollY + footer.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+        const boundary = shell.closest("[data-reservation-sticky-boundary]") as HTMLElement | null;
+        const boundaryRect = boundary?.getBoundingClientRect();
+        const boundaryBottom = boundaryRect ? window.scrollY + boundaryRect.bottom : Number.POSITIVE_INFINITY;
         const shellTop = window.scrollY + shellRect.top;
         const nextHeight = cardRect.height;
         const stickyTop = window.scrollY + desktopStickyTopPx;
-        const stopTop = footerTop - desktopStickyBottomPx - nextHeight;
+        const stopTop = Math.max(shellTop, boundaryBottom - desktopStickyBottomPx - nextHeight);
         const mode: StickyMode =
           stickyTop <= shellTop
             ? "inline"
