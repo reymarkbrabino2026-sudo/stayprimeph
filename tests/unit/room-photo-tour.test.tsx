@@ -151,6 +151,8 @@ describe("room photo tour", () => {
         images={listingImages.slice(0, 1)}
         title="Prime Stay"
         groups={groups}
+        propertyId="property"
+        isAuthenticated
       />,
     );
 
@@ -161,6 +163,9 @@ describe("room photo tour", () => {
     expect(dialog).toHaveAttribute("data-lenis-prevent");
     expect(dialog).toHaveClass("z-[1000]");
     expect(screen.getByRole("button", { name: "Back to listing" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Photo tour" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(document.body.style.position).toBe("fixed");
     expect(document.documentElement.style.overflow).toBe("hidden");
     expect(document.documentElement).toHaveClass("lenis-stopped");
@@ -189,6 +194,8 @@ describe("room photo tour", () => {
         images={listingImages.slice(0, 1)}
         title="Prime Stay"
         groups={groups}
+        propertyId="property"
+        isAuthenticated
       />,
     );
 

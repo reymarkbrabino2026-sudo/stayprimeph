@@ -387,6 +387,8 @@ export default async function RoomPage({
               images={galleryImages.slice(0, 8)}
               title={property.title}
               groups={photoTourGroups}
+              propertyId={property.id}
+              isAuthenticated={Boolean(currentUser)}
             />
           </div>
         </section>

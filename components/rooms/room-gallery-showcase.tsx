@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import type { WheelEvent } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Heart, Share2 } from "lucide-react";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
+import { getWishlistIds, setWishlistSaved, subscribeToWishlistChanges, writePendingWishlistId } from "@/components/wishlist/wishlist-button";
 import type { PhotoTourGroup } from "@/lib/room-photo-tour";
 
 interface GalleryImage {
@@ -111,16 +112,37 @@ export function RoomGalleryShowcase({
   images,
   title,
   groups,
+  propertyId,
+  isAuthenticated,
 }: {
   images: GalleryImage[];
   title: string;
   groups: PhotoTourGroup[];
+  propertyId: string;
+  isAuthenticated: boolean;
 }) {
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const scrollLockSnapshotRef = useRef<ScrollLockSnapshot | null>(null);
   const open = useSyncExternalStore(subscribePhotoTourParam, hasPhotoTourParam, getServerPhotoTourSnapshot);
   const canShowPhotoTour = groups.length > 0;
+  const [saved, setSaved] = useState(false);
+  const [shareLabel, setShareLabel] = useState("Share");
+
+  useEffect(() => {
+    function syncSavedState() {
+      setSaved(getWishlistIds().has(propertyId));
+    }
+
+    syncSavedState();
+    return subscribeToWishlistChanges(syncSavedState);
+  }, [propertyId]);
+
+  useEffect(() => {
+    if (shareLabel === "Share") return;
+    const timeout = window.setTimeout(() => setShareLabel("Share"), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [shareLabel]);
 
   useEffect(() => {
     if (!open) return;
@@ -149,6 +171,34 @@ export function RoomGalleryShowcase({
     if (hasPhotoTourParam()) updatePhotoTourParam(false, "replace");
   }
 
+  async function shareStay() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("modal");
+    url.searchParams.delete("v");
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url: url.toString() });
+        return;
+      }
+
+      await navigator.clipboard.writeText(url.toString());
+      setShareLabel("Link copied");
+    } catch {
+      setShareLabel("Unable to share");
+    }
+  }
+
+  function toggleSave() {
+    if (!isAuthenticated) {
+      writePendingWishlistId(propertyId);
+      window.location.assign(`/login?role=guest&next=${encodeURIComponent("/guest/wishlist")}`);
+      return;
+    }
+
+    setWishlistSaved(propertyId, !saved);
+  }
+
   const photoTourDialog = open ? (
     <div
       role="dialog"
@@ -158,35 +208,45 @@ export function RoomGalleryShowcase({
       data-lenis-prevent
       className="fixed inset-0 z-[1000] overflow-y-auto overscroll-contain bg-white text-[#111111]"
     >
-      <div className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex min-h-16 max-w-[88rem] items-center gap-4 px-5 py-3 sm:px-8 lg:px-12">
+      <div className="sticky top-0 z-40 border-b border-black/10 bg-white">
+        <div className="relative flex min-h-16 items-center justify-between px-5 py-3 sm:min-h-20 sm:px-8">
           <button
             ref={closeButtonRef}
             type="button"
             onClick={closePhotoTour}
             aria-label="Back to listing"
-            className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-[#111111] transition hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-[#111111] transition hover:bg-black/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
           >
-            <ArrowLeft size={20} />
-            <span className="hidden sm:inline">Back</span>
+            <ArrowLeft size={22} />
           </button>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase text-[#0f5750]">Gallery</p>
-            <h2 id={titleId} className="truncate text-lg font-semibold sm:text-xl">
-              Photo tour
-            </h2>
+
+          <h2 id={titleId} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-semibold text-[#111111]">
+            Photo tour
+          </h2>
+
+          <div className="flex shrink-0 items-center gap-4 text-sm font-semibold text-[#111111] sm:gap-5">
+            <button
+              type="button"
+              onClick={shareStay}
+              className="inline-flex min-h-10 items-center gap-2 underline-offset-2 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+            >
+              <Share2 size={16} />
+              <span>{shareLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleSave}
+              aria-pressed={saved}
+              className="inline-flex min-h-10 items-center gap-2 underline-offset-2 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+            >
+              <Heart size={18} fill={saved ? "#ff385c" : "none"} className={saved ? "text-[#ff385c]" : undefined} />
+              <span>{saved ? "Saved" : "Save"}</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
-        <div className="border-b border-black/10 pb-7">
-          <p className="text-sm font-semibold uppercase text-[#0f5750]">Gallery</p>
-          <h3 className="mt-3 text-4xl font-semibold leading-tight sm:text-5xl">Photo tour</h3>
-          <p className="mt-4 max-w-2xl leading-7 text-black/62">
-            Featured views, room spaces, and extra listing images from this stay.
-          </p>
-        </div>
+      <div className="mx-auto max-w-[88rem] px-5 py-6 sm:px-8 sm:py-8 lg:px-12">
         <RoomPhotoTour groups={groups} />
       </div>
     </div>
