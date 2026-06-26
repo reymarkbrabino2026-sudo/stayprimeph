@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
+import type { WheelEvent } from "react";
 import { X } from "lucide-react";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
@@ -42,6 +43,14 @@ function subscribePhotoTourParam(onStoreChange: () => void) {
 
 function getServerPhotoTourSnapshot() {
   return false;
+}
+
+function scrollDialogOnWheel(event: WheelEvent<HTMLDivElement>) {
+  const dialog = event.currentTarget;
+  if (dialog.scrollHeight <= dialog.clientHeight) return;
+
+  event.preventDefault();
+  dialog.scrollTop += event.deltaY;
 }
 
 export function RoomGalleryShowcase({
@@ -100,7 +109,8 @@ export function RoomGalleryShowcase({
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="fixed inset-0 z-[80] overflow-y-auto bg-white text-[#111111]"
+          onWheel={scrollDialogOnWheel}
+          className="fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-white text-[#111111]"
         >
           <div className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur">
             <div className="mx-auto flex min-h-16 max-w-[88rem] items-center gap-4 px-5 py-3 sm:px-8 lg:px-12">
