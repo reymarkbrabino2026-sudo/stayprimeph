@@ -39,12 +39,12 @@ import { env } from "@/lib/env";
 import { allowsPackageBooking, calculateGuestPriceWithMarkup, isEntirePlaceListing } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
-import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomAccessPreview } from "@/components/rooms/room-access-preview";
 import { RoomDescriptionDisclosure } from "@/components/rooms/room-description-disclosure";
+import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
 import { RoomReservationCard, RoomStickyReservationCard } from "@/components/rooms/room-reservation-card";
 import { RoomVirtualTour } from "@/components/rooms/room-virtual-tour";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -54,6 +54,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForProperty } from "@/lib/bookings";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
+import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
 import { getReviewsForProperty } from "@/lib/reviews";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getUserById, getUsersByIds } from "@/lib/users";
@@ -168,6 +169,7 @@ export default async function RoomPage({
   const packageBookingAllowed = allowsPackageBooking(property);
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
   const activeRooms = wholePlaceAccessEnabled ? (property.rooms ?? []).filter((room) => room.active) : [];
+  const photoTourRooms = (property.rooms ?? []).filter((room) => room.active);
   const showListingSpacesPreview = wholePlaceAccessEnabled && (packageBookingAllowed || activeRooms.length > 0);
   const placeParts = compactStrings([property.barangay, property.city, property.province, property.country]);
   const cityLabel = property.city || property.province || property.country || "the Philippines";
@@ -178,6 +180,12 @@ export default async function RoomPage({
   const bathsLabel = `${property.bathrooms} bath${property.bathrooms === 1 ? "" : "s"}`;
   const nightlyLabel = `${formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight))} / night`;
   const bookingVerb = instantBook ? "Reserve instantly" : "Request to book";
+  const photoTourGroups = buildRoomPhotoTourGroups({
+    propertyTitle: property.title,
+    propertyTypeLabel,
+    listingImages: property.images,
+    rooms: photoTourRooms,
+  });
 
   const stats = [
     { icon: Users, label: `${property.maxGuests} guests` },
@@ -305,7 +313,7 @@ export default async function RoomPage({
                 <p className="mb-4 inline-flex items-center gap-2 text-sm font-semibold uppercase text-white/85">
                   <MapPin size={16} /> {locationLabel}
                 </p>
-                <h1 className="max-w-5xl text-5xl font-semibold leading-none drop-shadow-sm sm:text-7xl md:text-8xl">
+                <h1 className="line-clamp-2 max-w-5xl text-5xl font-semibold leading-none drop-shadow-sm sm:text-7xl md:text-8xl">
                   {property.title}
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg font-medium leading-7 text-white/86">
@@ -429,19 +437,21 @@ export default async function RoomPage({
           </section>
         ) : null}
 
-        <section id="gallery" className="scroll-mt-32 bg-[#efefed] py-16 sm:py-24">
-          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
-            <SectionHeader
-              eyebrow="Gallery"
-              title="A visual preview of the experience"
-              body="A closer look at the spaces you will use during your stay."
-              titleClassName="md:max-w-none md:whitespace-nowrap"
-            />
-          </div>
-          <div className="mt-8">
-            <RoomGalleryCarousel images={galleryImages.slice(0, 8)} title={property.title} />
-          </div>
-        </section>
+        {photoTourGroups.length ? (
+          <section id="gallery" className="scroll-mt-32 bg-white py-16 sm:py-24">
+            <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
+              <SectionHeader
+                eyebrow="Gallery"
+                title="Photo tour"
+                body="Featured views, room spaces, and extra listing images from this stay."
+                titleClassName="md:max-w-none md:whitespace-nowrap"
+              />
+              <div className="mt-8">
+                <RoomPhotoTour groups={photoTourGroups} />
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <RoomVirtualTour property={property} />
 
