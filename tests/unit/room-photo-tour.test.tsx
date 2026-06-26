@@ -1,6 +1,8 @@
 import React from "react";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { RoomGalleryShowcase } from "@/components/rooms/room-gallery-showcase";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
 import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
 import type { PropertyImage, PropertyRoom } from "@/lib/types";
@@ -49,6 +51,7 @@ const rooms: PropertyRoom[] = [
 
 afterEach(() => {
   cleanup();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("room photo tour", () => {
@@ -101,5 +104,35 @@ describe("room photo tour", () => {
     expect(screen.getAllByText("Sanctuary Suite")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /sanctuary suite/i })).toHaveAttribute("href", "#photo-tour-sanctuary");
     expect(screen.getByAltText("Prime Stay Sanctuary Suite photo 1")).toBeInTheDocument();
+  });
+
+  test("opens the all-photo tour from the slider image and button", async () => {
+    const user = userEvent.setup();
+    const groups = buildRoomPhotoTourGroups({
+      propertyTitle: "Prime Stay",
+      propertyTypeLabel: "Condo",
+      listingImages: listingImages.slice(0, 1),
+    });
+
+    window.history.replaceState(null, "", "/rooms/property");
+    render(
+      <RoomGalleryShowcase
+        images={listingImages.slice(0, 1)}
+        title="Prime Stay"
+        groups={groups}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Show all photos" }));
+
+    expect(screen.getByRole("dialog", { name: "Photo tour" })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("modal")).toBe("PHOTO_TOUR_SCROLLABLE");
+
+    await user.click(screen.getByRole("button", { name: "Close photo tour" }));
+    expect(screen.queryByRole("dialog", { name: "Photo tour" })).not.toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("modal")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Show all photos for Prime Stay" }));
+    expect(screen.getByRole("dialog", { name: "Photo tour" })).toBeInTheDocument();
   });
 });

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Images } from "lucide-react";
 
 interface Slide {
   id: string;
@@ -15,7 +15,15 @@ function isRenderableImage(src?: string) {
 
 const AUTOPLAY_MS = 4500;
 
-export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title: string }) {
+export function RoomGalleryCarousel({
+  images,
+  title,
+  onShowAllPhotos,
+}: {
+  images: Slide[];
+  title: string;
+  onShowAllPhotos?: () => void;
+}) {
   const realCount = images.length;
   const loop = realCount > 1;
 
@@ -99,11 +107,11 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
   }
 
   return (
-    <div>
+    <div className="relative">
       <div
         ref={trackRef}
         onScroll={handleScroll}
-        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-[max(1.25rem,calc((100%-980px)/2))] pb-2 sm:gap-5"
+        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto px-[max(1.25rem,calc((100%_-_980px)/2))] pb-2 sm:gap-5"
       >
         {slides.map((slide, index) => {
           const realIndex = realIndexFor(index);
@@ -119,13 +127,21 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
               }`}
             >
               {isRenderableImage(slide.imageUrl) ? (
-                <Image
-                  src={slide.imageUrl}
-                  alt={`${title} photo ${realIndex + 1}`}
-                  fill
-                  sizes="(min-width:1024px) 980px, 90vw"
-                  className="object-cover"
-                />
+                <button
+                  type="button"
+                  onClick={onShowAllPhotos}
+                  disabled={!onShowAllPhotos}
+                  aria-label={`Show all photos for ${title}`}
+                  className="group relative block h-full w-full cursor-pointer overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35] disabled:cursor-default"
+                >
+                  <Image
+                    src={slide.imageUrl}
+                    alt={`${title} photo ${realIndex + 1}`}
+                    fill
+                    sizes="(min-width:1024px) 980px, 90vw"
+                    className="object-cover transition duration-500 group-hover:scale-[1.02]"
+                  />
+                </button>
               ) : (
                 <div className="h-full w-full bg-gradient-to-br from-[#e7dfd2] to-[#c8d8d1]" />
               )}
@@ -133,6 +149,17 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
           );
         })}
       </div>
+
+      {onShowAllPhotos ? (
+        <button
+          type="button"
+          onClick={onShowAllPhotos}
+          className="absolute bottom-5 right-[max(1.25rem,calc((100%_-_980px)/2))] z-20 inline-flex min-h-11 items-center gap-2 rounded-md border border-black/15 bg-white px-4 text-sm font-semibold text-[#111111] shadow-[0_10px_30px_rgb(0_0_0_/_0.18)] transition hover:bg-[#f7f5ef] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+        >
+          <Images size={18} />
+          Show all photos
+        </button>
+      ) : null}
 
       {loop ? (
         <div className="mt-6 flex items-center justify-center gap-5">

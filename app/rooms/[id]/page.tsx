@@ -39,12 +39,12 @@ import { env } from "@/lib/env";
 import { allowsPackageBooking, calculateGuestPriceWithMarkup, isEntirePlaceListing } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
+import { RoomGalleryShowcase } from "@/components/rooms/room-gallery-showcase";
 import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomAccessPreview } from "@/components/rooms/room-access-preview";
 import { RoomDescriptionDisclosure } from "@/components/rooms/room-description-disclosure";
-import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
 import { RoomReservationCard, RoomStickyReservationCard } from "@/components/rooms/room-reservation-card";
 import { RoomVirtualTour } from "@/components/rooms/room-virtual-tour";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -373,10 +373,12 @@ export default async function RoomPage({
           </div>
         </section>
 
-        <section className="bg-[#efefed] pb-12 sm:pb-24">
-          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
-            <ImageMosaic images={galleryImages.slice(0, 5)} title={property.title} />
-          </div>
+        <section id="gallery" className="scroll-mt-28 bg-[#efefed] pb-12 sm:scroll-mt-32 sm:pb-24">
+          <RoomGalleryShowcase
+            images={galleryImages.slice(0, 8)}
+            title={property.title}
+            groups={photoTourGroups}
+          />
         </section>
 
         <section id="booking" data-reservation-sticky-boundary className="scroll-mt-28 bg-[#f8f6f1] py-12 sm:scroll-mt-32 sm:py-24">
@@ -432,22 +434,6 @@ export default async function RoomPage({
               />
               <div className="mt-8">
                 <RoomAccessPreview rooms={activeRooms} listingImages={property.images} />
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {photoTourGroups.length ? (
-          <section id="gallery" className="scroll-mt-28 bg-white py-12 sm:scroll-mt-32 sm:py-24">
-            <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
-              <SectionHeader
-                eyebrow="Gallery"
-                title="Photo tour"
-                body="Featured views, room spaces, and extra listing images from this stay."
-                titleClassName="md:max-w-none md:whitespace-nowrap"
-              />
-              <div className="mt-8">
-                <RoomPhotoTour groups={photoTourGroups} />
               </div>
             </div>
           </section>
@@ -671,30 +657,6 @@ function Highlight({
       <Icon className="text-[#0f5750]" size={30} />
       <h3 className="mt-4 font-semibold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-black/60">{body}</p>
-    </div>
-  );
-}
-
-function ImageMosaic({ images, title }: { images: Array<{ id: string; imageUrl: string }>; title: string }) {
-  const visibleImages = images.length ? images : [{ id: "placeholder", imageUrl: "" }];
-  const mainImage = visibleImages[0];
-  const sideImages = visibleImages.slice(1, 5);
-
-  return (
-    <div className="grid gap-4 md:grid-cols-[1.08fr_0.92fr]">
-      <div className="relative min-h-[20rem] overflow-hidden rounded-lg bg-[#dedad2] min-[390px]:min-h-[24rem] md:min-h-[42rem]">
-        <GalleryImage src={mainImage.imageUrl} alt={`${title} main photo`} priority />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Array.from({ length: 4 }, (_, index) => {
-          const image = sideImages[index] ?? mainImage;
-          return (
-            <div key={`${image.id}-${index}`} className="relative min-h-[12rem] overflow-hidden rounded-lg bg-[#dedad2] min-[390px]:min-h-[16rem] md:min-h-0">
-              <GalleryImage src={image.imageUrl} alt={`${title} photo ${index + 2}`} />
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
