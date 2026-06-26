@@ -152,7 +152,7 @@ describe("room photo tour", () => {
         title="Prime Stay"
         groups={groups}
         propertyId="property"
-        isAuthenticated
+        isAuthenticated={true}
       />,
     );
 
@@ -195,7 +195,7 @@ describe("room photo tour", () => {
         title="Prime Stay"
         groups={groups}
         propertyId="property"
-        isAuthenticated
+        isAuthenticated={true}
       />,
     );
 

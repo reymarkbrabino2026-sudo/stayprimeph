@@ -6,7 +6,12 @@ import { createPortal } from "react-dom";
 import { ArrowLeft, Heart, Share2 } from "lucide-react";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
-import { getWishlistIds, setWishlistSaved, subscribeToWishlistChanges, writePendingWishlistId } from "@/components/wishlist/wishlist-button";
+import {
+  getWishlistIds,
+  setWishlistSaved,
+  subscribeToWishlistChanges,
+  writePendingWishlistId,
+} from "@/components/wishlist/wishlist-button";
 import type { PhotoTourGroup } from "@/lib/room-photo-tour";
 
 interface GalleryImage {
@@ -209,7 +214,7 @@ export function RoomGalleryShowcase({
       className="fixed inset-0 z-[1000] overflow-y-auto overscroll-contain bg-white text-[#111111]"
     >
       <div className="sticky top-0 z-40 border-b border-black/10 bg-white">
-        <div className="relative flex min-h-16 items-center justify-between px-5 py-3 sm:min-h-20 sm:px-8">
+        <div className="grid min-h-16 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 px-5 py-3 sm:min-h-20 sm:gap-4 sm:px-8">
           <button
             ref={closeButtonRef}
             type="button"
@@ -220,27 +225,29 @@ export function RoomGalleryShowcase({
             <ArrowLeft size={22} />
           </button>
 
-          <h2 id={titleId} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-semibold text-[#111111]">
+          <h2 id={titleId} className="min-w-0 truncate text-center text-base font-semibold text-[#111111]">
             Photo tour
           </h2>
 
-          <div className="flex shrink-0 items-center gap-4 text-sm font-semibold text-[#111111] sm:gap-5">
+          <div className="flex shrink-0 items-center gap-1 text-sm font-semibold text-[#111111] sm:gap-5">
             <button
               type="button"
               onClick={shareStay}
-              className="inline-flex min-h-10 items-center gap-2 underline-offset-2 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+              aria-label={shareLabel}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-full px-2 underline-offset-2 transition hover:bg-black/[0.06] sm:px-0 sm:hover:bg-transparent sm:hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
             >
               <Share2 size={16} />
-              <span>{shareLabel}</span>
+              <span className="hidden sm:inline">{shareLabel}</span>
             </button>
             <button
               type="button"
               onClick={toggleSave}
               aria-pressed={saved}
-              className="inline-flex min-h-10 items-center gap-2 underline-offset-2 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
+              aria-label={saved ? "Saved" : "Save"}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-full px-2 underline-offset-2 transition hover:bg-black/[0.06] sm:px-0 sm:hover:bg-transparent sm:hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]"
             >
               <Heart size={18} fill={saved ? "#ff385c" : "none"} className={saved ? "text-[#ff385c]" : undefined} />
-              <span>{saved ? "Saved" : "Save"}</span>
+              <span className="hidden sm:inline">{saved ? "Saved" : "Save"}</span>
             </button>
           </div>
         </div>
