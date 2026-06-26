@@ -570,6 +570,8 @@ function CalendarDateButton({
   const selected = isStart || isEnd;
   const disabled = !selected && (activeField === "checkIn" || !checkIn ? unavailable : !canSelectCheckout);
   const statusLabel = isStart ? (singleDayPackage ? "Selected" : "Check-in") : isEnd ? "Check-out" : unavailable ? "Booked" : "Open";
+  const compactStatusLabel = isStart ? (singleDayPackage ? "Set" : "In") : isEnd ? "Out" : unavailable ? "Booked" : "Open";
+  const narrowStatusLabel = unavailable ? "Full" : compactStatusLabel;
   const toneClass = selected
     ? "border-[#083f35] bg-[#083f35] text-white"
     : inRange && !unavailable
@@ -583,16 +585,22 @@ function CalendarDateButton({
       type="button"
       disabled={disabled}
       onClick={() => onSelect(cell.dateKey)}
-      aria-label={`${formatDisplayDate(cell.dateKey)} ${unavailable ? "unavailable" : "available"}`}
+      aria-label={`${formatDisplayDate(cell.dateKey)} ${statusLabel}${unavailable ? ", unavailable" : ", available"}`}
       className={cx(
-        "min-h-11 rounded-md border p-1 text-left text-[0.7rem] transition min-[390px]:min-h-12 min-[390px]:rounded-lg min-[390px]:text-xs",
+        "flex min-h-11 flex-col items-center justify-center rounded-md border p-1 text-center text-[0.7rem] transition min-[390px]:min-h-12 min-[390px]:rounded-lg min-[390px]:text-xs",
         toneClass,
         disabled && "cursor-not-allowed hover:border-black/10",
         isPast && !selected && "opacity-35",
       )}
     >
       <span className="block font-semibold">{cell.day}</span>
-      <span className={cx("mt-0.5 block truncate text-[0.56rem] font-semibold min-[390px]:mt-1 min-[390px]:text-[0.6rem]", unavailable && !selected && "line-through")}>
+      <span className={cx("mt-0.5 block text-[0.56rem] font-semibold leading-none min-[360px]:hidden", unavailable && !selected && "line-through")}>
+        {narrowStatusLabel}
+      </span>
+      <span className={cx("mt-0.5 hidden text-[0.56rem] font-semibold leading-none min-[360px]:block min-[430px]:hidden", unavailable && !selected && "line-through")}>
+        {compactStatusLabel}
+      </span>
+      <span className={cx("mt-1 hidden text-[0.6rem] font-semibold leading-none min-[430px]:block", unavailable && !selected && "line-through")}>
         {statusLabel}
       </span>
     </button>

@@ -8,7 +8,7 @@ function photoCountLabel(count: number) {
 function gridClassName(count: number) {
   if (count === 1) return "max-w-4xl";
   if (count === 2) return "grid gap-2 sm:grid-cols-2";
-  return "grid auto-rows-[minmax(12rem,auto)] gap-2 sm:grid-cols-2 lg:grid-cols-3";
+  return "grid auto-rows-[minmax(10rem,auto)] gap-2 min-[390px]:auto-rows-[minmax(12rem,auto)] sm:grid-cols-2 lg:grid-cols-3";
 }
 
 function tileClassName(count: number, index: number) {
@@ -57,16 +57,16 @@ export function RoomPhotoTour({ groups }: { groups: PhotoTourGroup[] }) {
     <div>
       <nav
         aria-label="Photo tour sections"
-        className="sticky top-20 z-30 border-y border-black/10 bg-white/95 py-4 backdrop-blur"
+        className="sticky top-[4.75rem] z-30 -mx-5 border-y border-black/10 bg-white/95 px-5 py-3 backdrop-blur sm:top-20 sm:mx-0 sm:px-0 sm:py-4"
       >
-        <div className="no-scrollbar flex gap-3 overflow-x-auto">
+        <div className="no-scrollbar touch-scroll flex snap-x gap-3 overflow-x-auto">
           {groups.map((group) => {
             const thumbnail = group.photos[0];
             return (
               <a
                 key={group.id}
                 href={`#${group.id}`}
-                className="group w-[7.5rem] shrink-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#083f35]"
+                className="group w-[6.25rem] shrink-0 snap-start text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#083f35] sm:w-[7.5rem]"
               >
                 <span className="relative block aspect-[4/3] overflow-hidden rounded-md bg-[#dedad2] ring-1 ring-black/10">
                   <Image
@@ -89,7 +89,7 @@ export function RoomPhotoTour({ groups }: { groups: PhotoTourGroup[] }) {
           <article
             key={group.id}
             id={group.id}
-            className="grid scroll-mt-36 gap-5 py-10 first:pt-9 sm:py-12 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
+            className="grid scroll-mt-32 gap-5 py-8 first:pt-7 sm:scroll-mt-36 sm:py-12 sm:first:pt-9 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
           >
             <div className="lg:sticky lg:top-36 lg:self-start">
               <h3 className="break-words text-base font-semibold text-[#111111]">{group.title}</h3>

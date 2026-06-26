@@ -55,7 +55,7 @@ export function RoomDescriptionDisclosure({
 
   return (
     <div>
-      <p className="line-clamp-3 text-2xl font-medium leading-10 text-black sm:text-3xl">
+      <p className="line-clamp-3 text-xl font-medium leading-8 text-black sm:text-3xl sm:leading-10">
         {description}
       </p>
       <button
