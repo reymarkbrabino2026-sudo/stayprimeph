@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ArrowDown, ArrowUp, ImagePlus, Star, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { csrfHeaderName } from "@/lib/csrf-fields";
+import { listingPhotoCategoryLabel, type ListingPhotoCategory } from "@/lib/listing-photo-categories";
 import type { PropertyImage } from "@/lib/types";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -15,12 +16,14 @@ type EditablePhoto = {
   id: string;
   url: string;
   name: string;
+  category?: ListingPhotoCategory;
 };
 
 type UploadResponse = {
   id: string;
   url: string;
   bytes: number;
+  category?: ListingPhotoCategory;
 };
 
 function toEditablePhoto(photo: PropertyImage, index: number): EditablePhoto {
@@ -28,6 +31,7 @@ function toEditablePhoto(photo: PropertyImage, index: number): EditablePhoto {
     id: photo.id,
     url: photo.imageUrl,
     name: index === 0 ? "Hero photo" : `Photo ${index + 1}`,
+    category: photo.category,
   };
 }
 
@@ -125,7 +129,7 @@ export function ImageUploader({
       const uploaded = await Promise.all(accepted.map(async (file, index) => {
         const result = await uploadOne(file, listingId, csrfToken, (percent) => updateFileProgress(index, percent));
         updateFileProgress(index, 100);
-        return { id: result.id, url: result.url, name: file.name };
+        return { id: result.id, url: result.url, name: file.name, category: result.category };
       }));
       setPhotos((current) => [...current, ...uploaded]);
       setUploadProgress(100);
@@ -178,6 +182,9 @@ export function ImageUploader({
                       <Star className="size-3" aria-hidden="true" /> Hero
                     </span>
                   ) : null}
+                  <span className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-black shadow-sm">
+                    {listingPhotoCategoryLabel(photo.category)}
+                  </span>
                 </button>
                 <div className="flex min-w-0 flex-col justify-between gap-3">
                   <div>
@@ -208,7 +215,10 @@ export function ImageUploader({
       </div>
 
       {photos.map((photo) => (
-        <input key={`photo-url-${photo.id}-${photo.url}`} type="hidden" name="photoUrls" value={photo.url} />
+        <div key={`photo-url-${photo.id}-${photo.url}`}>
+          <input type="hidden" name="photoUrls" value={photo.url} />
+          <input type="hidden" name="photoCategories" value={photo.category ?? "other"} />
+        </div>
       ))}
       <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" multiple className="hidden" onChange={(event) => handleFiles(event.target.files)} />
 

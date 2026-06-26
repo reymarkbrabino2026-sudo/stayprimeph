@@ -89,6 +89,25 @@ describe("room photo tour", () => {
     expect(groups[0].summary).toBe("Studio overview - 3 photos");
   });
 
+  test("groups detected listing photos by room category", () => {
+    const groups = buildRoomPhotoTourGroups({
+      propertyTitle: "Prime Stay",
+      propertyTypeLabel: "Villa",
+      listingImages: [
+        { id: "kitchen-1", propertyId: "property", imageUrl: "/uploads/kitchen.jpg", tone: "", category: "kitchen" },
+        { id: "bedroom-1", propertyId: "property", imageUrl: "/uploads/bedroom.jpg", tone: "", category: "bedroom" },
+        { id: "kitchen-2", propertyId: "property", imageUrl: "/uploads/kitchen-2.jpg", tone: "", category: "kitchen" },
+      ],
+    });
+
+    expect(groups.map((group) => group.title)).toEqual(["Kitchen", "Bedroom"]);
+    expect(groups[0].photos.map((photo) => photo.imageUrl)).toEqual([
+      "/uploads/kitchen.jpg",
+      "/uploads/kitchen-2.jpg",
+    ]);
+    expect(groups[1].summary).toBe("1 photo");
+  });
+
   test("renders thumbnail navigation and grouped photo sections", () => {
     const groups = buildRoomPhotoTourGroups({
       propertyTitle: "Prime Stay",

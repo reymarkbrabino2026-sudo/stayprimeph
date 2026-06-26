@@ -5,16 +5,18 @@ import { Prisma } from "@prisma/client";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
+import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
 
-function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null }): PropertyImage {
+function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null; category?: string | null }): PropertyImage {
   return {
     id: image.id,
     propertyId: image.propertyId,
     imageUrl: image.imageUrl,
     tone: image.tone ?? "from-rose-100 via-orange-50 to-stone-100",
+    category: normalizeListingPhotoCategory(image.category),
   };
 }
 
@@ -280,6 +282,7 @@ async function ensurePropertyAdvancedPricingColumns(db: Pick<typeof prisma, "$ex
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "bookingType" TEXT NOT NULL DEFAULT 'stay'`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "virtualTourUrl" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "privacyType" TEXT NOT NULL DEFAULT 'entire'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "PropertyImage" ADD COLUMN IF NOT EXISTS "category" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayDates" JSONB`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "seasonalRates" JSONB`);
@@ -997,6 +1000,7 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
         id: image.id,
         imageUrl: image.imageUrl,
         tone: image.tone,
+        category: normalizeListingPhotoCategory(image.category),
       })),
     },
     amenities: {
@@ -1193,6 +1197,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
             id: image.id,
             imageUrl: image.imageUrl,
             tone: image.tone,
+            category: normalizeListingPhotoCategory(image.category),
           })),
         },
         pricing: {

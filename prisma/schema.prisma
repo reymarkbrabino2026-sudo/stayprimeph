@@ -82,6 +82,7 @@ model PropertyImage {
   propertyId String
   imageUrl   String
   tone       String?
+  category   String?
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 }
 

@@ -1,5 +1,8 @@
 import { z } from "zod";
+import { listingPhotoCategoryIds } from "@/lib/listing-photo-categories";
 import { isValidVirtualTourUrl, normalizeVirtualTourUrl } from "@/lib/virtual-tour";
+
+const listingPhotoCategorySchema = z.enum(listingPhotoCategoryIds).catch("other");
 
 const virtualTourUrlSchema = z.preprocess(
   (value) => typeof value === "string" ? value.trim() : "",
@@ -118,7 +121,7 @@ export const hostListingSchema = z.object({
   ...hostListingAddressFields,
   latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), locationConfirmed: z.literal(true), locationConfirmedAddress: z.string().min(1).max(600), propertyType: z.string().min(1).max(80), privacyType: z.string().min(1).max(80), preciseLocation: z.boolean(),
   guests: z.number().int().min(1).max(50), bedrooms: z.number().int().min(0).max(50), beds: z.number().int().min(1).max(100), bathrooms: z.number().min(1).max(50), rooms: z.array(propertyRoomSchema).max(30), amenityIds: z.array(z.string().max(80)).min(1).max(50),
-  photos: z.array(z.object({ id: z.string().min(1).max(160), url: z.string().min(1).max(2048), name: z.string().max(180), size: z.number().int().min(0).max(10 * 1024 * 1024), isCover: z.boolean() })).min(5).max(20),
+  photos: z.array(z.object({ id: z.string().min(1).max(160), url: z.string().min(1).max(2048), name: z.string().max(180), size: z.number().int().min(0).max(10 * 1024 * 1024), isCover: z.boolean(), category: listingPhotoCategorySchema.optional() })).min(5).max(20),
   title: z.string().min(1).max(50), highlights: z.array(z.string()).max(2), description: z.string().min(20).max(500), virtualTourUrl: virtualTourUrlSchema,
   bookingType: z.enum(["stay", "package", "both"]).catch("stay"), bookingMode: z.enum(["request", "instant"]), pricingMode: z.enum(["simple", "packages"]), basePrice: z.number().int().min(0).max(1000000), weekendPrice: z.number().int().min(0).max(1000000), holidayPrice: z.number().int().min(0).max(1000000).catch(0), holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]), seasonalRates: z.array(seasonalRateSchema).max(12).catch([]), weekendPremium: z.number().int().min(0).max(99),
   cleaningFee: z.number().int().min(0).max(1000000), securityDeposit: z.number().int().min(0).max(1000000), currency: z.string().min(3).max(8), cancellationPolicy: z.enum(["flexible", "moderate", "strict"]),

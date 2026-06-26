@@ -29,6 +29,8 @@ const envSchema = z.object({
   PHOTO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   JSON_STORE_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  PHOTO_CLASSIFICATION_MODEL: z.string().min(1).optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
 });
@@ -57,6 +59,8 @@ const cloudinaryApiSecret = optionalEnv(process.env.CLOUDINARY_API_SECRET);
 const photoBlobReadWriteToken = optionalEnv(process.env.PHOTO_BLOB_READ_WRITE_TOKEN);
 const blobReadWriteToken = optionalEnv(process.env.BLOB_READ_WRITE_TOKEN);
 const jsonStoreBlobReadWriteToken = optionalEnv(process.env.JSON_STORE_BLOB_READ_WRITE_TOKEN);
+const openAIApiKey = optionalEnv(process.env.OPENAI_API_KEY);
+const photoClassificationModel = optionalEnv(process.env.PHOTO_CLASSIFICATION_MODEL);
 
 function isPostgresUrl(value: string | undefined) {
   return Boolean(value?.startsWith("postgresql://") || value?.startsWith("postgres://"));
@@ -147,6 +151,8 @@ export const env = envSchema.parse({
   PHOTO_BLOB_READ_WRITE_TOKEN: photoBlobReadWriteToken,
   BLOB_READ_WRITE_TOKEN: blobReadWriteToken,
   JSON_STORE_BLOB_READ_WRITE_TOKEN: jsonStoreBlobReadWriteToken,
+  OPENAI_API_KEY: openAIApiKey,
+  PHOTO_CLASSIFICATION_MODEL: photoClassificationModel,
   NEXT_PUBLIC_SUPABASE_URL: optionalEnv(process.env.NEXT_PUBLIC_SUPABASE_URL),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalEnv(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
 });

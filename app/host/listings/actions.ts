@@ -12,6 +12,7 @@ import { createPropertyInDatabase, deleteDraftPropertyInDatabase, deleteProperty
 import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
+import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { logger } from "@/lib/logger";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
 import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
@@ -127,6 +128,7 @@ const hostListingDraftSaveSchema = z.object({
     name: textValue(180),
     size: integerValue(0, 10 * 1024 * 1024, 0),
     isCover: z.boolean().catch(false),
+    category: z.string().max(40).optional().transform((value) => normalizeListingPhotoCategory(value)),
   })).max(20).catch([]),
   title: textValue(50),
   highlights: z.array(z.string().max(80)).max(2).catch([]),
@@ -252,15 +254,30 @@ function formatListingAddress(input: Pick<HostListingInput, "street" | "barangay
 function orderedImages(input: Pick<HostListingInput, "photos"> | Pick<HostListingDraftSaveInput, "photos">, propertyId: string) {
   return [...input.photos]
     .sort((a, b) => Number(b.isCover) - Number(a.isCover))
-    .map((photo, index) => ({ id: `${propertyId}-photo-${index + 1}`, propertyId, imageUrl: photo.url, tone: "from-rose-100 via-orange-50 to-stone-100" }));
+    .map((photo, index) => ({
+      id: `${propertyId}-photo-${index + 1}`,
+      propertyId,
+      imageUrl: photo.url,
+      tone: "from-rose-100 via-orange-50 to-stone-100",
+      category: normalizeListingPhotoCategory(photo.category),
+    }));
 }
 
 function readSubmittedImages(formData: FormData, existing: Property, userId: string) {
   const existingImageUrls = new Set(existing.images.map((image) => image.imageUrl));
   const submittedUrls = formData.getAll("photoUrls").map(String).map((value) => value.trim()).filter(Boolean);
-  const uniqueUrls = Array.from(new Set(submittedUrls)).slice(0, 20);
+  const submittedCategories = formData.getAll("photoCategories").map((value) => normalizeListingPhotoCategory(String(value)));
+  const uniquePhotos: Array<{ url: string; category: ReturnType<typeof normalizeListingPhotoCategory> }> = [];
+  const seen = new Set<string>();
 
-  for (const url of uniqueUrls) {
+  for (const [index, url] of submittedUrls.entries()) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    uniquePhotos.push({ url, category: submittedCategories[index] ?? "other" });
+    if (uniquePhotos.length >= 20) break;
+  }
+
+  for (const { url } of uniquePhotos) {
     const retainedExistingPhoto = existingImageUrls.has(url);
     const uploadedForThisListing = isIntendedListingPhotoUrl(url, {
       userId,
@@ -272,11 +289,12 @@ function readSubmittedImages(formData: FormData, existing: Property, userId: str
     }
   }
 
-  return uniqueUrls.map((url, index) => ({
+  return uniquePhotos.map((photo, index) => ({
     id: `${existing.id}-photo-${index + 1}`,
     propertyId: existing.id,
-    imageUrl: url,
+    imageUrl: photo.url,
     tone: "from-rose-100 via-orange-50 to-stone-100",
+    category: photo.category,
   }));
 }
 
@@ -650,7 +668,7 @@ export async function saveWizardListingDraft(input: unknown, csrfToken?: string)
     uploadScopeId: parsed.data.uploadScopeId || `draft-${randomUUID()}`,
     status: "draft" as const,
   };
-  const scopedRoomPhotoUrls = isEntirePlaceListingInput(listing) ? roomPhotoUrls(listing) : [];
+  const scopedRoomPhotoUrls = roomPhotoUrls(listing);
   const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...scopedRoomPhotoUrls];
   if (!allUploadedListingPhotoUrlsBelongToScope(uploadedUrls, user.id, listing.uploadScopeId)) {
     logger.warn("wizard_draft_photo_scope_failed", {
@@ -700,7 +718,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     return { status: "error" as const, error: "Please confirm the map pin for the current listing address before publishing." };
   }
 
-  const roomPhotos = isEntirePlaceListingInput(listing) ? roomPhotoUrls(listing) : [];
+  const roomPhotos = roomPhotoUrls(listing);
   const uploadedUrls = [...listing.photos.map((photo) => photo.url), ...roomPhotos];
   if (!allUploadedListingPhotoUrlsBelongToScope(uploadedUrls, user.id, listing.uploadScopeId)) {
     logger.warn("wizard_publish_photo_scope_failed", {

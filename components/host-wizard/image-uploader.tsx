@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { csrfHeaderName } from "@/lib/csrf-fields";
+import { listingPhotoCategoryLabel, listingPhotoCategoryRank, normalizeListingPhotoCategory, type ListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -15,9 +16,23 @@ interface UploadResponse {
   id: string;
   url: string;
   bytes: number;
+  category?: ListingPhotoCategory;
 }
 
 type RoomPhotoChange = string[] | ((currentPhotos: string[]) => string[]);
+
+function groupPhotosByCategory<T extends { category?: ListingPhotoCategory }>(photos: T[]) {
+  const groups = new Map<ListingPhotoCategory, T[]>();
+
+  for (const photo of photos) {
+    const category = normalizeListingPhotoCategory(photo.category);
+    groups.set(category, [...(groups.get(category) ?? []), photo]);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => listingPhotoCategoryRank(left) - listingPhotoCategoryRank(right))
+    .map(([category, items]) => ({ category, photos: items }));
+}
 
 function uploadOne(file: File, listingId: string, csrfToken: string, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
@@ -69,6 +84,7 @@ export function ImageUploader({ csrfToken }: { csrfToken: string }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const preview = draft.photos.find((photo) => photo.id === previewId);
+  const photoGroups = groupPhotosByCategory(draft.photos);
 
   async function handleFiles(files: FileList | null) {
     if (!files) return;
@@ -93,7 +109,7 @@ export function ImageUploader({ csrfToken }: { csrfToken: string }) {
       const uploaded = await Promise.all(accepted.map(async (file, index) => {
         const result = await uploadOne(file, draft.uploadScopeId, csrfToken, (percent) => updateFileProgress(index, percent));
         updateFileProgress(index, 100);
-        return { id: result.id, url: result.url, name: file.name, size: result.bytes, isCover: false };
+        return { id: result.id, url: result.url, name: file.name, size: result.bytes, isCover: false, category: result.category };
       }));
       setUploadProgress(100);
       addPhotos(uploaded);
@@ -120,27 +136,46 @@ export function ImageUploader({ csrfToken }: { csrfToken: string }) {
           <p className="mb-4 rounded-2xl bg-black/[0.03] px-4 py-3 text-sm text-black/60">
             Photos appear in a full-width <strong className="font-semibold text-black/75">980 × 580</strong> carousel on your listing page. Use landscape shots and set your best one as the hero.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {draft.photos.map((photo, index) => (
-              <article key={photo.id} className={`${index === 0 ? "sm:col-span-2" : ""} overflow-hidden rounded-3xl border bg-black/[0.02]`}>
-                <button type="button" onClick={() => setPreviewId(photo.id)} className="relative block aspect-[49/29] w-full">
-                  <Image src={photo.url} alt={photo.name} fill className="object-cover" unoptimized />
-                  {photo.isCover ? (
-                    <span className="absolute left-3 top-3 rounded-full bg-black/80 px-3 py-1 text-xs font-semibold text-white">Hero photo</span>
-                  ) : null}
-                </button>
-                <div className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-                  <span className="truncate">{photo.isCover ? "Shown first" : photo.name}</span>
-                  <div className="flex gap-2">
-                    {!photo.isCover ? <button type="button" onClick={() => setCoverPhoto(photo.id)} className="rounded-full border px-3 py-1">Set as hero</button> : null}
-                    <button type="button" aria-label={`Move ${photo.name} earlier`} onClick={() => movePhoto(photo.id, -1)} className="rounded-full border px-3 py-1">↑</button>
-                    <button type="button" aria-label={`Move ${photo.name} later`} onClick={() => movePhoto(photo.id, 1)} className="rounded-full border px-3 py-1">↓</button>
-                    <button type="button" onClick={() => removePhoto(photo.id)} className="rounded-full border px-3 py-1">Delete</button>
-                  </div>
+          <div className="space-y-5">
+            {photoGroups.map((group) => (
+              <section key={group.category}>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold">{listingPhotoCategoryLabel(group.category)}</h3>
+                  <span className="rounded-full bg-black/[0.04] px-3 py-1 text-xs font-semibold text-black/55">
+                    {group.photos.length} photo{group.photos.length === 1 ? "" : "s"}
+                  </span>
                 </div>
-              </article>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {group.photos.map((photo) => {
+                    const index = draft.photos.findIndex((item) => item.id === photo.id);
+
+                    return (
+                      <article key={photo.id} className={`${index === 0 ? "sm:col-span-2" : ""} overflow-hidden rounded-3xl border bg-black/[0.02]`}>
+                        <button type="button" onClick={() => setPreviewId(photo.id)} className="relative block aspect-[49/29] w-full">
+                          <Image src={photo.url} alt={photo.name} fill className="object-cover" unoptimized />
+                          {photo.isCover ? (
+                            <span className="absolute left-3 top-3 rounded-full bg-black/80 px-3 py-1 text-xs font-semibold text-white">Hero photo</span>
+                          ) : null}
+                          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-black shadow-sm">
+                            {listingPhotoCategoryLabel(photo.category)}
+                          </span>
+                        </button>
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+                          <span className="truncate">{photo.isCover ? "Shown first" : photo.name}</span>
+                          <div className="flex gap-2">
+                            {!photo.isCover ? <button type="button" onClick={() => setCoverPhoto(photo.id)} className="rounded-full border px-3 py-1">Set as hero</button> : null}
+                            <button type="button" aria-label={`Move ${photo.name} earlier`} onClick={() => movePhoto(photo.id, -1)} className="rounded-full border px-3 py-1">↑</button>
+                            <button type="button" aria-label={`Move ${photo.name} later`} onClick={() => movePhoto(photo.id, 1)} className="rounded-full border px-3 py-1">↓</button>
+                            <button type="button" onClick={() => removePhoto(photo.id)} className="rounded-full border px-3 py-1">Delete</button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
             ))}
-            <button type="button" onClick={() => inputRef.current?.click()} className="grid aspect-[49/29] min-h-36 place-items-center rounded-3xl border border-dashed text-lg font-semibold">+ Add more</button>
+            <button type="button" onClick={() => inputRef.current?.click()} className="grid aspect-[49/29] min-h-36 w-full place-items-center rounded-3xl border border-dashed text-lg font-semibold">+ Add more</button>
           </div>
         </div>
       )}

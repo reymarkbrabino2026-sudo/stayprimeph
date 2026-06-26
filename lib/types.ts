@@ -1,3 +1,5 @@
+import type { ListingPhotoCategory } from "@/lib/listing-photo-categories";
+
 export type UserRole = "guest" | "host" | "admin";
 export type ListingStatus = "approved" | "pending" | "rejected" | "draft";
 export type BookingStatus = "confirmed" | "pending" | "cancelled" | "completed";
@@ -7,7 +9,7 @@ export type AvailabilityBlockReason = "booked_elsewhere" | "owner_use" | "mainte
 export type ListingBookingType = "stay" | "package" | "both";
 
 export interface User { id: string; name: string; email: string; role: UserRole; avatar: string; phone: string; createdAt: string; passwordHash?: string; emailVerifiedAt?: string; passwordChangedAt?: string; }
-export interface PropertyImage { id: string; propertyId: string; imageUrl: string; tone: string; }
+export interface PropertyImage { id: string; propertyId: string; imageUrl: string; tone: string; category?: ListingPhotoCategory; }
 export interface PublicListingSummary {
   id: string;
   slug: string;

@@ -30,7 +30,7 @@ function draft(): HostListingDraft {
     bathrooms: 1,
     rooms: [],
     amenityIds: ["wifi"],
-    photos: [{ id: "photo-1", url: "https://assets.example/photo.jpg", name: "photo.jpg", size: 100, isCover: true }],
+    photos: [{ id: "photo-1", url: "https://assets.example/photo.jpg", name: "photo.jpg", size: 100, isCover: true, category: "kitchen" }],
     title: "Prime stay",
     highlights: ["peaceful"],
     description: "A comfortable place for a family stay.",
@@ -87,6 +87,9 @@ describe("host wizard local storage", () => {
       locationConfirmedAddress: "123 Prime Street, Mamacao, Santa Maria, Davao Occidental, Philippines, 8011",
       preciseLocation: true,
       title: "Prime stay",
+      photos: [
+        expect.objectContaining({ category: "kitchen" }),
+      ],
       residentialAddress: {
         street: "456 Residential Street",
         barangay: "Sensitive Barangay",

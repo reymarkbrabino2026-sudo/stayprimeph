@@ -1,3 +1,5 @@
+import type { ListingPhotoCategory } from "@/lib/listing-photo-categories";
+
 export type WizardStepId =
   | "address"
   | "place-intro"
@@ -30,7 +32,7 @@ export type HostListingBookingType = "stay" | "package" | "both";
 
 export interface WizardOption { id: string; label: string; description?: string; icon: string; }
 export interface AmenityGroup { id: string; title: string; items: WizardOption[]; }
-export interface UploadedPhoto { id: string; url: string; name: string; size: number; isCover: boolean; }
+export interface UploadedPhoto { id: string; url: string; name: string; size: number; isCover: boolean; category?: ListingPhotoCategory; }
 export type HostPricingMode = "simple" | "packages";
 export interface HostSeasonalRateDraft {
   id: string;

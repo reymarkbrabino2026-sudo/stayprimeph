@@ -5,6 +5,8 @@ import { requireStateChangingApiRequest } from "@/lib/api-request-guard";
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { hasCloudinaryConfig } from "@/lib/cloudinary";
 import { env } from "@/lib/env";
+import { classifyListingPhoto } from "@/lib/listing-photo-classifier";
+import { listingPhotoCategoryLabel } from "@/lib/listing-photo-categories";
 import { moderateListingPhotoImage, sanitizeListingPhotoImage, scanListingPhotoForMalware, type OptimizedListingPhotoVariant, validateListingPhotoBytes, validateListingPhotoMetadata } from "@/lib/listing-photo-upload-validation";
 import { logger } from "@/lib/logger";
 import { cleanupUploadedPhotos, getPhotoBlobReadWriteToken, hasVercelBlobConfig } from "@/lib/photo-storage";
@@ -22,6 +24,33 @@ type UploadedListingPhotoVariant = {
   height: number;
   contentType: string;
 };
+
+function uploadResponsePayload({
+  primary,
+  storage,
+  variants,
+  classification,
+}: {
+  primary: UploadedListingPhotoVariant;
+  storage: "cloudinary" | "vercel-blob";
+  variants: UploadedListingPhotoVariant[];
+  classification: Awaited<ReturnType<typeof classifyListingPhoto>>;
+}) {
+  return {
+    id: primary.id,
+    url: primary.url,
+    bytes: primary.bytes,
+    width: primary.width,
+    height: primary.height,
+    contentType: primary.contentType,
+    storage,
+    variants,
+    category: classification.category,
+    categoryLabel: listingPhotoCategoryLabel(classification.category),
+    categoryConfidence: classification.confidence,
+    categorySource: classification.source,
+  };
+}
 
 async function requireListingUploadScope(userId: string, value: FormDataEntryValue | null) {
   const listingId = normalizeUploadScopeId(String(value ?? ""), "");
@@ -108,6 +137,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: moderation.error }, { status: moderation.status });
   }
 
+  const classification = await classifyListingPhoto({
+    bytes: sanitizedImage.primary.bytes,
+    contentType: sanitizedImage.primary.contentType,
+    fileName: file.name,
+  });
+
   const uploadBasePath = serverGeneratedListingBlobPath({
     userId: user.id,
     listingId,
@@ -152,16 +187,7 @@ export async function POST(request: Request) {
         uploadedVariants.push(await uploadVariant(variant));
       }
       const primary = uploadedVariants.find((variant) => variant.format === sanitizedImage.primary.format) ?? uploadedVariants[0];
-      return NextResponse.json({
-        id: primary.id,
-        url: primary.url,
-        bytes: primary.bytes,
-        width: primary.width,
-        height: primary.height,
-        contentType: primary.contentType,
-        storage: "cloudinary",
-        variants: uploadedVariants,
-      });
+      return NextResponse.json(uploadResponsePayload({ primary, storage: "cloudinary", variants: uploadedVariants, classification }));
     } catch (error) {
       const cleanupFailures = await cleanupUploadedPhotos(uploadedVariants.map((variant) => ({
         storage: "cloudinary",
@@ -199,16 +225,7 @@ export async function POST(request: Request) {
       }
       const primary = uploadedVariants.find((variant) => variant.format === sanitizedImage.primary.format) ?? uploadedVariants[0];
 
-      return NextResponse.json({
-        id: primary.id,
-        url: primary.url,
-        bytes: primary.bytes,
-        width: primary.width,
-        height: primary.height,
-        contentType: primary.contentType,
-        storage: "vercel-blob",
-        variants: uploadedVariants,
-      });
+      return NextResponse.json(uploadResponsePayload({ primary, storage: "vercel-blob", variants: uploadedVariants, classification }));
     } catch (error) {
       const cleanupFailures = await cleanupUploadedPhotos(uploadedVariants.map((variant) => ({
         storage: "vercel-blob",
