@@ -56,7 +56,7 @@ export default async function NewsArticlePage({ params }: { params: Promise<{ sl
     datePublished: article.date,
     dateModified: article.date,
     author: { "@type": "Organization", name: article.author },
-    publisher: { "@type": "Organization", name: "StayPrime PH", logo: { "@type": "ImageObject", url: `${env.NEXT_PUBLIC_APP_URL}/icon.svg` } },
+    publisher: { "@type": "Organization", name: "StayPrime PH", logo: { "@type": "ImageObject", url: `${env.NEXT_PUBLIC_APP_URL}/favicon-512x512.png` } },
     mainEntityOfPage: url,
   };
   const breadcrumbLd: Record<string, unknown> = {

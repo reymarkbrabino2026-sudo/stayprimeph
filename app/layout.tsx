@@ -8,13 +8,15 @@ import { env } from "@/lib/env";
 import "./globals.css";
 
 const siteUrl = env.NEXT_PUBLIC_APP_URL;
+const brandIconUrl = `${siteUrl}/favicon-512x512.png`;
 
 const organizationLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "StayPrime PH",
   url: siteUrl,
-  logo: `${siteUrl}/icon.svg`,
+  logo: brandIconUrl,
+  image: brandIconUrl,
   description:
     "Book affordable staycations, vacation rentals, condos, and short-term stays across the Philippines.",
 };
@@ -79,6 +81,16 @@ export const metadata: Metadata = {
     title: "StayPrime PH | Staycations & Vacation Rentals in the Philippines",
     description:
       "Affordable staycations, vacation rentals, condos, and short-term stays across the Philippines. Book easily with StayPrime PH.",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "96x96", type: "image/x-icon" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: [{ url: "/favicon.ico" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/manifest.webmanifest",
   verification: {

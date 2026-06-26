@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
@@ -18,6 +19,125 @@ import {
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const desktopStickyTopPx = 112;
+const desktopStickyBottomPx = 96;
+
+type StickyMode = "inline" | "fixed" | "absolute";
+type StickyMetrics = {
+  mode: StickyMode;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+function sameStickyMetrics(current: StickyMetrics, next: StickyMetrics) {
+  return (
+    current.mode === next.mode &&
+    current.top === next.top &&
+    current.left === next.left &&
+    current.width === next.width &&
+    current.height === next.height
+  );
+}
+
+export function RoomStickyReservationCard({
+  property,
+  rating,
+  unavailableStays = [],
+}: {
+  property: Property;
+  rating: string;
+  unavailableStays?: UnavailableStay[];
+}) {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState<StickyMetrics>({ mode: "inline", top: 0, left: 0, width: 0, height: 0 });
+
+  useEffect(() => {
+    let frame = 0;
+
+    function updatePosition() {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const shell = shellRef.current;
+        const card = cardRef.current;
+        if (!shell || !card) return;
+
+        const shellRect = shell.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        const footer = document.querySelector("footer");
+        const footerTop = footer ? window.scrollY + footer.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+        const shellTop = window.scrollY + shellRect.top;
+        const nextHeight = cardRect.height;
+        const stickyTop = window.scrollY + desktopStickyTopPx;
+        const stopTop = footerTop - desktopStickyBottomPx - nextHeight;
+        const mode: StickyMode =
+          stickyTop <= shellTop
+            ? "inline"
+            : stickyTop >= stopTop
+              ? "absolute"
+              : "fixed";
+
+        const nextMetrics = {
+          mode,
+          top: mode === "absolute" ? Math.max(0, stopTop - shellTop) : desktopStickyTopPx,
+          left: shellRect.left,
+          width: shellRect.width,
+          height: nextHeight,
+        };
+
+        setMetrics((current) => (sameStickyMetrics(current, nextMetrics) ? current : nextMetrics));
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, { passive: true });
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, []);
+
+  const fixedStyle: CSSProperties =
+    metrics.mode === "fixed"
+      ? {
+          left: metrics.left,
+          maxHeight: `calc(100svh - ${desktopStickyTopPx + desktopStickyBottomPx}px)`,
+          overflowY: "auto",
+          top: desktopStickyTopPx,
+          width: metrics.width,
+        }
+      : {};
+  const absoluteStyle: CSSProperties =
+    metrics.mode === "absolute"
+      ? {
+          maxHeight: `calc(100svh - ${desktopStickyTopPx + desktopStickyBottomPx}px)`,
+          overflowY: "auto",
+          top: metrics.top,
+          width: metrics.width,
+        }
+      : {};
+
+  return (
+    <aside
+      ref={shellRef}
+      className="relative hidden lg:block lg:self-start"
+      style={metrics.mode === "inline" ? undefined : { minHeight: metrics.height }}
+    >
+      <div
+        ref={cardRef}
+        className={`${metrics.mode === "fixed" ? "fixed z-40" : metrics.mode === "absolute" ? "absolute z-40" : ""}`}
+        style={metrics.mode === "fixed" ? fixedStyle : metrics.mode === "absolute" ? absoluteStyle : undefined}
+      >
+        <RoomReservationCard property={property} rating={rating} unavailableStays={unavailableStays} />
+      </div>
+    </aside>
+  );
+}
 
 export function RoomReservationCard({
   property,
@@ -28,7 +148,16 @@ export function RoomReservationCard({
   rating: string;
   unavailableStays?: UnavailableStay[];
 }) {
-  const { bookingMode, checkIn, checkOut, guests, packageId, setBookingMode, setCheckIn, setCheckOut, setGuests, setPackageId } = useReservationStore();
+  const checkIn = useReservationStore((state) => state.checkIn);
+  const checkOut = useReservationStore((state) => state.checkOut);
+  const guests = useReservationStore((state) => state.guests);
+  const bookingMode = useReservationStore((state) => state.bookingMode);
+  const packageId = useReservationStore((state) => state.packageId);
+  const setCheckIn = useReservationStore((state) => state.setCheckIn);
+  const setCheckOut = useReservationStore((state) => state.setCheckOut);
+  const setGuests = useReservationStore((state) => state.setGuests);
+  const setBookingMode = useReservationStore((state) => state.setBookingMode);
+  const setPackageId = useReservationStore((state) => state.setPackageId);
   const instantBook = property.rules.includes("Instant book enabled");
   const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
   const stayBookingAllowed = allowsStayBooking(property);
@@ -89,22 +218,31 @@ export function RoomReservationCard({
   const calendarActiveField = activeField;
 
   useEffect(() => {
-    if (!stayBookingAllowed && packageBookingAllowed && bookingMode !== "package") {
-      setBookingMode("package");
-    } else if (stayBookingAllowed && !packageBookingAllowed && bookingMode !== "stay") {
-      setBookingMode("stay");
-    }
+    const requiredMode =
+      packageBookingAllowed && !stayBookingAllowed
+        ? "package"
+        : stayBookingAllowed && !packageBookingAllowed
+          ? "stay"
+          : bookingMode;
 
-    if (!packageBookingAllowed) {
+    if (requiredMode !== bookingMode) setBookingMode(requiredMode);
+
+    if (requiredMode !== "package" || !packageBookingAllowed) {
       if (packageId) setPackageId(null);
       return;
     }
-    if (effectiveBookingMode === "stay" && packageId) {
-      setPackageId(null);
-      return;
-    }
-    if (effectiveBookingMode === "package" && !selectedPackage && bookingPackages[0]?.id) setPackageId(bookingPackages[0].id);
-  }, [bookingMode, effectiveBookingMode, bookingPackages, packageBookingAllowed, packageId, selectedPackage, setBookingMode, setPackageId, stayBookingAllowed]);
+
+    if (!selectedPackage && bookingPackages[0]) setPackageId(bookingPackages[0].id);
+  }, [
+    bookingMode,
+    bookingPackages,
+    packageBookingAllowed,
+    packageId,
+    selectedPackage,
+    setBookingMode,
+    setPackageId,
+    stayBookingAllowed,
+  ]);
 
   useEffect(() => {
     if (selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout) setPackageId(fullAccessPackage.id);
@@ -155,14 +293,14 @@ export function RoomReservationCard({
   }
 
   return (
-    <div className="scroll-mt-24 rounded-[1.35rem] border border-black/10 bg-white p-4 shadow-[0_20px_54px_rgb(8_63_53_/_0.14)] min-[390px]:rounded-[1.75rem] sm:p-6">
+    <div className="scroll-mt-24 rounded-lg border border-black/10 bg-white p-4 shadow-[0_18px_44px_rgb(8_63_53_/_0.12)] sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-2xl font-semibold tracking-normal text-[#083f35] min-[390px]:text-3xl">
             {formatCurrency(headlinePrice)}
             <span className="ml-1 text-sm font-medium text-black/50 min-[390px]:text-base">{headlinePriceLabel}</span>
           </p>
-          <p className="mt-1 text-sm text-black/55">Up to {maxGuests} guests &middot; {property.bedrooms} bedrooms</p>
+          <p className="mt-1 text-sm text-black/55">Up to {maxGuests} guests / {property.bedrooms} bedrooms</p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f6f1e9] px-2.5 py-1.5 text-xs font-semibold text-[#083f35] min-[390px]:px-3 min-[390px]:text-sm">
           <Star size={14} fill="currentColor" /> {rating}
@@ -170,7 +308,7 @@ export function RoomReservationCard({
       </div>
 
       {stayBookingAllowed && packageBookingAllowed ? (
-        <div className="mt-4 grid grid-cols-2 rounded-2xl bg-black/[0.04] p-1">
+        <div className="mt-4 grid grid-cols-2 rounded-lg bg-black/[0.04] p-1">
           {[
             ["stay", "Book Stay"],
             ["package", "Book Package"],
@@ -183,7 +321,7 @@ export function RoomReservationCard({
                 setBookingMode(nextMode);
                 setPackageId(nextMode === "package" ? selectedPackage?.id ?? bookingPackages[0]?.id ?? null : null);
               }}
-              className={`min-h-10 rounded-xl text-sm font-semibold transition ${effectiveBookingMode === mode ? "bg-white text-[#083f35] shadow-sm" : "text-black/55 hover:text-black"}`}
+              className={`min-h-10 rounded-md text-sm font-semibold transition ${effectiveBookingMode === mode ? "bg-white text-[#083f35] shadow-sm" : "text-black/55 hover:text-black"}`}
             >
               {label}
             </button>
@@ -206,7 +344,7 @@ export function RoomReservationCard({
                     setActiveField("checkIn");
                   }
                 }}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${active ? "border-[#083f35] bg-[#083f35] text-white" : "border-black/10 bg-black/[0.02] hover:border-[#083f35]"}`}
+                className={`rounded-lg border px-4 py-3 text-left transition ${active ? "border-[#083f35] bg-[#083f35] text-white" : "border-black/10 bg-black/[0.02] hover:border-[#083f35]"}`}
               >
                 <span className="flex items-center justify-between gap-3">
                   <span className="font-semibold">{item.name}</span>
@@ -224,7 +362,7 @@ export function RoomReservationCard({
       ) : null}
 
       {activePackage ? (
-        <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.02] px-4 py-3 text-xs leading-5 text-black/60">
+        <div className="mt-4 rounded-lg border border-black/10 bg-black/[0.02] px-4 py-3 text-xs leading-5 text-black/60">
           <PackageAccessSummary
             floors={activePackage.accessibleFloors ?? []}
             rooms={selectedPackageRooms.map((room) => room.name)}
@@ -234,7 +372,7 @@ export function RoomReservationCard({
         </div>
       ) : null}
 
-      <div className="mt-4 overflow-hidden rounded-[1.15rem] border border-black/15 min-[390px]:mt-5 min-[390px]:rounded-2xl">
+      <div className="mt-4 overflow-hidden rounded-lg border border-black/15 min-[390px]:mt-5">
         <div className="grid grid-cols-2 divide-x divide-black/10">
           <DateField
             active={calendarActiveField === "checkIn"}
@@ -307,7 +445,7 @@ export function RoomReservationCard({
         </div>
 
         <div className="flex items-center justify-between border-t border-black/10 px-4 py-3">
-          <span className="flex items-center gap-1.5 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-black/50">
+          <span className="flex items-center gap-1.5 text-[0.68rem] font-bold uppercase text-black/50">
             <Users size={12} /> Guests
           </span>
           <div className="flex items-center gap-3">
@@ -338,7 +476,7 @@ export function RoomReservationCard({
         href={reserveHref}
         aria-disabled={!canReserve}
         tabIndex={canReserve ? undefined : -1}
-        className={`mt-4 flex min-h-13 items-center justify-center rounded-full px-6 py-3.5 text-sm font-bold uppercase tracking-[0.08em] text-white transition ${
+        className={`mt-4 flex min-h-13 items-center justify-center rounded-full px-6 py-3.5 text-sm font-bold uppercase text-white transition ${
           canReserve
             ? "bg-[#083f35] hover:bg-[#062f28] active:scale-[0.98]"
             : "pointer-events-none bg-black/25"
@@ -372,7 +510,7 @@ export function RoomReservationCard({
         </div>
       ) : null}
 
-      <div className="mt-5 flex items-start gap-2 rounded-2xl bg-[#053f34]/[0.06] px-4 py-3 text-xs leading-5 text-[#083f35]">
+      <div className="mt-5 flex items-start gap-2 rounded-lg bg-[#053f34]/[0.06] px-4 py-3 text-xs leading-5 text-[#083f35]">
         <ShieldCheck size={16} className="mt-0.5 shrink-0" />
         <span>
           {instantBook
@@ -391,7 +529,7 @@ function DateField({ active, label, time, value, onClick }: { active: boolean; l
       onClick={onClick}
       className={`block min-h-20 px-3 py-3 text-left transition min-[390px]:px-4 ${active ? "bg-[#083f35]/[0.06]" : "hover:bg-black/[0.03]"}`}
     >
-      <span className="flex items-center gap-1 text-[0.62rem] font-bold uppercase tracking-[0.06em] text-black/50 min-[390px]:gap-1.5 min-[390px]:text-[0.68rem]">
+      <span className="flex items-center gap-1 text-[0.62rem] font-bold uppercase text-black/50 min-[390px]:gap-1.5 min-[390px]:text-[0.68rem]">
         <CalendarDays size={12} /> {label}
       </span>
       <span className="mt-1 block text-[0.8rem] font-semibold leading-snug text-[#1f1f1f] min-[390px]:text-sm">{value ? formatDisplayDate(value) : "Add date"}</span>

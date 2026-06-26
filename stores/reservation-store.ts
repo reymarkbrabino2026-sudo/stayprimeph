@@ -16,6 +16,7 @@ export const SERVICE_FEE_RATE = STAYPRIME_MARKUP_RATE;
 export const TODAY = toDateKey(new Date());
 export const DEFAULT_CHECK_IN = TODAY;
 export const DEFAULT_CHECK_OUT = addDaysToDateKey(DEFAULT_CHECK_IN, 1);
+export type ReservationBookingMode = "stay" | "package";
 
 function toDateKey(date: Date) {
   const year = date.getFullYear();
@@ -64,29 +65,38 @@ export function buildReserveHref(propertyId: string, checkIn: string, checkOut: 
 }
 
 interface ReservationState {
-  bookingMode: "stay" | "package";
   checkIn: string;
   checkOut: string;
   guests: number;
+  bookingMode: ReservationBookingMode;
   packageId: string | null;
-  setBookingMode: (value: "stay" | "package") => void;
   setCheckIn: (value: string) => void;
   setCheckOut: (value: string) => void;
   setGuests: (value: number) => void;
+  setBookingMode: (value: ReservationBookingMode) => void;
   setPackageId: (value: string | null) => void;
   reset: () => void;
 }
 
 export const useReservationStore = create<ReservationState>((set) => ({
-  bookingMode: "stay",
   checkIn: DEFAULT_CHECK_IN,
   checkOut: DEFAULT_CHECK_OUT,
   guests: 1,
+  bookingMode: "stay",
   packageId: null,
-  setBookingMode: (bookingMode) => set({ bookingMode }),
-  setCheckIn: (checkIn) => set({ checkIn }),
-  setCheckOut: (checkOut) => set({ checkOut }),
-  setGuests: (guests) => set({ guests: Math.max(1, guests) }),
-  setPackageId: (packageId) => set({ packageId }),
-  reset: () => set({ bookingMode: "stay", checkIn: DEFAULT_CHECK_IN, checkOut: DEFAULT_CHECK_OUT, guests: 1, packageId: null }),
+  setCheckIn: (checkIn) => set((state) => (state.checkIn === checkIn ? state : { checkIn })),
+  setCheckOut: (checkOut) => set((state) => (state.checkOut === checkOut ? state : { checkOut })),
+  setGuests: (guests) => set((state) => {
+    const nextGuests = Math.max(1, guests);
+    return state.guests === nextGuests ? state : { guests: nextGuests };
+  }),
+  setBookingMode: (bookingMode) => set((state) => (state.bookingMode === bookingMode ? state : { bookingMode })),
+  setPackageId: (packageId) => set((state) => (state.packageId === packageId ? state : { packageId })),
+  reset: () => set({
+    checkIn: DEFAULT_CHECK_IN,
+    checkOut: DEFAULT_CHECK_OUT,
+    guests: 1,
+    bookingMode: "stay",
+    packageId: null,
+  }),
 }));

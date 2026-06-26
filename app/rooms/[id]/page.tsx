@@ -36,7 +36,7 @@ import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomAccessPreview } from "@/components/rooms/room-access-preview";
-import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
+import { RoomReservationCard, RoomStickyReservationCard } from "@/components/rooms/room-reservation-card";
 import { RoomVirtualTour } from "@/components/rooms/room-virtual-tour";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { getAvailabilityBlocksForProperty } from "@/lib/availability";
@@ -46,11 +46,15 @@ import { getBookingsForProperty } from "@/lib/bookings";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { getReviewsForProperty } from "@/lib/reviews";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { getUserById, getUsersByIds } from "@/lib/users";
 
-function isRenderableImage(src?: string) {
+function isRenderableImage(src?: string): src is string {
   return Boolean(src && (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://")));
+}
+
+function compactStrings(items: Array<string | null | undefined>) {
+  return items.map((item) => item?.trim()).filter((item): item is string => Boolean(item));
 }
 
 function amenityIcon(amenity: string) {
@@ -80,7 +84,7 @@ export async function generateMetadata({
   if (!property || property.status !== "approved") return { title: "Stay not found | StayPrimePH" };
 
   const locationLabel = formatPropertyLocation(property);
-  const title = `${property.title} · ${locationLabel} | StayPrimePH`;
+  const title = `${property.title} | ${locationLabel} | StayPrimePH`;
   const description = property.description;
   const image = property.images[0]?.imageUrl;
 
@@ -148,20 +152,54 @@ export default async function RoomPage({
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
   const activeRooms = wholePlaceAccessEnabled ? (property.rooms ?? []).filter((room) => room.active) : [];
   const showListingSpacesPreview = wholePlaceAccessEnabled && (packageBookingAllowed || activeRooms.length > 0);
+  const placeParts = compactStrings([property.barangay, property.city, property.province, property.country]);
+  const cityLabel = property.city || property.province || property.country || "the Philippines";
+  const areaLabel = placeParts.length ? placeParts.join(", ") : locationLabel;
+  const propertyTypeLabel = property.propertyType || "stay";
+  const lowerPropertyType = propertyTypeLabel.toLowerCase();
+  const bedroomsLabel = `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"}`;
+  const bathsLabel = `${property.bathrooms} bath${property.bathrooms === 1 ? "" : "s"}`;
+  const nightlyLabel = `${formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight))} / night`;
+  const bookingVerb = instantBook ? "Reserve instantly" : "Request to book";
 
   const stats = [
     { icon: Users, label: `${property.maxGuests} guests` },
-    { icon: BedDouble, label: `${property.bedrooms} bedrooms` },
-    { icon: Bath, label: `${property.bathrooms} baths` },
-    { icon: Sparkles, label: property.propertyType },
+    { icon: BedDouble, label: bedroomsLabel },
+    { icon: Bath, label: bathsLabel },
+    { icon: Sparkles, label: propertyTypeLabel },
   ];
+
+  const featureHighlights = [
+    {
+      icon: ShieldCheck,
+      title: "Protected booking",
+      body: "Review the rules, price, and host details before your stay is confirmed.",
+    },
+    {
+      icon: Sparkles,
+      title: "Stay-ready details",
+      body: "Photos, amenities, access, and availability are gathered into one clear page.",
+    },
+    {
+      icon: MapPin,
+      title: "Local context",
+      body: "The neighbourhood is shown up front while exact arrival details stay private until booking.",
+    },
+  ];
+
+  const neighbourhoodGroups = [
+    { title: "Stay", items: stats.map((stat) => stat.label) },
+    { title: "Location", items: placeParts.length ? placeParts.slice(0, 4) : [locationLabel] },
+    { title: "Included", items: property.amenities.slice(0, 5) },
+    { title: "Rules", items: property.rules.slice(0, 5) },
+  ].filter((group) => group.items.length > 0);
 
   const faqs: [string, string][] = [
     [
       "Can I reserve immediately?",
       instantBook
-        ? "Yes — this stay supports instant booking, so confirmed dates reserve the home right away."
-        : "Your request is sent to the host for approval, then payment is collected once it's accepted.",
+        ? "Yes, this stay supports instant booking, so confirmed dates reserve the home right away."
+        : "Your request is sent to the host for approval, then payment is collected once it is accepted.",
     ],
     ["Are exact location details public?", "The neighbourhood is shown on the map. The exact arrival address is shared after a confirmed booking."],
     ["Can I change my dates later?", "Date changes depend on host approval and the home's availability calendar."],
@@ -229,89 +267,116 @@ export default async function RoomPage({
   };
 
   return (
-    <div className="bg-[#fbfaf7] text-[#1f1f1f]">
+    <div className="bg-[#efefed] text-[#111111]">
       <JsonLd data={listingJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={faqJsonLd} />
       <Navbar transparentOnTop hideBottomNav />
 
       <main>
-        {/* Hero banner */}
-        <section className="relative h-[52svh] min-h-[22rem] max-h-[28rem] overflow-hidden bg-[#14120f] text-white sm:h-[84svh] sm:max-h-none sm:min-h-0 md:h-screen">
+        <section className="relative h-[78svh] min-h-[32rem] max-h-[54rem] overflow-hidden bg-[#151515] text-white">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/42 via-black/10 to-black/68" />
-          <div className="pointer-events-none absolute inset-x-0 top-28 z-20 px-3 sm:top-36 sm:px-5 md:top-44">
-            <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/12 to-black/68" />
+          <div className="pointer-events-none absolute inset-x-0 top-24 z-20 px-5 sm:top-32">
+            <div className="mx-auto w-full max-w-[88rem] sm:px-8">
               <Breadcrumbs items={heroBreadcrumbItems} tone="light" className="pointer-events-auto" />
             </div>
           </div>
-          <div className="relative z-10 flex h-full flex-col justify-end px-3 pb-8 sm:px-5 sm:pb-44 md:pb-40">
-            <div className="mx-auto w-full max-w-[88rem] px-4 sm:px-8">
-              <p className="mb-2 inline-flex items-center gap-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:gap-2 sm:text-sm sm:tracking-[0.28em]">
-                <MapPin className="size-3 sm:size-[15px]" /> {locationLabel}
-              </p>
-              <h1 className="max-w-[20rem] text-[1.85rem] font-semibold leading-[1.04] tracking-normal drop-shadow min-[390px]:max-w-[22rem] min-[390px]:text-[2.05rem] sm:max-w-4xl sm:text-6xl sm:leading-[0.96] md:text-7xl">
-                {property.title}
-              </h1>
+          <div className="relative z-10 flex h-full items-end px-5 pb-10 sm:px-8 sm:pb-16">
+            <div className="mx-auto grid w-full max-w-[88rem] gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <div>
+                <p className="mb-4 inline-flex items-center gap-2 text-sm font-semibold uppercase text-white/85">
+                  <MapPin size={16} /> {locationLabel}
+                </p>
+                <h1 className="max-w-5xl text-5xl font-semibold leading-none drop-shadow-sm sm:text-7xl md:text-8xl">
+                  {property.title}
+                </h1>
+                <p className="mt-5 max-w-2xl text-lg font-medium leading-7 text-white/86">
+                  {bedroomsLabel} {lowerPropertyType} from {nightlyLabel}
+                </p>
+              </div>
+              <Link
+                href="#booking"
+                className="inline-flex min-h-12 w-fit items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#111111] transition hover:bg-[#f4eadc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                {bookingVerb}
+              </Link>
             </div>
           </div>
         </section>
 
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          {/* Intro */}
-          <section id="overview" className="scroll-mt-32 border-b border-black/10 py-12 text-center sm:py-16">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#8a6a3f]">The retreat</p>
-            <p className="mx-auto mt-5 max-w-3xl text-[1.65rem] font-medium leading-[1.24] text-[#083f35] sm:text-[42px] sm:leading-[1.18]">
-              {property.description}
-            </p>
-            <div className="mt-9 flex flex-wrap justify-center gap-3">
+        <section id="overview" className="relative scroll-mt-32 overflow-hidden bg-[#efefed] py-16 sm:py-24 lg:py-32">
+          <RouteLineBackdrop />
+          <div className="relative mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
+            <div className="flex items-center gap-4">
+              <p className="text-sm font-semibold uppercase text-[#0f5750]">You arrive. We keep it simple.</p>
+              <span className="h-px w-24 bg-[#0f5750]/35" />
+            </div>
+            <h2 className="mt-8 max-w-5xl text-4xl font-semibold leading-tight text-black sm:text-6xl lg:text-7xl">
+              {propertyTypeLabel} living in {cityLabel}.
+            </h2>
+            <div className="mt-12 grid gap-10 lg:grid-cols-[0.72fr_1fr] lg:pl-[12%]">
+              <p className="text-2xl font-medium leading-10 text-black sm:text-3xl">
+                {property.description}
+              </p>
+              <div className="space-y-5 text-lg leading-8 text-black/70">
+                <p>
+                  Set around {areaLabel}, this listing keeps the essentials visible: location, inclusions,
+                  house rules, reviews, and live booking dates in one steady flow.
+                </p>
+                <p>
+                  The page is designed like a viewing before a reservation, with large imagery, plain copy, and
+                  the booking tool close by when you are ready.
+                </p>
+              </div>
+            </div>
+            <div className="mt-14 grid gap-px overflow-hidden border border-black/10 bg-black/10 sm:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat) => (
-                <span
-                  key={stat.label}
-                  className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-2.5 text-sm font-semibold"
-                >
-                  <stat.icon size={16} className="text-[#8a6a3f]" /> {stat.label}
-                </span>
+                <div key={stat.label} className="flex min-h-28 items-center gap-4 bg-[#f7f5ef] p-5">
+                  <stat.icon size={24} className="shrink-0 text-[#0f5750]" />
+                  <p className="text-lg font-semibold">{stat.label}</p>
+                </div>
               ))}
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Overview + sticky booking card */}
-          <section className="grid gap-12 py-12 sm:py-16 lg:grid-cols-[1fr_minmax(360px,400px)] lg:gap-16">
+        <section className="bg-[#efefed] pb-16 sm:pb-24">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
+            <ImageMosaic images={galleryImages.slice(0, 5)} title={property.title} />
+          </div>
+        </section>
+
+        <section id="booking" className="scroll-mt-32 bg-[#f8f6f1] py-16 sm:py-24">
+          <div className="mx-auto grid max-w-[88rem] gap-12 px-5 sm:px-8 lg:grid-cols-[1fr_minmax(360px,400px)] lg:gap-16 lg:px-12">
             <div className="space-y-10">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#8a6a3f]">The stay</p>
-                <h2 className="mt-3 max-w-xl text-3xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-5xl">
-                  A private {property.propertyType.toLowerCase()} designed like a boutique resort escape.
-                </h2>
-                <p className="mt-5 max-w-xl leading-7 text-black/65">
-                  Every detail is arranged for a calm arrival and an effortless stay — from the spaces you move
-                  through to the comforts waiting when you settle in. Reserve in a few taps and keep the full
-                  protection of the StayPrimePH booking experience.
-                </p>
-                <RoomActions propertyId={property.id} propertyTitle={property.title} isAuthenticated={Boolean(currentUser)} />
+                <SectionHeader
+                  eyebrow="Available stays"
+                  title={packageBookingAllowed ? "Choose the stay that fits." : "Find your dates."}
+                  body={
+                    packageBookingAllowed
+                      ? "Select dates, guests, and available booking packages from the reservation panel."
+                      : "Pick dates, check the total, and send your reservation request when the stay works for you."
+                  }
+                />
+                <div className="mt-7">
+                  <RoomActions propertyId={property.id} propertyTitle={property.title} isAuthenticated={Boolean(currentUser)} />
+                </div>
               </div>
 
-              <div className="grid gap-5 sm:grid-cols-3">
-                <Highlight
-                  icon={ShieldCheck}
-                  title="Protected booking"
-                  body="Reviews, rules, and host details stay easy to check before you reserve."
-                />
-                <Highlight
-                  icon={Sparkles}
-                  title="Hotel-style arrival"
-                  body="A polished, story-driven welcome that makes the home feel distinct."
-                />
-                <Highlight
-                  icon={MapPin}
-                  title="Curated location"
-                  body="Set in a sought-after corner of the destination, mapped for you below."
-                />
+              <div className="grid gap-4 md:grid-cols-3">
+                {featureHighlights.map((item) => (
+                  <Highlight key={item.title} icon={item.icon} title={item.title} body={item.body} />
+                ))}
               </div>
 
-              <div className="overflow-hidden rounded-[2rem] bg-[#e9e2d6]">
-                <div className="relative min-h-[24rem]">
+              <div className="grid gap-5 border-y border-black/10 py-8 md:grid-cols-[0.82fr_1fr] md:items-center">
+                <div>
+                  <p className="text-sm font-semibold uppercase text-[#0f5750]">A closer look</p>
+                  <h3 className="mt-3 text-3xl font-semibold leading-tight">Images that work like a viewing.</h3>
+                </div>
+                <div className="relative min-h-[22rem] overflow-hidden rounded-lg bg-[#dedad2]">
                   <GalleryImage src={property.images[1]?.imageUrl ?? heroImage} alt={`${property.title} interior`} />
                 </div>
               </div>
@@ -321,36 +386,31 @@ export default async function RoomPage({
               <RoomReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} />
             </div>
 
-            <aside className="hidden lg:sticky lg:top-28 lg:block lg:self-start">
-              <RoomReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} />
-            </aside>
-          </section>
-        </div>
+            <RoomStickyReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} />
+          </div>
+        </section>
 
-        {/* Rooms and access preview */}
         {showListingSpacesPreview ? (
-          <section id="listing-spaces" className="scroll-mt-32 border-t border-black/10 bg-white py-16">
-            <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+          <section id="listing-spaces" className="scroll-mt-32 bg-white py-16 sm:py-20">
+            <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
               <SectionHeader
                 eyebrow="Inside the listing"
                 title="Rooms and access"
                 body="A quick look at the rooms, guest capacity, and access included with this listing."
-                bodyClassName="hidden sm:block"
               />
-              <RoomAccessPreview
-                rooms={activeRooms}
-                listingImages={property.images}
-              />
+              <div className="mt-8">
+                <RoomAccessPreview rooms={activeRooms} listingImages={property.images} />
+              </div>
             </div>
           </section>
         ) : null}
 
-        <section id="gallery" className="scroll-mt-32 border-t border-black/10 py-16">
-          <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+        <section id="gallery" className="scroll-mt-32 bg-[#efefed] py-16 sm:py-24">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
             <SectionHeader
               eyebrow="Gallery"
               title="A visual preview of the experience"
-              body="A closer look at the spaces you'll enjoy during your stay."
+              body="A closer look at the spaces you will use during your stay."
             />
           </div>
           <div className="mt-8">
@@ -358,67 +418,90 @@ export default async function RoomPage({
           </div>
         </section>
 
-        {/* Luxury amenities — full-bleed dark band */}
         <RoomVirtualTour property={property} />
 
-        <section id="amenities" className="scroll-mt-32 bg-[#053f34] py-14 text-white sm:py-16">
-          <div className="mx-auto max-w-6xl px-5 sm:px-8 lg:px-12">
-            <div className="max-w-3xl">
+        <section id="amenities" className="scroll-mt-32 bg-white py-16 sm:py-24">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
+            <div className="grid gap-10 lg:grid-cols-[0.75fr_1fr] lg:items-start">
               <SectionHeader
-                eyebrow="Amenities"
-                title="Resort comforts, home-level control"
-                body="Everything this home comes equipped with for a comfortable stay, from everyday essentials to standout extras."
-                light
+                eyebrow="What's included"
+                title="Comforts that make the stay easier."
+                body="The practical details are kept visible, from everyday essentials to the amenities that make this listing stand out."
               />
-            </div>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-              {property.amenities.map((amenity, index) => {
-                const Icon = amenityIcon(amenity);
-                const accent = index % 3 === 2;
-                return (
-                  <div
-                    key={amenity}
-                    className={`flex min-h-14 items-center gap-3 rounded-2xl px-4 py-3.5 ${
-                      accent ? "bg-[#c8f7bf] text-[#053f34]" : "bg-white/[0.06] text-white ring-1 ring-white/10"
-                    }`}
-                  >
-                    <Icon className={`shrink-0 ${accent ? "text-[#053f34]" : "text-[#f4d7a1]"}`} size={22} />
-                    <p className="text-base font-semibold leading-tight">{amenity}</p>
-                  </div>
-                );
-              })}
+              <div className="grid gap-px overflow-hidden border border-black/10 bg-black/10 sm:grid-cols-2">
+                {property.amenities.map((amenity) => {
+                  const Icon = amenityIcon(amenity);
+                  return (
+                    <div key={amenity} className="flex min-h-24 items-center gap-4 bg-[#f8f6f1] p-5">
+                      <Icon className="shrink-0 text-[#0f5750]" size={24} />
+                      <p className="text-base font-semibold leading-snug">{amenity}</p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
 
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-          {/* Reviews */}
-          <section id="reviews" className="scroll-mt-32 py-16">
+        <section id="location" className="relative scroll-mt-32 overflow-hidden bg-[#efefed] py-16 sm:py-24">
+          <RouteLineBackdrop />
+          <div className="relative mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
+            <div className="grid gap-12 lg:grid-cols-[0.82fr_1fr] lg:items-start">
+              <div>
+                <SectionHeader
+                  eyebrow="Location"
+                  title={`The ${cityLabel} setting.`}
+                  body={`Stay close to ${locationLabel}. Exact arrival details are shared after confirmation.`}
+                />
+                <div className="mt-8 grid gap-px overflow-hidden border border-black/10 bg-black/10 sm:grid-cols-2">
+                  {neighbourhoodGroups.map((group) => (
+                    <div key={group.title} className="bg-[#f8f6f1] p-5">
+                      <h3 className="text-sm font-semibold uppercase text-[#0f5750]">{group.title}</h3>
+                      <ul className="mt-4 space-y-2 text-sm leading-6 text-black/70">
+                        {group.items.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-5">
+                <div className="relative min-h-[26rem] overflow-hidden rounded-lg bg-[#dedad2]">
+                  <GalleryImage src={property.images[2]?.imageUrl ?? heroImage} alt={`${property.title} neighbourhood`} />
+                </div>
+                <RoomMap property={property} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="reviews" className="scroll-mt-32 bg-white py-16 sm:py-24">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
             <SectionHeader
-              eyebrow="Reviews"
-              title={propertyReviews.length ? `${averageRating} guest score` : "Be the first to review"}
+              eyebrow="Guest notes"
+              title={propertyReviews.length ? "What guests say." : "Ready for the first guest note."}
               body={
                 propertyReviews.length
-                  ? `${propertyReviews.length} guest note${propertyReviews.length === 1 ? "" : "s"} from recent stays.`
-                  : "This listing is ready for its first guest review."
+                  ? `${propertyReviews.length} review${propertyReviews.length === 1 ? "" : "s"} from recent stays.`
+                  : "This listing is ready for its first StayPrimePH review."
               }
             />
             {propertyReviews.length ? (
-              <div className="mt-8 grid gap-5 md:grid-cols-2">
-                {propertyReviews.map((review) => {
+              <div className="mt-9 grid gap-px overflow-hidden border border-black/10 bg-black/10 lg:grid-cols-3">
+                {propertyReviews.slice(0, 6).map((review) => {
                   const guest = reviewGuestById.get(review.guestId);
                   return (
-                    <article
-                      key={review.id}
-                      className="relative rounded-[1.75rem] border border-black/10 bg-white p-7 shadow-[0_14px_44px_rgb(0_0_0_/_0.05)]"
-                    >
-                      <Quote className="text-[#e3d8c4]" size={30} />
-                      <p className="mt-4 text-lg leading-8 text-black/75">{review.comment}</p>
-                      <div className="mt-6 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
-                        <div className="flex items-center gap-3">
-                          <UserAvatar avatar={guest?.avatar} name={guest?.name ?? "Guest"} fallback="G" className="size-11 bg-[#f6f1e9] text-sm font-semibold text-[#083f35]" imageSizes="44px" />
-                          <div>
-                            <p className="font-semibold">{guest?.name ?? "Guest"}</p>
+                    <article key={review.id} className="flex min-h-[22rem] flex-col justify-between bg-[#f8f6f1] p-6">
+                      <div>
+                        <Quote className="text-[#0f5750]" size={30} />
+                        <p className="mt-5 text-lg leading-8 text-black/75">{review.comment}</p>
+                      </div>
+                      <div className="mt-7 flex items-center justify-between gap-4 border-t border-black/10 pt-5">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <UserAvatar avatar={guest?.avatar} name={guest?.name ?? "Guest"} fallback="G" className="size-11 bg-white text-sm font-semibold text-[#0f5750]" imageSizes="44px" />
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{guest?.name ?? "Guest"}</p>
                             <p className="text-sm text-black/50">{formatDate(review.createdAt)}</p>
                           </div>
                         </div>
@@ -426,9 +509,9 @@ export default async function RoomPage({
                           {Array.from({ length: 5 }, (_, index) => (
                             <Star
                               key={index}
-                              size={16}
+                              size={15}
                               fill={index < review.rating ? "currentColor" : "none"}
-                              className={index < review.rating ? "text-[#083f35]" : "text-black/20"}
+                              className={index < review.rating ? "text-[#0f5750]" : "text-black/20"}
                             />
                           ))}
                         </span>
@@ -438,87 +521,78 @@ export default async function RoomPage({
                 })}
               </div>
             ) : (
-              <div className="mt-8 rounded-[1.5rem] border border-black/10 bg-white p-8 text-black/60">
-                No guest reviews yet — be the first to stay and share your experience.
+              <div className="mt-9 border border-black/10 bg-[#f8f6f1] p-8 text-black/62">
+                No guest reviews yet. Be the first to stay and share your experience.
               </div>
             )}
-          </section>
+          </div>
+        </section>
 
-          {/* Location */}
-          <section id="location" className="scroll-mt-32 border-t border-black/10 py-16">
-            <SectionHeader
-              eyebrow="Location"
-              title={`Set in ${property.city}`}
-              body={locationLabel}
-            />
-            <div className="mt-8">
-              <RoomMap property={property} />
+        <section className="bg-[#0f5750] py-16 text-white sm:py-24">
+          <div className="mx-auto grid max-w-[88rem] gap-10 px-5 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-12">
+            <div>
+              <p className="text-sm font-semibold uppercase text-[#d7f1e8]">Ready to make the move?</p>
+              <h2 className="mt-4 text-5xl font-semibold leading-none sm:text-7xl">Let&apos;s talk.</h2>
+              <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">
+                Message the host, check the rules, or return to the reservation panel when you are ready to book.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href={hostMessageHref} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 font-semibold text-[#0f5750] transition hover:bg-[#f4eadc]">
+                  <MessageCircle size={18} /> Message host
+                </Link>
+                <Link href="#booking" className="inline-flex min-h-12 items-center rounded-full border border-white/40 px-6 font-semibold text-white transition hover:bg-white/10">
+                  View dates
+                </Link>
+              </div>
             </div>
-          </section>
-
-          {/* Host */}
-          <section className="border-t border-black/10 py-16">
-            <SectionHeader
-              eyebrow="Your host"
-              title={`Hosted by ${host?.name ?? "your host"}`}
-              body="Get to know who you'll be staying with."
-            />
-            <div className="mt-8 grid gap-6 rounded-[2rem] border border-black/10 bg-white p-6 md:grid-cols-[17rem_1fr] md:p-8">
-              <div className="rounded-[1.5rem] bg-[#f6f1e9] p-7 text-center">
-                <UserAvatar avatar={host?.avatar} name={host?.name ?? "Host"} fallback="H" className="mx-auto size-24 bg-white text-3xl font-semibold text-[#083f35] shadow-sm" imageSizes="96px" />
+            <div className="grid gap-px overflow-hidden border border-white/20 bg-white/20 sm:grid-cols-[17rem_1fr]">
+              <div className="bg-white/10 p-7 text-center">
+                <UserAvatar avatar={host?.avatar} name={host?.name ?? "Host"} fallback="H" className="mx-auto size-24 bg-white text-3xl font-semibold text-[#0f5750]" imageSizes="96px" />
                 <p className="mt-4 text-2xl font-semibold">{host?.name ?? "Host"}</p>
-                <p className="text-black/55">Joined {formatDate(host?.createdAt ?? property.createdAt)}</p>
+                <p className="text-white/65">Joined {formatDate(host?.createdAt ?? property.createdAt)}</p>
               </div>
-              <div className="flex flex-col justify-center">
+              <div className="flex flex-col justify-center bg-white/10 p-7">
                 <h3 className="text-2xl font-semibold">Local care with platform protection</h3>
-                <p className="mt-3 leading-7 text-black/65">
-                  Message the host with any questions, review the house rules, and keep your reservation protected
-                  inside StayPrimePH from request through checkout.
+                <p className="mt-3 leading-7 text-white/72">
+                  Keep your questions, reservation, and stay details inside StayPrimePH from request through checkout.
                 </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Link href={hostMessageHref} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
-                    <MessageCircle size={18} /> Message host
-                  </Link>
-                  <Link href={hostMessageHref} className="inline-flex min-h-12 items-center rounded-full bg-black/[0.05] px-5 font-medium text-black/70 transition hover:bg-black/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#083f35]">
-                    Contact through StayPrimePH
-                  </Link>
-                </div>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* House rules + FAQ */}
-          <section className="border-t border-black/10 py-16">
+        <section className="bg-[#f8f6f1] py-16 sm:py-24">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
             <SectionHeader
-              eyebrow="Rules & FAQ"
-              title="Know before you book"
+              eyebrow="Rules and FAQ"
+              title="Know before you book."
               body="House rules, cancellation, and the details worth checking before you reserve."
             />
-            <div className="mt-8 grid gap-5 lg:grid-cols-2">
-              <div className="rounded-[1.75rem] border border-black/10 bg-white p-7">
+            <div className="mt-9 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+              <div className="border border-black/10 bg-white p-6">
                 <h3 className="text-xl font-semibold">House rules</h3>
                 <div className="mt-5 space-y-3">
                   {property.rules.map((rule) => (
                     <p key={rule} className="flex items-center gap-3 text-black/70">
-                      <ShieldCheck size={18} className="shrink-0 text-[#083f35]" /> {rule}
+                      <ShieldCheck size={18} className="shrink-0 text-[#0f5750]" /> {rule}
                     </p>
                   ))}
                 </div>
               </div>
               <div className="space-y-3">
                 {faqs.map(([question, answer]) => (
-                  <details key={question} className="group rounded-[1.25rem] border border-black/10 bg-white p-5">
+                  <details key={question} className="group border border-black/10 bg-white p-5">
                     <summary className="flex cursor-pointer items-center justify-between gap-3 font-semibold">
                       {question}
-                      <span className="text-[#8a6a3f] transition group-open:rotate-45">+</span>
+                      <span className="text-[#0f5750] transition group-open:rotate-45">+</span>
                     </summary>
                     <p className="mt-3 leading-7 text-black/65">{answer}</p>
                   </details>
                 ))}
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
 
       <SiteFooter />
@@ -532,21 +606,17 @@ function SectionHeader({
   title,
   body,
   light,
-  bodyClassName,
 }: {
   eyebrow: string;
   title: string;
   body: string;
   light?: boolean;
-  bodyClassName?: string;
 }) {
   return (
     <div>
-      <p className={`text-sm font-semibold uppercase tracking-[0.18em] ${light ? "text-[#f4d7a1]" : "text-[#8a6a3f]"}`}>
-        {eyebrow}
-      </p>
-      <h2 className="mt-3 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">{title}</h2>
-      <p className={`mt-3 max-w-2xl leading-7 ${light ? "text-white/65" : "text-black/62"} ${bodyClassName ?? ""}`}>{body}</p>
+      <p className={`text-sm font-semibold uppercase ${light ? "text-[#d7f1e8]" : "text-[#0f5750]"}`}>{eyebrow}</p>
+      <h2 className="mt-3 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">{title}</h2>
+      <p className={`mt-4 max-w-2xl leading-7 ${light ? "text-white/70" : "text-black/62"}`}>{body}</p>
     </div>
   );
 }
@@ -561,24 +631,57 @@ function Highlight({
   body: string;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-black/10 bg-white p-5">
-      <Icon className="rounded-full bg-[#f7f0e5] p-2 text-[#8a6a3f]" size={38} />
+    <div className="border border-black/10 bg-white p-5">
+      <Icon className="text-[#0f5750]" size={30} />
       <h3 className="mt-4 font-semibold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-black/60">{body}</p>
     </div>
   );
 }
 
-function GalleryImage({ src, alt }: { src?: string; alt: string }) {
-  if (!isRenderableImage(src))
-    return <div className="h-full w-full bg-gradient-to-br from-[#e7dfd2] to-[#c8d8d1]" />;
+function ImageMosaic({ images, title }: { images: Array<{ id: string; imageUrl: string }>; title: string }) {
+  const visibleImages = images.length ? images : [{ id: "placeholder", imageUrl: "" }];
+  const mainImage = visibleImages[0];
+  const sideImages = visibleImages.slice(1, 5);
+
+  return (
+    <div className="grid gap-4 md:grid-cols-[1.08fr_0.92fr]">
+      <div className="relative min-h-[24rem] overflow-hidden rounded-lg bg-[#dedad2] md:min-h-[42rem]">
+        <GalleryImage src={mainImage.imageUrl} alt={`${title} main photo`} priority />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Array.from({ length: 4 }, (_, index) => {
+          const image = sideImages[index] ?? mainImage;
+          return (
+            <div key={`${image.id}-${index}`} className="relative min-h-[16rem] overflow-hidden rounded-lg bg-[#dedad2] md:min-h-0">
+              <GalleryImage src={image.imageUrl} alt={`${title} photo ${index + 2}`} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RouteLineBackdrop() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute -left-36 top-32 h-[34rem] w-[26rem] rounded-full border-[34px] border-white/70" />
+      <div className="absolute -right-28 top-0 h-[42rem] w-[24rem] rounded-full border-[34px] border-white/70" />
+    </div>
+  );
+}
+
+function GalleryImage({ src, alt, priority }: { src?: string; alt: string; priority?: boolean }) {
+  if (!isRenderableImage(src)) return <div className="h-full w-full bg-[#dedad2]" />;
   return (
     <Image
-      src={src!}
+      src={src}
       alt={alt}
       fill
+      priority={priority}
       sizes="(min-width:1024px) 980px, 90vw"
-      className="object-cover transition duration-500 hover:scale-105"
+      className="object-cover"
     />
   );
 }

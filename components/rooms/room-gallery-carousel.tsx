@@ -114,7 +114,7 @@ export function RoomGalleryCarousel({ images, title }: { images: Slide[]; title:
               ref={(element) => {
                 slideRefs.current[index] = element;
               }}
-              className={`relative aspect-[49/29] w-[min(980px,88vw)] shrink-0 snap-center overflow-hidden rounded-[1.5rem] bg-[#e9e2d6] transition-opacity duration-500 ${
+              className={`relative aspect-[49/29] w-[min(980px,88vw)] shrink-0 snap-center overflow-hidden rounded-lg bg-[#e9e2d6] transition-opacity duration-500 ${
                 active ? "opacity-100" : "opacity-55"
               }`}
             >
