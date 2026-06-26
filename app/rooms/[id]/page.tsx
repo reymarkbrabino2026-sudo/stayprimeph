@@ -275,7 +275,7 @@ export default async function RoomPage({
       <Navbar transparentOnTop hideBottomNav />
 
       <main>
-        <section className="relative h-[78svh] min-h-[32rem] max-h-[54rem] overflow-hidden bg-[#151515] text-white">
+        <section className="relative h-screen min-h-[100svh] overflow-hidden bg-[#151515] text-white">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/12 to-black/68" />
           <div className="pointer-events-none absolute inset-x-0 top-24 z-20 px-5 sm:top-32">
