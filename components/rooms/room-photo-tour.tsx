@@ -59,7 +59,7 @@ export function RoomPhotoTour({ groups }: { groups: PhotoTourGroup[] }) {
     <div>
       <nav
         aria-label="Photo tour sections"
-        className="sticky top-[4.75rem] z-30 -mx-5 border-y border-black/10 bg-white/95 px-5 py-3 backdrop-blur sm:top-20 sm:mx-0 sm:px-0 sm:py-4"
+        className="-mx-5 border-y border-black/10 bg-white px-5 py-3 sm:mx-0 sm:px-0 sm:py-4"
       >
         <div className="no-scrollbar touch-scroll flex snap-x gap-3 overflow-x-auto">
           {groups.map((group) => {

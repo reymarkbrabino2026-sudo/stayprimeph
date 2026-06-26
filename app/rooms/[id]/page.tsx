@@ -627,7 +627,7 @@ export default async function RoomPage({
         </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter flushTop />
       <RoomBookingBar property={property} unavailableStays={unavailableStays} />
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
@@ -31,9 +31,8 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
   const guests = useReservationStore((state) => state.guests);
   const bookingMode = useReservationStore((state) => state.bookingMode);
   const packageId = useReservationStore((state) => state.packageId);
-  const barRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState(baseNavItems[0].href);
-  const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
+  const [footerVisible, setFooterVisible] = useState(false);
   const [inlineReservationVisible, setInlineReservationVisible] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const navItems = useMemo(() => {
@@ -139,33 +138,22 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
 
     let frame = 0;
 
-    function updateStopPosition() {
+    function updateFooterVisibility() {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const bar = barRef.current;
-        if (!bar) return;
-
-        const mobileOffset = 0;
         const footerRect = pageFooter.getBoundingClientRect();
-        const barHeight = bar.getBoundingClientRect().height;
-        const fixedBarBottom = window.innerHeight - mobileOffset;
-        const footerDocumentTop = window.scrollY + footerRect.top;
-
-        setStopPosition({
-          stopped: footerRect.top <= fixedBarBottom,
-          top: footerDocumentTop - barHeight,
-        });
+        setFooterVisible(footerRect.top <= window.innerHeight);
       });
     }
 
-    updateStopPosition();
-    window.addEventListener("scroll", updateStopPosition, { passive: true });
-    window.addEventListener("resize", updateStopPosition);
+    updateFooterVisibility();
+    window.addEventListener("scroll", updateFooterVisibility, { passive: true });
+    window.addEventListener("resize", updateFooterVisibility);
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", updateStopPosition);
-      window.removeEventListener("resize", updateStopPosition);
+      window.removeEventListener("scroll", updateFooterVisibility);
+      window.removeEventListener("resize", updateFooterVisibility);
     };
   }, []);
 
@@ -183,11 +171,9 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
 
   return (
     <div
-      ref={barRef}
-      className={`inset-x-0 z-50 px-0 transition duration-200 md:px-5 ${
-        stopPosition?.stopped ? "absolute" : "fixed bottom-0"
-      } ${!hasScrolled || inlineReservationVisible ? "pointer-events-none translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
-      style={stopPosition?.stopped ? { top: `${stopPosition.top}px` } : undefined}
+      className={`fixed inset-x-0 bottom-0 z-50 px-0 transition duration-200 md:px-5 ${
+        !hasScrolled || inlineReservationVisible || footerVisible ? "pointer-events-none translate-y-full opacity-0" : "translate-y-0 opacity-100"
+      }`}
     >
       <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-3 rounded-t-lg border-t border-black/10 bg-white px-4 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-3 text-[#083f35] shadow-[0_-14px_45px_rgb(0_0_0_/_0.16)] sm:px-5 md:rounded-b-none md:px-8 md:py-3 md:ring-1 md:ring-black/10">
         <div className="min-w-0 flex-1 md:w-[15rem] md:flex-none lg:w-[18rem]">
