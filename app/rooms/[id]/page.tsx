@@ -302,8 +302,8 @@ export default async function RoomPage({
         <section className="relative h-screen min-h-[100svh] overflow-hidden bg-[#151515] text-white">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/12 to-black/68" />
-          <div className="pointer-events-none absolute inset-x-0 top-24 z-20 px-5 sm:top-32">
-            <div className="mx-auto w-full max-w-[88rem] sm:px-8">
+          <div className="pointer-events-none absolute inset-x-0 top-24 z-20 px-5 sm:top-32 sm:px-8">
+            <div className="mx-auto w-full max-w-[88rem]">
               <Breadcrumbs items={heroBreadcrumbItems} tone="light" className="pointer-events-auto" />
             </div>
           </div>
