@@ -35,6 +35,7 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
   const [activeSection, setActiveSection] = useState(baseNavItems[0].href);
   const [stopPosition, setStopPosition] = useState<{ stopped: boolean; top: number } | null>(null);
   const [inlineReservationVisible, setInlineReservationVisible] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const navItems = useMemo(() => {
     if (!normalizeVirtualTourUrl(property.virtualTourUrl)) return baseNavItems;
     return [
@@ -117,6 +118,21 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
   }, [navItems]);
 
   useEffect(() => {
+    function updateScrollState() {
+      setHasScrolled(window.scrollY > 8);
+    }
+
+    updateScrollState();
+    window.addEventListener("scroll", updateScrollState, { passive: true });
+    window.addEventListener("resize", updateScrollState);
+
+    return () => {
+      window.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, []);
+
+  useEffect(() => {
     const footer = document.querySelector("footer");
     if (!footer) return;
     const pageFooter = footer;
@@ -170,7 +186,7 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
       ref={barRef}
       className={`inset-x-0 z-50 px-0 transition duration-200 md:px-5 ${
         stopPosition?.stopped ? "absolute" : "fixed bottom-0"
-      } ${inlineReservationVisible ? "pointer-events-none translate-y-full opacity-0 lg:pointer-events-auto lg:translate-y-0 lg:opacity-100" : ""}`}
+      } ${!hasScrolled || inlineReservationVisible ? "pointer-events-none translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
       style={stopPosition?.stopped ? { top: `${stopPosition.top}px` } : undefined}
     >
       <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-3 rounded-t-lg border-t border-black/10 bg-white px-4 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-3 text-[#083f35] shadow-[0_-14px_45px_rgb(0_0_0_/_0.16)] sm:px-5 md:rounded-b-none md:px-8 md:py-3 md:ring-1 md:ring-black/10">
