@@ -299,7 +299,7 @@ export default async function RoomPage({
       <Navbar transparentOnTop hideBottomNav />
 
       <main>
-        <section className="relative h-screen min-h-[100svh] overflow-hidden bg-[#151515] text-white">
+        <section className="relative h-[92svh] min-h-[34rem] max-h-[54rem] overflow-hidden bg-[#151515] text-white lg:h-[94svh] lg:max-h-[60rem]">
           <RoomHeroSlideshow images={property.images} alt={property.title} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/12 to-black/68" />
           <div className="pointer-events-none absolute inset-x-0 top-24 z-20 px-5 sm:top-32 sm:px-8">
@@ -307,22 +307,22 @@ export default async function RoomPage({
               <Breadcrumbs items={heroBreadcrumbItems} tone="light" className="pointer-events-auto" />
             </div>
           </div>
-          <div className="relative z-10 flex h-full items-end px-5 pb-10 sm:px-8 sm:pb-16">
-            <div className="mx-auto grid w-full max-w-[88rem] gap-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-              <div>
-                <p className="mb-4 inline-flex items-center gap-2 text-sm font-semibold uppercase text-white/85">
+          <div className="relative z-10 flex h-full items-end px-5 pb-8 sm:px-8 sm:pb-16">
+            <div className="mx-auto grid w-full max-w-[88rem] gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <div className="min-w-0">
+                <p className="mb-3 inline-flex max-w-full items-center gap-2 truncate text-xs font-semibold uppercase text-white/85 min-[390px]:text-sm sm:mb-4">
                   <MapPin size={16} /> {locationLabel}
                 </p>
-                <h1 className="line-clamp-2 max-w-5xl text-5xl font-semibold leading-none drop-shadow-sm sm:text-7xl md:text-8xl">
+                <h1 className="line-clamp-2 max-w-5xl break-words text-[clamp(2.75rem,14vw,4.5rem)] font-semibold leading-[0.95] drop-shadow-sm sm:text-7xl md:text-8xl">
                   {property.title}
                 </h1>
-                <p className="mt-5 max-w-2xl text-lg font-medium leading-7 text-white/86">
+                <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-white/86 sm:mt-5 sm:text-lg">
                   {bedroomsLabel} {lowerPropertyType} from {nightlyLabel}
                 </p>
               </div>
               <Link
                 href="#booking"
-                className="inline-flex min-h-12 w-fit items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#111111] transition hover:bg-[#f4eadc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="inline-flex min-h-12 w-full max-w-xs items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#111111] transition hover:bg-[#f4eadc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-fit"
               >
                 {bookingVerb}
               </Link>
@@ -330,17 +330,17 @@ export default async function RoomPage({
           </div>
         </section>
 
-        <section id="overview" className="relative scroll-mt-32 overflow-hidden bg-[#efefed] py-16 sm:py-24 lg:py-32">
+        <section id="overview" className="relative scroll-mt-28 overflow-hidden bg-[#efefed] py-12 sm:scroll-mt-32 sm:py-24 lg:py-32">
           <RouteLineBackdrop />
           <div className="relative mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
-            <div className="flex items-center gap-4">
-              <p className="text-sm font-semibold uppercase text-[#0f5750]">You arrive. We keep it simple.</p>
-              <span className="h-px w-24 bg-[#0f5750]/35" />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <p className="text-xs font-semibold uppercase text-[#0f5750] min-[390px]:text-sm">You arrive. We keep it simple.</p>
+              <span className="h-px min-w-10 flex-1 bg-[#0f5750]/35 sm:w-24 sm:flex-none" />
             </div>
-            <h2 className="mt-8 max-w-5xl text-4xl font-semibold leading-tight text-black sm:text-6xl lg:text-7xl">
+            <h2 className="mt-6 max-w-5xl text-3xl font-semibold leading-tight text-black min-[390px]:text-4xl sm:mt-8 sm:text-6xl lg:text-7xl">
               {propertyTypeLabel} living in {cityLabel}.
             </h2>
-            <div className="mt-12 grid gap-10 lg:grid-cols-[0.72fr_1fr] lg:pl-[12%]">
+            <div className="mt-8 grid gap-7 sm:mt-12 sm:gap-10 lg:grid-cols-[0.72fr_1fr] lg:pl-[12%]">
               <RoomDescriptionDisclosure
                 description={property.description}
                 propertyTypeLabel={propertyTypeLabel}
@@ -351,7 +351,7 @@ export default async function RoomPage({
                 amenities={property.amenities}
                 rules={property.rules}
               />
-              <div className="space-y-5 text-lg leading-8 text-black/70">
+              <div className="space-y-4 text-base leading-7 text-black/70 sm:space-y-5 sm:text-lg sm:leading-8">
                 <p>
                   Set around {areaLabel}, this listing keeps the essentials visible: location, inclusions,
                   house rules, reviews, and live booking dates in one steady flow.
@@ -362,11 +362,11 @@ export default async function RoomPage({
                 </p>
               </div>
             </div>
-            <div className="mt-14 grid gap-px overflow-hidden border border-black/10 bg-black/10 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-10 grid gap-px overflow-hidden border border-black/10 bg-black/10 sm:mt-14 sm:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat) => (
-                <div key={stat.label} className="flex min-h-28 items-center gap-4 bg-[#f7f5ef] p-5">
+                <div key={stat.label} className="flex min-h-20 items-center gap-3 bg-[#f7f5ef] p-4 sm:min-h-28 sm:gap-4 sm:p-5">
                   <stat.icon size={24} className="shrink-0 text-[#0f5750]" />
-                  <p className="text-lg font-semibold">{stat.label}</p>
+                  <p className="text-base font-semibold sm:text-lg">{stat.label}</p>
                 </div>
               ))}
             </div>
