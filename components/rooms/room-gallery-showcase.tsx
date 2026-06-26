@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
 import { RoomGalleryCarousel } from "@/components/rooms/room-gallery-carousel";
 import { RoomPhotoTour } from "@/components/rooms/room-photo-tour";
@@ -12,6 +12,7 @@ interface GalleryImage {
 }
 
 const PHOTO_TOUR_MODAL = "PHOTO_TOUR_SCROLLABLE";
+const PHOTO_TOUR_MODAL_EVENT = "stayprimeph:photo-tour-modal";
 
 function hasPhotoTourParam() {
   if (typeof window === "undefined") return false;
@@ -26,6 +27,21 @@ function updatePhotoTourParam(open: boolean, mode: "push" | "replace") {
   const nextUrl = `${url.pathname}${url.search}${url.hash}`;
   if (mode === "push") window.history.pushState({ photoTourOpen: open }, "", nextUrl);
   else window.history.replaceState({ photoTourOpen: open }, "", nextUrl);
+  window.dispatchEvent(new Event(PHOTO_TOUR_MODAL_EVENT));
+}
+
+function subscribePhotoTourParam(onStoreChange: () => void) {
+  window.addEventListener("popstate", onStoreChange);
+  window.addEventListener(PHOTO_TOUR_MODAL_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+    window.removeEventListener(PHOTO_TOUR_MODAL_EVENT, onStoreChange);
+  };
+}
+
+function getServerPhotoTourSnapshot() {
+  return false;
 }
 
 export function RoomGalleryShowcase({
@@ -40,17 +56,8 @@ export function RoomGalleryShowcase({
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousOverflowRef = useRef<string | null>(null);
-  const [open, setOpen] = useState(() => hasPhotoTourParam());
+  const open = useSyncExternalStore(subscribePhotoTourParam, hasPhotoTourParam, getServerPhotoTourSnapshot);
   const canShowPhotoTour = groups.length > 0;
-
-  useEffect(() => {
-    function handlePopState() {
-      setOpen(hasPhotoTourParam());
-    }
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -73,12 +80,10 @@ export function RoomGalleryShowcase({
 
   function openPhotoTour() {
     if (!canShowPhotoTour) return;
-    setOpen(true);
     if (!hasPhotoTourParam()) updatePhotoTourParam(true, "push");
   }
 
   function closePhotoTour() {
-    setOpen(false);
     if (hasPhotoTourParam()) updatePhotoTourParam(false, "replace");
   }
 

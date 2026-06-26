@@ -373,12 +373,22 @@ export default async function RoomPage({
           </div>
         </section>
 
-        <section id="gallery" className="scroll-mt-28 bg-[#efefed] pb-12 sm:scroll-mt-32 sm:pb-24">
-          <RoomGalleryShowcase
-            images={galleryImages.slice(0, 8)}
-            title={property.title}
-            groups={photoTourGroups}
-          />
+        <section id="gallery" className="scroll-mt-28 bg-[#efefed] py-12 sm:scroll-mt-32 sm:py-24">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
+            <SectionHeader
+              eyebrow="Gallery"
+              title="A visual preview of the experience"
+              body="A closer look at the spaces you will use during your stay."
+              titleClassName="md:max-w-none md:whitespace-nowrap"
+            />
+          </div>
+          <div className="mt-8">
+            <RoomGalleryShowcase
+              images={galleryImages.slice(0, 8)}
+              title={property.title}
+              groups={photoTourGroups}
+            />
+          </div>
         </section>
 
         <section id="booking" data-reservation-sticky-boundary className="scroll-mt-28 bg-[#f8f6f1] py-12 sm:scroll-mt-32 sm:py-24">

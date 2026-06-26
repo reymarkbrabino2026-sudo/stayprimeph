@@ -135,4 +135,23 @@ describe("room photo tour", () => {
     await user.click(screen.getByRole("button", { name: "Show all photos for Prime Stay" }));
     expect(screen.getByRole("dialog", { name: "Photo tour" })).toBeInTheDocument();
   });
+
+  test("opens the all-photo tour when the modal URL is loaded directly", async () => {
+    const groups = buildRoomPhotoTourGroups({
+      propertyTitle: "Prime Stay",
+      propertyTypeLabel: "Condo",
+      listingImages: listingImages.slice(0, 1),
+    });
+
+    window.history.replaceState(null, "", "/rooms/property?modal=PHOTO_TOUR_SCROLLABLE");
+    render(
+      <RoomGalleryShowcase
+        images={listingImages.slice(0, 1)}
+        title="Prime Stay"
+        groups={groups}
+      />,
+    );
+
+    expect(await screen.findByRole("dialog", { name: "Photo tour" })).toBeInTheDocument();
+  });
 });
