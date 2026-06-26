@@ -5,24 +5,32 @@ import { notFound } from "next/navigation";
 import {
   Bath,
   BedDouble,
+  Camera,
   Car,
   Coffee,
   Dumbbell,
+  FireExtinguisher,
+  Flame,
+  HeartPulse,
+  House,
+  ListChecks,
   MapPin,
   MessageCircle,
   Mountain,
   ParkingCircle,
   Quote,
   ShieldCheck,
+  Siren,
   Snowflake,
-  Sparkles,
   Star,
   Sun,
+  Trees,
+  Tv,
   Users,
   Utensils,
   Waves,
   Wifi,
-  Wind,
+  WashingMachine,
 } from "lucide-react";
 import { SiteFooter } from "@/components/home/site-footer";
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
@@ -62,17 +70,25 @@ function amenityIcon(amenity: string) {
   const value = amenity.toLowerCase();
   if (value.includes("pool")) return Waves;
   if (value.includes("wi-fi") || value.includes("wifi") || value.includes("internet")) return Wifi;
+  if (value.includes("tv") || value.includes("television") || value.includes("netflix")) return Tv;
   if (value.includes("kitchen")) return Utensils;
   if (value.includes("coffee") || value.includes("breakfast")) return Coffee;
+  if (value.includes("bbq") || value.includes("barbecue") || value.includes("grill")) return Flame;
+  if (value.includes("first aid") || value.includes("medical")) return HeartPulse;
+  if (value.includes("fire extinguisher")) return FireExtinguisher;
+  if (value.includes("smoke") || value.includes("alarm")) return Siren;
+  if (value.includes("camera") || value.includes("cctv")) return Camera;
+  if (value.includes("washer") || value.includes("laundry")) return WashingMachine;
   if (value.includes("parking")) return ParkingCircle;
   if (value.includes("car") || value.includes("transfer") || value.includes("shuttle")) return Car;
   if (value.includes("gym") || value.includes("fitness")) return Dumbbell;
   if (value.includes("air") || value.includes("cooling") || value.includes("conditioning")) return Snowflake;
   if (value.includes("view") || value.includes("mountain")) return Mountain;
   if (value.includes("beach") || value.includes("ocean") || value.includes("sea")) return Waves;
-  if (value.includes("sun") || value.includes("deck") || value.includes("terrace")) return Sun;
-  if (value.includes("workspace") || value.includes("work")) return Sparkles;
-  return Wind;
+  if (value.includes("patio") || value.includes("garden") || value.includes("yard") || value.includes("outdoor")) return Trees;
+  if (value.includes("sun") || value.includes("deck") || value.includes("terrace") || value.includes("balcony")) return Sun;
+  if (value.includes("workspace") || value.includes("work")) return ListChecks;
+  return House;
 }
 
 export async function generateMetadata({
@@ -167,7 +183,7 @@ export default async function RoomPage({
     { icon: Users, label: `${property.maxGuests} guests` },
     { icon: BedDouble, label: bedroomsLabel },
     { icon: Bath, label: bathsLabel },
-    { icon: Sparkles, label: propertyTypeLabel },
+    { icon: House, label: propertyTypeLabel },
   ];
 
   const featureHighlights = [
@@ -177,7 +193,7 @@ export default async function RoomPage({
       body: "Review the rules, price, and host details before your stay is confirmed.",
     },
     {
-      icon: Sparkles,
+      icon: ListChecks,
       title: "Stay-ready details",
       body: "Photos, amenities, access, and availability are gathered into one clear page.",
     },
@@ -419,6 +435,7 @@ export default async function RoomPage({
               eyebrow="Gallery"
               title="A visual preview of the experience"
               body="A closer look at the spaces you will use during your stay."
+              titleClassName="md:max-w-none md:whitespace-nowrap"
             />
           </div>
           <div className="mt-8">
@@ -474,10 +491,7 @@ export default async function RoomPage({
                   ))}
                 </div>
               </div>
-              <div className="space-y-5">
-                <div className="relative min-h-[26rem] overflow-hidden rounded-lg bg-[#dedad2]">
-                  <GalleryImage src={property.images[2]?.imageUrl ?? heroImage} alt={`${property.title} neighbourhood`} />
-                </div>
+              <div>
                 <RoomMap property={property} />
               </div>
             </div>
@@ -614,16 +628,18 @@ function SectionHeader({
   title,
   body,
   light,
+  titleClassName,
 }: {
   eyebrow: string;
   title: string;
   body: string;
   light?: boolean;
+  titleClassName?: string;
 }) {
   return (
     <div>
       <p className={`text-sm font-semibold uppercase ${light ? "text-[#d7f1e8]" : "text-[#0f5750]"}`}>{eyebrow}</p>
-      <h2 className="mt-3 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">{title}</h2>
+      <h2 className={`mt-3 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl ${titleClassName ?? ""}`}>{title}</h2>
       <p className={`mt-4 max-w-2xl leading-7 ${light ? "text-white/70" : "text-black/62"}`}>{body}</p>
     </div>
   );

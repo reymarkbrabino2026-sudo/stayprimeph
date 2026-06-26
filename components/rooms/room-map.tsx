@@ -84,7 +84,7 @@ export function RoomMap({ property }: { property: Property }) {
   }, [center, priceLabel, property.title, locationLabel]);
 
   return (
-    <div className="relative h-[26rem] w-full overflow-hidden rounded-[2rem] bg-[#e9f0ea] ring-1 ring-black/10">
+    <div className="relative h-[28rem] w-full overflow-hidden rounded-[2rem] bg-[#e9f0ea] ring-1 ring-black/10 sm:h-[34rem] lg:h-[38rem]">
       <div ref={mapRef} className="absolute inset-0 z-10 h-full w-full" />
       <div className="pointer-events-none absolute left-5 top-5 z-20 max-w-[18rem] rounded-2xl bg-white/95 px-4 py-3 shadow-[0_12px_40px_rgb(0_0_0_/_0.12)]">
         <p className="flex items-center gap-2 font-semibold text-[#083f35]">
