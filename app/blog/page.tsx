@@ -12,6 +12,14 @@ export const metadata: Metadata = {
   description:
     "SEO travel guides for Philippine staycations, vacation rentals, near-me searches, private resorts, condos, and local short-term stays.",
   alternates: { canonical: "/blog" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
   openGraph: {
     title: "StayPrime PH Blog",
     description: "Philippines staycation, vacation rental, and local travel search guides from StayPrime PH.",

@@ -48,7 +48,7 @@ export function HomeHeroSlider() {
 
       <div className="absolute inset-x-5 bottom-10 z-10 mx-auto max-w-5xl text-center sm:bottom-14 md:bottom-24 lg:bottom-32">
         <h1 className="text-[1.75rem] font-bold leading-[1.15] tracking-normal text-white [font-stretch:92%] drop-shadow-[0_2px_16px_rgb(0_0_0_/_0.55)] sm:text-4xl md:text-5xl lg:text-[58px]">
-          Staycations and vacation rentals in the Philippines
+          Staycations in the Philippines
         </h1>
       </div>
 

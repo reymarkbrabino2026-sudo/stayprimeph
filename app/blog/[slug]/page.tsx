@@ -29,6 +29,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description: article.excerpt,
     keywords: [article.keyword, "StayPrime PH", "Philippines staycation", "vacation rentals Philippines"],
     alternates: { canonical: `/blog/${article.slug}` },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+      },
+    },
     openGraph: {
       title: article.title,
       description: article.excerpt,
