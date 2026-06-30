@@ -59,15 +59,19 @@ function sortPropertiesByCreatedAtDesc<T extends Pick<Property, "createdAt" | "i
   ));
 }
 
+function visibleHostProperties(properties: Property[]) {
+  return properties.filter((property) => property.status !== "deleted");
+}
+
 export async function getProperties() {
   if (usesPrismaPersistence()) return listPropertiesFromDatabase();
   return readStoredProperties();
 }
 
 export async function getPropertiesForHost(hostId: string) {
-  if (usesPrismaPersistence()) return sortPropertiesByCreatedAtDesc(await listPropertiesForHostFromDatabase(hostId));
+  if (usesPrismaPersistence()) return sortPropertiesByCreatedAtDesc(visibleHostProperties(await listPropertiesForHostFromDatabase(hostId)));
   const properties = await readStoredProperties();
-  return sortPropertiesByCreatedAtDesc(properties.filter((property) => property.hostId === hostId));
+  return sortPropertiesByCreatedAtDesc(visibleHostProperties(properties.filter((property) => property.hostId === hostId)));
 }
 
 export async function getPropertiesByStatus(status: Property["status"]) {

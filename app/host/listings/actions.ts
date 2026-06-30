@@ -13,6 +13,7 @@ import { createPropertyInDatabase, deleteDraftPropertyInDatabase, deleteProperty
 import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
+import { bookingBlocksListingDelete } from "@/lib/listing-delete-guards";
 import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { normalizeListingVideoUrl } from "@/lib/listing-video";
 import { logger } from "@/lib/logger";
@@ -806,13 +807,16 @@ export async function deleteListing(formData: FormData) {
       await deletePropertyInDatabase(user.id, existing.id);
     } else {
       const bookings = await readStoredBookings();
-      const hasActiveBooking = bookings.some((booking) =>
-        booking.propertyId === existing.id && booking.status !== "cancelled" && booking.status !== "completed",
-      );
+      const listingBookings = bookings.filter((booking) => booking.propertyId === existing.id);
+      const hasActiveBooking = listingBookings.some((booking) => bookingBlocksListingDelete(booking));
       if (hasActiveBooking) return { status: "error" as const, error: protectedListingDeleteMessage };
 
       const storedProperties = await readStoredProperties();
-      await writeStoredProperties(storedProperties.filter((property) => !(property.id === existing.id && property.hostId === user.id)));
+      await writeStoredProperties(
+        listingBookings.length > 0
+          ? storedProperties.map((property) => property.id === existing.id && property.hostId === user.id ? { ...property, status: "deleted" as const } : property)
+          : storedProperties.filter((property) => !(property.id === existing.id && property.hostId === user.id)),
+      );
     }
 
     revalidatePublicListingSummaries();

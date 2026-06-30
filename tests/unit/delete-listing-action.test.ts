@@ -122,6 +122,7 @@ vi.mock("@/lib/property-store", () => ({
 }));
 
 import { deleteListing } from "@/app/host/listings/actions";
+import { readStoredBookings } from "@/lib/booking-store";
 import { writeStoredProperties } from "@/lib/property-store";
 
 afterEach(() => {
@@ -139,5 +140,23 @@ describe("deleteListing", () => {
       error: "This listing has active bookings and cannot be deleted. Please resolve those bookings before deleting the listing.",
     });
     expect(writeStoredProperties).not.toHaveBeenCalled();
+  });
+
+  test("hides a listing that only has historical booking records", async () => {
+    vi.mocked(readStoredBookings).mockResolvedValueOnce([
+      {
+        ...booking,
+        checkIn: "2026-05-01",
+        checkOut: "2026-05-02",
+        status: "completed",
+        paymentStatus: "paid",
+      },
+    ]);
+    const formData = new FormData();
+    formData.set("id", property.id);
+    formData.set("csrfToken", "csrf-token");
+
+    await expect(deleteListing(formData)).resolves.toEqual({ status: "deleted" });
+    expect(writeStoredProperties).toHaveBeenCalledWith([{ ...property, status: "deleted" }]);
   });
 });

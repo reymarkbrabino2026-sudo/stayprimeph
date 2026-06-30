@@ -1,7 +1,7 @@
 import type { ListingPhotoCategory } from "@/lib/listing-photo-categories";
 
 export type UserRole = "guest" | "host" | "admin";
-export type ListingStatus = "approved" | "pending" | "rejected" | "draft";
+export type ListingStatus = "approved" | "pending" | "rejected" | "draft" | "deleted";
 export type BookingStatus = "confirmed" | "pending" | "cancelled" | "completed";
 export type PaymentMethod = "stripe" | "gcash" | "bank_transfer" | "other";
 export type PaymentStatus = "paid" | "partially_paid" | "pending" | "submitted" | "rejected" | "refunded";

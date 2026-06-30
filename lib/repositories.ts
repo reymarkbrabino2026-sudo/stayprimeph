@@ -6,6 +6,7 @@ import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
+import { bookingBlocksListingDelete } from "@/lib/listing-delete-guards";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
 import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
@@ -1094,11 +1095,22 @@ export async function deletePropertyInDatabase(hostId: string, propertyId: strin
   await prisma.$transaction(async (tx) => {
     const owned = await tx.property.findFirst({ where: { id: propertyId, hostId }, select: { id: true } });
     if (!owned) throw new Error("Listing not found.");
-    // Preserve booking and payment history — a listing with bookings can't be hard-deleted.
-    const bookingCount = await tx.booking.count({ where: { propertyId } });
-    if (bookingCount > 0) {
-      throw new Error("This listing has bookings and can't be deleted.");
+
+    const bookings = await tx.booking.findMany({
+      where: { propertyId },
+      select: { id: true, status: true, paymentStatus: true, checkOut: true },
+    });
+    if (bookings.some((booking) => bookingBlocksListingDelete(booking))) {
+      throw new Error("This listing has active bookings and can't be deleted.");
     }
+
+    // Preserve booking and payment history. Historical bookings keep their property
+    // relationship, while the deleted status removes the listing from host/public views.
+    if (bookings.length > 0) {
+      await tx.property.update({ where: { id: propertyId }, data: { status: "deleted" } });
+      return;
+    }
+
     // Clear the non-financial relations that block deletion, then cascade the rest.
     await tx.review.deleteMany({ where: { propertyId } });
     await tx.wishlist.deleteMany({ where: { propertyId } });
