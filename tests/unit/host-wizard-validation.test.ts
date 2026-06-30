@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { maxListingPhotos } from "@/lib/host-wizard-limits";
 import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-schema";
 import { activeHostWizardSteps } from "@/lib/host-wizard-steps";
 import { canAdvanceFromStep, getFirstIncompleteHostWizardStep, getMissingRequirementsForStep } from "@/lib/host-wizard-validation";
@@ -59,8 +60,8 @@ function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
   };
 }
 
-function photos() {
-  return Array.from({ length: 5 }, (_, index) => ({
+function photos(count = 5) {
+  return Array.from({ length: count }, (_, index) => ({
     id: `photo-${index}`,
     url: `/uploads/listings/host-1/draft-test/photo-${index}.jpg`,
     name: `Photo ${index}`,
@@ -146,6 +147,24 @@ describe("host wizard location validation", () => {
     expect(canAdvanceFromStep("photos", draft({ photos: photos(), listingVideoUrl: "" }))).toBe(true);
     expect(canAdvanceFromStep("photos", draft({ photos: photos(), listingVideoUrl: "not a link" }))).toBe(false);
     expect(canAdvanceFromStep("photos", draft({ photos: photos(), listingVideoUrl: "https://youtu.be/dQw4w9WgXcQ" }))).toBe(true);
+  });
+
+  it("allows up to the listing photo limit", () => {
+    const parsed = hostListingSchema.safeParse(draft({
+      photos: photos(maxListingPhotos),
+      status: "pending",
+    }));
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("explains when the listing has too many photos", () => {
+    const tooManyPhotos = photos(maxListingPhotos + 1);
+
+    expect(canAdvanceFromStep("photos", draft({ photos: tooManyPhotos }))).toBe(false);
+    expect(getMissingRequirementsForStep("photos", draft({ photos: tooManyPhotos }))).toEqual([
+      `Keep listing photos to ${maxListingPhotos} or fewer.`,
+    ]);
   });
 
   it("applies package access steps only to entire-place package pricing", () => {

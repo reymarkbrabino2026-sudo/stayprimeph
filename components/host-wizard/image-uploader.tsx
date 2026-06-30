@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { csrfHeaderName } from "@/lib/csrf-fields";
+import { maxListingPhotos } from "@/lib/host-wizard-limits";
 import { listingPhotoCategoryLabel, listingPhotoCategoryRank, normalizeListingPhotoCategory, type ListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
@@ -90,6 +91,10 @@ export function ImageUploader({ csrfToken }: { csrfToken: string }) {
     if (!files) return;
     const accepted = Array.from(files).filter((file) => acceptedTypes.includes(file.type));
     if (!accepted.length) return;
+    if (draft.photos.length + accepted.length > maxListingPhotos) {
+      setError(`You can add up to ${maxListingPhotos} listing photos.`);
+      return;
+    }
     const oversized = accepted.find((file) => file.size > maxClientUploadBytes);
     if (oversized) {
       setError("Upload images smaller than 4 MB.");
@@ -175,7 +180,9 @@ export function ImageUploader({ csrfToken }: { csrfToken: string }) {
                 </div>
               </section>
             ))}
-            <button type="button" onClick={() => inputRef.current?.click()} className="grid aspect-[49/29] min-h-36 w-full place-items-center rounded-3xl border border-dashed text-lg font-semibold">+ Add more</button>
+            {draft.photos.length < maxListingPhotos ? (
+              <button type="button" onClick={() => inputRef.current?.click()} className="grid aspect-[49/29] min-h-36 w-full place-items-center rounded-3xl border border-dashed text-lg font-semibold">+ Add more</button>
+            ) : null}
           </div>
         </div>
       )}

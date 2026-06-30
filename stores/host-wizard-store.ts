@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { amenityGroups } from "@/lib/host-wizard-data";
+import { maxListingPhotos } from "@/lib/host-wizard-limits";
 import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-wizard-types";
 
 const legacyStorageKey = "stayprimeph-host-wizard";
@@ -195,6 +196,15 @@ function normalizeBookingPackage(pkg: Partial<HostListingDraft["bookingPackages"
   };
 }
 
+function normalizeListingPhotos(photos: UploadedPhoto[] | undefined) {
+  const limitedPhotos = (photos ?? []).slice(0, maxListingPhotos).map((photo) => ({ ...photo }));
+  if (limitedPhotos.length && !limitedPhotos.some((photo) => photo.isCover)) {
+    return limitedPhotos.map((photo, index) => ({ ...photo, isCover: index === 0 }));
+  }
+
+  return limitedPhotos;
+}
+
 function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
   return syncOvernightAccessPackages({
     ...createInitialDraft(),
@@ -208,6 +218,7 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
     holidayDates: draft?.holidayDates ? [...draft.holidayDates] : [...initialDraft.holidayDates],
     seasonalRates: draft?.seasonalRates ? draft.seasonalRates.map((item) => ({ ...item })) : initialDraft.seasonalRates.map((item) => ({ ...item })),
     rooms: draft?.rooms?.length ? draft.rooms.map((item) => ({ ...item, photos: [...item.photos], amenities: [...item.amenities] })) : initialDraft.rooms.map((item) => ({ ...item, photos: [...item.photos], amenities: [...item.amenities] })),
+    photos: normalizeListingPhotos(draft?.photos),
     bookingPackages: draft?.bookingPackages?.length
       ? draft.bookingPackages.map((item, index) => normalizeBookingPackage(item, index))
       : initialDraft.bookingPackages.map((item, index) => normalizeBookingPackage(item, index)),
@@ -523,7 +534,8 @@ export const useHostWizardStore = create<HostWizardState>()((set) => ({
     return next;
   }),
   addPhotos: (photos) => set((state) => {
-    const next = { ...state, draft: { ...state.draft, photos: [...state.draft.photos, ...photos].map((photo, index) => ({ ...photo, isCover: index === 0 })) } };
+    const nextPhotos = normalizeListingPhotos([...state.draft.photos, ...photos].map((photo, index) => ({ ...photo, isCover: index === 0 })));
+    const next = { ...state, draft: { ...state.draft, photos: nextPhotos } };
     persistState(next);
     return next;
   }),

@@ -8,6 +8,7 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm, assertValidCsrfToken } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { amenityGroups } from "@/lib/host-wizard-data";
+import { maxListingPhotos } from "@/lib/host-wizard-limits";
 import { createPropertyInDatabase, deleteDraftPropertyInDatabase, deletePropertyInDatabase, updatePropertyDetailsInDatabase, upsertDraftPropertyInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
@@ -137,7 +138,7 @@ const hostListingDraftSaveSchema = z.object({
     size: integerValue(0, 10 * 1024 * 1024, 0),
     isCover: z.boolean().catch(false),
     category: z.string().max(40).optional().transform((value) => normalizeListingPhotoCategory(value)),
-  })).max(20).catch([]),
+  })).max(maxListingPhotos).catch([]),
   title: textValue(50),
   highlights: z.array(z.string().max(80)).max(2).catch([]),
   description: textValue(500),
@@ -284,7 +285,7 @@ function readSubmittedImages(formData: FormData, existing: Property, userId: str
     if (seen.has(url)) continue;
     seen.add(url);
     uniquePhotos.push({ url, category: submittedCategories[index] ?? "other" });
-    if (uniquePhotos.length >= 20) break;
+    if (uniquePhotos.length >= maxListingPhotos) break;
   }
 
   for (const { url } of uniquePhotos) {

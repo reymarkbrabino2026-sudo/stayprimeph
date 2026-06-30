@@ -1,4 +1,5 @@
 import { hostListingAddressSchema } from "@/lib/host-wizard-schema";
+import { maxListingPhotos, minListingPhotos } from "@/lib/host-wizard-limits";
 import { isValidListingVideoUrl } from "@/lib/listing-video";
 import type { HostBookingPackageDraft, HostListingDraft, WizardStepDefinition, WizardStepId } from "@/lib/host-wizard-types";
 import { activeHostWizardSteps, isEntirePlacePrivacyType } from "@/lib/host-wizard-steps";
@@ -126,7 +127,8 @@ export function getMissingRequirementsForStep(step: WizardStepId, draft: HostLis
 
     case "photos": {
       if (!isValidListingVideoUrl(draft.listingVideoUrl)) return ["Paste a valid YouTube or Vimeo video link, or leave it blank."];
-      const remaining = Math.max(0, 5 - draft.photos.length);
+      if (draft.photos.length > maxListingPhotos) return [`Keep listing photos to ${maxListingPhotos} or fewer.`];
+      const remaining = Math.max(0, minListingPhotos - draft.photos.length);
       return remaining === 0 ? [] : [`Upload ${pluralize(remaining, "more photo", "more photos")}.`];
     }
 

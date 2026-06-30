@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { HostPropertyRoomDraft } from "@/lib/host-wizard-types";
+import { maxListingPhotos } from "@/lib/host-wizard-limits";
+import type { HostPropertyRoomDraft, UploadedPhoto } from "@/lib/host-wizard-types";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
 function room(overrides: Partial<HostPropertyRoomDraft> = {}): HostPropertyRoomDraft {
@@ -13,6 +14,16 @@ function room(overrides: Partial<HostPropertyRoomDraft> = {}): HostPropertyRoomD
     amenities: [],
     active: true,
     ...overrides,
+  };
+}
+
+function photo(index: number): UploadedPhoto {
+  return {
+    id: `photo-${index}`,
+    url: `/uploads/listings/host-1/draft-test/photo-${index}.jpg`,
+    name: `Photo ${index}`,
+    size: 100,
+    isCover: false,
   };
 }
 
@@ -90,5 +101,13 @@ describe("host wizard store", () => {
     expect(overnightPackage?.accessibleRoomIds).toEqual(["room-1", "room-2"]);
     expect(overnightPackage?.includedAmenities).toEqual(expect.arrayContaining(["WiFi", "TV", "Workspace", "Custom arcade"]));
     expect(overnightPackage?.excludedAmenities).toEqual([]);
+  });
+
+  it("caps listing photos at the shared publish limit", () => {
+    useHostWizardStore.getState().addPhotos(Array.from({ length: maxListingPhotos + 5 }, (_, index) => photo(index)));
+
+    const photos = useHostWizardStore.getState().draft.photos;
+    expect(photos).toHaveLength(maxListingPhotos);
+    expect(photos[0]?.isCover).toBe(true);
   });
 });
