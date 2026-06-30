@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { isNotificationEmailAllowed, type NotificationEmailKind } from "@/lib/notification-consent";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME } from "@/lib/utils";
 
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+let cachedResend: { apiKey: string; client: Resend } | null = null;
 const brandColor = "#083f35";
 const ctaColor = "#004236";
 const textColor = "#222222";
@@ -22,6 +22,37 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function optionalEmailEnv(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === "\"\"" || trimmed === "''") return undefined;
+  return trimmed;
+}
+
+function emailDeliveryConfig() {
+  const apiKey = optionalEmailEnv(process.env.RESEND_API_KEY) ?? env.RESEND_API_KEY;
+  const from = optionalEmailEnv(process.env.EMAIL_FROM) ?? env.EMAIL_FROM;
+
+  if (!apiKey) {
+    return {
+      client: null,
+      from,
+      hasResendApiKey: false,
+      hasEmailFrom: Boolean(from),
+    };
+  }
+
+  if (cachedResend?.apiKey !== apiKey) {
+    cachedResend = { apiKey, client: new Resend(apiKey) };
+  }
+
+  return {
+    client: cachedResend.client,
+    from,
+    hasResendApiKey: true,
+    hasEmailFrom: Boolean(from),
+  };
 }
 
 function absoluteUrl(path: string) {
@@ -242,13 +273,20 @@ async function sendEmail(input: { to: string; subject: string; html: string; con
     return;
   }
 
-  if (!resend || !env.EMAIL_FROM) {
-    logger.info("email_skipped", { subject: input.subject, to: input.to });
+  const delivery = emailDeliveryConfig();
+  if (!delivery.client || !delivery.from) {
+    logger.warn("email_skipped", {
+      subject: input.subject,
+      to: input.to,
+      reason: "missing_email_config",
+      hasResendApiKey: delivery.hasResendApiKey,
+      hasEmailFrom: delivery.hasEmailFrom,
+    });
     return;
   }
 
-  const { error } = await resend.emails.send({
-    from: env.EMAIL_FROM,
+  const { error } = await delivery.client.emails.send({
+    from: delivery.from,
     to: input.to,
     subject: input.subject,
     html: input.html,

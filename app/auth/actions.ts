@@ -549,7 +549,16 @@ export async function requestPasswordReset(formData: FormData) {
   }
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const user = (await getUsers()).find((item) => item.email.toLowerCase() === email);
+  const users = await getUsers();
+  const user = users.find((item) => item.email.toLowerCase() === email);
+  logger.info("password_reset_request_lookup", {
+    email,
+    matched: Boolean(user),
+    role: user?.role,
+    persistenceDriver: env.PERSISTENCE_DRIVER,
+    usesPrisma: usesPrismaPersistence(),
+    userCount: users.length,
+  });
   if (user) {
     await sendPasswordResetForUser(user);
     await appendAuditLog({
