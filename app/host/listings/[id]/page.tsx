@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { BookingPackageEditor } from "@/components/forms/booking-package-editor";
 import { ListingForm } from "@/components/forms/listing-form";
 import { DeleteListingButton } from "@/components/forms/delete-listing-button";
 import { ResilientImage } from "@/components/ui/resilient-image";
@@ -20,7 +21,7 @@ export default async function EditListingPage({ params, searchParams }: { params
   const cover = property.images[0]?.imageUrl;
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
   const visibleRooms = wholePlaceAccessEnabled ? property.rooms?.filter((room) => room.active) ?? [] : [];
-  const visibleBookingPackages = wholePlaceAccessEnabled ? property.bookingPackages ?? [] : [];
+  const editFormId = `listing-edit-${property.id}`;
 
   return (
     <DashboardShell title="Listing Details" subtitle="Host dashboard" description="Review the listing guests and admins will see." links={hostLinks}>
@@ -39,7 +40,7 @@ export default async function EditListingPage({ params, searchParams }: { params
             <Info label="Bathrooms" value={String(property.bathrooms)} />
           </div>
           <p className="mt-5 leading-7 text-black/65">{property.description}</p>
-          {(visibleRooms.length || visibleBookingPackages.length) ? (
+          {(visibleRooms.length || wholePlaceAccessEnabled) ? (
             <div className="mt-6 space-y-4 border-t border-black/10 pt-5">
               {visibleRooms.length ? (
                 <div>
@@ -51,30 +52,7 @@ export default async function EditListingPage({ params, searchParams }: { params
                   </div>
                 </div>
               ) : null}
-              {visibleBookingPackages.length ? (
-                <div>
-                  <h3 className="font-semibold">Booking packages</h3>
-                  <div className="mt-3 grid gap-2">
-                    {visibleBookingPackages.map((pkg) => (
-                      <div key={pkg.id} className="rounded-2xl bg-[#fbf7f2] p-4 text-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{pkg.name}</p>
-                            <p className="mt-1 text-black/55">{pkg.accessType}</p>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-black/60">{pkg.enabled ? "Enabled" : "Off"}</span>
-                        </div>
-                        <p className="mt-2 text-black/55">
-                          {pkg.maxGuests} guests
-                          {pkg.sleepingCapacity ? `, sleeps ${pkg.sleepingCapacity}` : ""}
-                          {pkg.durationHours ? `, ${pkg.durationHours} hours` : ""}
-                        </p>
-                        {pkg.includedAmenities?.length ? <p className="mt-2 text-black/45">Includes: {pkg.includedAmenities.join(", ")}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              {wholePlaceAccessEnabled ? <BookingPackageEditor property={property} formId={editFormId} /> : null}
             </div>
           ) : null}
         </section>
@@ -85,7 +63,7 @@ export default async function EditListingPage({ params, searchParams }: { params
               Listing updated successfully.
             </div>
           ) : null}
-          <ListingForm mode="Edit" property={property} csrfToken={csrfToken} />
+          <ListingForm mode="Edit" property={property} csrfToken={csrfToken} formId={editFormId} />
         </section>
       </div>
 

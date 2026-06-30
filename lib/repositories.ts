@@ -1033,7 +1033,7 @@ async function insertPropertyRooms(db: Pick<Prisma.TransactionClient, "$executeR
   }
 }
 
-async function insertPropertyBookingPackages(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Property) {
+async function insertPropertyBookingPackages(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Pick<Property, "id" | "bookingPackages">) {
   if (property.bookingPackages?.length) {
     await ensureListingBookingPackageTable(db);
     await Promise.all(
@@ -1167,7 +1167,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images"
+  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images" | "bookingPackages"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1229,6 +1229,9 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         },
       },
     });
+    await ensureListingBookingPackageTable(tx);
+    await tx.$executeRaw`DELETE FROM "ListingBookingPackage" WHERE "propertyId" = ${property.id}`;
+    await insertPropertyBookingPackages(tx, property);
   }, { maxWait: 10000, timeout: 15000 });
 }
 

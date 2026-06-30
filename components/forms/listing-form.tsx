@@ -12,7 +12,7 @@ const presetAmenityNames = new Set(
   amenityGroups.flatMap((group) => group.items.map((item) => normalizeAmenityName(item.label))),
 );
 
-export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "Edit"; property?: Property; csrfToken?: string }) {
+export function ListingForm({ mode, property, csrfToken, formId }: { mode: "Create" | "Edit"; property?: Property; csrfToken?: string; formId?: string }) {
   const canCreate = mode === "Create";
   const propertyAmenities = property?.amenities ?? [];
   const selectedAmenityNames = new Set(propertyAmenities.map(normalizeAmenityName));
@@ -34,7 +34,7 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
   ];
 
   return (
-    <form action={canCreate ? createListing : updateListing} className="grid gap-5 lg:grid-cols-[1fr_320px]">
+    <form id={formId} action={canCreate ? createListing : updateListing} className="grid gap-5 lg:grid-cols-[1fr_320px]">
       {csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
       {!canCreate && property ? <input type="hidden" name="id" value={property.id} /> : null}
       <div className="space-y-4 rounded-[1.5rem] bg-white p-5 soft-card">

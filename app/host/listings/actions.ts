@@ -268,6 +268,57 @@ function submittedAmenityValues(formData: FormData) {
   return Array.from(new Set(values)).slice(0, 50);
 }
 
+function formDataStrings(formData: FormData, name: string) {
+  return formData.getAll(name).map((value) => typeof value === "string" ? value : String(value));
+}
+
+function fieldAt(values: string[], index: number, fallback = "") {
+  return values[index]?.trim() || fallback;
+}
+
+function numberAt(values: string[], index: number, fallback: number) {
+  const value = Number(values[index]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function booleanAt(values: string[], index: number, fallback: boolean) {
+  const value = values[index]?.trim().toLowerCase();
+  if (value === "true" || value === "1" || value === "on") return true;
+  if (value === "false" || value === "0" || value === "off") return false;
+  return fallback;
+}
+
+function csvTextValues(value: string, limit = 80, maxLength = 80) {
+  return value
+    .split(",")
+    .map((item) => item.trim().replace(/\s+/g, " ").slice(0, maxLength))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function jsonArrayInput(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function jsonStringValues(value: string, limit = 80, maxLength = 100) {
+  return jsonArrayInput(value)
+    .map((item) => typeof item === "string" ? item.trim().slice(0, maxLength) : "")
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function jsonDayValues(value: string) {
+  return jsonArrayInput(value)
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6)
+    .slice(0, 7);
+}
+
 function buildHouseRules(input: Pick<HostListingInput, "safetyDisclosures" | "bookingMode">) {
   const rules = ["No smoking", "No parties or events", "Quiet hours after 10 PM"];
   if (input.safetyDisclosures.exteriorCamera) rules.push("Exterior security camera present");
@@ -377,6 +428,80 @@ function scopedPackageId(propertyId: string, id: string) {
 
 function scopedRoomId(propertyId: string, id: string) {
   return id.startsWith(`${propertyId}-`) ? id : `${propertyId}-${id}`;
+}
+
+function submittedBookingPackages(formData: FormData, property: Property) {
+  const ids = formDataStrings(formData, "bookingPackageId");
+  const names = formDataStrings(formData, "bookingPackageName");
+  const descriptions = formDataStrings(formData, "bookingPackageDescription");
+  const statuses = formDataStrings(formData, "bookingPackageStatus");
+  const displayOrders = formDataStrings(formData, "bookingPackageDisplayOrder");
+  const accessTypes = formDataStrings(formData, "bookingPackageAccessType");
+  const units = formDataStrings(formData, "bookingPackageUnit");
+  const weekdayRates = formDataStrings(formData, "bookingPackageWeekdayRate");
+  const weekendRates = formDataStrings(formData, "bookingPackageWeekendRate");
+  const holidayRates = formDataStrings(formData, "bookingPackageHolidayRate");
+  const includedGuests = formDataStrings(formData, "bookingPackageIncludedGuests");
+  const maxGuests = formDataStrings(formData, "bookingPackageMaxGuests");
+  const sleepingCapacities = formDataStrings(formData, "bookingPackageSleepingCapacity");
+  const durationHours = formDataStrings(formData, "bookingPackageDurationHours");
+  const additionalGuestFees = formDataStrings(formData, "bookingPackageAdditionalGuestFee");
+  const extensionHourlyFees = formDataStrings(formData, "bookingPackageExtensionHourlyFee");
+  const checkInTimes = formDataStrings(formData, "bookingPackageCheckInTime");
+  const checkOutTimes = formDataStrings(formData, "bookingPackageCheckOutTime");
+  const accessibleFloors = formDataStrings(formData, "bookingPackageAccessibleFloors");
+  const accessibleRoomIds = formDataStrings(formData, "bookingPackageAccessibleRoomIds");
+  const includedAmenities = formDataStrings(formData, "bookingPackageIncludedAmenities");
+  const excludedAmenities = formDataStrings(formData, "bookingPackageExcludedAmenities");
+  const availableDays = formDataStrings(formData, "bookingPackageAvailableDays");
+  const minimumAdvanceBookingDays = formDataStrings(formData, "bookingPackageMinimumAdvanceBookingDays");
+  const blockedPackageIds = formDataStrings(formData, "bookingPackageBlockedPackageIds");
+  const holidayDates = formDataStrings(formData, "bookingPackageHolidayDates");
+  const seasonalRates = formDataStrings(formData, "bookingPackageSeasonalRates");
+  const enabled = formDataStrings(formData, "bookingPackageEnabled");
+  const existingById = new Map((property.bookingPackages ?? []).map((pkg) => [pkg.id, pkg]));
+
+  return ids.slice(0, 8).flatMap((rawId, index) => {
+    const existing = existingById.get(rawId);
+    const fallbackName = existing?.name ?? `Custom package ${index + 1}`;
+    const fallbackAccess = existing?.accessType ?? "Custom access";
+    const fallbackWeekdayRate = existing?.weekdayRate ?? property.pricePerNight;
+    const fallbackWeekendRate = existing?.weekendRate ?? property.weekendPrice ?? fallbackWeekdayRate;
+    const fallbackMaxGuests = existing?.maxGuests ?? property.maxGuests;
+    const isEnabled = booleanAt(enabled, index, existing?.enabled ?? true);
+    const parsed = draftBookingPackageSchema.safeParse({
+      id: scopedPackageId(property.id, rawId || `${property.id}-custom-package-${index + 1}`),
+      name: fieldAt(names, index, fallbackName),
+      description: fieldAt(descriptions, index, existing?.description ?? ""),
+      status: isEnabled ? fieldAt(statuses, index, existing?.status ?? "active") : "inactive",
+      displayOrder: numberAt(displayOrders, index, existing?.displayOrder ?? index + 1),
+      accessType: fieldAt(accessTypes, index, fallbackAccess),
+      unit: fieldAt(units, index, existing?.unit ?? "day"),
+      weekdayRate: numberAt(weekdayRates, index, fallbackWeekdayRate),
+      weekendRate: numberAt(weekendRates, index, fallbackWeekendRate),
+      holidayRate: numberAt(holidayRates, index, existing?.holidayRate ?? fallbackWeekendRate),
+      holidayDates: csvDateKeys(fieldAt(holidayDates, index, "")),
+      seasonalRates: jsonArrayInput(fieldAt(seasonalRates, index, "[]")),
+      includedGuests: numberAt(includedGuests, index, existing?.includedGuests ?? fallbackMaxGuests),
+      maxGuests: numberAt(maxGuests, index, fallbackMaxGuests),
+      sleepingCapacity: numberAt(sleepingCapacities, index, existing?.sleepingCapacity ?? 0),
+      durationHours: numberAt(durationHours, index, existing?.durationHours ?? 9),
+      additionalGuestFee: numberAt(additionalGuestFees, index, existing?.additionalGuestFee ?? 0),
+      extensionHourlyFee: numberAt(extensionHourlyFees, index, existing?.extensionHourlyFee ?? 0),
+      checkInTime: fieldAt(checkInTimes, index, existing?.checkInTime ?? "12:00 PM"),
+      checkOutTime: fieldAt(checkOutTimes, index, existing?.checkOutTime ?? "9:00 PM"),
+      accessibleFloors: csvTextValues(fieldAt(accessibleFloors, index, ""), 20, 80),
+      accessibleRoomIds: jsonStringValues(fieldAt(accessibleRoomIds, index, "[]"), 50, 100),
+      includedAmenities: csvTextValues(fieldAt(includedAmenities, index, ""), 80, 80),
+      excludedAmenities: csvTextValues(fieldAt(excludedAmenities, index, ""), 80, 80),
+      availableDays: jsonDayValues(fieldAt(availableDays, index, "[0,1,2,3,4,5,6]")),
+      minimumAdvanceBookingDays: numberAt(minimumAdvanceBookingDays, index, existing?.minimumAdvanceBookingDays ?? 0),
+      blockedPackageIds: jsonStringValues(fieldAt(blockedPackageIds, index, "[]"), 20, 100),
+      enabled: isEnabled,
+    });
+
+    return parsed.success && parsed.data.name.trim() ? [parsed.data] : [];
+  });
 }
 
 function validSeasonalRates(rates: Array<{ id?: string; name: string; startDate: string; endDate: string; weekdayRate: number; weekendRate: number; holidayRate: number }> = []) {
@@ -615,6 +740,16 @@ export async function updateListing(formData: FormData) {
   const weekendPrice = parsed.data.weekendPrice && parsed.data.weekendPrice > 0
     ? parsed.data.weekendPrice
     : calculateDefaultWeekendPrice(parsed.data.pricePerNight);
+  const hasSubmittedBookingPackages = formData.getAll("bookingPackageId").length > 0;
+  const bookingPackageDrafts = hasSubmittedBookingPackages ? submittedBookingPackages(formData, existing) : [];
+  const bookingPackages = hasSubmittedBookingPackages
+    ? propertyScopedBookingPackages({
+      privacyType: existing.privacyType ?? "entire",
+      bookingType: parsed.data.bookingType,
+      pricingMode: bookingPackageDrafts.length ? "packages" : "simple",
+      bookingPackages: bookingPackageDrafts,
+    }, existing.id)
+    : existing.bookingPackages ?? [];
   const nextProperty = {
     ...existing,
     title: parsed.data.title,
@@ -635,9 +770,10 @@ export async function updateListing(formData: FormData) {
     holidayDates: parsed.data.holidayDates,
     bedrooms: parsed.data.bedrooms,
     bathrooms: parsed.data.bathrooms,
-    maxGuests: parsed.data.maxGuests,
+    maxGuests: bookingPackages.length ? Math.max(parsed.data.maxGuests, ...bookingPackages.map((pkg) => pkg.maxGuests)) : parsed.data.maxGuests,
     amenities: parsed.data.amenities,
     images: readSubmittedImages(formData, existing, user.id),
+    bookingPackages,
   } satisfies Property;
 
   if (usesPrismaPersistence()) {
