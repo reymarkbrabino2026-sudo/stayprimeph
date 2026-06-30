@@ -1,99 +1,75 @@
 [
   {
-    "id": "draft-7f77a29b90c589cece",
-    "hostId": "9ad9af6b-03bc-43ad-b4ba-7864574a339b",
-    "slug": "draft-7f77a29b90c589cece",
-    "title": "Untitled draft",
-    "description": "Draft listing saved from the host setup wizard.",
-    "address": "jamespandian2025@gmail.com",
-    "city": "City pending",
+    "id": "487d7b23-4632-406d-8688-763e7de4c553",
+    "hostId": "11b1dff9-7a27-4c99-aaa1-27970c963975",
+    "slug": "the-caya-487d7b23",
+    "title": "The Caya",
+    "description": "Heated pool | Sauna | Massage chair",
+    "address": "Block 6 Lot 6 Pleasantville Subdivision, Ilayang Iyam",
+    "city": "Lucena",
     "country": "Philippines",
-    "latitude": 14.5995,
-    "longitude": 120.9842,
-    "preciseLocation": false,
-    "pricePerNight": 2528,
-    "weekendPrice": 2579,
-    "cleaningFee": 500,
-    "securityDeposit": 0,
-    "currency": "PHP",
-    "bedrooms": 1,
-    "bathrooms": 1,
-    "maxGuests": 4,
-    "propertyType": "Property",
-    "status": "draft",
+    "bookingType": "stay",
+    "pricePerNight": 15000,
+    "bedrooms": 4,
+    "bathrooms": 5,
+    "maxGuests": 18,
+    "propertyType": "resort",
+    "privacyType": "entire",
+    "status": "approved",
     "rating": 0,
-    "amenities": [],
+    "amenities": [
+      "Heated pool",
+      "Sauna",
+      "Massage chair"
+    ],
     "rules": [
       "No smoking",
       "No parties or events",
       "Quiet hours after 10 PM"
     ],
-    "createdAt": "2026-06-23",
+    "createdAt": "2026-06-16",
     "images": [
       {
-        "id": "draft-7f77a29b90c589cece-placeholder",
-        "propertyId": "draft-7f77a29b90c589cece",
-        "imageUrl": "pending-upload",
-        "tone": "from-rose-100 via-orange-50 to-stone-100"
+        "id": "487d7b23-4632-406d-8688-763e7de4c553-photo-1",
+        "propertyId": "487d7b23-4632-406d-8688-763e7de4c553",
+        "imageUrl": "https://jungnz1dnstbkswh.public.blob.vercel-storage.com/uploads/listings/fb89b8d2-24bb-4862-8df3-248a83de3864.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100",
+        "category": "other"
+      },
+      {
+        "id": "487d7b23-4632-406d-8688-763e7de4c553-photo-2",
+        "propertyId": "487d7b23-4632-406d-8688-763e7de4c553",
+        "imageUrl": "https://jungnz1dnstbkswh.public.blob.vercel-storage.com/uploads/listings/cbe4140f-faf2-48be-9712-418b0ea8378d.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100",
+        "category": "other"
+      },
+      {
+        "id": "487d7b23-4632-406d-8688-763e7de4c553-photo-3",
+        "propertyId": "487d7b23-4632-406d-8688-763e7de4c553",
+        "imageUrl": "https://jungnz1dnstbkswh.public.blob.vercel-storage.com/uploads/listings/807b69c4-47f6-4735-80bd-e22d154db039.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100",
+        "category": "other"
+      },
+      {
+        "id": "487d7b23-4632-406d-8688-763e7de4c553-photo-4",
+        "propertyId": "487d7b23-4632-406d-8688-763e7de4c553",
+        "imageUrl": "https://jungnz1dnstbkswh.public.blob.vercel-storage.com/uploads/listings/9dd63534-065e-46a7-a357-cda193cf5aa4.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100",
+        "category": "other"
+      },
+      {
+        "id": "487d7b23-4632-406d-8688-763e7de4c553-photo-5",
+        "propertyId": "487d7b23-4632-406d-8688-763e7de4c553",
+        "imageUrl": "https://jungnz1dnstbkswh.public.blob.vercel-storage.com/uploads/listings/131a6c85-f6c1-4369-be26-62fee8ac4120.jpg",
+        "tone": "from-rose-100 via-orange-50 to-stone-100",
+        "category": "other"
       }
     ],
-    "discounts": {
-      "newListing": true,
-      "lastMinute": true,
-      "weekly": true,
-      "monthly": true
-    },
-    "rooms": [
-      {
-        "id": "draft-7f77a29b90c589cece-sanctuary-suite",
-        "name": "Sanctuary Suite",
-        "capacity": 2,
-        "floor": "Second Floor",
-        "description": "Private suite for overnight guests.",
-        "photos": [],
-        "amenities": [
-          "Smart TV",
-          "Air conditioning"
-        ],
-        "active": true
-      },
-      {
-        "id": "draft-7f77a29b90c589cece-serene-room",
-        "name": "Serene Room",
-        "capacity": 4,
-        "floor": "Second Floor",
-        "description": "Shared bedroom for families or groups.",
-        "photos": [],
-        "amenities": [
-          "Air conditioning"
-        ],
-        "active": true
-      },
-      {
-        "id": "draft-7f77a29b90c589cece-nest-room",
-        "name": "Nest Room",
-        "capacity": 6,
-        "floor": "Second Floor",
-        "description": "Large sleeping room for overnight packages.",
-        "photos": [],
-        "amenities": [
-          "Air conditioning"
-        ],
-        "active": true
-      },
-      {
-        "id": "draft-7f77a29b90c589cece-oasis-room",
-        "name": "Oasis Room",
-        "capacity": 8,
-        "floor": "Ground Floor",
-        "description": "Ground-floor room with extra guest capacity.",
-        "photos": [],
-        "amenities": [
-          "Air conditioning"
-        ],
-        "active": true
-      }
-    ],
-    "bookingPackages": []
+    "latitude": 13.9676187,
+    "longitude": 121.5625343,
+    "barangay": "Ilayang Iyam",
+    "province": "Quezon",
+    "zipCode": "4301",
+    "preciseLocation": true
   }
 ]

@@ -6,7 +6,7 @@ import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { getListingVideoEmbed } from "@/lib/listing-video";
-import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
+import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages, type DiscountBooking } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import { normalizeVirtualTourUrl } from "@/lib/virtual-tour";
@@ -26,7 +26,15 @@ function formatShortDate(value: string) {
   return `${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()}`;
 }
 
-export function RoomBookingBar({ property, unavailableStays = [] }: { property: Property; unavailableStays?: UnavailableStay[] }) {
+export function RoomBookingBar({
+  property,
+  unavailableStays = [],
+  pricingBookings = [],
+}: {
+  property: Property;
+  unavailableStays?: UnavailableStay[];
+  pricingBookings?: DiscountBooking[];
+}) {
   const checkIn = useReservationStore((state) => state.checkIn);
   const checkOut = useReservationStore((state) => state.checkOut);
   const guests = useReservationStore((state) => state.guests);
@@ -77,7 +85,7 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
   }, [bookedNightSet, checkIn, checkOut]);
-  const { nights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id);
+  const { nights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id, pricingBookings);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(selectedPackage?.weekdayRate ?? property.pricePerNight);
   const reserveHref = validStay ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id) : "#";
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);

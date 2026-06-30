@@ -7,6 +7,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { TravellerMenu } from "@/components/public/traveller-menu";
+import type { UserRole } from "@/lib/types";
 
 const MARKETPLACE_NAV = [
   { label: "Homes", href: "/search", icon: Home, badge: "" },
@@ -14,9 +15,16 @@ const MARKETPLACE_NAV = [
   { label: "Services", href: "/hosting/stayprimeph-your-service", icon: ConciergeBell, badge: "New" },
 ] as const;
 
+type NavbarSessionUser = {
+  id: string;
+  name: string;
+  role: UserRole;
+  avatar: string;
+};
+
 export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { transparentOnTop?: boolean; hideBottomNav?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
-  const [session, setSession] = useState<{ loaded: boolean; user: { role: string } | null }>({ loaded: false, user: null });
+  const [session, setSession] = useState<{ loaded: boolean; user: NavbarSessionUser | null }>({ loaded: false, user: null });
 
   useEffect(() => {
     if (!transparentOnTop) {
@@ -48,7 +56,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
     async function loadSession() {
       try {
         const response = await fetch("/api/session", { cache: "no-store" });
-        const data = response.ok ? ((await response.json()) as { user: { role: string } | null }) : { user: null };
+        const data = response.ok ? ((await response.json()) as { user: NavbarSessionUser | null }) : { user: null };
         if (active) setSession({ loaded: true, user: data.user });
       } catch {
         if (active) setSession({ loaded: true, user: null });
@@ -63,7 +71,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
 
   const transparent = transparentOnTop && !scrolled;
   const showHostCta = session.loaded && (!session.user || session.user.role === "guest");
-  const hostCtaHref = session.user?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";
+  const hostCtaHref = session.user?.role === "guest" ? "/become-a-host/upgrade" : "/register/host";
 
   return (
     <>
@@ -95,7 +103,7 @@ export function Navbar({ transparentOnTop = false, hideBottomNav = false }: { tr
             </Link>
           ) : null}
           {session.user ? <NotificationBell variant={transparent ? "light" : "dark"} eager={false} /> : null}
-          <TravellerMenu />
+          <TravellerMenu sessionUser={session.user} sessionLoaded={session.loaded} />
         </div>
       </header>
       {hideBottomNav ? null : <PublicBottomNav />}

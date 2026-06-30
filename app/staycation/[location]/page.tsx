@@ -99,7 +99,7 @@ export default async function StaycationLocationPage({ params }: { params: Promi
               </h2>
             </div>
             <Link
-              href={`/search?location=${encodeURIComponent(location.name)}`}
+              href="/search"
               className="inline-flex min-h-10 w-fit items-center rounded-full border border-black/10 px-4 text-sm font-semibold transition hover:border-black/30 hover:bg-black/[0.03]"
             >
               Search this area
@@ -121,7 +121,7 @@ export default async function StaycationLocationPage({ params }: { params: Promi
                 <Link href="/search" className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#083f35] px-6 font-semibold text-white transition hover:bg-[#062f28]">
                   Browse all stays
                 </Link>
-                <Link href="/register?role=host" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/10 px-6 font-semibold transition hover:border-black/30 hover:bg-black/[0.03]">
+                <Link href="/register/host" className="inline-flex min-h-12 items-center justify-center rounded-full border border-black/10 px-6 font-semibold transition hover:border-black/30 hover:bg-black/[0.03]">
                   Become a host
                 </Link>
               </div>
@@ -135,7 +135,7 @@ export default async function StaycationLocationPage({ params }: { params: Promi
             List your condo, house, or private resort on StayPrime and earn from short-term rentals - a simple, direct-booking
             alternative for hosts in {location.name}.
           </p>
-          <Link href="/register?role=host" className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-6 font-semibold text-white transition hover:bg-black/85">
+          <Link href="/register/host" className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-black px-6 font-semibold text-white transition hover:bg-black/85">
             List your property
           </Link>
         </section>

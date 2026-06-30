@@ -29,6 +29,11 @@ type SessionUser = {
   avatar: string;
 };
 
+type TravellerMenuProps = {
+  sessionUser?: SessionUser | null;
+  sessionLoaded?: boolean;
+};
+
 const primaryLinks = [
   { label: "Wishlists", href: "/guest/wishlist", icon: Heart },
   { label: "Trips", href: "/guest/bookings", icon: BriefcaseBusiness },
@@ -68,31 +73,36 @@ function clearClientSessionState() {
   window.sessionStorage.clear();
 }
 
-export function TravellerMenu() {
+export function TravellerMenu({ sessionUser, sessionLoaded: controlledSessionLoaded }: TravellerMenuProps = {}) {
+  const hasControlledSession = typeof controlledSessionLoaded === "boolean";
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [loadedUser, setLoadedUser] = useState<SessionUser | null>(null);
+  const [loadedSessionReady, setLoadedSessionReady] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const user = hasControlledSession ? sessionUser ?? null : loadedUser;
+  const sessionLoaded = hasControlledSession ? Boolean(controlledSessionLoaded) : loadedSessionReady;
 
   useEffect(() => {
+    if (hasControlledSession) return;
+
     let active = true;
 
     async function loadSession() {
       try {
         const response = await fetch("/api/session", { cache: "no-store" });
         if (!response.ok) {
-          if (active) setSessionLoaded(true);
+          if (active) setLoadedSessionReady(true);
           return;
         }
         const data = (await response.json()) as { user: SessionUser | null };
         if (active) {
-          setUser(data.user);
-          setSessionLoaded(true);
+          setLoadedUser(data.user);
+          setLoadedSessionReady(true);
         }
       } catch {
         if (active) {
-          setUser(null);
-          setSessionLoaded(true);
+          setLoadedUser(null);
+          setLoadedSessionReady(true);
         }
       }
     }
@@ -101,7 +111,7 @@ export function TravellerMenu() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [hasControlledSession]);
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -122,7 +132,7 @@ export function TravellerMenu() {
 
   const isSignedIn = Boolean(user);
   const showHostCta = sessionLoaded && (!user || user.role === "guest");
-  const hostCtaHref = user?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";
+  const hostCtaHref = user?.role === "guest" ? "/become-a-host/upgrade" : "/register/host";
   const activePrimaryLinks = user?.role === "host" ? hostPrimaryLinks : user?.role === "admin" ? adminPrimaryLinks : primaryLinks;
   const activeSecondaryLinks = user?.role === "guest" ? secondaryLinks : signedInSecondaryLinks;
 

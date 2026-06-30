@@ -77,6 +77,7 @@ vi.mock("@/lib/email", () => ({
   sendBookingConfirmedEmail: vi.fn(),
   sendBookingReceivedEmail: vi.fn(),
   sendBookingRequestEmail: vi.fn(),
+  sendPaymentReceiptEmail: vi.fn(),
   sendListingReviewEmail: vi.fn(),
   sendPasswordChangedEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),

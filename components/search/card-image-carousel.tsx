@@ -68,7 +68,7 @@ export function CardImageCarousel({
             onClick={(event) => goToSlide(active - 1, event)}
             disabled={active === 0}
             aria-label="Show previous photo"
-            className="absolute left-3 top-1/2 z-20 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0"
+            className="absolute left-2 top-1/2 z-20 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0"
           >
             <ChevronLeft size={18} strokeWidth={2.4} />
           </button>
@@ -77,7 +77,7 @@ export function CardImageCarousel({
             onClick={(event) => goToSlide(active + 1, event)}
             disabled={active >= slides.length - 1}
             aria-label="Show next photo"
-            className="absolute right-3 top-1/2 z-20 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0"
+            className="absolute right-2 top-1/2 z-20 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-md transition hover:scale-105 disabled:pointer-events-none disabled:opacity-0"
           >
             <ChevronRight size={18} strokeWidth={2.4} />
           </button>

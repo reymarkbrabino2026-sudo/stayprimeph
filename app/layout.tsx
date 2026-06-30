@@ -39,7 +39,7 @@ const websiteLd = {
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: {
-    default: "StayPrime PH | Book Staycations, Vacation Rentals & Short-Term Stays in the Philippines",
+    default: "StayPrime PH | Staycations & Vacation Rentals",
     template: "%s | StayPrime PH",
   },
   description:
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "StayPrime PH | Book Staycations, Vacation Rentals & Short-Term Stays in the Philippines",
+    title: "StayPrime PH | Staycations & Vacation Rentals",
     description:
       "Find affordable staycations, vacation rentals, condos, private homes, and short-term stays across the Philippines. Book your next stay easily with StayPrime PH.",
     url: env.NEXT_PUBLIC_APP_URL,
@@ -78,7 +78,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "StayPrime PH | Staycations & Vacation Rentals in the Philippines",
+    title: "StayPrime PH | Staycations & Vacation Rentals",
     description:
       "Affordable staycations, vacation rentals, condos, and short-term stays across the Philippines. Book easily with StayPrime PH.",
   },

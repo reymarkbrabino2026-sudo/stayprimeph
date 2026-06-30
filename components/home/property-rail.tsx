@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
+import { destinationHrefForLocation } from "@/lib/seo-location-links";
 import type { PublicListingSummary } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -34,7 +35,7 @@ function ratingLabel(rating: number) {
 
 function railHref(title: string) {
   const location = title.match(/\bin\s+(.+)$/i)?.[1];
-  return location ? `/search?location=${encodeURIComponent(`${location}, Philippines`)}` : "/search";
+  return location ? destinationHrefForLocation(location) : "/search";
 }
 
 export function PropertyRail({ title, items, isAuthenticated }: { title: string; items: PublicListingSummary[]; isAuthenticated: boolean }) {
@@ -88,7 +89,7 @@ export function PropertyRail({ title, items, isAuthenticated }: { title: string;
           <Link
             href={viewAllHref}
             aria-label={`View all ${title}`}
-            className="grid size-8 place-items-center rounded-full bg-black/[0.06] text-black transition active:scale-95 md:hidden"
+            className="grid size-11 place-items-center rounded-full bg-black/[0.06] text-black transition active:scale-95 md:hidden"
           >
             <ChevronRight size={18} strokeWidth={2.4} />
           </Link>
@@ -124,12 +125,12 @@ export function PropertyRail({ title, items, isAuthenticated }: { title: string;
                   {isRenderableImage(image) ? <Image src={image!} alt={property.title} fill sizes="(min-width:1536px) 14vw, (min-width:1280px) 16vw, (min-width:768px) 24vw, 46vw" className="object-cover" draggable={false} /> : null}
                   <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-3 py-1 text-[11px] font-semibold leading-4 text-black shadow-sm md:left-3 md:top-3 md:text-xs">{property.rating >= 4.8 ? "Guest favorite" : "New"}</span>
                 </div>
-                <h3 className="mt-2 truncate text-sm font-semibold leading-5 text-black">{listingLabel(property)}</h3>
+                <p className="mt-2 truncate text-sm font-semibold leading-5 text-black">{listingLabel(property)}</p>
                 <p className="truncate text-sm leading-5 text-black/55">
                   {formatCurrency(twoNightPrice)} for 2 nights · <Star className="inline-block align-[-1px]" size={12} fill="currentColor" /> {ratingLabel(property.rating)}
                 </p>
               </Link>
-              <WishlistButton propertyId={property.id} isAuthenticated={isAuthenticated} className="absolute right-2.5 top-2.5 grid size-8 place-items-center text-white drop-shadow md:right-3 md:top-3" />
+              <WishlistButton propertyId={property.id} isAuthenticated={isAuthenticated} className="absolute right-0 top-0 grid size-11 place-items-center text-white drop-shadow md:right-1 md:top-1" />
             </article>
           );
         })}

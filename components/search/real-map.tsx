@@ -193,7 +193,7 @@ export function RealMap({ properties, location, near, onPreviewOpenChange }: Rea
             <WishlistButton
               propertyId={selectedProperty.id}
               isAuthenticated={false}
-              className="absolute right-14 top-3 z-20 grid size-9 place-items-center rounded-full bg-white text-black shadow-md transition active:scale-95"
+              className="absolute right-14 top-2 z-20 grid size-11 place-items-center rounded-full bg-white text-black shadow-md transition active:scale-95"
               iconClassName="text-black"
               unsavedFill="transparent"
             />
@@ -201,7 +201,7 @@ export function RealMap({ properties, location, near, onPreviewOpenChange }: Rea
               type="button"
               onClick={() => setSelectedId(null)}
               aria-label="Close"
-              className="absolute right-3 top-3 z-20 grid size-9 place-items-center rounded-full bg-white text-black/70 shadow-md transition active:scale-95"
+              className="absolute right-2 top-2 z-20 grid size-11 place-items-center rounded-full bg-white text-black/70 shadow-md transition active:scale-95"
             >
               <X size={18} />
             </button>

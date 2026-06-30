@@ -16,6 +16,11 @@ const accountGroups = [
     items: ["Booking requests", "Reservation reminders", "Cancellation updates"],
   },
   {
+    title: "Payments",
+    intro: "Receipts and payment records for confirmed guest payments.",
+    items: ["Receipts"],
+  },
+  {
     title: "Hosting",
     intro: "Account-level updates for your listing setup and host requirements.",
     items: ["Listing status", "Required actions", "Policy updates"],

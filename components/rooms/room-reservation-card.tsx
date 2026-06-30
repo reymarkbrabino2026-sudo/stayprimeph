@@ -7,7 +7,7 @@ import type { CSSProperties } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
-import { allowsPackageBooking, allowsStayBooking, calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages, getFullAccessBookingPackage } from "@/lib/pricing";
+import { allowsPackageBooking, allowsStayBooking, calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages, getFullAccessBookingPackage, type DiscountBooking } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
 import {
@@ -45,10 +45,12 @@ export function RoomStickyReservationCard({
   property,
   rating,
   unavailableStays = [],
+  pricingBookings = [],
 }: {
   property: Property;
   rating: string;
   unavailableStays?: UnavailableStay[];
+  pricingBookings?: DiscountBooking[];
 }) {
   const shellRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -135,7 +137,7 @@ export function RoomStickyReservationCard({
         className={`${metrics.mode === "fixed" ? "fixed z-40" : metrics.mode === "absolute" ? "absolute z-40" : ""}`}
         style={metrics.mode === "fixed" ? fixedStyle : metrics.mode === "absolute" ? absoluteStyle : undefined}
       >
-        <RoomReservationCard property={property} rating={rating} unavailableStays={unavailableStays} />
+        <RoomReservationCard property={property} rating={rating} unavailableStays={unavailableStays} pricingBookings={pricingBookings} />
       </div>
     </aside>
   );
@@ -145,10 +147,12 @@ export function RoomReservationCard({
   property,
   rating,
   unavailableStays = [],
+  pricingBookings = [],
 }: {
   property: Property;
   rating: string;
   unavailableStays?: UnavailableStay[];
+  pricingBookings?: DiscountBooking[];
 }) {
   const checkIn = useReservationStore((state) => state.checkIn);
   const checkOut = useReservationStore((state) => state.checkOut);
@@ -196,7 +200,16 @@ export function RoomReservationCard({
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
   }, [bookedNightSet, checkIn, checkOut]);
-  const { nights, weekdayNights, weekendNights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id);
+  const {
+    nights,
+    weekdayNights,
+    weekendNights,
+    validStay,
+    discount,
+    guestSubtotal,
+    guestDiscountAmount,
+    total,
+  } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id, pricingBookings);
   const packageWeekdayRate = activePackage?.weekdayRate ?? property.pricePerNight;
   const packageWeekendRate = activePackage ? (activePackage.weekendRate > 0 ? activePackage.weekendRate : activePackage.weekdayRate) : property.weekendPrice ?? calculateDefaultWeekendPrice(property.pricePerNight);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(packageWeekdayRate);
@@ -512,8 +525,14 @@ export function RoomReservationCard({
             <span className="min-w-0 pr-3 leading-5 underline decoration-black/20 underline-offset-4">
               {rateSummary}
             </span>
-            <span className="shrink-0 font-medium">{formatCurrency(total)}</span>
+            <span className="shrink-0 font-medium">{formatCurrency(guestSubtotal)}</span>
           </div>
+          {discount && guestDiscountAmount > 0 ? (
+            <div className="flex justify-between gap-4 text-[#08743e]">
+              <span>{discount.label} ({discount.percent}% off)</span>
+              <span className="shrink-0 font-medium">-{formatCurrency(guestDiscountAmount)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between gap-4 border-t border-black/10 pt-3 text-base font-semibold text-[#083f35]">
             <span>Total before taxes</span>
             <span className="shrink-0">{formatCurrency(total)}</span>

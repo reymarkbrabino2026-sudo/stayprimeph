@@ -45,6 +45,7 @@ async function readFileStore<T>(fileName: string): Promise<T[]> {
     readCache.set(fileName, { items, mtimeMs: stats.mtimeMs });
     return items;
   } catch {
+    if (process.env.VERCEL) return readBundledStore<T>(fileName);
     return [];
   }
 }

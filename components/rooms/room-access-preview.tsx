@@ -133,7 +133,7 @@ export function RoomAccessPreview({
               type="button"
               aria-label="Previous room image"
               onClick={showPreviousImage}
-              className="absolute left-4 top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#083f35] shadow-[0_10px_24px_rgb(0_0_0_/_0.16)] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="absolute left-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#083f35] shadow-[0_10px_24px_rgb(0_0_0_/_0.16)] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <ChevronLeft size={20} />
             </button>
@@ -141,21 +141,25 @@ export function RoomAccessPreview({
               type="button"
               aria-label="Next room image"
               onClick={showNextImage}
-              className="absolute right-4 top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#083f35] shadow-[0_10px_24px_rgb(0_0_0_/_0.16)] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="absolute right-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#083f35] shadow-[0_10px_24px_rgb(0_0_0_/_0.16)] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <ChevronRight size={20} />
             </button>
-            <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+            <div className="absolute bottom-1 left-1/2 z-10 flex -translate-x-1/2">
               {activeRoomImages.map((image, index) => (
                 <button
                   key={`${image}-${index}`}
                   type="button"
                   aria-label={`Show room image ${index + 1}`}
                   onClick={() => setActiveSlide(index)}
-                  className={`size-2.5 rounded-full ring-1 ring-white/70 transition ${
-                    index === currentSlide ? "bg-white" : "bg-white/45 hover:bg-white/70"
-                  }`}
-                />
+                  className="grid size-10 place-items-center rounded-full transition active:scale-95"
+                >
+                  <span
+                    className={`size-2.5 rounded-full ring-1 ring-white/70 transition ${
+                      index === currentSlide ? "bg-white" : "bg-white/45 hover:bg-white/70"
+                    }`}
+                  />
+                </button>
               ))}
             </div>
           </>

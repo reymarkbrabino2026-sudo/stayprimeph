@@ -8,7 +8,8 @@ import { getBookingById } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { sendBookingConfirmedEmail } from "@/lib/email";
-import { arePaidBookingsEnabled, confirmManualPayment, markManualPaymentFullyPaid, rejectManualPayment } from "@/lib/payments";
+import { arePaidBookingsEnabled, confirmManualPayment, getPaymentByBookingId, markManualPaymentFullyPaid, rejectManualPayment } from "@/lib/payments";
+import { sendGuestPaymentReceipt } from "@/lib/payment-receipts";
 import { getPropertyById } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { updateBookingStatusInDatabase, usesPrismaPersistence } from "@/lib/repositories";
@@ -147,6 +148,11 @@ export async function confirmPaymentAndApproveBooking(formData: FormData) {
   if (!booking || booking.hostId !== user.id) throw new Error("Booking request not found.");
 
   await confirmManualPayment({ booking, hostId: user.id });
+  const payment = await getPaymentByBookingId(booking.id);
+  await sendGuestPaymentReceipt({
+    booking: { ...booking, status: "confirmed", paymentStatus: payment?.paymentStatus ?? "paid" },
+    payment,
+  });
   await sendBookingConfirmationPair({ ...booking, status: "confirmed", paymentStatus: "paid" }, user);
 
   revalidatePath("/host/dashboard");
@@ -170,7 +176,19 @@ export async function markCashBalancePaid(formData: FormData) {
   const booking = await getBookingById(id);
   if (!booking || booking.hostId !== user.id) throw new Error("Booking request not found.");
 
+  const existingPayment = await getPaymentByBookingId(booking.id);
+  const balancePaid = Math.max(booking.totalPrice - (existingPayment?.amount ?? 0), 0);
   await markManualPaymentFullyPaid({ booking, hostId: user.id });
+  const payment = await getPaymentByBookingId(booking.id);
+  await sendGuestPaymentReceipt({
+    booking: { ...booking, status: "confirmed", paymentStatus: "paid" },
+    payment,
+    amountPaid: balancePaid,
+    paymentMethod: "cash_balance",
+    transactionId: payment?.transactionId ?? existingPayment?.transactionId ?? booking.id,
+    receiptSuffix: "BAL",
+    receiptNote: "Remaining balance paid in cash at check-in.",
+  });
 
   revalidatePath("/host/dashboard");
   revalidatePath("/host/bookings");

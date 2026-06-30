@@ -2,12 +2,16 @@
 
 import { create } from "zustand";
 import {
+  calculateGuestPriceWithMarkup,
   calculateNightlySubtotal,
   calculatePackageSubtotal,
   calculateStayprimeMarkup,
   findBookingPackageById,
+  getBestDiscount,
   nightsBetweenDateKeys,
   STAYPRIME_MARKUP_RATE,
+  type AppliedDiscount,
+  type DiscountBooking,
   type NightlyRates,
 } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
@@ -42,20 +46,50 @@ export interface PriceBreakdown {
   weekendNights: number;
   validStay: boolean;
   subtotal: number;
+  discountedSubtotal: number;
+  discount: AppliedDiscount | null;
+  guestSubtotal: number;
+  guestDiscountAmount: number;
   serviceFee: number;
   total: number;
 }
 
-export function computePrice(rates: NightlyRates | Property | number, checkIn: string, checkOut: string, guests = 1, packageId?: string | null): PriceBreakdown {
-  const bookingPackage = typeof rates === "object" && "bookingPackages" in rates ? findBookingPackageById(rates, packageId) : null;
+export function computePrice(
+  rates: NightlyRates | Property | number,
+  checkIn: string,
+  checkOut: string,
+  guests = 1,
+  packageId?: string | null,
+  bookings: DiscountBooking[] = [],
+): PriceBreakdown {
+  const property = typeof rates === "object" && "id" in rates ? rates : null;
+  const bookingPackage = property ? findBookingPackageById(property, packageId) : null;
   const nightlyRates = typeof rates === "number" ? { pricePerNight: rates } : rates;
   const nightlySubtotal = bookingPackage
     ? calculatePackageSubtotal(bookingPackage, checkIn, checkOut, guests)
     : calculateNightlySubtotal(nightlyRates, checkIn, checkOut);
   const { nights, weekdayNights, weekendNights, subtotal } = nightlySubtotal;
   const validStay = nights >= 1;
-  const serviceFee = validStay ? calculateStayprimeMarkup(subtotal) : 0;
-  return { nights, weekdayNights, weekendNights, validStay, subtotal, serviceFee, total: subtotal + serviceFee };
+  const discount = validStay && property ? getBestDiscount({ property, bookings, checkIn, nights, subtotal }) : null;
+  const discountedSubtotal = validStay ? Math.max(0, subtotal - (discount?.amount ?? 0)) : 0;
+  const serviceFee = validStay ? calculateStayprimeMarkup(discountedSubtotal) : 0;
+  const total = discountedSubtotal + serviceFee;
+  const guestSubtotal = validStay ? calculateGuestPriceWithMarkup(subtotal) : 0;
+  const guestDiscountAmount = discount ? Math.max(0, guestSubtotal - total) : 0;
+
+  return {
+    nights,
+    weekdayNights,
+    weekendNights,
+    validStay,
+    subtotal,
+    discountedSubtotal,
+    discount,
+    guestSubtotal,
+    guestDiscountAmount,
+    serviceFee,
+    total,
+  };
 }
 
 export function buildReserveHref(propertyId: string, checkIn: string, checkOut: string, guests: number, packageId?: string | null) {

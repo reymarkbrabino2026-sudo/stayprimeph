@@ -19,6 +19,7 @@
     "test:rls": "node scripts/test-supabase-rls.mjs",
     "test:e2e": "playwright test",
     "test:coverage": "vitest run --coverage",
+    "data:cleanup-except-caya": "node scripts/cleanup-except-caya.mjs",
     "db:push": "prisma db push",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",

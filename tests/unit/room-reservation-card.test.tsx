@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, test } from "vitest";
 import { RoomReservationCard } from "@/components/rooms/room-reservation-card";
 import type { BookingPackage, Property } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
 import { useReservationStore } from "@/stores/reservation-store";
 
 const bookingPackages: BookingPackage[] = [
@@ -117,5 +118,33 @@ describe("RoomReservationCard", () => {
     });
     expect(screen.getAllByText("Overnight Full Access")).toHaveLength(2);
     expect(screen.getAllByText("Daytime Ground Floor & Outdoor")).toHaveLength(2);
+  });
+
+  test("applies the new-listing 20% promotion to the reservation total", () => {
+    useReservationStore.setState({
+      checkIn: "2099-07-07",
+      checkOut: "2099-07-08",
+      guests: 1,
+      bookingMode: "stay",
+      packageId: null,
+    });
+
+    render(
+      <RoomReservationCard
+        property={{
+          ...property,
+          bookingType: "stay",
+          bookingPackages: undefined,
+          discounts: { newListing: true, lastMinute: false, weekly: false, monthly: false },
+          weekendPrice: property.pricePerNight,
+        }}
+        rating="New"
+        pricingBookings={[]}
+      />,
+    );
+
+    expect(screen.getAllByText(formatCurrency(5184), { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getByText("New listing promotion (20% off)")).toBeInTheDocument();
+    expect(screen.getByText(`-${formatCurrency(1296)}`)).toBeInTheDocument();
   });
 });

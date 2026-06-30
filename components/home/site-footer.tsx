@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { footerColumns, futureGetaways } from "@/lib/home-data";
+import { destinationHrefForLocation } from "@/lib/seo-location-links";
 import { seoLocations } from "@/lib/seo-locations";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,7 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
             {futureGetaways.slice(0, 17).map(([city, type]) => (
               <Link
                 key={city}
-                href={{ pathname: "/search", query: { location: `${city}, Philippines` } }}
+                href={destinationHrefForLocation(city)}
                 className={cn(
                   "group block rounded-md transition hover:text-[#083f35]",
                   lightFocus,
@@ -86,7 +87,7 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
                   Explore stays
                 </Link>
                 <Link
-                  href="/register?role=host"
+                  href="/register/host"
                   className={cn("inline-flex min-h-10 items-center justify-center rounded-full border border-white/20 px-4 text-sm font-semibold text-white transition hover:bg-white/10", darkFocus)}
                 >
                   Become a host

@@ -53,11 +53,12 @@ import { getAvailabilityBlocksForProperty } from "@/lib/availability";
 import { addDays } from "@/lib/availability-calendar";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForProperty } from "@/lib/bookings";
+import { getListingVideoEmbed } from "@/lib/listing-video";
 import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
 import { getReviewsForProperty } from "@/lib/reviews";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { getUserById, getUsersByIds } from "@/lib/users";
 
 function isRenderableImage(src?: string): src is string {
@@ -155,6 +156,7 @@ export default async function RoomPage({
         .filter((block) => block.propertyId === property.id)
         .map((block) => ({ checkIn: block.date, checkOut: addDays(block.date, 1), bookingPackageId: undefined })),
     );
+  const pricingBookings = bookings.map((booking) => ({ propertyId: booking.propertyId, status: booking.status }));
   const averageRating = propertyReviews.length
     ? (propertyReviews.reduce((sum, review) => sum + review.rating, 0) / propertyReviews.length).toFixed(2)
     : property.rating > 0
@@ -168,6 +170,7 @@ export default async function RoomPage({
   const instantBook = property.rules.includes("Instant book enabled");
   const hostMessageHref = `/guest/messages?propertyId=${encodeURIComponent(property.id)}&hostId=${encodeURIComponent(property.hostId)}`;
   const packageBookingAllowed = allowsPackageBooking(property);
+  const hasListingVideo = Boolean(getListingVideoEmbed(property.listingVideoUrl));
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
   const activeRooms = wholePlaceAccessEnabled ? (property.rooms ?? []).filter((room) => room.active) : [];
   const photoTourRooms = (property.rooms ?? []).filter((room) => room.active);
@@ -376,7 +379,13 @@ export default async function RoomPage({
 
         <RoomListingVideo property={property} />
 
-        <section id="gallery" className="scroll-mt-28 bg-[#efefed] py-12 sm:scroll-mt-32 sm:py-24">
+        <section
+          id="gallery"
+          className={cn(
+            "scroll-mt-28 bg-[#efefed] pb-12 sm:scroll-mt-32 sm:pb-24",
+            hasListingVideo ? "pt-6 sm:pt-10" : "pt-12 sm:pt-24",
+          )}
+        >
           <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
             <SectionHeader
               eyebrow="Gallery"
@@ -432,10 +441,10 @@ export default async function RoomPage({
             </div>
 
             <div id="mobile-reservation-card" className="scroll-mt-28 lg:hidden">
-              <RoomReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} />
+              <RoomReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} pricingBookings={pricingBookings} />
             </div>
 
-            <RoomStickyReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} />
+            <RoomStickyReservationCard property={property} rating={averageRating} unavailableStays={unavailableStays} pricingBookings={pricingBookings} />
           </div>
         </section>
 
@@ -631,7 +640,7 @@ export default async function RoomPage({
       </main>
 
       <SiteFooter flushTop />
-      <RoomBookingBar property={property} unavailableStays={unavailableStays} />
+      <RoomBookingBar property={property} unavailableStays={unavailableStays} pricingBookings={pricingBookings} />
     </div>
   );
 }

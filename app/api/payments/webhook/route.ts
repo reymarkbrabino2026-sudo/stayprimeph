@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { getBookingById, markBookingPaid } from "@/lib/bookings";
 import { logger } from "@/lib/logger";
 import { getStripe, isStripeCheckoutEnabled } from "@/lib/payments";
+import { sendGuestPaymentReceipt } from "@/lib/payment-receipts";
 import type Stripe from "stripe";
 
 const webhookBookingIdSchema = z.string().trim().min(1).max(120);
@@ -59,7 +60,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Checkout amount mismatch." }, { status: 400 });
     }
 
+    const shouldSendReceipt = booking.paymentStatus !== "paid";
     await markBookingPaid(bookingId, transactionId);
+    if (shouldSendReceipt) {
+      await sendGuestPaymentReceipt({
+        booking: { ...booking, status: "confirmed", paymentStatus: "paid" },
+        amountPaid: booking.totalPrice,
+        paymentMethod: "stripe",
+        transactionId,
+        paidAt: new Date().toISOString(),
+      });
+    }
   }
   return NextResponse.json({ received: true });
 }

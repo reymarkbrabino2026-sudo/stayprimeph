@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PublicBottomNav } from "@/components/public/public-bottom-nav";
 import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
+import type { UserRole } from "@/lib/types";
 
 const MARKETPLACE_NAV = [
   { label: "Homes", href: "/search", icon: Home, badge: "" },
@@ -15,9 +16,16 @@ const MARKETPLACE_NAV = [
   { label: "Services", href: "/hosting/stayprimeph-your-service", icon: ConciergeBell, badge: "New" },
 ] as const;
 
+type HeaderSessionUser = {
+  id: string;
+  name: string;
+  role: UserRole;
+  avatar: string;
+};
+
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);
-  const [session, setSession] = useState<{ loaded: boolean; user: { role: string } | null }>({ loaded: false, user: null });
+  const [session, setSession] = useState<{ loaded: boolean; user: HeaderSessionUser | null }>({ loaded: false, user: null });
 
   useEffect(() => {
     let frame = 0;
@@ -45,7 +53,7 @@ export function HomeHeader() {
     async function loadSession() {
       try {
         const response = await fetch("/api/session", { cache: "no-store" });
-        const data = response.ok ? ((await response.json()) as { user: { role: string } | null }) : { user: null };
+        const data = response.ok ? ((await response.json()) as { user: HeaderSessionUser | null }) : { user: null };
         if (active) setSession({ loaded: true, user: data.user });
       } catch {
         if (active) setSession({ loaded: true, user: null });
@@ -59,7 +67,7 @@ export function HomeHeader() {
   }, []);
 
   const showHostCta = session.loaded && (!session.user || session.user.role === "guest");
-  const hostCtaHref = session.user?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";
+  const hostCtaHref = session.user?.role === "guest" ? "/become-a-host/upgrade" : "/register/host";
 
   return (
     <>
@@ -85,7 +93,7 @@ export function HomeHeader() {
               </Link>
             ) : null}
             {session.user ? <NotificationBell variant="dark" eager={false} /> : null}
-            <TravellerMenu />
+            <TravellerMenu sessionUser={session.user} sessionLoaded={session.loaded} />
           </div>
         </div>
 
@@ -135,7 +143,7 @@ export function HomeHeader() {
               </Link>
             ) : null}
             {session.user ? <NotificationBell variant={collapsed ? "dark" : "light"} eager={false} /> : null}
-            <TravellerMenu />
+            <TravellerMenu sessionUser={session.user} sessionLoaded={session.loaded} />
           </div>
         </div>
 

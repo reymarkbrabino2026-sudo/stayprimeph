@@ -111,7 +111,7 @@ export function WishlistButton({
       aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
       aria-pressed={saved}
       onClick={toggleWishlist}
-      className={className ?? "absolute right-3 top-3 grid size-8 place-items-center text-white drop-shadow"}
+      className={className ?? "absolute right-0 top-0 grid size-11 place-items-center text-white drop-shadow"}
     >
       <Heart size={24} fill={saved ? "#ff385c" : unsavedFill ?? "rgba(0,0,0,0.35)"} className={saved ? "text-[#ff385c]" : iconClassName ?? "text-white"} />
     </button>

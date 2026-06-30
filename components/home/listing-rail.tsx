@@ -95,11 +95,11 @@ export function ListingRail({
                 loading="eager"
               />
               <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-semibold shadow-sm">{badge}</span>
-              <span className="absolute right-3 top-3 grid size-8 place-items-center text-white drop-shadow">
+              <span className="absolute right-1 top-1 grid size-11 place-items-center text-white drop-shadow">
                 <Heart size={24} />
               </span>
             </div>
-            <h3 className="mt-2 truncate text-sm font-semibold">{name}</h3>
+            <p className="mt-2 truncate text-sm font-semibold">{name}</p>
             <p className="truncate text-sm text-black/55">
               {meta} · ★ {rating}
             </p>

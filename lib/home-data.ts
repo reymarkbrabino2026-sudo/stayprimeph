@@ -109,7 +109,7 @@ export type FooterPage = {
   title: string;
   eyebrow: string;
   intro: string;
-  sections: { title: string; body: string }[];
+  sections: { title: string; body: string; items?: string[] }[];
   cta?: { label: string; href: string };
 };
 
@@ -206,6 +206,17 @@ export const footerPages: Record<string, Record<string, FooterPage>> = {
       intro: "Add useful services around a trip, such as airport pickup, stocked kitchens, cleaning, or local coordination.",
       sections: [
         { title: "Best fit", body: "A good service has a clear scope, dependable timing, simple pricing, and enough detail for guests to book confidently." },
+        {
+          title: "StayPrime host support",
+          body: "StayPrime can also help hosts improve how a property is presented, promoted, and supported before guests book.",
+          items: [
+            "Professional photo and video shoots",
+            "Facebook and social media advertising",
+            "Customer service support",
+            "Drone coverage",
+            "Creative marketing content",
+          ],
+        },
         { title: "Roadmap", body: "Service listings are planned for a future release after stays and experience tools are in place." },
       ],
     },

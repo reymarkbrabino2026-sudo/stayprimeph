@@ -84,6 +84,7 @@ vi.mock("@/lib/email", () => ({
   sendBookingConfirmedEmail: vi.fn(),
   sendBookingReceivedEmail: vi.fn(),
   sendBookingRequestEmail: vi.fn(),
+  sendPaymentReceiptEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -131,12 +132,20 @@ vi.mock("@/lib/messages", () => ({
 
 vi.mock("@/lib/payments", () => ({
   arePaidBookingsEnabled: vi.fn(() => true),
+  confirmManualPayment: vi.fn(),
+  getPaymentByBookingId: vi.fn(),
   getStripe: vi.fn(() => ({
     checkout: { sessions: { create: authState.stripeCheckoutCreate } },
   })),
   isStripeCheckoutEnabled: vi.fn(() => true),
+  markManualPaymentFullyPaid: vi.fn(),
   readManualPaymentInput: vi.fn(),
+  rejectManualPayment: vi.fn(),
   submitManualPayment: vi.fn(),
+}));
+
+vi.mock("@/lib/payment-receipts", () => ({
+  sendGuestPaymentReceipt: vi.fn(),
 }));
 
 vi.mock("@/lib/pricing", () => ({

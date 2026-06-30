@@ -6,7 +6,7 @@ export function RoomListingVideo({ property }: { property: Pick<Property, "title
   if (!video) return null;
 
   return (
-    <section id="video" className="scroll-mt-28 bg-[#efefed] pb-12 sm:scroll-mt-32 sm:pb-24">
+    <section id="video" className="scroll-mt-28 bg-[#efefed] pb-4 sm:scroll-mt-32 sm:pb-8">
       <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase text-[#0f5750] min-[390px]:text-sm">Video</p>

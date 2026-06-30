@@ -50,7 +50,7 @@ export default async function RegisterPage({
       signupRole={requestedRole}
       nextPath={nextPath}
       secondaryPrompt="Planning to host?"
-      secondaryHref="/register?role=host"
+      secondaryHref="/register/host"
       secondaryLinkText="Create a host account"
     />
   );

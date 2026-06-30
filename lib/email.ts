@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { isNotificationEmailAllowed, type NotificationEmailKind } from "@/lib/notification-consent";
+import { buildPaymentReceiptPdfAttachments, type PaymentReceiptPdfAttachment } from "@/lib/payment-receipt-documents";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME } from "@/lib/utils";
 
 let cachedResend: { apiKey: string; client: Resend } | null = null;
@@ -159,9 +160,22 @@ type BookingEmailDetails = {
   guests: number;
   totalPrice: number;
   bookingId: string;
+  bookingPackageName?: string;
   actionUrl: string;
   hostName?: string;
   guestName?: string;
+};
+
+type PaymentReceiptEmailDetails = BookingEmailDetails & {
+  amountPaid: number;
+  paidAt?: string;
+  paymentMethod: string;
+  paymentStatus?: string;
+  transactionId: string;
+  paymentId?: string;
+  receiptNumber?: string;
+  invoiceNumber?: string;
+  receiptNote?: string;
 };
 
 function bookingSummaryRows(input: BookingEmailDetails) {
@@ -250,13 +264,160 @@ function bookingEmail(input: BookingEmailDetails & {
   `, input.headline);
 }
 
+function formatReceiptDate(value?: string) {
+  const date = value ? new Date(value) : new Date();
+  if (!Number.isFinite(date.getTime())) return value ?? "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  }).format(date);
+}
+
+function receiptNumberFromBooking(bookingId: string, suffix?: string) {
+  const code = bookingCode(bookingId);
+  const base = code.length > 4 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+  return suffix ? `${base}-${suffix}` : base;
+}
+
+function compactReceiptReference(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "Recorded by StayPrimePH";
+  if (trimmed.length <= 12) return trimmed;
+  return `${trimmed.slice(0, 4)}...${trimmed.slice(-4)}`;
+}
+
+function paymentMethodLabel(method: string) {
+  if (method === "gcash") return "GCash";
+  if (method === "bank_transfer") return "Bank transfer";
+  if (method === "stripe") return "Stripe";
+  if (method === "cash_balance") return "Cash at check-in";
+  return "Other";
+}
+
+function receiptDetailRow(label: string, value: string, emphasis = false) {
+  return `
+    <tr>
+      <td style="padding:8px 0;font-size:14px;line-height:20px;color:#6b7280;">${escapeHtml(label)}</td>
+      <td align="right" style="padding:8px 0;font-size:14px;line-height:20px;color:${textColor};${emphasis ? "font-weight:700;" : ""}">${escapeHtml(value)}</td>
+    </tr>
+  `;
+}
+
+function paymentReceiptEmail(input: PaymentReceiptEmailDetails) {
+  const paidAt = formatReceiptDate(input.paidAt);
+  const receiptNumber = input.receiptNumber ?? receiptNumberFromBooking(input.bookingId);
+  const invoiceNumber = input.invoiceNumber ?? `SPH-${bookingCode(input.bookingId)}`;
+  const bookingLabel = input.bookingPackageName ?? input.propertyTitle;
+  const stayRange = `${formatDate(input.checkIn)} - ${formatDate(input.checkOut)}`;
+  const paidInFull = input.paymentStatus === "paid" || input.amountPaid >= input.totalPrice;
+  const remainingBalance = paidInFull ? 0 : Math.max(input.totalPrice - input.amountPaid, 0);
+  const receiptStatus = remainingBalance > 0 ? "Partially paid" : "Paid";
+  const method = paymentMethodLabel(input.paymentMethod);
+  const reference = compactReceiptReference(input.transactionId || input.paymentId || input.bookingId);
+  const note = input.receiptNote
+    ? `<p style="margin:18px 0 0;font-size:13px;line-height:21px;color:#6b7280;">${escapeHtml(input.receiptNote)}</p>`
+    : "";
+  const balanceRow = remainingBalance > 0 ? receiptDetailRow("Remaining balance", formatCurrency(remainingBalance), true) : "";
+
+  return emailShell(`
+    <tr>
+      <td style="padding:0 0 0;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050505;border-radius:2px;">
+          <tr>
+            <td align="center" style="padding:48px 24px 56px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:448px;">
+                <tr>
+                  <td style="padding:0 0 22px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="width:34px;height:34px;border-radius:999px;background:#ffffff;color:#050505;font-size:16px;font-weight:800;text-align:center;line-height:34px;">S</td>
+                        <td style="padding-left:12px;color:#ffffff;font-size:15px;font-weight:800;">StayPrimePH</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background:#ffffff;border-radius:12px;padding:28px 30px 24px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td>
+                          <p style="margin:0 0 8px;font-size:14px;line-height:20px;color:#6b7280;">Receipt from StayPrimePH</p>
+                          <p style="margin:0;font-size:34px;line-height:40px;font-weight:800;color:${textColor};">${escapeHtml(formatCurrency(input.amountPaid))}</p>
+                          <p style="margin:4px 0 0;font-size:14px;line-height:20px;color:#6b7280;">${escapeHtml(receiptStatus)} ${escapeHtml(paidAt)}</p>
+                        </td>
+                        <td align="right" valign="top" style="width:78px;">
+                          <div style="display:inline-block;width:56px;height:70px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;text-align:center;">
+                            <div style="margin:15px auto 7px;width:28px;height:8px;border-radius:999px;background:#e5e7eb;"></div>
+                            <div style="margin:0 auto 6px;width:30px;height:4px;border-radius:999px;background:#e5e7eb;"></div>
+                            <div style="margin:0 auto 6px;width:24px;height:4px;border-radius:999px;background:#e5e7eb;"></div>
+                            <div style="margin:0 auto;width:30px;height:4px;border-radius:999px;background:#e5e7eb;"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:22px;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
+                      <tr>
+                        <td style="padding:13px 0;">
+                          <a href="${escapeHtml(input.actionUrl)}" style="font-size:14px;font-weight:700;color:#6b7280;text-decoration:none;">&darr; View invoice</a>
+                          <span style="display:inline-block;width:16px;"></span>
+                          <a href="${escapeHtml(input.actionUrl)}" style="font-size:14px;font-weight:700;color:#6b7280;text-decoration:none;">&darr; View receipt</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:18px;">
+                      ${receiptDetailRow("Receipt number", receiptNumber, true)}
+                      ${receiptDetailRow("Invoice number", invoiceNumber)}
+                      ${receiptDetailRow("Payment method", method)}
+                      ${receiptDetailRow("Payment reference", reference)}
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="height:18px;line-height:18px;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td style="background:#ffffff;border-radius:12px;padding:28px 30px 24px;">
+                    <h2 style="margin:0 0 24px;font-size:18px;line-height:26px;font-weight:800;color:${textColor};">Receipt #${escapeHtml(receiptNumber)}</h2>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding:0 0 14px;font-size:14px;line-height:20px;color:#6b7280;">${escapeHtml(stayRange)}</td>
+                        <td align="right" style="padding:0 0 14px;font-size:14px;line-height:20px;color:${textColor};font-weight:700;">${escapeHtml(formatCurrency(input.totalPrice))}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 0 18px;font-size:15px;line-height:22px;color:${textColor};font-weight:700;">${escapeHtml(bookingLabel)}</td>
+                        <td align="right" style="padding:0 0 18px;font-size:13px;line-height:20px;color:#6b7280;">Qty 1</td>
+                      </tr>
+                    </table>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
+                      ${receiptDetailRow("Total", formatCurrency(input.totalPrice), true)}
+                      ${receiptDetailRow("Amount paid", formatCurrency(input.amountPaid), true)}
+                      ${balanceRow}
+                    </table>
+                    ${note}
+                    <p style="margin:20px 0 0;font-size:13px;line-height:21px;color:#9ca3af;">Questions? Contact StayPrimePH support from your dashboard.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:24px 0 0;font-size:12px;line-height:18px;color:#6b7280;">Powered by StayPrimePH payments</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `, `Receipt ${receiptNumber} from StayPrimePH`);
+}
+
 type EmailConsent = {
   kind: NotificationEmailKind;
   scope?: "offers" | "account";
   preferenceId?: string;
 };
 
-async function sendEmail(input: { to: string; subject: string; html: string; consent: EmailConsent }) {
+async function sendEmail(input: { to: string; subject: string; html: string; consent: EmailConsent; attachments?: PaymentReceiptPdfAttachment[] }) {
   const allowed = await isNotificationEmailAllowed({
     to: input.to,
     kind: input.consent.kind,
@@ -290,6 +451,7 @@ async function sendEmail(input: { to: string; subject: string; html: string; con
     to: input.to,
     subject: input.subject,
     html: input.html,
+    attachments: input.attachments,
   });
 
   if (error) {
@@ -499,6 +661,17 @@ export async function sendBookingConfirmedEmail(input: BookingEmailDetails & { r
         ? "Keep this email handy for your check-in details and reservation code."
         : "The reservation is now active in your host dashboard.",
     }),
+  });
+}
+
+export async function sendPaymentReceiptEmail(input: PaymentReceiptEmailDetails) {
+  const receiptNumber = input.receiptNumber ?? receiptNumberFromBooking(input.bookingId);
+  await sendEmail({
+    to: input.to,
+    subject: `Your receipt from StayPrimePH #${receiptNumber}`,
+    consent: { kind: "account", scope: "account", preferenceId: "Payments:Receipts" },
+    html: paymentReceiptEmail(input),
+    attachments: buildPaymentReceiptPdfAttachments(input),
   });
 }
 

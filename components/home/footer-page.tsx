@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 import type { FooterPage as FooterPageContent } from "@/lib/home-data";
 
 export function FooterPage({ page }: { page: FooterPageContent }) {
@@ -13,6 +14,16 @@ export function FooterPage({ page }: { page: FooterPageContent }) {
           <section key={section.title} className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-semibold">{section.title}</h2>
             <p className="mt-2 leading-7 text-black/65">{section.body}</p>
+            {section.items ? (
+              <ul className="mt-5 grid gap-3 text-sm font-medium text-black/75">
+                {section.items.map((item) => (
+                  <li key={item} className="flex gap-3">
+                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[#083f35]" aria-hidden="true" />
+                    <span className="leading-6">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </section>
         ))}
       </div>

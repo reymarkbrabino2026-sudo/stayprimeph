@@ -7,7 +7,8 @@ import { getBookingById } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { env } from "@/lib/env";
 import { sendBookingConfirmedEmail } from "@/lib/email";
-import { rejectSubmittedPaymentByAdmin, verifySubmittedPaymentByAdmin } from "@/lib/payments";
+import { getPaymentByBookingId, rejectSubmittedPaymentByAdmin, verifySubmittedPaymentByAdmin } from "@/lib/payments";
+import { sendGuestPaymentReceipt } from "@/lib/payment-receipts";
 import { recordHostPayout } from "@/lib/payouts";
 import { getPropertyById } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
@@ -106,6 +107,11 @@ export async function verifySubmittedPayment(formData: FormData) {
     action: "payment.approved",
     entityType: "payment",
     entityId: `payment-${booking.id}`,
+  });
+  const payment = await getPaymentByBookingId(booking.id);
+  await sendGuestPaymentReceipt({
+    booking: { ...booking, status: "confirmed", paymentStatus: payment?.paymentStatus ?? "paid" },
+    payment,
   });
   await sendBookingConfirmationPair(booking);
   revalidatePaymentReviewPaths(booking.id);

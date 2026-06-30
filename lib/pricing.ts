@@ -2,6 +2,7 @@ import type { Booking, BookingPackage, ListingDiscounts, Property, SeasonalRate 
 
 export const STAYPRIME_MARKUP_RATE = 0.2;
 export const DEFAULT_WEEKEND_PREMIUM_RATE = 0.2;
+export type DiscountBooking = Pick<Booking, "propertyId" | "status">;
 
 export interface AppliedDiscount {
   key: keyof ListingDiscounts;
@@ -94,7 +95,7 @@ export function getApplicableDiscounts({
   property, bookings, checkIn, nights, subtotal,
 }: {
   property: Property;
-  bookings: Booking[];
+  bookings: DiscountBooking[];
   checkIn: string;
   nights: number;
   subtotal: number;

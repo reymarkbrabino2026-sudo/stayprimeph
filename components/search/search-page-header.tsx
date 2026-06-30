@@ -8,8 +8,10 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { SearchBar } from "@/components/public/search-bar";
 import { TravellerMenu } from "@/components/public/traveller-menu";
 import { SearchFilters } from "@/components/search/search-filters";
+import type { UserRole } from "@/lib/types";
 
 type TypeOption = { value: string; label: string };
+type HeaderSessionUser = { id: string; name: string; role: UserRole; avatar: string };
 
 type SearchPageHeaderProps = {
   summary: {
@@ -34,7 +36,7 @@ export function SearchPageHeader({ summary, filters }: SearchPageHeaderProps) {
   const headerRef = useRef<HTMLDivElement>(null);
   const searchPanelRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
-  const [session, setSession] = useState<{ loaded: boolean; user: { role: string } | null }>({ loaded: false, user: null });
+  const [session, setSession] = useState<{ loaded: boolean; user: HeaderSessionUser | null }>({ loaded: false, user: null });
 
   useEffect(() => {
     let active = true;
@@ -42,7 +44,7 @@ export function SearchPageHeader({ summary, filters }: SearchPageHeaderProps) {
     async function loadSession() {
       try {
         const response = await fetch("/api/session", { cache: "no-store" });
-        const data = response.ok ? ((await response.json()) as { user: { role: string } | null }) : { user: null };
+        const data = response.ok ? ((await response.json()) as { user: HeaderSessionUser | null }) : { user: null };
         if (active) setSession({ loaded: true, user: data.user });
       } catch {
         if (active) setSession({ loaded: true, user: null });
@@ -77,7 +79,7 @@ export function SearchPageHeader({ summary, filters }: SearchPageHeaderProps) {
   }, [expanded]);
 
   const showHostCta = session.loaded && (!session.user || session.user.role === "guest");
-  const hostCtaHref = session.user?.role === "guest" ? "/become-a-host/upgrade" : "/register?role=host";
+  const hostCtaHref = session.user?.role === "guest" ? "/become-a-host/upgrade" : "/register/host";
   const collapseWhenSearchPanelCloses = useCallback((panel: "where" | "when" | "who" | null) => {
     if (!panel) setExpanded(false);
   }, []);
@@ -120,7 +122,7 @@ export function SearchPageHeader({ summary, filters }: SearchPageHeaderProps) {
             </Link>
           ) : null}
           {session.user ? <NotificationBell variant="dark" eager={false} /> : null}
-          <TravellerMenu />
+          <TravellerMenu sessionUser={session.user} sessionLoaded={session.loaded} />
         </div>
       </div>
 

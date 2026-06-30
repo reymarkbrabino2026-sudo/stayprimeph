@@ -2,6 +2,8 @@
 
 StayPrimePH is a responsive web app today. These notes prepare it for a future Capacitor or native wrapper without forcing that work early.
 
+For the immediate Google Play upload path, use `docs/google-play-upload.md`. The short version: this repo cannot be uploaded to Play as-is; build a signed Android App Bundle through a TWA/Bubblewrap wrapper, deploy Digital Asset Links, then upload the `.aab` in Play Console.
+
 ## Web app readiness
 
 - Keep primary flows mobile-first and touch-friendly.
