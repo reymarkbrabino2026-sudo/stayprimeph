@@ -47,6 +47,7 @@ const amenityIdByNormalizedLabel = new Map(
 );
 
 const maxAmenities = 50;
+const maxBookingPackages = 8;
 
 function normalizeAmenityText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -373,6 +374,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const selectedAmenityLabels = useMemo(() => draft.amenityIds.map((id) => amenityLabelById.get(id) ?? id), [draft.amenityIds]);
   const customAmenities = useMemo(() => draft.amenityIds.filter((id) => !amenityLabelById.has(id)), [draft.amenityIds]);
   const customAmenityLimitReached = draft.amenityIds.length >= maxAmenities;
+  const bookingPackageLimitReached = draft.bookingPackages.length >= maxBookingPackages;
   const activeRooms = useMemo(() => draft.rooms.filter((room) => room.active), [draft.rooms]);
   const virtualTourUrlValid = isValidVirtualTourUrl(draft.virtualTourUrl);
   const listingVideoUrlValid = isValidListingVideoUrl(draft.listingVideoUrl);
@@ -529,6 +531,92 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
     });
   }
 
+  function newBookingPackageId(existingIds: Set<string>) {
+    const suffix = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().slice(0, 8)
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const id = `custom-package-${suffix}`;
+    return existingIds.has(id) ? `custom-package-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}` : id;
+  }
+
+  function addBookingPackage() {
+    updateDraft((currentDraft) => {
+      if (currentDraft.bookingPackages.length >= maxBookingPackages) return {};
+
+      const activeCurrentRooms = currentDraft.rooms.filter((room) => room.active);
+      const currentFloors = Array.from(new Set([
+        ...activeCurrentRooms.map((room) => room.floor.trim()).filter(Boolean),
+        ...currentDraft.bookingPackages.flatMap((pkg) => pkg.accessibleFloors),
+      ].filter(Boolean))).slice(0, 20);
+      const currentAmenities = Array.from(new Set([
+        ...currentDraft.amenityIds.map((id) => amenityLabelById.get(id) ?? id),
+        ...currentDraft.bookingPackages.flatMap((pkg) => pkg.includedAmenities),
+      ].filter(Boolean))).slice(0, 80);
+      const existingIds = new Set(currentDraft.bookingPackages.map((pkg) => pkg.id));
+      const id = newBookingPackageId(existingIds);
+      const displayOrder = Math.max(0, ...currentDraft.bookingPackages.map((pkg) => pkg.displayOrder || 0)) + 1;
+      const includedGuests = Math.max(1, currentDraft.guests || 1);
+      const basePackageRate = currentDraft.basePrice > 0 ? currentDraft.basePrice : 0;
+      const weekendPackageRate = currentDraft.weekendPrice > 0 ? currentDraft.weekendPrice : basePackageRate;
+      const blockedPackageIds = currentDraft.bookingPackages.map((pkg) => pkg.id).slice(0, 20);
+      const bookingPackages = currentDraft.bookingPackages.map((pkg) => ({
+        ...pkg,
+        blockedPackageIds: Array.from(new Set([...pkg.blockedPackageIds, id])).slice(0, 20),
+      }));
+
+      return {
+        bookingPackages: [
+          ...bookingPackages,
+          {
+            id,
+            name: `Custom package ${displayOrder}`,
+            description: "",
+            status: "active",
+            displayOrder,
+            accessType: "Custom access",
+            unit: "day",
+            weekdayRate: basePackageRate,
+            weekendRate: weekendPackageRate,
+            holidayRate: weekendPackageRate,
+            holidayDates: [],
+            seasonalRates: [],
+            includedGuests,
+            maxGuests: includedGuests,
+            sleepingCapacity: 0,
+            durationHours: 9,
+            additionalGuestFee: 0,
+            extensionHourlyFee: 0,
+            checkInTime: "12:00 PM",
+            checkOutTime: "9:00 PM",
+            accessibleFloors: currentFloors.length ? currentFloors : ["Ground Floor"],
+            accessibleRoomIds: activeCurrentRooms.map((room) => room.id).slice(0, 50),
+            includedAmenities: currentAmenities,
+            excludedAmenities: [],
+            availableDays: [0, 1, 2, 3, 4, 5, 6],
+            minimumAdvanceBookingDays: 0,
+            blockedPackageIds,
+            enabled: true,
+          } satisfies HostBookingPackageDraft,
+        ],
+      };
+    });
+  }
+
+  function removeBookingPackage(id: string) {
+    updateDraft((currentDraft) => {
+      if (currentDraft.bookingPackages.length <= 1) return {};
+
+      return {
+        bookingPackages: currentDraft.bookingPackages
+          .filter((pkg) => pkg.id !== id)
+          .map((pkg) => ({
+            ...pkg,
+            blockedPackageIds: pkg.blockedPackageIds.filter((packageId) => packageId !== id),
+          })),
+      };
+    });
+  }
+
   function selectPrivacyType(privacyType: string) {
     const patch: Partial<HostListingDraft> = { privacyType };
     if (!isEntirePlacePrivacyType(privacyType)) {
@@ -608,6 +696,20 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
 
   function selectSimpleNightlyPricing() {
     updateDraft({ bookingType: "stay", pricingMode: "simple" });
+  }
+
+  function selectPackageBookingType(bookingType: "package" | "both") {
+    updateDraft({
+      bookingType,
+      pricingMode: "packages",
+      bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice),
+    });
+    setStepValidationNotice(null);
+    setStep("booking-packages");
+
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+    }
   }
 
   if (!initialized || ownerUserId !== user.id) {
@@ -982,8 +1084,8 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
               <OptionCard selected={draft.bookingType === "stay"} title="Stay bookings only" description="Guests reserve dates and guests using classic nightly booking." icon={<DynamicIcon name="house" />} onClick={() => updateDraft({ bookingType: "stay", pricingMode: "simple" })} />
               {wholePlaceAccessEnabled ? (
                 <>
-                  <OptionCard selected={draft.bookingType === "package"} title="Package bookings only" description="Guests must choose an overnight, daytime, event, or custom package." icon={<DynamicIcon name="layers" />} onClick={() => updateDraft({ bookingType: "package", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
-                  <OptionCard selected={draft.bookingType === "both"} title="Stay and package bookings" description="Offer traditional stays plus packages on the same listing." icon={<DynamicIcon name="sparkles" />} onClick={() => updateDraft({ bookingType: "both", pricingMode: "packages", bookingPackages: bookingPackagesForPrices(draft.basePrice, draft.weekendPrice) })} />
+                  <OptionCard selected={draft.bookingType === "package"} title="Package bookings only" description="Guests must choose an overnight, daytime, event, or custom package." icon={<DynamicIcon name="layers" />} onClick={() => selectPackageBookingType("package")} />
+                  <OptionCard selected={draft.bookingType === "both"} title="Stay and package bookings" description="Offer traditional stays plus packages on the same listing." icon={<DynamicIcon name="sparkles" />} onClick={() => selectPackageBookingType("both")} />
                 </>
               ) : null}
             </div>
@@ -1093,9 +1195,25 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
 
         {currentStep === "booking-packages" ? (
           <section className="mx-auto max-w-5xl">
-            <div className="max-w-3xl">
-              <h1 className="text-3xl font-semibold">{step.title}</h1>
-              <p className="mt-2 text-black/60">{step.description}</p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-3xl">
+                <h1 className="text-3xl font-semibold">{step.title}</h1>
+                <p className="mt-2 text-black/60">{step.description}</p>
+              </div>
+              {draft.pricingMode !== "simple" ? (
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <button
+                    type="button"
+                    onClick={addBookingPackage}
+                    disabled={bookingPackageLimitReached}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20"
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                    Add package
+                  </button>
+                  <span className="text-xs font-medium uppercase tracking-[0.08em] text-black/45">{draft.bookingPackages.length}/{maxBookingPackages} packages</span>
+                </div>
+              ) : null}
             </div>
             {draft.pricingMode === "simple" ? (
               <div className="mt-8 rounded-lg border border-black/10 bg-black/[0.03] p-5 text-black/65">
@@ -1150,19 +1268,32 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                             />
                           </label>
 
-                          <div className="grid w-full grid-cols-3 gap-2 text-sm sm:w-auto sm:min-w-[24rem]">
-                            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
-                              <span className="block text-xs text-black/45">Weekend</span>
-                              <strong className="block truncate">{pkg.weekendRate > 0 ? formatPackageMoney(pkg.weekendRate) : "Uses weekday"}</strong>
+                          <div className="flex w-full items-start gap-2 sm:w-auto">
+                            <div className="grid flex-1 grid-cols-3 gap-2 text-sm sm:min-w-[24rem]">
+                              <div className="rounded-lg bg-black/[0.03] px-3 py-2">
+                                <span className="block text-xs text-black/45">Weekend</span>
+                                <strong className="block truncate">{pkg.weekendRate > 0 ? formatPackageMoney(pkg.weekendRate) : "Uses weekday"}</strong>
+                              </div>
+                              <div className="rounded-lg bg-black/[0.03] px-3 py-2">
+                                <span className="block text-xs text-black/45">Guests</span>
+                                <strong className="block">{pkg.includedGuests}-{pkg.maxGuests}</strong>
+                              </div>
+                              <div className="rounded-lg bg-black/[0.03] px-3 py-2">
+                                <span className="block text-xs text-black/45">Length</span>
+                                <strong className="block">{pkg.durationHours}h</strong>
+                              </div>
                             </div>
-                            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
-                              <span className="block text-xs text-black/45">Guests</span>
-                              <strong className="block">{pkg.includedGuests}-{pkg.maxGuests}</strong>
-                            </div>
-                            <div className="rounded-lg bg-black/[0.03] px-3 py-2">
-                              <span className="block text-xs text-black/45">Length</span>
-                              <strong className="block">{pkg.durationHours}h</strong>
-                            </div>
+                            {draft.bookingPackages.length > 1 ? (
+                              <button
+                                type="button"
+                                onClick={() => removeBookingPackage(pkg.id)}
+                                aria-label={`Remove ${pkg.name || "package"}`}
+                                title="Remove package"
+                                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-black/10 text-black/45 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                              >
+                                <Trash2 size={16} aria-hidden="true" />
+                              </button>
+                            ) : null}
                           </div>
                         </div>
 
@@ -1377,6 +1508,18 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                       </section>
                     );
                   })}
+                </div>
+
+                <div className="mt-5 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={addBookingPackage}
+                    disabled={bookingPackageLimitReached}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-black/10 bg-white px-5 text-sm font-semibold text-black transition hover:border-black/30 hover:bg-black/[0.03] disabled:cursor-not-allowed disabled:bg-black/[0.02] disabled:text-black/35"
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                    Add package
+                  </button>
                 </div>
               </>
             )}
