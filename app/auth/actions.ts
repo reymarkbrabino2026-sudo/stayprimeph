@@ -23,6 +23,7 @@ import type { User, UserRole } from "@/lib/types";
 
 type SocialProvider = "google" | "facebook";
 const verificationCodeSentMessage = "We sent a 6-digit verification code to your email.";
+const firstAdminRecoveryEmail = "admin@stayprimeph.com";
 
 function safeRole(value: FormDataEntryValue | null): UserRole {
   return value === "host" ? "host" : "guest";
@@ -142,6 +143,36 @@ async function appendLoginFailureAudit(input: {
 async function sendPasswordResetForUser(user: { id: string; email: string; name: string }) {
   const token = await issueAuthToken(user.id, "password_reset");
   await sendPasswordResetEmail({ to: user.email, name: user.name, token });
+}
+
+async function createFirstAdminRecoveryUser(email: string, users: User[]) {
+  if (email !== firstAdminRecoveryEmail) return null;
+  if (users.some((user) => user.role === "admin")) return null;
+  if (users.some((user) => user.email.toLowerCase() === email)) return null;
+
+  const now = new Date().toISOString();
+  const user: User = {
+    id: randomUUID(),
+    name: "StayPrimePH Admin",
+    email,
+    role: "admin",
+    avatar: "SA",
+    phone: "",
+    createdAt: now,
+    passwordHash: hashPassword(`${randomUUID()}-${randomUUID()}`),
+    emailVerifiedAt: now,
+    passwordChangedAt: now,
+  };
+
+  try {
+    if (usesPrismaPersistence()) await createUserInDatabase(user);
+    else await writeStoredUsers([...users, user]);
+    logger.warn("first_admin_recovery_created", { email, persistenceDriver: env.PERSISTENCE_DRIVER });
+    return user;
+  } catch (error) {
+    logger.error("first_admin_recovery_create_failed", { email, error });
+    return null;
+  }
 }
 
 async function sendEmailVerificationForUser(user: { id: string; email: string; name: string }) {
@@ -550,10 +581,16 @@ export async function requestPasswordReset(formData: FormData) {
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const users = await getUsers();
-  const user = users.find((item) => item.email.toLowerCase() === email);
+  const adminCountBefore = users.filter((item) => item.role === "admin").length;
+  const existingUser = users.find((item) => item.email.toLowerCase() === email);
+  const recoveryUser = existingUser ? null : await createFirstAdminRecoveryUser(email, users);
+  const user = existingUser ?? recoveryUser;
   logger.info("password_reset_request_lookup", {
     email,
     matched: Boolean(user),
+    existingMatched: Boolean(existingUser),
+    recoveryCreated: Boolean(recoveryUser),
+    adminCountBefore,
     role: user?.role,
     persistenceDriver: env.PERSISTENCE_DRIVER,
     usesPrisma: usesPrismaPersistence(),

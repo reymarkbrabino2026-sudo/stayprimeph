@@ -117,6 +117,7 @@ import { clearAllSessionsForUser, clearSession, createSession, requireUser, veri
 import { consumeAuthToken, getAuthToken, issueAuthToken, updateUserPassword } from "@/lib/auth-tokens";
 import { sendPasswordChangedEmail, sendPasswordResetEmail, sendPrivilegedMfaEmail, sendVerificationEmail } from "@/lib/email";
 import { checkLoginLockout } from "@/lib/rate-limit";
+import { writeStoredUsers } from "@/lib/user-store";
 import { getUserById, getUsers } from "@/lib/users";
 import type { AuthToken, User } from "@/lib/types";
 
@@ -359,6 +360,29 @@ describe("password reset audit logging", () => {
         ipHash: expect.any(String),
       }),
     }));
+  });
+
+  it("creates a first admin recovery account before sending a reset link", async () => {
+    vi.mocked(getUsers).mockResolvedValueOnce([]);
+    const formData = new FormData();
+    formData.set("email", "admin@stayprimeph.com");
+
+    await expect(requestPasswordReset(formData)).rejects.toThrow("NEXT_REDIRECT:/forgot-password?sent=1");
+
+    expect(writeStoredUsers).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "StayPrimePH Admin",
+        email: "admin@stayprimeph.com",
+        role: "admin",
+        passwordHash: expect.stringMatching(/^hashed:/),
+        emailVerifiedAt: expect.any(String),
+      }),
+    ]);
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith({
+      to: "admin@stayprimeph.com",
+      name: "StayPrimePH Admin",
+      token: "mfa-token",
+    });
   });
 
   it("persists an audit log when a password reset is completed", async () => {
