@@ -332,34 +332,43 @@ export function RoomReservationCard({
       ) : null}
 
       {effectiveBookingMode === "package" && packageBookingAllowed ? (
-        <div className="mt-4 grid gap-2">
-          {bookingPackages.map((item) => {
-            const active = activePackage?.id === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setPackageId(item.id);
-                  if (item.unit === "day") {
-                    setCheckOut(addDays(effectiveStay.checkIn, 1));
-                    setActiveField("checkIn");
-                  }
-                }}
-                className={`rounded-lg border px-4 py-3 text-left transition ${active ? "border-[#083f35] bg-[#083f35] text-white" : "border-black/10 bg-black/[0.02] hover:border-[#083f35]"}`}
-              >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="font-semibold">{item.name}</span>
-                  <span className={active ? "text-white/80" : "text-black/55"}>{formatCurrency(calculateGuestPriceWithMarkup(item.weekdayRate))}</span>
-                </span>
-                <span className={`mt-1 block text-xs ${active ? "text-white/70" : "text-black/50"}`}>
-                  {item.accessType}
-                  {item.durationHours ? ` - ${item.durationHours} hours` : ""}
-                  {item.sleepingCapacity ? ` - sleeps ${item.sleepingCapacity}` : ""}
-                </span>
-              </button>
-            );
-          })}
+        <div className="mt-4 rounded-lg border border-black/10 bg-black/[0.02] p-3">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Package</span>
+            <select
+              value={activePackage?.id ?? displayedPackage?.id ?? ""}
+              onChange={(event) => {
+                const nextPackage = bookingPackages.find((item) => item.id === event.target.value);
+                if (!nextPackage) return;
+                setPackageId(nextPackage.id);
+                if (nextPackage.unit === "day") {
+                  setCheckOut(addDays(effectiveStay.checkIn, 1));
+                  setActiveField("checkIn");
+                }
+              }}
+              className="min-h-12 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-[#083f35] focus:ring-2 focus:ring-[#083f35]/10"
+            >
+              {bookingPackages.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} - {formatCurrency(calculateGuestPriceWithMarkup(item.weekdayRate))}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {activePackage ? (
+            <div className="mt-3 rounded-lg bg-white px-3 py-2 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold leading-5">{activePackage.name}</p>
+                <p className="shrink-0 font-semibold text-[#083f35]">{formatCurrency(calculateGuestPriceWithMarkup(activePackage.weekdayRate))}</p>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-black/55">
+                {activePackage.accessType}
+                {activePackage.durationHours ? ` - ${activePackage.durationHours} hours` : ""}
+                {activePackage.sleepingCapacity ? ` - sleeps ${activePackage.sleepingCapacity}` : ""}
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
