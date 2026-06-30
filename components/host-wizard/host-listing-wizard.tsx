@@ -48,6 +48,7 @@ const amenityIdByNormalizedLabel = new Map(
 
 const maxAmenities = 50;
 const maxBookingPackages = 8;
+const maxRoomAmenitiesCharacters = 80;
 
 function normalizeAmenityText(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -356,6 +357,18 @@ function joinCsv(values: string[]) {
   return values.join(", ");
 }
 
+function limitRoomAmenitiesText(value: string) {
+  return value.slice(0, maxRoomAmenitiesCharacters);
+}
+
+function splitRoomAmenitiesInput(value: string) {
+  return splitCsv(limitRoomAmenitiesText(value));
+}
+
+function sanitizeRoomAmenities(amenities: string[]) {
+  return splitRoomAmenitiesInput(joinCsv(amenities));
+}
+
 function RoomAmenitiesInput({
   room,
   onChange,
@@ -363,19 +376,24 @@ function RoomAmenitiesInput({
   room: HostPropertyRoomDraft;
   onChange: (amenities: string[]) => void;
 }) {
-  const [value, setValue] = useState(() => joinCsv(room.amenities));
+  const [value, setValue] = useState(() => limitRoomAmenitiesText(joinCsv(room.amenities)));
+  const remainingCharacters = maxRoomAmenitiesCharacters - value.length;
 
   return (
-    <input
-      value={value}
-      onChange={(event) => {
-        const nextValue = event.target.value;
-        setValue(nextValue);
-        onChange(splitCsv(nextValue));
-      }}
-      className="min-h-12 w-full rounded-xl border px-3"
-      placeholder="Smart TV, Air conditioning"
-    />
+    <>
+      <input
+        value={value}
+        maxLength={maxRoomAmenitiesCharacters}
+        onChange={(event) => {
+          const nextValue = limitRoomAmenitiesText(event.target.value);
+          setValue(nextValue);
+          onChange(splitRoomAmenitiesInput(nextValue));
+        }}
+        className="min-h-12 w-full rounded-xl border px-3"
+        placeholder="Smart TV, Air conditioning"
+      />
+      <span className="mt-1.5 block text-xs text-black/45">{remainingCharacters} characters left</span>
+    </>
   );
 }
 
@@ -595,7 +613,14 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
       return;
     }
 
-    const parsed = hostListingSchema.safeParse({ ...draft, status: "pending" });
+    const publishDraft = {
+      ...draft,
+      rooms: draft.rooms.map((room) => ({
+        ...room,
+        amenities: sanitizeRoomAmenities(room.amenities),
+      })),
+    };
+    const parsed = hostListingSchema.safeParse({ ...publishDraft, status: "pending" });
     if (!parsed.success) {
       const message = formatWizardValidationIssue(parsed.error.issues[0]);
       setPublishError(message);
@@ -727,7 +752,11 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
       rooms: currentDraft.rooms.map((item) => {
         if (item.id !== id) return item;
         const nextPatch = typeof patch === "function" ? patch(item) : patch;
-        return { ...item, ...nextPatch };
+        return {
+          ...item,
+          ...nextPatch,
+          amenities: "amenities" in nextPatch ? sanitizeRoomAmenities(nextPatch.amenities ?? []) : item.amenities,
+        };
       }),
     }));
   }
