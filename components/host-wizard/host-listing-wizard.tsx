@@ -119,6 +119,102 @@ function formatPackageDays(days: number[]) {
   return weekdayOptions.filter(([, value]) => days.includes(value)).map(([label]) => label).join(", ");
 }
 
+const wizardIssueLabels: Record<string, string> = {
+  amenityIds: "Amenity",
+  title: "Listing title",
+  description: "Listing description",
+  propertyType: "Property type",
+  privacyType: "Privacy type",
+  country: "Country",
+  street: "Street address",
+  barangay: "Barangay",
+  city: "City",
+  province: "Province",
+  zipCode: "ZIP code",
+};
+
+const packageIssueLabels: Record<string, string> = {
+  id: "ID",
+  name: "name",
+  description: "description",
+  accessType: "guest access",
+  checkInTime: "start / check-in",
+  checkOutTime: "end / check-out",
+  accessibleFloors: "custom areas",
+  accessibleRoomIds: "rooms",
+  includedAmenities: "included amenities",
+  excludedAmenities: "not included",
+  blockedPackageIds: "blocked packages",
+};
+
+const roomIssueLabels: Record<string, string> = {
+  name: "room name",
+  floor: "floor",
+  description: "room description",
+  amenities: "room amenities",
+};
+
+const residentialAddressIssueLabels: Record<string, string> = {
+  unit: "unit / level",
+  building: "building name",
+  street: "street address",
+  barangay: "barangay",
+  city: "city / municipality",
+  zipCode: "ZIP code",
+  province: "province",
+};
+
+function titleFromKey(value: string) {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function friendlyIssueMessage(message: string) {
+  const tooLongMatch = message.match(/^Too big: expected string to have <=(\d+) characters$/);
+  if (tooLongMatch) return `must be ${tooLongMatch[1]} characters or less.`;
+  return message.endsWith(".") ? message : `${message}.`;
+}
+
+function issueFieldLabel(path: PropertyKey[]) {
+  const [root, index, field, itemIndex] = path;
+
+  if (root === "bookingPackages") {
+    const packageNumber = typeof index === "number" ? index + 1 : null;
+    const fieldName = typeof field === "string" ? packageIssueLabels[field] ?? titleFromKey(field) : "details";
+    const itemLabel = typeof itemIndex === "number" ? ` item ${itemIndex + 1}` : "";
+    return `Booking package${packageNumber ? ` ${packageNumber}` : ""} ${fieldName}${itemLabel}`;
+  }
+
+  if (root === "rooms") {
+    const roomNumber = typeof index === "number" ? index + 1 : null;
+    const fieldName = typeof field === "string" ? roomIssueLabels[field] ?? titleFromKey(field) : "details";
+    const itemLabel = typeof itemIndex === "number" ? ` item ${itemIndex + 1}` : "";
+    return `Room${roomNumber ? ` ${roomNumber}` : ""} ${fieldName}${itemLabel}`;
+  }
+
+  if (root === "residentialAddress") {
+    const fieldName = typeof index === "string" ? residentialAddressIssueLabels[index] ?? titleFromKey(index) : "details";
+    return `Final details ${fieldName}`;
+  }
+
+  if (root === "photos") {
+    const photoNumber = typeof index === "number" ? index + 1 : null;
+    const fieldName = typeof field === "string" ? titleFromKey(field) : "details";
+    return `Photo${photoNumber ? ` ${photoNumber}` : ""} ${fieldName}`;
+  }
+
+  return typeof root === "string" ? wizardIssueLabels[root] ?? titleFromKey(root) : "Listing";
+}
+
+function formatWizardValidationIssue(issue: { path: PropertyKey[]; message: string } | undefined) {
+  if (!issue) return "Please finish the missing steps before publishing your listing.";
+  return `${issueFieldLabel(issue.path)} ${friendlyIssueMessage(issue.message)}`;
+}
+
 function ChipCheckbox({ checked, label, sublabel, onChange }: { checked: boolean; label: string; sublabel?: string; onChange: () => void }) {
   return (
     <label
@@ -501,7 +597,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
 
     const parsed = hostListingSchema.safeParse({ ...draft, status: "pending" });
     if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message ?? "Please finish the missing steps before publishing your listing.";
+      const message = formatWizardValidationIssue(parsed.error.issues[0]);
       setPublishError(message);
       return;
     }
