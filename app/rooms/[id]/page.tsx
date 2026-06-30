@@ -41,6 +41,7 @@ import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryShowcase } from "@/components/rooms/room-gallery-showcase";
 import { RoomHeroSlideshow } from "@/components/rooms/room-hero-slideshow";
+import { RoomListingVideo } from "@/components/rooms/room-listing-video";
 import { RoomMap } from "@/components/rooms/room-map";
 import { RoomActions } from "@/components/rooms/room-actions";
 import { RoomAccessPreview } from "@/components/rooms/room-access-preview";
@@ -372,6 +373,8 @@ export default async function RoomPage({
             </div>
           </div>
         </section>
+
+        <RoomListingVideo property={property} />
 
         <section id="gallery" className="scroll-mt-28 bg-[#efefed] py-12 sm:scroll-mt-32 sm:py-24">
           <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">

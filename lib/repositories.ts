@@ -281,6 +281,7 @@ async function ensurePropertyAdvancedPricingColumns(db: Pick<typeof prisma, "$ex
   }, async () => {
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "bookingType" TEXT NOT NULL DEFAULT 'stay'`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "virtualTourUrl" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "listingVideoUrl" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "privacyType" TEXT NOT NULL DEFAULT 'entire'`);
     await db.$executeRawUnsafe(`ALTER TABLE "PropertyImage" ADD COLUMN IF NOT EXISTS "category" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER`);
@@ -698,6 +699,7 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
     city: property.city,
     country: property.country,
     virtualTourUrl: property.virtualTourUrl ?? undefined,
+    listingVideoUrl: property.listingVideoUrl ?? undefined,
     bookingType: normalizeListingBookingType(property.bookingType),
     pricePerNight: property.pricePerNight,
     weekendPrice: property.pricing?.weekendPrice,
@@ -957,6 +959,7 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
     city: property.city,
     country: property.country,
     virtualTourUrl: property.virtualTourUrl ?? null,
+    listingVideoUrl: property.listingVideoUrl ?? null,
     bookingType: property.bookingType ?? "stay",
     pricePerNight: property.pricePerNight,
     bedrooms: property.bedrooms,
@@ -1164,7 +1167,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images"
+  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1180,6 +1183,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         city: property.city,
         country: property.country,
         virtualTourUrl: property.virtualTourUrl ?? null,
+        listingVideoUrl: property.listingVideoUrl ?? null,
         bookingType: property.bookingType ?? "stay",
         pricePerNight: property.pricePerNight,
         bedrooms: property.bedrooms,

@@ -45,6 +45,7 @@ model Property {
   city            String
   country         String
   virtualTourUrl  String?
+  listingVideoUrl String?
   bookingType     String                  @default("stay")
   pricePerNight   Int
   bedrooms        Int

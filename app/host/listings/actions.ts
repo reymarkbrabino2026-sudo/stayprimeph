@@ -13,6 +13,7 @@ import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { hostListingSchema, type HostListingInput } from "@/lib/host-wizard-schema";
 import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
+import { normalizeListingVideoUrl } from "@/lib/listing-video";
 import { logger } from "@/lib/logger";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
 import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
@@ -41,6 +42,13 @@ const virtualTourFormUrl = z.preprocess(
 ).refine((value) => !value || Boolean(normalizeVirtualTourUrl(value)), {
   message: "Enter a valid virtual tour link.",
 }).transform((value) => normalizeVirtualTourUrl(value));
+
+const listingVideoFormUrl = z.preprocess(
+  (value) => typeof value === "string" ? value.trim() : "",
+  z.string().max(4096),
+).refine((value) => !value || Boolean(normalizeListingVideoUrl(value)), {
+  message: "Paste a valid YouTube or Vimeo video link.",
+}).transform((value) => normalizeListingVideoUrl(value));
 
 const seasonalRateDraftSchema = z.object({
   id: textValue(80),
@@ -134,6 +142,7 @@ const hostListingDraftSaveSchema = z.object({
   highlights: z.array(z.string().max(80)).max(2).catch([]),
   description: textValue(500),
   virtualTourUrl: textValue(2048).transform((value) => normalizeVirtualTourUrl(value)),
+  listingVideoUrl: textValue(4096).transform((value) => normalizeListingVideoUrl(value)),
   bookingType: z.enum(["stay", "package", "both"]).catch("stay"),
   bookingMode: z.enum(["request", "instant"]).catch("request"),
   pricingMode: z.enum(["simple", "packages"]).catch("simple"),
@@ -177,6 +186,7 @@ const listingFormSchema = z.object({
   title: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(1000),
   virtualTourUrl: virtualTourFormUrl,
+  listingVideoUrl: listingVideoFormUrl,
   address: z.string().trim().min(1).max(240),
   city: z.string().trim().min(1).max(80),
   country: z.string().trim().min(1).max(80),
@@ -409,6 +419,7 @@ function buildDraftProperty(userId: string, listing: HostListingDraftSaveInput, 
     title: draftText(listing.title, "Untitled draft"),
     description: draftText(listing.description, "Draft listing saved from the host setup wizard."),
     virtualTourUrl: listing.virtualTourUrl,
+    listingVideoUrl: listing.listingVideoUrl,
     address: draftText([listing.street, listing.barangay].filter(Boolean).join(", "), "Address pending"),
     city: draftText(listing.city, "City pending"),
     country: draftText(listing.country, "Philippines"),
@@ -462,6 +473,7 @@ export async function createListing(formData: FormData) {
     title: formData.get("title"),
     description: formData.get("description"),
     virtualTourUrl: formData.get("virtualTourUrl"),
+    listingVideoUrl: formData.get("listingVideoUrl"),
     address: formData.get("address"),
     city: formData.get("city"),
     country: formData.get("country"),
@@ -485,6 +497,7 @@ export async function createListing(formData: FormData) {
     title,
     description,
     virtualTourUrl,
+    listingVideoUrl,
     address,
     city,
     country,
@@ -511,6 +524,7 @@ export async function createListing(formData: FormData) {
     title,
     description,
     virtualTourUrl,
+    listingVideoUrl,
     address,
     city,
     country,
@@ -553,6 +567,7 @@ export async function updateListing(formData: FormData) {
     title: formData.get("title"),
     description: formData.get("description"),
     virtualTourUrl: formData.get("virtualTourUrl"),
+    listingVideoUrl: formData.get("listingVideoUrl"),
     address: formData.get("address"),
     city: formData.get("city"),
     country: formData.get("country"),
@@ -583,6 +598,7 @@ export async function updateListing(formData: FormData) {
     title: parsed.data.title,
     description: parsed.data.description,
     virtualTourUrl: parsed.data.virtualTourUrl,
+    listingVideoUrl: parsed.data.listingVideoUrl,
     address: parsed.data.address,
     city: parsed.data.city,
     country: parsed.data.country,
@@ -740,6 +756,7 @@ export async function publishWizardListing(input: HostListingInput, csrfToken?: 
     title: listing.title,
     description: listing.description,
     virtualTourUrl: listing.virtualTourUrl,
+    listingVideoUrl: listing.listingVideoUrl,
     address: `${listing.street}, ${listing.barangay}`,
     city: listing.city,
     country: listing.country,

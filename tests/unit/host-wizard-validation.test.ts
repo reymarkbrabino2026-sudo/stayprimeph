@@ -35,6 +35,7 @@ function draft(overrides: Partial<HostListingDraft> = {}): HostListingDraft {
     highlights: ["peaceful"],
     description: "A comfortable place for a family stay.",
     virtualTourUrl: "",
+    listingVideoUrl: "",
     bookingType: "stay",
     bookingMode: "request",
     pricingMode: "simple",
@@ -139,6 +140,12 @@ describe("host wizard location validation", () => {
   it("requires a valid virtual tour URL when one is entered", () => {
     expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "not a link" }))).toBe(false);
     expect(canAdvanceFromStep("virtual-tour", draft({ virtualTourUrl: "https://my.matterport.com/show/?m=abc123" }))).toBe(true);
+  });
+
+  it("allows one optional listing video link on the photos step", () => {
+    expect(canAdvanceFromStep("photos", draft({ photos: photos(), listingVideoUrl: "" }))).toBe(true);
+    expect(canAdvanceFromStep("photos", draft({ photos: photos(), listingVideoUrl: "not a link" }))).toBe(false);
+    expect(canAdvanceFromStep("photos", draft({ photos: photos(), listingVideoUrl: "https://youtu.be/dQw4w9WgXcQ" }))).toBe(true);
   });
 
   it("applies package access steps only to entire-place package pricing", () => {

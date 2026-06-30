@@ -6,7 +6,7 @@ import type { HostListingDraft, UploadedPhoto, WizardStepId } from "@/lib/host-w
 
 const legacyStorageKey = "stayprimeph-host-wizard";
 const userStorageKeyPrefix = "stayprimeph-host-wizard:";
-const storageVersion = 4;
+const storageVersion = 5;
 const draftRetentionMs = 30 * 24 * 60 * 60 * 1000;
 const overnightAccessArea = "Outdoor Areas";
 const overnightAccessPackageId = "overnight-full-access";
@@ -120,7 +120,7 @@ function newUploadScopeId() {
 const initialDraft: HostListingDraft = {
   uploadScopeId: "",
   country: "Philippines", street: "", barangay: "", city: "", province: "", zipCode: "", latitude: 14.5995, longitude: 120.9842, locationPinned: false, locationConfirmed: false, locationConfirmedAddress: "", lastAutoGeocodeAddress: "",
-  propertyType: "", privacyType: "", preciseLocation: false, guests: 4, bedrooms: 1, beds: 1, bathrooms: 1, amenityIds: [], photos: [], title: "", highlights: [], description: "", virtualTourUrl: "",
+  propertyType: "", privacyType: "", preciseLocation: false, guests: 4, bedrooms: 1, beds: 1, bathrooms: 1, amenityIds: [], photos: [], title: "", highlights: [], description: "", virtualTourUrl: "", listingVideoUrl: "",
   rooms: [],
   bookingType: "stay", bookingMode: "request", pricingMode: "simple", basePrice: 0, weekendPrice: 0, holidayPrice: 0, holidayDates: [], seasonalRates: [], weekendPremium: 0, cleaningFee: 0, securityDeposit: 0, currency: "PHP", cancellationPolicy: "flexible",
   discounts: { newListing: true, lastMinute: true, weekly: true, monthly: true }, safetyDisclosures: { exteriorCamera: false, noiseMonitor: false, weapons: false },
@@ -201,6 +201,7 @@ function mergeDraft(draft?: Partial<HostListingDraft>): HostListingDraft {
     ...draft,
     uploadScopeId: draft?.uploadScopeId || newUploadScopeId(),
     virtualTourUrl: typeof draft?.virtualTourUrl === "string" ? draft.virtualTourUrl : "",
+    listingVideoUrl: typeof draft?.listingVideoUrl === "string" ? draft.listingVideoUrl : "",
     discounts: { ...initialDraft.discounts, ...draft?.discounts },
     safetyDisclosures: { ...initialDraft.safetyDisclosures, ...draft?.safetyDisclosures },
     residentialAddress: { ...initialDraft.residentialAddress, ...draft?.residentialAddress },
@@ -359,6 +360,7 @@ export function sanitizeHostWizardDraftForStorage(draft: HostListingDraft | Part
     highlights: [...normalized.highlights],
     description: normalized.description,
     virtualTourUrl: normalized.virtualTourUrl,
+    listingVideoUrl: normalized.listingVideoUrl,
     bookingMode: normalized.bookingMode,
     bookingType: normalized.bookingType,
     pricingMode: normalized.pricingMode,

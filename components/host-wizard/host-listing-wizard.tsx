@@ -24,6 +24,7 @@ import { hostListingAddressSchema, hostListingSchema } from "@/lib/host-wizard-s
 import { findAdjacentApplicableHostWizardStep, hostWizardStepAppliesToDraft, isEntirePlacePrivacyType } from "@/lib/host-wizard-steps";
 import { getFirstIncompleteHostWizardStep } from "@/lib/host-wizard-validation";
 import type { HostBookingPackageDraft, HostListingDraft, HostPropertyRoomDraft, HostSeasonalRateDraft, WizardStepId } from "@/lib/host-wizard-types";
+import { isValidListingVideoUrl } from "@/lib/listing-video";
 import { isValidVirtualTourUrl } from "@/lib/virtual-tour";
 import { useHostWizardStore } from "@/stores/host-wizard-store";
 
@@ -374,6 +375,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
   const customAmenityLimitReached = draft.amenityIds.length >= maxAmenities;
   const activeRooms = useMemo(() => draft.rooms.filter((room) => room.active), [draft.rooms]);
   const virtualTourUrlValid = isValidVirtualTourUrl(draft.virtualTourUrl);
+  const listingVideoUrlValid = isValidListingVideoUrl(draft.listingVideoUrl);
   const wholePlaceAccessEnabled = isEntirePlacePrivacyType(draft.privacyType);
   const availableFloors = useMemo(
     () => Array.from(new Set(draft.rooms.map((room) => room.floor.trim()).filter(Boolean))),
@@ -892,6 +894,20 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
             <p className="mt-2 text-black/60">{step.description}</p>
             <div className="mt-6"><UploadCard /></div>
             <div className="mt-5"><ImageUploader csrfToken={csrfToken} /></div>
+            <label className="mt-5 block rounded-3xl border border-black/10 bg-white p-5 shadow-[0_14px_40px_rgba(0,0,0,0.04)]">
+              <span className="text-sm font-semibold text-black/70">Listing video link</span>
+              <textarea
+                value={draft.listingVideoUrl}
+                onChange={(event) => updateDraft({ listingVideoUrl: event.target.value })}
+                rows={3}
+                className={`mt-3 min-h-24 w-full rounded-2xl border px-4 py-3 leading-6 outline-none focus:border-black ${
+                  listingVideoUrlValid ? "border-black/10" : "border-red-300 bg-red-50/40"
+                }`}
+                placeholder="Paste a YouTube or Vimeo URL, or an iframe embed link"
+              />
+              <span className="mt-2 block text-sm leading-6 text-black/55">Optional. This video appears on the listing page before the gallery.</span>
+              {!listingVideoUrlValid ? <span className="mt-2 block text-sm font-medium text-red-700">Use a valid YouTube or Vimeo link, or leave this blank.</span> : null}
+            </label>
           </section>
         ) : null}
 
@@ -1465,6 +1481,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                   ["Capacity", `${draft.guests} guests · ${draft.bedrooms} bedrooms · ${draft.beds} beds`],
                   ["Amenities", `${draft.amenityIds.length} selected`],
                   ["Photos", `${draft.photos.length} uploaded`],
+                  ["Video", draft.listingVideoUrl.trim() ? "Added" : "Not added"],
                   ["Virtual tour", draft.virtualTourUrl.trim() ? "Added" : "Not added"],
                   ["Pricing", pricingSummary],
                 ].map(([label, value]) => <div key={label} className="rounded-2xl border p-4"><strong className="block">{label}</strong><span className="text-black/60">{value}</span></div>)}

@@ -1,4 +1,5 @@
 import { virtualTourFrameSources } from "@/lib/virtual-tour";
+import { listingVideoFrameSources } from "@/lib/listing-video";
 
 export const cspNonceHeaderName = "x-nonce";
 
@@ -83,6 +84,7 @@ export function buildContentSecurityPolicy({ nonce, isProduction = process.env.N
       "https://checkout.stripe.com",
       "https://js.stripe.com",
       "https://hooks.stripe.com",
+      ...listingVideoFrameSources,
       ...virtualTourFrameSources,
     ]),
     "media-src 'self' blob: data:",

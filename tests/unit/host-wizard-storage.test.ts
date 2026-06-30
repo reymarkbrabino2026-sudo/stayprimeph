@@ -35,6 +35,7 @@ function draft(): HostListingDraft {
     highlights: ["peaceful"],
     description: "A comfortable place for a family stay.",
     virtualTourUrl: "",
+    listingVideoUrl: "",
     bookingType: "stay",
     bookingMode: "request",
     pricingMode: "simple",

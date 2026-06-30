@@ -112,6 +112,7 @@ export interface HostListingDraft {
   highlights: string[];
   description: string;
   virtualTourUrl: string;
+  listingVideoUrl: string;
   bookingType: HostListingBookingType;
   bookingMode: "request" | "instant";
   pricingMode: HostPricingMode;

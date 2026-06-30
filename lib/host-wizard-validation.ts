@@ -1,4 +1,5 @@
 import { hostListingAddressSchema } from "@/lib/host-wizard-schema";
+import { isValidListingVideoUrl } from "@/lib/listing-video";
 import type { HostBookingPackageDraft, HostListingDraft, WizardStepDefinition, WizardStepId } from "@/lib/host-wizard-types";
 import { activeHostWizardSteps, isEntirePlacePrivacyType } from "@/lib/host-wizard-steps";
 import { isValidVirtualTourUrl } from "@/lib/virtual-tour";
@@ -124,6 +125,7 @@ export function getMissingRequirementsForStep(step: WizardStepId, draft: HostLis
       return draft.amenityIds.length > 0 ? [] : ["Choose at least one amenity."];
 
     case "photos": {
+      if (!isValidListingVideoUrl(draft.listingVideoUrl)) return ["Paste a valid YouTube or Vimeo video link, or leave it blank."];
       const remaining = Math.max(0, 5 - draft.photos.length);
       return remaining === 0 ? [] : [`Upload ${pluralize(remaining, "more photo", "more photos")}.`];
     }

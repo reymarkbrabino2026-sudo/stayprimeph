@@ -11,7 +11,7 @@ export const hostWizardSteps: WizardStepDefinition[] = [
   { id: "rooms", title: "Add the rooms guests can access", description: "Define floors, room capacity, room amenities, and bedroom access for package rules." },
   { id: "standout-intro", eyebrow: "Step 2", title: "Make your place stand out", description: "Add amenities, photos, a title, and a description guests will remember." },
   { id: "amenities", title: "Tell guests what your place has to offer", description: "You can add more amenities after you publish your listing." },
-  { id: "photos", title: "Add some photos of your house", description: "You’ll need 5 photos to get started. Landscape shots look best—they fill a 980 × 580 carousel on your listing page." },
+  { id: "photos", title: "Add photos and a video link", description: "You’ll need 5 photos to get started. You can also paste one YouTube or Vimeo embed link for the listing page." },
   { id: "highlights", title: "Next, let’s describe your house", description: "Choose up to 2 highlights. We’ll use these to shape your description." },
   { id: "title", title: "Now, let’s give your house a title", description: "Short titles work best. You can always change it later." },
   { id: "description", title: "Create your description", description: "Share what makes your place special." },

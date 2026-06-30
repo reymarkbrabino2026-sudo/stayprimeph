@@ -60,6 +60,18 @@ export function ListingForm({ mode, property, csrfToken }: { mode: "Create" | "E
           <span className="mt-2 block text-xs leading-5 text-black/55">Optional Matterport, Kuula, YouTube 360, Vimeo, or CloudPano link.</span>
         </label>
         <label className="block">
+          <span className="mb-2 block text-sm font-medium">Listing video link</span>
+          <textarea
+            name="listingVideoUrl"
+            defaultValue={property?.listingVideoUrl ?? ""}
+            rows={3}
+            maxLength={4096}
+            className="w-full rounded-2xl border p-3 leading-6"
+            placeholder="Paste a YouTube or Vimeo URL, or an iframe embed link"
+          />
+          <span className="mt-2 block text-xs leading-5 text-black/55">Optional. This video appears on the listing page before the gallery.</span>
+        </label>
+        <label className="block">
           <span className="mb-2 block text-sm font-medium">Property type</span>
           <select name="propertyType" defaultValue={property?.propertyType ?? "House"} className="min-h-12 w-full rounded-2xl border p-3">
             {propertyTypes.map((item) => (

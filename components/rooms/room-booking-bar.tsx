@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
+import { getListingVideoEmbed } from "@/lib/listing-video";
 import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
@@ -36,14 +37,16 @@ export function RoomBookingBar({ property, unavailableStays = [] }: { property: 
   const [inlineReservationVisible, setInlineReservationVisible] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const navItems = useMemo(() => {
-    if (!normalizeVirtualTourUrl(property.virtualTourUrl)) return baseNavItems;
-    return [
-      baseNavItems[0],
-      baseNavItems[1],
-      { label: "Tour", href: "#virtual-tour" },
-      ...baseNavItems.slice(2),
-    ];
-  }, [property.virtualTourUrl]);
+    const items = [...baseNavItems];
+    if (getListingVideoEmbed(property.listingVideoUrl)) {
+      items.splice(1, 0, { label: "Video", href: "#video" });
+    }
+    if (normalizeVirtualTourUrl(property.virtualTourUrl)) {
+      const photosIndex = items.findIndex((item) => item.href === "#gallery");
+      items.splice(photosIndex >= 0 ? photosIndex + 1 : 2, 0, { label: "Tour", href: "#virtual-tour" });
+    }
+    return items;
+  }, [property.listingVideoUrl, property.virtualTourUrl]);
   const bookingPackages = useMemo(() => getEnabledBookingPackages(property), [property]);
   const stayBookingAllowed = allowsStayBooking(property);
   const packageBookingAllowed = allowsPackageBooking(property);
