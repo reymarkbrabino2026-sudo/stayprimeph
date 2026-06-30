@@ -16,7 +16,7 @@ import { passwordPolicyMessage } from "@/lib/password-policy";
 import { checkDistributedRateLimit, checkLoginLockout, clearFailedLoginAttempts, recordFailedLoginAttempt } from "@/lib/rate-limit";
 import { createUserInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { assertTrustedRequestOrigin, isTrustedRequestOrigin } from "@/lib/request-safety";
-import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase/server";
+import { createSupabaseServerClient, hasSupabaseConfig, isGoogleAuthEnabled } from "@/lib/supabase/server";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 import { getUserById, getUsers } from "@/lib/users";
 import type { User, UserRole } from "@/lib/types";
@@ -499,6 +499,11 @@ async function signInWithSocialProvider(provider: SocialProvider, label: string,
 
   if (!hasSupabaseConfig()) {
     redirect(socialAuthErrorTarget(formData, `${label} login is not configured yet. Add Supabase environment variables first.`));
+  }
+
+  if (provider === "google" && !isGoogleAuthEnabled()) {
+    logger.warn("social_oauth_provider_disabled", { provider });
+    redirect(socialAuthErrorTarget(formData, "Google login is temporarily unavailable. Please use email and password."));
   }
 
   const redirectTo = new URL("/auth/callback", env.NEXT_PUBLIC_APP_URL);

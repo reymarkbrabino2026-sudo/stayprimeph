@@ -7,6 +7,7 @@ import { readPendingAdminMfaChallenge } from "@/lib/admin-mfa";
 import { getCurrentUser, roleHome } from "@/lib/auth";
 import { getAuthToken } from "@/lib/auth-tokens";
 import { normalizeKnownAppPath } from "@/lib/canonical-paths";
+import { isGoogleAuthEnabled } from "@/lib/supabase/server";
 import { getUserById } from "@/lib/users";
 import { redirect } from "next/navigation";
 
@@ -111,7 +112,7 @@ export default async function LoginPage({
       href={registerHref}
       linkText="Create account"
       action={signIn}
-      googleAction={signInWithGoogle}
+      googleAction={isGoogleAuthEnabled() ? signInWithGoogle : undefined}
       facebookAction={signInWithFacebook}
       helperText={helperText}
       error={error}

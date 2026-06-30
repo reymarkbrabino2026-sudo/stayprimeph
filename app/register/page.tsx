@@ -3,6 +3,7 @@ import { HostSignupFlow } from "@/components/forms/host-signup-flow";
 import { signInWithFacebook, signInWithGoogle, signUp } from "@/app/auth/actions";
 import { getCurrentUser, roleHome } from "@/lib/auth";
 import { normalizeKnownAppPath } from "@/lib/canonical-paths";
+import { isGoogleAuthEnabled } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export default async function RegisterPage({
@@ -15,8 +16,10 @@ export default async function RegisterPage({
   const currentUser = await getCurrentUser();
   if (currentUser) redirect(nextPath ?? roleHome(currentUser.role));
 
+  const googleAuthEnabled = isGoogleAuthEnabled();
+
   if (role === "host") {
-    return <HostSignupFlow error={error} message={message} nextPath={nextPath} />;
+    return <HostSignupFlow error={error} message={message} nextPath={nextPath} googleAuthEnabled={googleAuthEnabled} />;
   }
 
   const requestedRole = "guest";
@@ -37,7 +40,7 @@ export default async function RegisterPage({
       href={loginHref}
       linkText="Log in"
       action={signUp}
-      googleAction={signInWithGoogle}
+      googleAction={googleAuthEnabled ? signInWithGoogle : undefined}
       facebookAction={signInWithFacebook}
       error={error}
       message={message}

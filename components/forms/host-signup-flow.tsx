@@ -39,7 +39,17 @@ function validateDetails(details: HostSignupDetails) {
   return null;
 }
 
-export function HostSignupFlow({ error, message, nextPath }: { error?: string; message?: string; nextPath?: string }) {
+export function HostSignupFlow({
+  error,
+  message,
+  nextPath,
+  googleAuthEnabled = false,
+}: {
+  error?: string;
+  message?: string;
+  nextPath?: string;
+  googleAuthEnabled?: boolean;
+}) {
   const [step, setStep] = useState<"details" | "commitment">("details");
   const [details, setDetails] = useState({ firstName: "", lastName: "", birthDate: "", email: "", password: "", confirmPassword: "" });
   const [clientError, setClientError] = useState<string | null>(null);
@@ -91,12 +101,14 @@ export function HostSignupFlow({ error, message, nextPath }: { error?: string; m
                 {(clientError || error) && <p role="alert" className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{clientError ?? error}</p>}
                 {message && <p role="status" className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}
                 <div className="space-y-3">
-                  <form action={signInWithGoogle}>
-                    <input type="hidden" name="authMode" value="register" />
-                    <input type="hidden" name="requestedRole" value="host" />
-                    {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-                    <AuthSubmitButton label="Continue with Google" pendingLabel="Connecting to Google" variant="secondary" />
-                  </form>
+                  {googleAuthEnabled ? (
+                    <form action={signInWithGoogle}>
+                      <input type="hidden" name="authMode" value="register" />
+                      <input type="hidden" name="requestedRole" value="host" />
+                      {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+                      <AuthSubmitButton label="Continue with Google" pendingLabel="Connecting to Google" variant="secondary" />
+                    </form>
+                  ) : null}
                   <form action={signInWithFacebook}>
                     <input type="hidden" name="authMode" value="register" />
                     <input type="hidden" name="requestedRole" value="host" />

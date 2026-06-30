@@ -4,6 +4,8 @@ import { adminLinks } from "@/lib/navigation";
 export default function AdminSettingsPage() {
   const hasCloudinary = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
   const hasVercelBlob = Boolean(process.env.PHOTO_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN);
+  const hasSupabaseSocialAuth = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+  const googleAuthEnabled = ["1", "true", "yes", "enabled"].includes((process.env.GOOGLE_AUTH_ENABLED ?? "").toLowerCase());
   const paymentMode = process.env.PAYMENT_LAUNCH_MODE || "disabled";
   const hasLiveStripe = Boolean(
     paymentMode === "stripe" &&
@@ -20,6 +22,7 @@ export default function AdminSettingsPage() {
     ["Resend email", Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM), "Transactional email sender is configured."],
     ["Upstash Redis", Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN), "Distributed rate limiting is configured."],
     ["Sentry", Boolean(process.env.SENTRY_DSN && process.env.NEXT_PUBLIC_SENTRY_DSN), "Server and browser error monitoring are configured."],
+    ["Google login", hasSupabaseSocialAuth && googleAuthEnabled, googleAuthEnabled ? "Supabase Auth is configured and Google login is visible." : "Hidden until the Google OAuth client is rotated and GOOGLE_AUTH_ENABLED is enabled."],
   ] as const;
 
   return (

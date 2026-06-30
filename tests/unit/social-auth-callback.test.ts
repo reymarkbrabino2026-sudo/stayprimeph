@@ -46,6 +46,7 @@ vi.mock("@/lib/repositories", () => ({
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(async () => ({ auth: supabaseAuth })),
   hasSupabaseConfig: vi.fn(() => true),
+  isGoogleAuthEnabled: vi.fn(() => true),
 }));
 
 vi.mock("@/lib/user-store", () => ({

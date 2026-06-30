@@ -6,6 +6,10 @@ export function hasSupabaseConfig() {
   return Boolean(env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 }
 
+export function isGoogleAuthEnabled() {
+  return hasSupabaseConfig() && env.GOOGLE_AUTH_ENABLED === "enabled";
+}
+
 export async function createSupabaseServerClient() {
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("Supabase is not configured.");

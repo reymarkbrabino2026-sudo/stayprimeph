@@ -105,6 +105,7 @@ vi.mock("@/lib/repositories", () => ({
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(),
   hasSupabaseConfig: vi.fn(() => false),
+  isGoogleAuthEnabled: vi.fn(() => false),
 }));
 
 vi.mock("@/lib/user-store", () => ({
@@ -117,10 +118,11 @@ vi.mock("@/lib/users", () => ({
   getUsers: vi.fn(async () => []),
 }));
 
-import { signUp, verifyEmailCode } from "@/app/auth/actions";
+import { signInWithGoogle, signUp, verifyEmailCode } from "@/app/auth/actions";
 import { createSession } from "@/lib/auth";
 import { consumeEmailVerificationCode, issueAuthToken, markUserEmailVerified } from "@/lib/auth-tokens";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
+import { createSupabaseServerClient, hasSupabaseConfig, isGoogleAuthEnabled } from "@/lib/supabase/server";
 import { writeStoredUsers } from "@/lib/user-store";
 import { getUsers } from "@/lib/users";
 
@@ -151,6 +153,19 @@ describe("signUp security", () => {
 
     expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("Use+a+stronger+password"));
     expect(writeStoredUsers).not.toHaveBeenCalled();
+  });
+
+  it("does not start Google OAuth while the Google provider is disabled", async () => {
+    vi.mocked(hasSupabaseConfig).mockReturnValueOnce(true);
+    vi.mocked(isGoogleAuthEnabled).mockReturnValueOnce(false);
+
+    const formData = new FormData();
+    formData.set("authMode", "login");
+
+    await expect(signInWithGoogle(formData)).rejects.toThrow("NEXT_REDIRECT:/login?");
+
+    expect(redirectMock).toHaveBeenCalledWith(expect.stringContaining("Google%20login%20is%20temporarily%20unavailable"));
+    expect(createSupabaseServerClient).not.toHaveBeenCalled();
   });
 
   it("rejects mismatched signup passwords before creating a user", async () => {

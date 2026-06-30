@@ -33,12 +33,21 @@ const envSchema = z.object({
   PHOTO_CLASSIFICATION_MODEL: z.string().min(1).optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  GOOGLE_AUTH_ENABLED: z.enum(["enabled", "disabled"]).default("disabled"),
 });
 
 function optionalEnv(value: string | undefined) {
   const trimmed = value?.trim();
   if (!trimmed || trimmed === "\"\"" || trimmed === "''") return undefined;
   return trimmed;
+}
+
+function featureFlagEnv(value: string | undefined, fallback: "enabled" | "disabled" = "disabled") {
+  const normalized = optionalEnv(value)?.toLowerCase();
+  if (!normalized) return fallback;
+  if (["1", "true", "yes", "enabled"].includes(normalized)) return "enabled";
+  if (["0", "false", "no", "disabled"].includes(normalized)) return "disabled";
+  return normalized;
 }
 
 const explicitPersistenceDriver = optionalEnv(process.env.PERSISTENCE_DRIVER);
@@ -155,4 +164,5 @@ export const env = envSchema.parse({
   PHOTO_CLASSIFICATION_MODEL: photoClassificationModel,
   NEXT_PUBLIC_SUPABASE_URL: optionalEnv(process.env.NEXT_PUBLIC_SUPABASE_URL),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalEnv(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
+  GOOGLE_AUTH_ENABLED: featureFlagEnv(process.env.GOOGLE_AUTH_ENABLED),
 });

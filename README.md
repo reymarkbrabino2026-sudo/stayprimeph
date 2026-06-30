@@ -71,6 +71,7 @@ Current required variables:
 | `JSON_STORE_BLOB_READ_WRITE_TOKEN` | Optional Vercel Blob token for JSON persistence; leave blank unless intentionally using Blob as the JSON store |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL for Google and Facebook login |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase browser-safe publishable key for Google and Facebook login |
+| `GOOGLE_AUTH_ENABLED` | Set to `enabled` only after the Supabase Google provider uses a current Google OAuth client |
 
 Do not commit real secrets. `.gitignore` excludes real `.env*` files by default.
 
@@ -87,6 +88,7 @@ For the shortest production launch path, see `docs/launch-asap.md`.
 - Resend now sends welcome, verification, password-reset, booking, and listing-review emails.
 - Email verification and password reset use expiring one-time tokens.
 - Google and Facebook login use Supabase Auth providers. Enable both providers in Supabase and add `/auth/callback` as the redirect path for your app URL.
+- Google login is hidden unless `GOOGLE_AUTH_ENABLED=enabled`. If Google returns `Error 401: deleted_client`, create or restore the Google OAuth client, update the Google provider client ID and secret in Supabase Auth, then redeploy with `GOOGLE_AUTH_ENABLED=enabled`.
 
 ## Production database
 
