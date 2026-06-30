@@ -80,6 +80,7 @@ type PackageScalarField = {
   label: string;
   type: "number" | "text";
   min?: number;
+  step?: number | "any";
   className?: string;
 };
 
@@ -90,25 +91,25 @@ const packageBasicFields: PackageScalarField[] = [
 ];
 
 const packagePricingFields: PackageScalarField[] = [
-  { key: "weekdayRate", label: "Weekday rate", type: "number", min: 1 },
-  { key: "weekendRate", label: "Weekend rate", type: "number" },
-  { key: "holidayRate", label: "Holiday rate", type: "number" },
-  { key: "includedGuests", label: "Included guests", type: "number" },
-  { key: "maxGuests", label: "Max guests", type: "number" },
-  { key: "sleepingCapacity", label: "Sleeping capacity", type: "number" },
-  { key: "additionalGuestFee", label: "Extra guest fee", type: "number" },
+  { key: "weekdayRate", label: "Weekday rate", type: "number", min: 1, step: 0.01 },
+  { key: "weekendRate", label: "Weekend rate", type: "number", step: 0.01 },
+  { key: "holidayRate", label: "Holiday rate", type: "number", step: 0.01 },
+  { key: "includedGuests", label: "Included guests", type: "number", step: 1 },
+  { key: "maxGuests", label: "Max guests", type: "number", step: 1 },
+  { key: "sleepingCapacity", label: "Sleeping capacity", type: "number", step: 1 },
+  { key: "additionalGuestFee", label: "Extra guest fee", type: "number", step: 0.01 },
 ];
 
 const packageTimingFields: PackageScalarField[] = [
-  { key: "durationHours", label: "Length in hours", type: "number" },
+  { key: "durationHours", label: "Length in hours", type: "number", step: 1 },
   { key: "checkInTime", label: "Start / check-in", type: "text" },
   { key: "checkOutTime", label: "End / check-out", type: "text" },
-  { key: "extensionHourlyFee", label: "Extension / hour", type: "number" },
-  { key: "minimumAdvanceBookingDays", label: "Advance notice", type: "number" },
+  { key: "extensionHourlyFee", label: "Extension / hour", type: "number", step: 0.01 },
+  { key: "minimumAdvanceBookingDays", label: "Advance notice", type: "number", step: 1 },
 ];
 
 const packageAdvancedFields: PackageScalarField[] = [
-  { key: "displayOrder", label: "Display order", type: "number" },
+  { key: "displayOrder", label: "Display order", type: "number", step: 1 },
 ];
 
 function formatPackageMoney(value: number) {
@@ -250,6 +251,7 @@ function PackageFieldInput({ pkg, field, onChange }: { pkg: HostBookingPackageDr
         value={String(pkg[field.key])}
         type={field.type}
         min={field.type === "number" ? field.min ?? 0 : undefined}
+        step={field.type === "number" ? field.step ?? 1 : undefined}
         onChange={(event) => {
           const value = field.type === "number" ? Number(event.target.value) : event.target.value;
           onChange({ [field.key]: value } as Partial<HostBookingPackageDraft>);
@@ -1263,6 +1265,7 @@ export function HostListingWizard({ user, csrfToken, freshStart = false }: { use
                       <input
                         type="number"
                         min={0}
+                        step={0.01}
                         value={draft.holidayPrice}
                         onChange={(event) => updateDraft({ holidayPrice: Number(event.target.value) })}
                         className="min-h-12 w-full rounded-xl border px-3"

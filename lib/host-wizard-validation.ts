@@ -27,6 +27,8 @@ const residentialAddressFieldLabels: Array<[keyof HostListingDraft["residentialA
   ["province", "province", 1],
 ];
 
+const maxMoneyValue = 1000000;
+
 function formatDraftAddress(draft: HostListingDraft) {
   return [draft.street, draft.barangay, draft.city, draft.province, draft.country, draft.zipCode]
     .filter(Boolean)
@@ -53,19 +55,147 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function describePackageIssues(pkg: HostBookingPackageDraft) {
-  const fields: string[] = [];
+function numberIssue(label: string, value: number, min: number, max: number, integer = true) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return `${label} must be a number.`;
+  if (integer && !Number.isInteger(value)) return `${label} must be a whole number.`;
+  if (value < min) return `${label} must be at least ${min}.`;
+  if (value > max) return `${label} must be ${max.toLocaleString("en-PH")} or less.`;
+  return null;
+}
 
-  if (!pkg.name.trim()) fields.push("package name");
-  if (!pkg.accessType.trim()) fields.push("guest access");
-  if (pkg.weekdayRate < 1) fields.push("weekday rate");
-  if (pkg.includedGuests < 1) fields.push("included guests");
-  if (pkg.maxGuests < 1) fields.push("maximum guests");
-  if (pkg.maxGuests < pkg.includedGuests) fields.push("maximum guests");
-  if (pkg.durationHours < 1) fields.push("length in hours");
-  if (!pkg.availableDays.length) fields.push("available days");
+function hasAtMostTwoDecimalPlaces(value: number) {
+  return Math.abs(value * 100 - Math.round(value * 100)) < Number.EPSILON * 100;
+}
 
-  return Array.from(new Set(fields));
+function moneyIssue(label: string, value: number, min: number, max: number) {
+  const issue = numberIssue(label, value, min, max, false);
+  if (issue) return issue;
+  if (!hasAtMostTwoDecimalPlaces(value)) return `${label} can use up to 2 decimal places.`;
+  return null;
+}
+
+function textIssue(label: string, value: string, min: number, max: number) {
+  const length = value.trim().length;
+  if (length < min) return min > 0 ? `${label} is required.` : null;
+  if (value.length > max) return `${label} must be ${max} characters or less.`;
+  return null;
+}
+
+function listIssue(label: string, values: string[], maxItems: number, maxCharacters: number) {
+  if (values.length > maxItems) return `${label} can have up to ${maxItems} items.`;
+  if (values.some((value) => !value.trim())) return `${label} cannot include blank items.`;
+  if (values.some((value) => value.length > maxCharacters)) return `${label} items must be ${maxCharacters} characters or less.`;
+  return null;
+}
+
+function dateListIssue(label: string, values: string[], maxItems = 80) {
+  if (values.length > maxItems) return `${label} can have up to ${maxItems} dates.`;
+  if (values.some((value) => !/^\d{4}-\d{2}-\d{2}$/.test(value))) return `${label} must use YYYY-MM-DD dates.`;
+  return null;
+}
+
+function describeSeasonalRateIssues(label: string, rates: HostListingDraft["seasonalRates"]) {
+  const issues: string[] = [];
+  if (rates.length > 12) issues.push(`${label} can have up to 12 rows.`);
+
+  rates.forEach((rate, index) => {
+    const prefix = `${label} row ${index + 1}`;
+    const nameIssue = textIssue(`${prefix} name`, rate.name, 1, 80);
+    if (nameIssue) issues.push(nameIssue);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rate.startDate)) issues.push(`${prefix} start date must use YYYY-MM-DD.`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rate.endDate)) issues.push(`${prefix} end date must use YYYY-MM-DD.`);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rate.startDate) && /^\d{4}-\d{2}-\d{2}$/.test(rate.endDate) && rate.endDate < rate.startDate) {
+      issues.push(`${prefix} end date must be after the start date.`);
+    }
+
+    [
+      ["weekday rate", rate.weekdayRate],
+      ["weekend rate", rate.weekendRate],
+      ["holiday rate", rate.holidayRate],
+    ].forEach(([fieldLabel, value]) => {
+      const issue = moneyIssue(`${prefix} ${fieldLabel}`, value as number, 0, maxMoneyValue);
+      if (issue) issues.push(issue);
+    });
+  });
+
+  return issues;
+}
+
+function isValidWholeNumber(value: number, min: number, max: number) {
+  return !numberIssue("", value, min, max);
+}
+
+function isValidMoneyValue(value: number, min: number, max: number) {
+  return !moneyIssue("", value, min, max);
+}
+
+function describeRoomIssues(room: HostListingDraft["rooms"][number], index: number) {
+  const prefix = `Room ${index + 1}`;
+  const issues = [
+    textIssue(`${prefix} name`, room.name, 1, 80),
+    numberIssue(`${prefix} capacity`, room.capacity, 1, 100),
+    textIssue(`${prefix} floor`, room.floor, 1, 80),
+    textIssue(`${prefix} description`, room.description, 0, 300),
+    room.photos.length > 12 ? `${prefix} can have up to 12 room photos.` : null,
+    listIssue(`${prefix} amenities`, room.amenities, 30, 80),
+  ].filter((issue): issue is string => Boolean(issue));
+
+  return issues;
+}
+
+function describePackageIssues(pkg: HostBookingPackageDraft, index: number) {
+  const prefix = `Package ${index + 1}`;
+  const isBookable = pkg.enabled && pkg.status !== "inactive";
+  const issues: string[] = [];
+
+  [
+    textIssue(`${prefix} name`, pkg.name, 1, 80),
+    textIssue(`${prefix} description`, pkg.description, 0, 300),
+    textIssue(`${prefix} guest access`, pkg.accessType, 1, 120),
+    pkg.status === "active" || pkg.status === "inactive" ? null : `${prefix} status is invalid.`,
+    pkg.unit === "night" || pkg.unit === "day" ? null : `${prefix} count type is invalid.`,
+    numberIssue(`${prefix} display order`, pkg.displayOrder, 0, 100),
+    moneyIssue(`${prefix} weekday rate`, pkg.weekdayRate, 0, maxMoneyValue),
+    moneyIssue(`${prefix} weekend rate`, pkg.weekendRate, 0, maxMoneyValue),
+    moneyIssue(`${prefix} holiday rate`, pkg.holidayRate, 0, maxMoneyValue),
+    numberIssue(`${prefix} included guests`, pkg.includedGuests, 0, 500),
+    numberIssue(`${prefix} maximum guests`, pkg.maxGuests, 0, 500),
+    numberIssue(`${prefix} sleeping capacity`, pkg.sleepingCapacity, 0, 500),
+    numberIssue(`${prefix} length in hours`, pkg.durationHours, 0, 168),
+    moneyIssue(`${prefix} extra guest fee`, pkg.additionalGuestFee, 0, maxMoneyValue),
+    moneyIssue(`${prefix} extension hourly fee`, pkg.extensionHourlyFee, 0, maxMoneyValue),
+    numberIssue(`${prefix} advance notice`, pkg.minimumAdvanceBookingDays, 0, 365),
+    textIssue(`${prefix} start / check-in`, pkg.checkInTime, 1, 40),
+    textIssue(`${prefix} end / check-out`, pkg.checkOutTime, 1, 40),
+    listIssue(`${prefix} areas`, pkg.accessibleFloors, 20, 80),
+    listIssue(`${prefix} rooms`, pkg.accessibleRoomIds, 50, 100),
+    listIssue(`${prefix} included amenities`, pkg.includedAmenities, 80, 80),
+    listIssue(`${prefix} not included`, pkg.excludedAmenities, 80, 80),
+    listIssue(`${prefix} blocked packages`, pkg.blockedPackageIds, 20, 100),
+    dateListIssue(`${prefix} holiday dates`, pkg.holidayDates ?? []),
+    ...describeSeasonalRateIssues(`${prefix} seasonal rates`, pkg.seasonalRates ?? []),
+  ].filter((issue): issue is string => Boolean(issue)).forEach((issue) => issues.push(issue));
+
+  if (pkg.availableDays.length > 7 || pkg.availableDays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
+    issues.push(`${prefix} available days are invalid.`);
+  }
+
+  if (!isBookable) return issues;
+
+  if (isValidMoneyValue(pkg.weekdayRate, 0, maxMoneyValue) && pkg.weekdayRate < 1) issues.push(`${prefix} weekday rate must be at least 1.`);
+  if (isValidWholeNumber(pkg.includedGuests, 0, 500) && pkg.includedGuests < 1) issues.push(`${prefix} included guests must be at least 1.`);
+  if (isValidWholeNumber(pkg.maxGuests, 0, 500) && pkg.maxGuests < 1) issues.push(`${prefix} maximum guests must be at least 1.`);
+  if (
+    isValidWholeNumber(pkg.includedGuests, 0, 500) &&
+    isValidWholeNumber(pkg.maxGuests, 0, 500) &&
+    pkg.maxGuests < pkg.includedGuests
+  ) {
+    issues.push(`${prefix} maximum guests must be greater than or equal to included guests.`);
+  }
+  if (isValidWholeNumber(pkg.durationHours, 0, 168) && pkg.durationHours < 1) issues.push(`${prefix} length in hours must be at least 1.`);
+  if (!pkg.availableDays.length) issues.push(`${prefix} available days are required.`);
+
+  return Array.from(new Set(issues));
 }
 
 export function getMissingRequirementsForStep(step: WizardStepId, draft: HostListingDraft): string[] {
@@ -105,21 +235,19 @@ export function getMissingRequirementsForStep(step: WizardStepId, draft: HostLis
 
     case "basics": {
       const missing = [
-        draft.guests < 1 ? "at least 1 guest" : "",
-        draft.beds < 1 ? "at least 1 bed" : "",
-        draft.bathrooms < 1 ? "at least 1 bathroom" : "",
+        numberIssue("Guest count", draft.guests, 1, 50),
+        numberIssue("Bedrooms", draft.bedrooms, 0, 50),
+        numberIssue("Beds", draft.beds, 1, 100),
+        numberIssue("Bathrooms", draft.bathrooms, 1, 50, false),
       ].filter(Boolean);
 
-      return missing.length ? [`Set ${compactList(missing)}.`] : [];
+      return missing as string[];
     }
 
     case "rooms": {
       if (!isEntirePlacePrivacyType(draft.privacyType) || draft.rooms.length === 0) return [];
 
-      const invalidRooms = draft.rooms.filter((room) => !room.name.trim() || !room.floor.trim() || room.capacity < 1);
-      if (!invalidRooms.length) return [];
-
-      return [`Complete or remove ${pluralize(invalidRooms.length, "room")} with missing name, floor, or capacity.`];
+      return draft.rooms.flatMap((room, index) => describeRoomIssues(room, index));
     }
 
     case "amenities":
@@ -157,11 +285,16 @@ export function getMissingRequirementsForStep(step: WizardStepId, draft: HostLis
       return missing.length ? [`Choose ${compactList(missing)}.`] : [];
     }
 
-    case "pricing":
-      return draft.basePrice > 0 ? [] : ["Set a weekday base price."];
+    case "pricing": {
+      const basePriceIssue = moneyIssue("Weekday base price", draft.basePrice, 1, maxMoneyValue);
+      const holidayPriceIssue = moneyIssue("Holiday nightly rate", draft.holidayPrice, 0, maxMoneyValue);
+      return [basePriceIssue, holidayPriceIssue, ...describeSeasonalRateIssues("Seasonal rates", draft.seasonalRates)].filter((issue): issue is string => Boolean(issue));
+    }
 
-    case "weekend-pricing":
-      return draft.weekendPrice > 0 ? [] : ["Set a weekend price."];
+    case "weekend-pricing": {
+      const weekendPriceIssue = moneyIssue("Weekend price", draft.weekendPrice, 1, maxMoneyValue);
+      return weekendPriceIssue ? [weekendPriceIssue] : [];
+    }
 
     case "booking-packages": {
       if (!isEntirePlacePrivacyType(draft.privacyType) || draft.pricingMode !== "packages") return [];
@@ -169,11 +302,7 @@ export function getMissingRequirementsForStep(step: WizardStepId, draft: HostLis
       const enabledPackages = draft.bookingPackages.filter((item) => item.enabled && item.status !== "inactive");
       if (!enabledPackages.length) return ["Turn on at least one booking package."];
 
-      const invalidPackage = enabledPackages.find((item) => describePackageIssues(item).length > 0);
-      if (!invalidPackage) return [];
-
-      const packageName = invalidPackage.name.trim() || "Enabled package";
-      return [`Complete ${packageName}: ${compactList(describePackageIssues(invalidPackage))}.`];
+      return draft.bookingPackages.flatMap((item, index) => describePackageIssues(item, index));
     }
 
     case "final-details": {

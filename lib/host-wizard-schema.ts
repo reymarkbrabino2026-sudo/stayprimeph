@@ -5,6 +5,22 @@ import { isValidListingVideoUrl, normalizeListingVideoUrl } from "@/lib/listing-
 import { isValidVirtualTourUrl, normalizeVirtualTourUrl } from "@/lib/virtual-tour";
 
 const listingPhotoCategorySchema = z.enum(listingPhotoCategoryIds).catch("other");
+const maxMoneyValue = 1000000;
+
+function normalizeMoneyAmount(value: number) {
+  return Math.round(value);
+}
+
+function hasAtMostTwoDecimalPlaces(value: number) {
+  return Math.abs(value * 100 - Math.round(value * 100)) < Number.EPSILON * 100;
+}
+
+const moneyAmountSchema = (min = 0) =>
+  z.number()
+    .min(min)
+    .max(maxMoneyValue)
+    .refine(hasAtMostTwoDecimalPlaces, { message: "Use no more than 2 decimal places." })
+    .transform(normalizeMoneyAmount);
 
 const virtualTourUrlSchema = z.preprocess(
   (value) => typeof value === "string" ? value.trim() : "",
@@ -25,9 +41,9 @@ const seasonalRateSchema = z.object({
   name: z.string().min(1).max(80),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  weekdayRate: z.number().int().min(0).max(1000000),
-  weekendRate: z.number().int().min(0).max(1000000),
-  holidayRate: z.number().int().min(0).max(1000000),
+  weekdayRate: moneyAmountSchema(),
+  weekendRate: moneyAmountSchema(),
+  holidayRate: moneyAmountSchema(),
 }).refine((value) => value.endDate >= value.startDate, {
   message: "Season end date must be after the start date.",
   path: ["endDate"],
@@ -41,17 +57,17 @@ const bookingPackageSchema = z.object({
   displayOrder: z.number().int().min(0).max(100),
   accessType: z.string().min(1).max(120),
   unit: z.enum(["night", "day"]),
-  weekdayRate: z.number().int().min(0).max(1000000),
-  weekendRate: z.number().int().min(0).max(1000000),
-  holidayRate: z.number().int().min(0).max(1000000),
+  weekdayRate: moneyAmountSchema(),
+  weekendRate: moneyAmountSchema(),
+  holidayRate: moneyAmountSchema(),
   holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]),
   seasonalRates: z.array(seasonalRateSchema).max(12).catch([]),
   includedGuests: z.number().int().min(0).max(500),
   maxGuests: z.number().int().min(0).max(500),
   sleepingCapacity: z.number().int().min(0).max(500),
   durationHours: z.number().int().min(0).max(168),
-  additionalGuestFee: z.number().int().min(0).max(1000000),
-  extensionHourlyFee: z.number().int().min(0).max(1000000),
+  additionalGuestFee: moneyAmountSchema(),
+  extensionHourlyFee: moneyAmountSchema(),
   checkInTime: z.string().min(1).max(40),
   checkOutTime: z.string().min(1).max(40),
   accessibleFloors: z.array(z.string().trim().min(1).max(80)).max(20),
@@ -132,8 +148,8 @@ export const hostListingSchema = z.object({
   guests: z.number().int().min(1).max(50), bedrooms: z.number().int().min(0).max(50), beds: z.number().int().min(1).max(100), bathrooms: z.number().min(1).max(50), rooms: z.array(propertyRoomSchema).max(30), amenityIds: z.array(z.string().max(80)).min(1).max(50),
   photos: z.array(z.object({ id: z.string().min(1).max(160), url: z.string().min(1).max(2048), name: z.string().max(180), size: z.number().int().min(0).max(10 * 1024 * 1024), isCover: z.boolean(), category: listingPhotoCategorySchema.optional() })).min(minListingPhotos).max(maxListingPhotos),
   title: z.string().min(1).max(50), highlights: z.array(z.string()).max(2), description: z.string().min(20).max(500), virtualTourUrl: virtualTourUrlSchema, listingVideoUrl: listingVideoUrlSchema,
-  bookingType: z.enum(["stay", "package", "both"]).catch("stay"), bookingMode: z.enum(["request", "instant"]), pricingMode: z.enum(["simple", "packages"]), basePrice: z.number().int().min(0).max(1000000), weekendPrice: z.number().int().min(0).max(1000000), holidayPrice: z.number().int().min(0).max(1000000).catch(0), holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]), seasonalRates: z.array(seasonalRateSchema).max(12).catch([]), weekendPremium: z.number().int().min(0).max(99),
-  cleaningFee: z.number().int().min(0).max(1000000), securityDeposit: z.number().int().min(0).max(1000000), currency: z.string().min(3).max(8), cancellationPolicy: z.enum(["flexible", "moderate", "strict"]),
+  bookingType: z.enum(["stay", "package", "both"]).catch("stay"), bookingMode: z.enum(["request", "instant"]), pricingMode: z.enum(["simple", "packages"]), basePrice: moneyAmountSchema(), weekendPrice: moneyAmountSchema(), holidayPrice: moneyAmountSchema().catch(0), holidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]), seasonalRates: z.array(seasonalRateSchema).max(12).catch([]), weekendPremium: z.number().int().min(0).max(99),
+  cleaningFee: moneyAmountSchema(), securityDeposit: moneyAmountSchema(), currency: z.string().min(3).max(8), cancellationPolicy: z.enum(["flexible", "moderate", "strict"]),
   discounts: z.object({ newListing: z.boolean(), lastMinute: z.boolean(), weekly: z.boolean(), monthly: z.boolean() }),
   safetyDisclosures: z.object({ exteriorCamera: z.boolean(), noiseMonitor: z.boolean(), weapons: z.boolean() }),
   residentialAddress: z.object({ unit: z.string().max(80), building: z.string().max(120), street: z.string().min(3).max(160), barangay: z.string().min(1).max(80), city: z.string().min(1).max(80), zipCode: z.string().min(3).max(16), province: z.string().min(1).max(80) }),

@@ -76,9 +76,17 @@ export function StepFooter({ currentIndex, steps }: { currentIndex: number; step
       <ProgressBar currentIndex={currentIndex} steps={steps} />
       {next && showValidation && validationMessages.length ? (
         <div className="mx-auto max-w-6xl px-4 pt-3 sm:px-8 lg:px-12">
-          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert">
-            {validationMessages[0]}
-          </p>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert">
+            {validationMessages.length === 1 ? (
+              <p>{validationMessages[0]}</p>
+            ) : (
+              <ul className="list-disc space-y-1 pl-5">
+                {validationMessages.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       ) : null}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-8 lg:px-12">

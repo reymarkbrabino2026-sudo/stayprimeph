@@ -239,8 +239,53 @@ describe("host wizard location validation", () => {
     }));
 
     expect(missing?.step.id).toBe("booking-packages");
-    expect(missing?.messages[0]).toContain("weekday rate");
-    expect(missing?.messages[0]).toContain("available days");
+    expect(missing?.messages).toEqual(expect.arrayContaining([
+      "Package 1 weekday rate must be at least 1.",
+      "Package 1 available days are required.",
+    ]));
+  });
+
+  it("allows decimal money input and normalizes it to whole pesos for publishing", () => {
+    const parsed = hostListingSchema.safeParse(draft({
+      photos: photos(),
+      bookingType: "package",
+      pricingMode: "packages",
+      basePrice: 0,
+      weekendPrice: 0,
+      status: "pending",
+      bookingPackages: [bookingPackage({
+        weekdayRate: 8333.33,
+        weekendRate: 9444.44,
+        holidayRate: 10555.55,
+        additionalGuestFee: 499.99,
+        extensionHourlyFee: 1500.25,
+      })],
+    }));
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.bookingPackages[0]).toEqual(expect.objectContaining({
+        weekdayRate: 8333,
+        weekendRate: 9444,
+        holidayRate: 10556,
+        additionalGuestFee: 500,
+        extensionHourlyFee: 1500,
+      }));
+    }
+  });
+
+  it("blocks money input with more than two decimal places on the package step", () => {
+    const missing = getFirstIncompleteHostWizardStep(draft({
+      photos: photos(),
+      bookingType: "package",
+      pricingMode: "packages",
+      basePrice: 0,
+      weekendPrice: 0,
+      bookingPackages: [bookingPackage({ weekdayRate: 8333.333 })],
+    }));
+
+    expect(missing?.step.id).toBe("booking-packages");
+    expect(missing?.messages).toContain("Package 1 weekday rate can use up to 2 decimal places.");
   });
 
   it("allows package pricing to publish using enabled package rates when simple prices are zero", () => {

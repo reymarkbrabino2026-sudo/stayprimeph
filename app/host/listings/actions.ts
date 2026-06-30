@@ -35,6 +35,27 @@ const numberValue = (min: number, max: number, fallback: number) =>
 const integerValue = (min: number, max: number, fallback: number) =>
   z.preprocess((value) => Number(value), z.number().int().min(min).max(max)).catch(fallback);
 
+function normalizeMoneyAmount(value: number) {
+  return Math.round(value);
+}
+
+function hasAtMostTwoDecimalPlaces(value: number) {
+  return Math.abs(value * 100 - Math.round(value * 100)) < Number.EPSILON * 100;
+}
+
+const moneyValue = (min: number, max: number, fallback: number) =>
+  z.preprocess(
+    (value) => Number(value),
+    z.number().min(min).max(max).refine(hasAtMostTwoDecimalPlaces, { message: "Use no more than 2 decimal places." }),
+  ).transform(normalizeMoneyAmount).catch(fallback);
+
+const moneyFormValue = (min: number, max: number) =>
+  z.coerce.number()
+    .min(min)
+    .max(max)
+    .refine(hasAtMostTwoDecimalPlaces, { message: "Use no more than 2 decimal places." })
+    .transform(normalizeMoneyAmount);
+
 const dateKeyList = z.array(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]);
 
 const virtualTourFormUrl = z.preprocess(
@@ -56,9 +77,9 @@ const seasonalRateDraftSchema = z.object({
   name: textValue(80),
   startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).catch(""),
   endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).catch(""),
-  weekdayRate: integerValue(1, 1000000, 1),
-  weekendRate: integerValue(0, 1000000, 0),
-  holidayRate: integerValue(0, 1000000, 0),
+  weekdayRate: moneyValue(1, 1000000, 1),
+  weekendRate: moneyValue(0, 1000000, 0),
+  holidayRate: moneyValue(0, 1000000, 0),
 }).transform((value) => ({
   ...value,
   id: value.id || randomUUID(),
@@ -73,17 +94,17 @@ const draftBookingPackageSchema = z.object({
   displayOrder: integerValue(0, 100, 0),
   accessType: textValue(120),
   unit: z.enum(["night", "day"]).catch("night"),
-  weekdayRate: integerValue(1, 1000000, 1),
-  weekendRate: integerValue(0, 1000000, 0),
-  holidayRate: integerValue(0, 1000000, 0),
+  weekdayRate: moneyValue(1, 1000000, 1),
+  weekendRate: moneyValue(0, 1000000, 0),
+  holidayRate: moneyValue(0, 1000000, 0),
   holidayDates: dateKeyList,
   seasonalRates: z.array(seasonalRateDraftSchema).max(12).catch([]),
   includedGuests: integerValue(1, 500, 1),
   maxGuests: integerValue(1, 500, 1),
   sleepingCapacity: integerValue(0, 500, 0),
   durationHours: integerValue(1, 168, 21),
-  additionalGuestFee: integerValue(0, 1000000, 0),
-  extensionHourlyFee: integerValue(0, 1000000, 0),
+  additionalGuestFee: moneyValue(0, 1000000, 0),
+  extensionHourlyFee: moneyValue(0, 1000000, 0),
   checkInTime: textValue(40),
   checkOutTime: textValue(40),
   accessibleFloors: z.array(z.string().trim().min(1).max(80)).max(20).catch([]),
@@ -147,14 +168,14 @@ const hostListingDraftSaveSchema = z.object({
   bookingType: z.enum(["stay", "package", "both"]).catch("stay"),
   bookingMode: z.enum(["request", "instant"]).catch("request"),
   pricingMode: z.enum(["simple", "packages"]).catch("simple"),
-  basePrice: integerValue(1, 1000000, 1),
-  weekendPrice: integerValue(1, 1000000, 1),
-  holidayPrice: integerValue(0, 1000000, 0),
+  basePrice: moneyValue(1, 1000000, 1),
+  weekendPrice: moneyValue(1, 1000000, 1),
+  holidayPrice: moneyValue(0, 1000000, 0),
   holidayDates: dateKeyList,
   seasonalRates: z.array(seasonalRateDraftSchema).max(12).catch([]),
   weekendPremium: integerValue(0, 99, 0),
-  cleaningFee: integerValue(0, 1000000, 0),
-  securityDeposit: integerValue(0, 1000000, 0),
+  cleaningFee: moneyValue(0, 1000000, 0),
+  securityDeposit: moneyValue(0, 1000000, 0),
   currency: textValue(8, "PHP"),
   cancellationPolicy: z.enum(["flexible", "moderate", "strict"]).catch("flexible"),
   discounts: z.object({
@@ -192,13 +213,13 @@ const listingFormSchema = z.object({
   city: z.string().trim().min(1).max(80),
   country: z.string().trim().min(1).max(80),
   propertyType: z.string().trim().min(1).max(80),
-  pricePerNight: z.coerce.number().int().min(1).max(1000000),
-  weekendPrice: z.coerce.number().int().min(0).max(1000000).optional(),
-  cleaningFee: z.coerce.number().int().min(0).max(1000000),
-  securityDeposit: z.coerce.number().int().min(0).max(1000000),
+  pricePerNight: moneyFormValue(1, 1000000),
+  weekendPrice: moneyFormValue(0, 1000000).optional(),
+  cleaningFee: moneyFormValue(0, 1000000),
+  securityDeposit: moneyFormValue(0, 1000000),
   currency: z.string().trim().min(1).max(8),
   bookingType: z.enum(["stay", "package", "both"]).catch("stay"),
-  holidayPrice: z.coerce.number().int().min(0).max(1000000).optional(),
+  holidayPrice: moneyFormValue(0, 1000000).optional(),
   holidayDates: z.array(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]),
   bedrooms: z.coerce.number().int().min(0).max(50),
   bathrooms: z.coerce.number().min(0).max(50),
