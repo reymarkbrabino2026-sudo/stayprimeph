@@ -117,7 +117,36 @@ describe("RoomReservationCard", () => {
       expect(useReservationStore.getState().packageId).toBe("overnight-full-access");
     });
     expect(screen.getAllByText("Overnight Full Access")).toHaveLength(2);
-    expect(screen.getAllByText("Daytime Ground Floor & Outdoor")).toHaveLength(2);
+    expect(screen.getAllByRole("option", { name: /Daytime Ground Floor & Outdoor/ })).toHaveLength(2);
+  });
+
+  test("truncates long package option names while keeping the price visible", async () => {
+    render(
+      <RoomReservationCard
+        property={{
+          ...property,
+          bookingPackages: [
+            {
+              ...bookingPackages[0],
+              id: "event-overnight",
+              name: "Event With Overnight Package Whole Villa",
+              weekdayRate: 17500,
+              weekendRate: 17500,
+            },
+            bookingPackages[1],
+          ],
+        }}
+        rating="New"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Book Package" }));
+
+    await waitFor(() => {
+      expect(useReservationStore.getState().packageId).toBe("event-overnight");
+    });
+    expect(screen.getByRole("option", { name: "Event With Overnight Packa.... - ₱21,000" })).toBeInTheDocument();
+    expect(screen.getByText("Event With Overnight Package Whole Villa")).toBeInTheDocument();
   });
 
   test("applies the new-listing 20% promotion to the reservation total", () => {
