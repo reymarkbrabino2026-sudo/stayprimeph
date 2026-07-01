@@ -1,5 +1,6 @@
 .env
 .env.*
+.codex-vercel-production.env
 *.log
 test-results
 .codex-worktrees
