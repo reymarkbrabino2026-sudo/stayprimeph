@@ -25,6 +25,7 @@ type HeaderSessionUser = {
 
 export function HomeHeader() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [session, setSession] = useState<{ loaded: boolean; user: HeaderSessionUser | null }>({ loaded: false, user: null });
 
   useEffect(() => {
@@ -80,26 +81,39 @@ export function HomeHeader() {
       >
         <div className="flex h-[72px] items-center justify-between gap-3 px-4 md:hidden">
           <Link href="/" aria-label="StayPrimePH home" className="flex min-w-0 shrink items-center">
-            <BrandLogo variant="green" className="h-8 w-auto" priority />
+            <BrandLogo variant="green" className="h-7 w-auto min-[380px]:h-8" priority />
           </Link>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 min-[380px]:gap-2">
             {showHostCta ? (
               <Link
                 href={hostCtaHref}
-                className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#083f35]/15 px-3.5 text-sm font-semibold text-[#083f35] transition active:scale-95"
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#083f35]/15 px-3 text-xs font-semibold text-[#083f35] transition active:scale-95 min-[380px]:px-3.5 min-[380px]:text-sm"
               >
                 Become a host
               </Link>
             ) : null}
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen((open) => !open)}
+              aria-label={mobileSearchOpen ? "Hide search bar" : "Show search bar"}
+              aria-expanded={mobileSearchOpen}
+              className={`grid size-10 shrink-0 place-items-center rounded-full transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#083f35]/35 ${
+                mobileSearchOpen ? "bg-[#083f35] text-white" : "bg-[#e8f4ef] text-[#083f35]"
+              }`}
+            >
+              <Search size={18} strokeWidth={2.6} />
+            </button>
             {session.user ? <NotificationBell variant="dark" eager={false} /> : null}
             <TravellerMenu sessionUser={session.user} sessionLoaded={session.loaded} />
           </div>
         </div>
 
-        <div className="px-4 pb-4 md:hidden">
-          <SearchBar variant="mobile" />
-        </div>
+        {mobileSearchOpen ? (
+          <div className="px-4 pb-4 md:hidden">
+            <SearchBar variant="mobile" />
+          </div>
+        ) : null}
 
         <div className="relative hidden h-[72px] items-center justify-between px-4 sm:px-6 md:flex lg:px-12">
           <Link href="/" aria-label="StayPrimePH home" className="flex shrink-0 items-center">
