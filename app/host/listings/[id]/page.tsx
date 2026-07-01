@@ -96,7 +96,7 @@ export default async function EditListingPage({ params, searchParams }: { params
         </section>
       </div>
 
-      <div className="mt-6 flex flex-col gap-4 rounded-[1.5rem] border border-red-100 bg-red-50/50 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-[calc(13rem+env(safe-area-inset-bottom))] mt-6 flex flex-col gap-4 rounded-[1.5rem] border border-red-100 bg-red-50/50 p-5 sm:flex-row sm:items-center sm:justify-between lg:mb-[calc(7rem+env(safe-area-inset-bottom))]">
         <div>
           <p className="font-semibold text-red-800">Delete this listing</p>
           <p className="mt-1 text-sm text-red-700/80">Permanently remove this listing. Listings with active bookings can&apos;t be deleted.</p>

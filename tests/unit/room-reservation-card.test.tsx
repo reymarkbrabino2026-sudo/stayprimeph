@@ -252,4 +252,28 @@ describe("RoomReservationCard", () => {
     expect(screen.getByText("No bedroom access")).toBeInTheDocument();
     expect(screen.queryByText("6 bedrooms")).not.toBeInTheDocument();
   });
+
+  test("disables package check-in dates outside the package operating days", async () => {
+    useReservationStore.setState({
+      checkIn: "2099-07-05",
+      checkOut: "2099-07-06",
+      bookingMode: "package",
+      packageId: bookingPackages[0].id,
+    });
+
+    render(
+      <RoomReservationCard
+        property={{
+          ...property,
+          bookingType: "package",
+          bookingPackages: [{ ...bookingPackages[0], availableDays: [1] }],
+        }}
+        rating="New"
+      />,
+    );
+
+    const closedSunday = screen.getByRole("button", { name: /Jul 5, 2099 Closed, unavailable/i });
+    expect(closedSunday).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Jul 6, 2099 Check-in, available/i })).toBeInTheDocument();
+  });
 });

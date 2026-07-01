@@ -187,6 +187,7 @@ export default async function BookingCheckoutPage({
                   unavailableRanges={unavailableRanges}
                   checkInTime={checkInTime}
                   checkOutTime={checkOutTime}
+                  availableDays={selectedPackage?.availableDays}
                 />
               )}
               <label className="mt-4 block rounded-2xl border p-4">

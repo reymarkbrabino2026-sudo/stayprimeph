@@ -59,12 +59,14 @@ export function getNextAvailableStay({
   fromDate,
   minDate,
   bookedNightKeys,
+  isCheckInAllowed = () => true,
   preferredNights = 1,
   maxSearchDays = 730,
 }: {
   fromDate: string;
   minDate: string;
   bookedNightKeys: Set<string>;
+  isCheckInAllowed?: (dateKey: string) => boolean;
   preferredNights?: number;
   maxSearchDays?: number;
 }) {
@@ -73,7 +75,7 @@ export function getNextAvailableStay({
 
   for (let attempts = 0; attempts <= maxSearchDays; attempts += 1) {
     const checkOut = addDays(checkIn, nights);
-    if (!bookedNightKeys.has(checkIn) && !hasBookedNightInRange(checkIn, checkOut, bookedNightKeys)) {
+    if (isCheckInAllowed(checkIn) && !bookedNightKeys.has(checkIn) && !hasBookedNightInRange(checkIn, checkOut, bookedNightKeys)) {
       return { checkIn, checkOut };
     }
     checkIn = addDays(checkIn, 1);

@@ -6,6 +6,7 @@ import type { UnavailableStay } from "@/lib/availability-calendar";
 import { getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
 import { getListingVideoEmbed } from "@/lib/listing-video";
+import { dateMatchesPackageDays, packageAvailableDaySet } from "@/lib/package-availability";
 import { allowsPackageBooking, allowsStayBooking, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages, type DiscountBooking } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
@@ -63,6 +64,7 @@ export function RoomBookingBar({
     () => effectiveBookingMode === "package" ? findBookingPackageById(property, packageId) ?? bookingPackages[0] ?? null : null,
     [bookingPackages, effectiveBookingMode, packageId, property],
   );
+  const selectedPackageDaySet = useMemo(() => packageAvailableDaySet(selectedPackage?.availableDays), [selectedPackage?.availableDays]);
   const relevantUnavailableStays = useMemo(
     () => unavailableStays.filter((stay) => "date" in stay || bookingBlocksRequestedPackage(stay, selectedPackage?.id, property.bookingPackages ?? [])),
     [property.bookingPackages, selectedPackage?.id, unavailableStays],
@@ -74,6 +76,7 @@ export function RoomBookingBar({
       checkIn < TODAY ||
       checkOut <= checkIn ||
       bookedNightSet.has(checkIn) ||
+      !dateMatchesPackageDays(checkIn, selectedPackageDaySet) ||
       hasBookedNightInRange(checkIn, checkOut, bookedNightSet);
 
     if (!selectedStayNeedsRepair) return { checkIn, checkOut };
@@ -82,14 +85,19 @@ export function RoomBookingBar({
       fromDate: checkIn || TODAY,
       minDate: TODAY,
       bookedNightKeys: bookedNightSet,
+      isCheckInAllowed: (dateKey) => dateMatchesPackageDays(dateKey, selectedPackageDaySet),
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
-  }, [bookedNightSet, checkIn, checkOut]);
+  }, [bookedNightSet, checkIn, checkOut, selectedPackageDaySet]);
   const { nights, validStay, total } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id, pricingBookings);
   const guestNightlyPrice = calculateGuestPriceWithMarkup(selectedPackage?.weekdayRate ?? property.pricePerNight);
   const reserveHref = validStay ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, selectedPackage?.id) : "#";
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
-  const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
+  const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (
+    effectiveStay.checkIn < TODAY ||
+    bookedNightSet.has(effectiveStay.checkIn) ||
+    !dateMatchesPackageDays(effectiveStay.checkIn, selectedPackageDaySet)
+  );
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
 
   useEffect(() => {

@@ -197,7 +197,7 @@ export function ListingForm({
         noValidate
         onSubmit={handleSubmit}
         onInputCapture={handleInputCapture}
-        className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(340px,380px)] 2xl:items-start"
+        className="grid gap-5 pb-[calc(13rem+env(safe-area-inset-bottom))] lg:pb-[calc(7rem+env(safe-area-inset-bottom))] 2xl:grid-cols-[minmax(0,1fr)_minmax(340px,380px)] 2xl:items-start"
       >
         {csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
         {!canCreate && property ? <input type="hidden" name="id" value={property.id} /> : null}
@@ -429,8 +429,8 @@ export function ListingForm({
             </label>
           </div>
         </div>
-        <div className="sticky bottom-4 z-20 rounded-[1.25rem] border border-black/10 bg-white/95 p-3 shadow-[0_20px_60px_rgba(33,23,15,0.14)] backdrop-blur 2xl:col-span-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 border-t border-black/10 bg-white/95 px-4 pb-3 pt-3 shadow-[0_-20px_60px_rgba(33,23,15,0.16)] backdrop-blur sm:px-6 lg:bottom-0 lg:left-[260px] lg:px-10 lg:pb-[calc(0.85rem+env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-[118rem] flex-col gap-3 rounded-[1.25rem] sm:flex-row sm:items-center sm:justify-between lg:rounded-none">
             <div>
               <p className="font-semibold text-[#21170f]">{canCreate ? "Create listing" : "Save listing updates"}</p>
               <p className="mt-1 text-sm text-black/55">Photos, amenities, rules, pricing, and booking settings will be saved together.</p>

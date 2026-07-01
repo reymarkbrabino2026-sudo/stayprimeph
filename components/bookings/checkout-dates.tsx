@@ -3,6 +3,7 @@
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, getBlockedDateKeys, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
+import { dateMatchesPackageDays, packageAvailableDaySet } from "@/lib/package-availability";
 
 const weekdays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const monthNames = [
@@ -89,6 +90,7 @@ export function CheckoutDates({
   unavailableRanges,
   checkInTime,
   checkOutTime,
+  availableDays,
 }: {
   initialCheckIn: string;
   initialCheckOut: string;
@@ -96,6 +98,7 @@ export function CheckoutDates({
   unavailableRanges: DateRange[];
   checkInTime: string;
   checkOutTime: string;
+  availableDays?: number[];
 }) {
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
@@ -103,12 +106,15 @@ export function CheckoutDates({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(initialCheckIn || minDate));
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const checkInRef = useRef<HTMLInputElement>(null);
   const checkOutRef = useRef<HTMLInputElement>(null);
 
+  const availableDaySet = useMemo(() => packageAvailableDaySet(availableDays), [availableDays]);
   const bookedNightKeys = useMemo(() => getBookedNightKeys(unavailableRanges), [unavailableRanges]);
   const bookedNightSet = useMemo(() => new Set(bookedNightKeys), [bookedNightKeys]);
   const calendarMonth = useMemo(() => buildCalendarMonth(visibleMonth.year, visibleMonth.month), [visibleMonth]);
   const conflict = overlapsBooked(checkIn, checkOut, unavailableRanges);
+  const checkInClosed = !dateMatchesPackageDays(checkIn, availableDaySet);
 
   useEffect(() => {
     if (!calendarOpen) return;
@@ -134,11 +140,14 @@ export function CheckoutDates({
     const message =
       checkOut <= checkIn
         ? "Check-out must be after check-in."
-        : conflict
+        : checkInClosed
+          ? "This package is not available on the selected check-in day."
+          : conflict
           ? "These dates overlap an existing booking. Choose another stay window."
           : "";
+    checkInRef.current?.setCustomValidity(checkInClosed ? message : "");
     checkOutRef.current?.setCustomValidity(message);
-  }, [checkIn, checkOut, conflict]);
+  }, [checkIn, checkInClosed, checkOut, conflict]);
 
   function openCalendar(field: ActiveDateField) {
     setActiveField(field);
@@ -161,6 +170,8 @@ export function CheckoutDates({
       return;
     }
 
+    if (!dateMatchesPackageDays(dateKey, availableDaySet)) return;
+
     if (bookedNightSet.has(dateKey)) return;
 
     const nextCheckout =
@@ -177,6 +188,7 @@ export function CheckoutDates({
   return (
     <div ref={wrapperRef} className="relative mt-5">
       <input
+        ref={checkInRef}
         name="checkIn"
         type="date"
         value={checkIn}
@@ -262,6 +274,7 @@ export function CheckoutDates({
                   checkOut={checkOut}
                   minDate={minDate}
                   bookedNightSet={bookedNightSet}
+                  closedForCheckIn={!dateMatchesPackageDays(cell.dateKey, availableDaySet)}
                   onSelect={selectDate}
                 />
               ) : (
@@ -278,9 +291,11 @@ export function CheckoutDates({
         </div>
       ) : null}
 
-      {conflict ? (
+      {checkInClosed || conflict ? (
         <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-          These dates overlap an existing booking. Please choose another stay window.
+          {checkInClosed
+            ? "This package is not available on the selected check-in day."
+            : "These dates overlap an existing booking. Please choose another stay window."}
         </p>
       ) : null}
     </div>
@@ -333,6 +348,7 @@ function CalendarDateButton({
   checkOut,
   minDate,
   bookedNightSet,
+  closedForCheckIn,
   onSelect,
 }: {
   cell: CalendarDay;
@@ -341,10 +357,12 @@ function CalendarDateButton({
   checkOut: string;
   minDate: string;
   bookedNightSet: Set<string>;
+  closedForCheckIn: boolean;
   onSelect: (dateKey: string) => void;
 }) {
   const isPast = cell.dateKey < minDate;
   const bookedNight = bookedNightSet.has(cell.dateKey);
+  const startUnavailable = isPast || bookedNight || closedForCheckIn;
   const isStart = Boolean(checkIn) && cell.dateKey === checkIn;
   const isEnd = Boolean(checkOut) && cell.dateKey === checkOut;
   const inRange = Boolean(checkIn && checkOut) && cell.dateKey > checkIn && cell.dateKey < checkOut;
@@ -358,8 +376,8 @@ function CalendarDateButton({
     ? false
     : activeField === "checkOut" && checkIn
       ? isPast || !canSelectCheckout
-      : isPast || bookedNight;
-  const status = isPast ? "past" : bookedNight ? "booked" : selected ? "selected" : "available";
+      : startUnavailable;
+  const status = isPast ? "past" : bookedNight ? "booked" : closedForCheckIn ? "closed" : selected ? "selected" : "available";
 
   return (
     <button
@@ -374,14 +392,14 @@ function CalendarDateButton({
           ? "border-[#083f35] bg-[#083f35] text-white"
           : inRange && !bookedNight
             ? "border-[#91d5c4] bg-[#e1f4ee] text-[#083f35]"
-            : bookedNight
+            : bookedNight || (activeField !== "checkOut" && closedForCheckIn)
               ? "border-rose-100 bg-rose-50 text-rose-700"
               : "border-transparent bg-white text-black hover:border-[#083f35]/35",
         disabled && "cursor-not-allowed",
         isPast && !selected && "opacity-35",
       )}
     >
-      <span className={cx(bookedNight && !selected && "line-through decoration-2")}>{cell.day}</span>
+      <span className={cx((bookedNight || closedForCheckIn) && !selected && "line-through decoration-2")}>{cell.day}</span>
     </button>
   );
 }

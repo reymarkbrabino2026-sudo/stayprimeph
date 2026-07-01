@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star, Users } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Minus, Plus, ShieldCheck, Star, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { UnavailableStay } from "@/lib/availability-calendar";
 import { addDays, getBookedNightKeys, getNextAvailableStay, hasBookedNightInRange, parseDateKey } from "@/lib/availability-calendar";
 import { bookingBlocksRequestedPackage } from "@/lib/booking-conflicts";
+import { dateMatchesPackageDays, packageAvailableDaySet } from "@/lib/package-availability";
 import { allowsPackageBooking, allowsStayBooking, calculateDefaultWeekendPrice, calculateGuestPriceWithMarkup, findBookingPackageById, getEnabledBookingPackages, getFullAccessBookingPackage, type DiscountBooking } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 import { STANDARD_CHECK_IN_TIME, STANDARD_CHECK_OUT_TIME, formatCurrency } from "@/lib/utils";
@@ -182,6 +183,7 @@ export function RoomReservationCard({
     ? selectedIsDayPackage && fullAccessPackage && checkOut > dayCheckout ? fullAccessPackage : displayedPackage
     : null;
   const activeIsDayPackage = activePackage?.unit === "day";
+  const activePackageDaySet = useMemo(() => packageAvailableDaySet(activePackage?.availableDays), [activePackage?.availableDays]);
   const relevantUnavailableStays = useMemo(
     () => unavailableStays.filter((stay) => "date" in stay || bookingBlocksRequestedPackage(stay, activePackage?.id, bookingPackages)),
     [activePackage?.id, bookingPackages, unavailableStays],
@@ -193,6 +195,7 @@ export function RoomReservationCard({
       checkIn < TODAY ||
       checkOut <= checkIn ||
       bookedNightSet.has(checkIn) ||
+      !dateMatchesPackageDays(checkIn, activePackageDaySet) ||
       hasBookedNightInRange(checkIn, checkOut, bookedNightSet);
 
     if (!selectedStayNeedsRepair) return { checkIn, checkOut };
@@ -201,9 +204,10 @@ export function RoomReservationCard({
       fromDate: checkIn || TODAY,
       minDate: TODAY,
       bookedNightKeys: bookedNightSet,
+      isCheckInAllowed: (dateKey) => dateMatchesPackageDays(dateKey, activePackageDaySet),
       preferredNights: 1,
     }) ?? { checkIn, checkOut };
-  }, [bookedNightSet, checkIn, checkOut]);
+  }, [activePackageDaySet, bookedNightSet, checkIn, checkOut]);
   const {
     nights,
     weekdayNights,
@@ -223,7 +227,11 @@ export function RoomReservationCard({
   const headlinePriceLabel = validStay ? ` for ${nights} ${unitName}${nights === 1 ? "" : "s"}` : ` / ${unitName}`;
   const rateSummary = formatRateSummary({ guestNightlyPrice, guestWeekendPrice, weekdayNights, weekendNights, nights, unitName });
   const selectedHasUnavailableNight = validStay && hasBookedNightInRange(effectiveStay.checkIn, effectiveStay.checkOut, bookedNightSet);
-  const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
+  const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (
+    effectiveStay.checkIn < TODAY ||
+    bookedNightSet.has(effectiveStay.checkIn) ||
+    !dateMatchesPackageDays(effectiveStay.checkIn, activePackageDaySet)
+  );
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
   const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id) : "#";
   const packageAccessibleRoomIds = activePackage?.accessibleRoomIds?.filter(Boolean) ?? [];
@@ -297,6 +305,8 @@ export function RoomReservationCard({
       setActiveField("checkIn");
       return;
     }
+
+    if (!dateMatchesPackageDays(dateKey, activePackageDaySet)) return;
 
     if (selectedIsDayPackage) {
       const nextDayCheckout = addDays(dateKey, 1);
@@ -483,6 +493,7 @@ export function RoomReservationCard({
                   checkIn={effectiveStay.checkIn}
                   checkOut={effectiveStay.checkOut}
                   bookedNightSet={bookedNightSet}
+                  closedForCheckIn={!dateMatchesPackageDays(cell.dateKey, activePackageDaySet)}
                   singleDayPackage={activeIsDayPackage && activeField !== "checkOut"}
                   onSelect={selectDate}
                 />
@@ -605,6 +616,7 @@ function CalendarDateButton({
   checkIn,
   checkOut,
   bookedNightSet,
+  closedForCheckIn,
   singleDayPackage,
   onSelect,
 }: {
@@ -613,12 +625,14 @@ function CalendarDateButton({
   checkIn: string;
   checkOut: string;
   bookedNightSet: Set<string>;
+  closedForCheckIn: boolean;
   singleDayPackage: boolean;
   onSelect: (dateKey: string) => void;
 }) {
   const isPast = cell.dateKey < TODAY;
   const bookedNight = bookedNightSet.has(cell.dateKey);
-  const unavailable = bookedNight || isPast;
+  const startUnavailable = bookedNight || isPast || closedForCheckIn;
+  const unavailable = activeField === "checkOut" && checkIn ? bookedNight || isPast : startUnavailable;
   const canSelectCheckout =
     activeField === "checkOut" &&
     Boolean(checkIn) &&
@@ -628,9 +642,11 @@ function CalendarDateButton({
   const isEnd = !singleDayPackage && Boolean(checkOut) && cell.dateKey === checkOut;
   const inRange = !singleDayPackage && Boolean(checkIn && checkOut) && cell.dateKey > checkIn && cell.dateKey < checkOut;
   const selected = isStart || isEnd;
-  const disabled = !selected && (activeField === "checkIn" || !checkIn ? unavailable : !canSelectCheckout);
-  const statusLabel = isStart ? (singleDayPackage ? "Selected" : "Check-in") : isEnd ? "Check-out" : unavailable ? "Booked" : "Open";
-  const visibleStatusLabel = isStart ? (singleDayPackage ? "Selected" : "In") : isEnd ? "Out" : unavailable ? "Booked" : "Open";
+  const showSelectedCheck = isStart && singleDayPackage;
+  const disabled = !selected && (activeField === "checkIn" || !checkIn ? startUnavailable : !canSelectCheckout);
+  const unavailableLabel = closedForCheckIn && !bookedNight && !isPast ? "Closed" : "Booked";
+  const statusLabel = isStart ? (singleDayPackage ? "Selected" : "Check-in") : isEnd ? "Check-out" : unavailable ? unavailableLabel : "Open";
+  const visibleStatusLabel = isStart ? "In" : isEnd ? "Out" : unavailable ? unavailableLabel : "Open";
   const toneClass = selected
     ? "border-[#083f35] bg-[#083f35] text-white shadow-[0_6px_14px_rgba(8,63,53,0.22)]"
     : inRange && !unavailable
@@ -646,8 +662,12 @@ function CalendarDateButton({
         ? "bg-white/70 text-black/50"
         : "bg-black/[0.03] text-black/60";
   const statusShapeClass = selected
-    ? "px-0 text-[0.56rem] min-[390px]:text-[0.6rem]"
-    : "rounded-full px-1.5 py-0.5 text-[0.6rem] min-[390px]:text-[0.64rem]";
+    ? visibleStatusLabel.length > 3
+      ? "px-0 text-[0.5rem]"
+      : "px-0 text-[0.56rem]"
+    : unavailable
+      ? "rounded-full px-0.5 py-0.5 text-[0.52rem]"
+      : "rounded-full px-1 py-0.5 text-[0.56rem]";
 
   return (
     <button
@@ -657,16 +677,22 @@ function CalendarDateButton({
       aria-label={`${formatDisplayDate(cell.dateKey)} ${statusLabel}${unavailable ? ", unavailable" : ", available"}`}
       title={`${formatDisplayDate(cell.dateKey)} - ${statusLabel}`}
       className={cx(
-        "flex min-h-[3.35rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition min-[390px]:min-h-[3.55rem]",
+        "flex min-h-[3.35rem] min-w-0 flex-col items-center justify-center rounded-xl border px-0.5 py-1.5 text-center transition min-[390px]:min-h-[3.55rem]",
         toneClass,
         disabled && "cursor-not-allowed hover:border-black/10",
         isPast && !selected && "opacity-35",
       )}
     >
       <span className="block text-sm font-bold leading-none min-[390px]:text-base">{cell.day}</span>
-      <span className={cx("mt-1 block max-w-full whitespace-nowrap font-bold leading-none", statusShapeClass, statusClass)}>
-        {visibleStatusLabel}
-      </span>
+      {showSelectedCheck ? (
+        <span className="mt-1 grid size-4 place-items-center rounded-full bg-white/15 text-white" aria-hidden="true">
+          <Check size={12} strokeWidth={3} />
+        </span>
+      ) : (
+        <span className={cx("mt-1 block max-w-full whitespace-nowrap font-semibold leading-none", statusShapeClass, statusClass)}>
+          {visibleStatusLabel}
+        </span>
+      )}
     </button>
   );
 }
