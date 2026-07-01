@@ -1613,6 +1613,11 @@ export async function cancelBookingInDatabase({
   status,
   actorId,
   actorRole,
+  paymentStatus,
+  policyOutcome,
+  refundPercent,
+  refundAmount,
+  paidAmount,
 }: {
   id: string;
   bookingId: string;
@@ -1621,13 +1626,18 @@ export async function cancelBookingInDatabase({
   status: string;
   actorId?: string;
   actorRole?: AuditLog["actorRole"];
+  paymentStatus?: Booking["paymentStatus"];
+  policyOutcome?: string;
+  refundPercent?: number;
+  refundAmount?: number;
+  paidAmount?: number;
 }) {
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     await tx.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } });
     await tx.cancellation.upsert({
       where: { bookingId },
-      update: { reason: reason || null, status },
+      update: { propertyId, reason: reason || null, status },
       create: {
         id,
         bookingId,
@@ -1642,7 +1652,17 @@ export async function cancelBookingInDatabase({
       action: "booking.cancelled",
       entityType: "booking",
       entityId: bookingId,
-      metadata: { propertyId, cancellationId: id, cancellationStatus: status, reason: reason ?? null },
+      metadata: {
+        propertyId,
+        cancellationId: id,
+        cancellationStatus: status,
+        paymentStatus: paymentStatus ?? null,
+        reason: reason ?? null,
+        policyOutcome: policyOutcome ?? null,
+        refundPercent: refundPercent ?? null,
+        refundAmount: refundAmount ?? null,
+        paidAmount: paidAmount ?? null,
+      },
       createdAt: now,
     }));
   });

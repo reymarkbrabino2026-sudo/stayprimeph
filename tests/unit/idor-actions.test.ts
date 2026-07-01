@@ -243,10 +243,12 @@ import { getProperties, getPropertyById, revalidatePublicListingSummaries } from
 import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
+import { getPaymentByBookingId } from "@/lib/payments";
 import { sendBookingConfirmedEmail } from "@/lib/email";
 import { readHostExpenses, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport } from "@/lib/host-report-store";
 import { hostListingSchema } from "@/lib/host-wizard-schema";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { confirmManualPaymentInDatabase } from "@/lib/repositories";
 import { getUserById } from "@/lib/users";
 import { revalidatePath } from "next/cache";
@@ -498,6 +500,44 @@ describe("IDOR protections", () => {
     const result = await cancelGuestBooking({ error: undefined }, formData({ bookingId: booking.id, reason: "Tampered id" }));
 
     expect(result).toEqual({ error: "Booking not found." });
+    expect(cancelBookingByGuest).not.toHaveBeenCalled();
+  });
+
+  it("lets a guest cancel their own confirmed future booking", async () => {
+    authState.currentUser = guestUser;
+    const futureCheckIn = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const futureCheckOut = new Date(Date.now() + 16 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const confirmedBooking = {
+      ...booking,
+      status: "confirmed",
+      paymentStatus: "paid",
+      checkIn: futureCheckIn,
+      checkOut: futureCheckOut,
+    } satisfies Booking;
+    vi.mocked(getBookingById).mockResolvedValueOnce(confirmedBooking);
+    vi.mocked(getPaymentByBookingId).mockResolvedValueOnce(null);
+
+    await expect(
+      cancelGuestBooking({ error: undefined }, formData({ bookingId: booking.id, reason: "Plans changed" })),
+    ).rejects.toThrow(`NEXT_REDIRECT:/guest/bookings/${booking.id}?cancel=success`);
+
+    expect(cancelBookingByGuest).toHaveBeenCalledWith(
+      confirmedBooking,
+      "Plans changed",
+      expect.objectContaining({ status: "review" }),
+    );
+    expect(revalidatePath).toHaveBeenCalledWith(`/guest/bookings/${booking.id}`);
+    expect(revalidatePath).toHaveBeenCalledWith("/host/bookings");
+  });
+
+  it("returns a cancellation form error when the request token is invalid", async () => {
+    authState.currentUser = guestUser;
+    vi.mocked(assertValidCsrfForm).mockRejectedValueOnce(new Error("Request token could not be verified."));
+
+    const result = await cancelGuestBooking({ error: undefined }, formData({ bookingId: booking.id, reason: "Plans changed" }));
+
+    expect(result).toEqual({ error: "Request token could not be verified." });
+    expect(getBookingById).not.toHaveBeenCalled();
     expect(cancelBookingByGuest).not.toHaveBeenCalled();
   });
 

@@ -176,4 +176,16 @@ describe("RoomReservationCard", () => {
     expect(screen.getByText("New listing promotion (20% off)")).toBeInTheDocument();
     expect(screen.getByText(`-${formatCurrency(1296)}`)).toBeInTheDocument();
   });
+
+  test("shows selected package sleeping capacity in the reservation summary", () => {
+    useReservationStore.setState({
+      bookingMode: "package",
+      packageId: bookingPackages[0].id,
+    });
+
+    render(<RoomReservationCard property={property} rating="New" />);
+
+    expect(screen.getByText("Up to 20 guests / 6 bedrooms / Sleeps 20")).toBeInTheDocument();
+    expect(screen.queryByText(/sleeping capacity/i)).not.toBeInTheDocument();
+  });
 });

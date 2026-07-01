@@ -49,11 +49,10 @@ export async function cancelGuestBooking(
   _previousState: CancellationActionState,
   formData: FormData,
 ): Promise<CancellationActionState> {
-  await assertTrustedRequestOrigin();
-  await assertValidCsrfForm(formData);
-
   let user;
   try {
+    await assertTrustedRequestOrigin();
+    await assertValidCsrfForm(formData);
     user = await requireGuestBookingUser();
   } catch (error) {
     return { error: actionError(error, "Please sign in as the guest for this booking.") };
@@ -85,17 +84,21 @@ export async function cancelGuestBooking(
       paidAmount: policy.paidAmount,
     });
   } catch (error) {
+    logger.warn("guest_booking_cancel_failed", { bookingId, error });
     return { error: error instanceof Error ? error.message : "Booking could not be cancelled." };
   }
 
   revalidatePath(`/guest/bookings/${bookingId}`);
   revalidatePath("/guest/bookings");
   revalidatePath("/guest/dashboard");
+  revalidatePath("/guest/notifications");
   revalidatePath("/host/bookings");
   revalidatePath("/host/calendar");
   revalidatePath("/host/dashboard");
+  revalidatePath("/host/notifications");
   revalidatePath("/admin/bookings");
   revalidatePath("/admin/disputes");
+  revalidatePath("/admin/notifications");
   if (propertyId) {
     revalidatePath(`/rooms/${propertyId}`);
     revalidatePath(`/properties/${propertyId}`);

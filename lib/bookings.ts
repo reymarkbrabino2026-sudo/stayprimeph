@@ -168,7 +168,16 @@ export async function cancelBookingByGuest(booking: Booking, reason?: string, op
   };
 
   if (usesPrismaPersistence()) {
-    await cancelBookingInDatabase({ ...cancellation, actorId: booking.guestId, actorRole: "guest" });
+    await cancelBookingInDatabase({
+      ...cancellation,
+      actorId: booking.guestId,
+      actorRole: "guest",
+      paymentStatus: booking.paymentStatus,
+      policyOutcome: options.policyOutcome,
+      refundPercent: options.refundPercent,
+      refundAmount: options.refundAmount,
+      paidAmount: options.paidAmount,
+    });
     return cancellation;
   }
 

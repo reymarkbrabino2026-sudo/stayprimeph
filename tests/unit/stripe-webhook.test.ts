@@ -43,8 +43,13 @@ vi.mock("@/lib/bookings", () => ({
   markBookingPaid: vi.fn(),
 }));
 
+vi.mock("@/lib/payment-receipts", () => ({
+  sendGuestPaymentReceipt: vi.fn(),
+}));
+
 import { POST } from "@/app/api/payments/webhook/route";
 import { getBookingById, markBookingPaid } from "@/lib/bookings";
+import { sendGuestPaymentReceipt } from "@/lib/payment-receipts";
 
 const booking = {
   id: "booking-1",
@@ -101,6 +106,12 @@ describe("Stripe payment webhook validation", () => {
     await expect(response.json()).resolves.toEqual({ received: true });
     expect(response.status).toBe(200);
     expect(markBookingPaid).toHaveBeenCalledWith(booking.id, "pi_test_123");
+    expect(sendGuestPaymentReceipt).toHaveBeenCalledWith(expect.objectContaining({
+      booking: expect.objectContaining({ id: booking.id, status: "confirmed", paymentStatus: "paid" }),
+      amountPaid: booking.totalPrice,
+      paymentMethod: "stripe",
+      transactionId: "pi_test_123",
+    }));
   });
 
   it("rejects missing or invalid booking metadata", async () => {

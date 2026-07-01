@@ -225,6 +225,12 @@ export function RoomReservationCard({
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
   const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id) : "#";
   const maxGuests = activePackage?.maxGuests ?? property.maxGuests;
+  const sleepingCapacity = activePackage?.sleepingCapacity && activePackage.sleepingCapacity > 0 ? activePackage.sleepingCapacity : 0;
+  const capacitySummary = [
+    `Up to ${maxGuests} guests`,
+    `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"}`,
+    sleepingCapacity ? `Sleeps ${sleepingCapacity}` : null,
+  ].filter(Boolean).join(" / ");
   const selectedPackageRooms = activePackage?.accessibleRoomIds?.length
     ? (property.rooms ?? []).filter((room) => activePackage.accessibleRoomIds?.includes(room.id))
     : [];
@@ -317,7 +323,7 @@ export function RoomReservationCard({
             {formatCurrency(headlinePrice)}
             <span className="ml-1 text-sm font-medium text-black/50 min-[390px]:text-base">{headlinePriceLabel}</span>
           </p>
-          <p className="mt-1 text-sm text-black/55">Up to {maxGuests} guests / {property.bedrooms} bedrooms</p>
+          <p className="mt-1 text-sm text-black/55">{capacitySummary}</p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f6f1e9] px-2.5 py-1.5 text-xs font-semibold text-[#083f35] min-[390px]:px-3 min-[390px]:text-sm">
           <Star size={14} fill="currentColor" /> {rating}

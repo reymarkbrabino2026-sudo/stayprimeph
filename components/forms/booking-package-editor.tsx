@@ -1,8 +1,8 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import type { BookingPackage, BookingPackageUnit, Property } from "@/lib/types";
+import { Check, ChevronDown, Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { BookingPackage, BookingPackageUnit, Property, PropertyRoom } from "@/lib/types";
 
 const maxBookingPackages = 8;
 
@@ -26,7 +26,7 @@ type EditablePackage = {
   checkInTime: string;
   checkOutTime: string;
   accessibleFloors: string;
-  accessibleRoomIds: string;
+  accessibleRoomIds: string[];
   includedAmenities: string;
   excludedAmenities: string;
   availableDays: string;
@@ -46,6 +46,7 @@ function json(values?: unknown[]) {
 }
 
 function packageToEditable(pkg: BookingPackage, index: number, property: Property): EditablePackage {
+  const activeRoomIds = new Set((property.rooms ?? []).filter((room) => room.active).map((room) => room.id));
   return {
     id: pkg.id,
     name: pkg.name,
@@ -66,7 +67,7 @@ function packageToEditable(pkg: BookingPackage, index: number, property: Propert
     checkInTime: pkg.checkInTime,
     checkOutTime: pkg.checkOutTime,
     accessibleFloors: csv(pkg.accessibleFloors),
-    accessibleRoomIds: json(pkg.accessibleRoomIds),
+    accessibleRoomIds: (pkg.accessibleRoomIds ?? []).filter((roomId) => activeRoomIds.has(roomId)),
     includedAmenities: csv(pkg.includedAmenities?.length ? pkg.includedAmenities : property.amenities),
     excludedAmenities: csv(pkg.excludedAmenities),
     availableDays: json(pkg.availableDays?.length ? pkg.availableDays : [0, 1, 2, 3, 4, 5, 6]),
@@ -105,7 +106,7 @@ function newPackage(property: Property, displayOrder: number): EditablePackage {
     checkInTime: "12:00 PM",
     checkOutTime: "9:00 PM",
     accessibleFloors: "",
-    accessibleRoomIds: "[]",
+    accessibleRoomIds: [],
     includedAmenities: csv(property.amenities),
     excludedAmenities: "",
     availableDays: "[0,1,2,3,4,5,6]",
@@ -126,6 +127,7 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
   );
   const [packages, setPackages] = useState(initialPackages);
   const canAddPackage = packages.length < maxBookingPackages;
+  const roomOptions = useMemo(() => (property.rooms ?? []).filter((room) => room.active), [property.rooms]);
 
   function updatePackage(id: string, patch: Partial<EditablePackage>) {
     setPackages((current) => current.map((pkg) => pkg.id === id ? { ...pkg, ...patch } : pkg));
@@ -222,6 +224,12 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
               </label>
             </div>
 
+            <PackageRoomDropdown
+              rooms={roomOptions}
+              selectedRoomIds={pkg.accessibleRoomIds}
+              onChange={(accessibleRoomIds) => updatePackage(pkg.id, { accessibleRoomIds })}
+            />
+
             <label className="mt-3 block">
               <span className="mb-1 block text-xs text-black/45">Included amenities</span>
               <textarea
@@ -258,7 +266,7 @@ function PackageHiddenFields({ pkg, formId }: { pkg: EditablePackage; formId: st
     ["bookingPackageCheckInTime", pkg.checkInTime],
     ["bookingPackageCheckOutTime", pkg.checkOutTime],
     ["bookingPackageAccessibleFloors", pkg.accessibleFloors],
-    ["bookingPackageAccessibleRoomIds", pkg.accessibleRoomIds],
+    ["bookingPackageAccessibleRoomIds", json(pkg.accessibleRoomIds)],
     ["bookingPackageExcludedAmenities", pkg.excludedAmenities],
     ["bookingPackageAvailableDays", pkg.availableDays],
     ["bookingPackageMinimumAdvanceBookingDays", pkg.minimumAdvanceBookingDays],
@@ -273,6 +281,79 @@ function PackageHiddenFields({ pkg, formId }: { pkg: EditablePackage; formId: st
         <input key={name} type="hidden" form={formId} name={name} value={value} />
       ))}
     </>
+  );
+}
+
+function selectedRoomSummary(rooms: PropertyRoom[], selectedRoomIds: string[]) {
+  const selectedRooms = rooms.filter((room) => selectedRoomIds.includes(room.id));
+  if (!selectedRooms.length) return "None";
+  if (selectedRooms.length === 1) return selectedRooms[0].name;
+  return `${selectedRooms.length} rooms selected`;
+}
+
+function PackageRoomDropdown({
+  rooms,
+  selectedRoomIds,
+  onChange,
+}: {
+  rooms: PropertyRoom[];
+  selectedRoomIds: string[];
+  onChange: (roomIds: string[]) => void;
+}) {
+  function toggleRoom(roomId: string) {
+    onChange(
+      selectedRoomIds.includes(roomId)
+        ? selectedRoomIds.filter((item) => item !== roomId)
+        : [...selectedRoomIds, roomId],
+    );
+  }
+
+  const selectedRoomSet = new Set(selectedRoomIds);
+
+  return (
+    <div className="mt-3">
+      <span className="mb-1 block text-xs text-black/45">Rooms</span>
+      <details className="group relative">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition hover:border-black/20 focus-visible:border-black [&::-webkit-details-marker]:hidden">
+          <span className="truncate">{selectedRoomSummary(rooms, selectedRoomIds)}</span>
+          <ChevronDown size={16} className="shrink-0 text-black/45 transition group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="absolute left-0 right-0 z-20 mt-2 max-h-64 overflow-y-auto rounded-xl border border-black/10 bg-white p-2 shadow-xl">
+          <label className="flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm transition hover:bg-black/[0.04]">
+            <input
+              type="checkbox"
+              checked={selectedRoomIds.length === 0}
+              onChange={() => onChange([])}
+              className="sr-only"
+            />
+            <span className="grid size-5 place-items-center rounded-md border border-black/20 text-white">
+              {selectedRoomIds.length === 0 ? <Check size={14} className="text-[#083f35]" aria-hidden="true" /> : null}
+            </span>
+            <span className="font-medium">None</span>
+          </label>
+          {rooms.map((room) => {
+            const checked = selectedRoomSet.has(room.id);
+            return (
+              <label key={room.id} className="mt-1 flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm transition hover:bg-black/[0.04]">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleRoom(room.id)}
+                  className="sr-only"
+                />
+                <span className="grid size-5 place-items-center rounded-md border border-black/20 text-white">
+                  {checked ? <Check size={14} className="text-[#083f35]" aria-hidden="true" /> : null}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{room.name}</span>
+                  <span className="block truncate text-xs text-black/45">{room.floor} - {room.capacity} pax</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </details>
+    </div>
   );
 }
 
@@ -291,6 +372,13 @@ function PackageNumberField({
   min: number;
   onChange: (value: number) => void;
 }) {
+  const [inputValue, setInputValue] = useState(String(value));
+  const isEditing = useRef(false);
+
+  useEffect(() => {
+    if (!isEditing.current) setInputValue(String(value));
+  }, [value]);
+
   return (
     <label>
       <span className="mb-1 block text-xs text-black/45">{label}</span>
@@ -299,8 +387,22 @@ function PackageNumberField({
         name={name}
         type="number"
         min={min}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
+        value={inputValue}
+        onFocus={() => {
+          isEditing.current = true;
+        }}
+        onBlur={() => {
+          isEditing.current = false;
+          if (inputValue.trim() === "" || !Number.isFinite(Number(inputValue))) {
+            setInputValue(String(value));
+          }
+        }}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          const numericValue = Number(nextValue);
+          setInputValue(nextValue);
+          if (nextValue.trim() === "" || Number.isFinite(numericValue)) onChange(numericValue);
+        }}
         className="min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 outline-none transition focus:border-black"
       />
     </label>
