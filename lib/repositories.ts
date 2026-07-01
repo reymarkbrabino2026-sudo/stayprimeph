@@ -1179,7 +1179,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images" | "rooms" | "bookingPackages"
+  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "rules" | "images" | "rooms" | "bookingPackages"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1203,6 +1203,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         maxGuests: property.maxGuests,
         propertyType: property.propertyType,
         privacyType: property.privacyType ?? "entire",
+        rules: JSON.stringify(property.rules),
         amenities: {
           deleteMany: {},
           create: amenityIds.map((amenityId) => ({ amenityId })),

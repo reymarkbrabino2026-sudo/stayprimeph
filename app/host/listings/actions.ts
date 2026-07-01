@@ -226,6 +226,7 @@ const listingFormSchema = z.object({
   bathrooms: z.coerce.number().min(0).max(50),
   maxGuests: z.coerce.number().int().min(1).max(100),
   amenities: z.array(z.string().trim().max(80)).max(50).catch([]),
+  rules: z.array(z.string().trim().max(120)).max(30).optional(),
 });
 
 type HostListingDraftSaveInput = z.infer<typeof hostListingDraftSaveSchema>;
@@ -268,6 +269,16 @@ function submittedAmenityValues(formData: FormData) {
     .filter(Boolean);
 
   return Array.from(new Set(values)).slice(0, 50);
+}
+
+function submittedRuleValues(formData: FormData) {
+  if (!formData.has("rules")) return undefined;
+
+  const values = textLineValues(formData.get("rules"))
+    .map((item) => item.slice(0, 120))
+    .filter(Boolean);
+
+  return Array.from(new Set(values)).slice(0, 30);
 }
 
 function submittedRooms(formData: FormData, existing: Property) {
@@ -651,6 +662,7 @@ export async function createListing(formData: FormData) {
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
     amenities: submittedAmenityValues(formData),
+    rules: submittedRuleValues(formData),
   });
   if (!parsed.success) throw new Error("Please complete all required listing fields.");
 
@@ -675,6 +687,7 @@ export async function createListing(formData: FormData) {
     maxGuests,
     amenities,
   } = parsed.data;
+  const rules = parsed.data.rules ?? [];
   const weekendPrice = parsed.data.weekendPrice && parsed.data.weekendPrice > 0 ? parsed.data.weekendPrice : calculateDefaultWeekendPrice(pricePerNight);
 
   const id = randomUUID();
@@ -705,7 +718,7 @@ export async function createListing(formData: FormData) {
     status: "pending",
     rating: 0,
     amenities,
-    rules: ["No parties"],
+    rules,
     createdAt: new Date().toISOString().slice(0, 10),
     images: [{ id: randomUUID(), propertyId: id, imageUrl: "pending-upload", tone: "from-rose-100 via-orange-50 to-stone-100" }],
   };
@@ -745,6 +758,7 @@ export async function updateListing(formData: FormData) {
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
     amenities: submittedAmenityValues(formData),
+    rules: submittedRuleValues(formData),
   });
   if (!parsed.success || !parsed.data.id) throw new Error("Please complete all required listing fields.");
 
@@ -787,6 +801,7 @@ export async function updateListing(formData: FormData) {
     bathrooms: parsed.data.bathrooms,
     maxGuests: bookingPackages.length ? Math.max(parsed.data.maxGuests, ...bookingPackages.map((pkg) => pkg.maxGuests)) : parsed.data.maxGuests,
     amenities: parsed.data.amenities,
+    rules: parsed.data.rules ?? existing.rules,
     images: readSubmittedImages(formData, existing, user.id),
     rooms,
     bookingPackages,

@@ -15,6 +15,7 @@ const presetAmenityNames = new Set(
 export function ListingForm({ mode, property, csrfToken, formId }: { mode: "Create" | "Edit"; property?: Property; csrfToken?: string; formId?: string }) {
   const canCreate = mode === "Create";
   const propertyAmenities = property?.amenities ?? [];
+  const propertyRules = property?.rules ?? [];
   const selectedAmenityNames = new Set(propertyAmenities.map(normalizeAmenityName));
   const customAmenities = propertyAmenities.filter((amenity) => !presetAmenityNames.has(normalizeAmenityName(amenity)));
   const fields: Array<{ label: string; name: string; type: "text" | "number"; defaultValue?: string | number; step?: number }> = [
@@ -147,6 +148,20 @@ export function ListingForm({ mode, property, csrfToken, formId }: { mode: "Crea
               />
             </label>
           </div>
+        </div>
+        <div className="rounded-[1.5rem] bg-white p-5 soft-card">
+          <h3 className="font-semibold">Rules</h3>
+          <label className="mt-4 block">
+            <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-black/45">House rules</span>
+            <textarea
+              name="rules"
+              defaultValue={propertyRules.join("\n")}
+              rows={6}
+              maxLength={3000}
+              className="w-full rounded-2xl border p-3 leading-6"
+              placeholder="One rule per line"
+            />
+          </label>
         </div>
       </div>
     </form>

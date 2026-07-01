@@ -592,6 +592,7 @@ describe("IDOR protections", () => {
         bathrooms: String(property.bathrooms),
         maxGuests: String(property.maxGuests),
         amenities: "Wi-Fi",
+        rules: "No smoking\nNo parties or events\nNo smoking\n  Quiet hours after 10 PM  ",
         photoUrls: "/uploads/listings/host-1/property-1/cover.jpg",
       })),
     ).rejects.toThrow(`NEXT_REDIRECT:/host/listings/${property.id}?updated=1`);
@@ -606,6 +607,7 @@ describe("IDOR protections", () => {
         securityDeposit: 1000,
         currency: "PHP",
         amenities: ["Wi-Fi"],
+        rules: ["No smoking", "No parties or events", "Quiet hours after 10 PM"],
         images: [
           expect.objectContaining({
             propertyId: property.id,
