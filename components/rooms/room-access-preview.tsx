@@ -75,7 +75,7 @@ export function RoomAccessPreview({
           <h3 className="text-lg font-semibold sm:text-xl">Rooms</h3>
           {rooms.length ? <span className="shrink-0 text-sm font-medium text-black/55">{rooms.length} spaces</span> : null}
         </div>
-        <div data-testid="room-access-list" className="mt-3 min-h-0 divide-y divide-black/10 overflow-y-auto overscroll-contain rounded-2xl border border-black/10 bg-white sm:mt-3.5">
+        <div data-lenis-prevent-wheel data-testid="room-access-list" className="mt-3 min-h-0 divide-y divide-black/10 overflow-y-auto overscroll-contain rounded-2xl border border-black/10 bg-white sm:mt-3.5">
           {rooms.length ? rooms.map((room) => {
             const active = activeRoom?.id === room.id;
             return (

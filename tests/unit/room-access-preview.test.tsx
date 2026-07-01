@@ -103,6 +103,7 @@ describe("RoomAccessPreview", () => {
     );
 
     expect(screen.getByTestId("room-access-list")).toHaveClass("overflow-y-auto");
+    expect(screen.getByTestId("room-access-list")).toHaveAttribute("data-lenis-prevent-wheel");
     expect(screen.getByText("10 spaces")).toBeInTheDocument();
   });
 });
