@@ -4,6 +4,7 @@ import {
   blockHostAvailability,
   deleteHostRateAdjustment,
   removeHostAvailabilityBlock,
+  saveBookingPackageRates,
   saveMonthlyHostRate,
   saveSelectedDateHostRate,
   setHostRateAdjustmentActive,
@@ -65,6 +66,7 @@ export async function HostCalendarScreen({ active = "Calendar" }: { active?: str
           holidayDates: property.holidayDates,
           seasonalRates: property.seasonalRates,
           rateAdjustments: property.rateAdjustments,
+          bookingPackages: property.bookingPackages,
           status: property.status,
         }))}
         bookings={hostBookings}
@@ -81,6 +83,7 @@ export async function HostCalendarScreen({ active = "Calendar" }: { active?: str
         blockAvailabilityAction={blockHostAvailability}
         csrfToken={csrfToken}
         removeAvailabilityBlockAction={removeHostAvailabilityBlock}
+        savePackageRatesAction={saveBookingPackageRates}
         saveMonthlyRateAction={saveMonthlyHostRate}
         saveSelectedDateRateAction={saveSelectedDateHostRate}
         setRateAdjustmentActiveAction={setHostRateAdjustmentActive}

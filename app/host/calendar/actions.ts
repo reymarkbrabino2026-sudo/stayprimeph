@@ -12,9 +12,11 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings, hasDateConflict } from "@/lib/bookings";
 import { assertValidCsrfForm } from "@/lib/csrf";
 import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
+import { readStoredProperties, writeStoredProperties } from "@/lib/property-store";
 import { saveListingRateAdjustments } from "@/lib/rate-adjustments";
+import { updatePropertyDetailsInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
-import type { AvailabilityBlock, AvailabilityBlockReason, ListingRateAdjustment, Property } from "@/lib/types";
+import type { AvailabilityBlock, AvailabilityBlockReason, BookingPackage, ListingRateAdjustment, Property } from "@/lib/types";
 
 export type AvailabilityFormState = {
   status: "idle" | "success" | "error";
@@ -38,6 +40,14 @@ const monthlyRateSchema = z.object({
   propertyId: z.string().trim().min(1, "Choose a listing."),
   month: z.string().trim().regex(/^\d{4}-\d{2}$/, "Choose a valid month."),
   rate: z.coerce.number().int().min(1, "Enter a monthly price.").max(1000000, "Monthly price is too high."),
+});
+
+const packageRateSchema = z.object({
+  propertyId: z.string().trim().min(1, "Choose a listing."),
+  packageId: z.string().trim().min(1, "Choose a booking package."),
+  weekdayRate: z.coerce.number().min(1, "Enter a weekday package price.").max(1000000, "Weekday package price is too high.").transform(Math.round),
+  weekendRate: z.coerce.number().min(0, "Weekend package price cannot be negative.").max(1000000, "Weekend package price is too high.").transform(Math.round),
+  holidayRate: z.coerce.number().min(0, "Holiday package price cannot be negative.").max(1000000, "Holiday package price is too high.").transform(Math.round),
 });
 
 const selectedDateRateSchema = z.object({
@@ -100,6 +110,25 @@ async function requireHostProperty(propertyId: string) {
 
 function currentRateAdjustments(property: Property) {
   return property.rateAdjustments ?? [];
+}
+
+function activeBookingPackages(property: Property) {
+  return (property.bookingPackages ?? []).filter((pkg) => pkg.enabled && pkg.status !== "inactive");
+}
+
+async function savePropertyBookingPackages(property: Property, bookingPackages: BookingPackage[]) {
+  const nextProperty = { ...property, bookingPackages };
+
+  if (usesPrismaPersistence()) {
+    await updatePropertyDetailsInDatabase(nextProperty);
+    return nextProperty;
+  }
+
+  const storedProperties = await readStoredProperties();
+  await writeStoredProperties(storedProperties.map((item) => (
+    item.id === property.id ? nextProperty : item
+  )));
+  return nextProperty;
 }
 
 function sortedRateAdjustments(adjustments: ListingRateAdjustment[]) {
@@ -261,6 +290,52 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
   await saveListingRateAdjustments(property, nextAdjustments);
   revalidateCalendarPricing(property);
   return { status: "success", message: `${monthLabel(parsed.data.month)} rate saved.` };
+}
+
+export async function saveBookingPackageRates(_state: RateCalendarFormState, formData: FormData): Promise<RateCalendarFormState> {
+  try {
+    await assertTrustedRequestOrigin();
+    await assertValidCsrfForm(formData);
+  } catch (error) {
+    return { status: "error", message: actionError(error, "Request origin could not be verified.") };
+  }
+
+  const parsed = packageRateSchema.safeParse({
+    propertyId: formData.get("propertyId"),
+    packageId: formData.get("packageId"),
+    weekdayRate: formData.get("weekdayRate"),
+    weekendRate: formData.get("weekendRate") || "0",
+    holidayRate: formData.get("holidayRate") || "0",
+  });
+
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the package price details." };
+  }
+
+  let property;
+  try {
+    property = await requireHostProperty(parsed.data.propertyId);
+  } catch (error) {
+    return { status: "error", message: actionError(error, "Choose one of your listings.") };
+  }
+
+  const packages = property.bookingPackages ?? [];
+  const selectedPackage = activeBookingPackages(property).find((pkg) => pkg.id === parsed.data.packageId);
+  if (!selectedPackage) return { status: "error", message: "Choose an active booking package for this listing." };
+
+  await savePropertyBookingPackages(property, packages.map((pkg) => (
+    pkg.id === selectedPackage.id
+      ? {
+          ...pkg,
+          weekdayRate: parsed.data.weekdayRate,
+          weekendRate: parsed.data.weekendRate,
+          holidayRate: parsed.data.holidayRate,
+        }
+      : pkg
+  )));
+  revalidateCalendarPricing(property);
+
+  return { status: "success", message: `${selectedPackage.name} package prices saved.` };
 }
 
 export async function saveSelectedDateHostRate(_state: RateCalendarFormState, formData: FormData): Promise<RateCalendarFormState> {

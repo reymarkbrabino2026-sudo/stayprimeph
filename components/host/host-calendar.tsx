@@ -1,13 +1,13 @@
 "use client";
 
 import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Tag, Trash2, Users } from "lucide-react";
-import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { avatarFallbackText } from "@/lib/avatar";
 import { csrfFieldName } from "@/lib/csrf-fields";
 import { calculateDefaultWeekendPrice, getNightlyRateDetails, isWeekendDayIndex } from "@/lib/pricing";
 import { formatCurrency, formatStayTimeRange } from "@/lib/utils";
-import type { AvailabilityBlockReason, BookingStatus, ListingRateAdjustment, ListingStatus, PaymentStatus } from "@/lib/types";
+import type { AvailabilityBlockReason, BookingPackage, BookingStatus, ListingRateAdjustment, ListingStatus, PaymentStatus } from "@/lib/types";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -24,8 +24,10 @@ type HostCalendarListing = {
   holidayDates?: string[];
   seasonalRates?: Array<{ name: string; startDate: string; endDate: string; weekdayRate: number; weekendRate?: number; holidayRate?: number }>;
   rateAdjustments?: ListingRateAdjustment[];
+  bookingPackages?: Pick<BookingPackage, "id" | "name" | "status" | "displayOrder" | "unit" | "weekdayRate" | "weekendRate" | "holidayRate" | "enabled">[];
   status: ListingStatus;
 };
+type HostCalendarBookingPackage = NonNullable<HostCalendarListing["bookingPackages"]>[number];
 
 type HostCalendarBooking = {
   id: string;
@@ -70,6 +72,7 @@ type HostCalendarProps = {
   blockAvailabilityAction: (state: AvailabilityFormState, formData: FormData) => Promise<AvailabilityFormState>;
   csrfToken: string;
   removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
+  savePackageRatesAction: (state: RateCalendarFormState, formData: FormData) => Promise<RateCalendarFormState>;
   saveMonthlyRateAction: (state: RateCalendarFormState, formData: FormData) => Promise<RateCalendarFormState>;
   saveSelectedDateRateAction: (state: RateCalendarFormState, formData: FormData) => Promise<RateCalendarFormState>;
   setRateAdjustmentActiveAction: (formData: FormData) => Promise<void>;
@@ -86,6 +89,7 @@ export function HostCalendar({
   blockAvailabilityAction,
   csrfToken,
   removeAvailabilityBlockAction,
+  savePackageRatesAction,
   saveMonthlyRateAction,
   saveSelectedDateRateAction,
   setRateAdjustmentActiveAction,
@@ -98,6 +102,7 @@ export function HostCalendar({
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [availabilityState, availabilityFormAction] = useActionState(blockAvailabilityAction, initialAvailabilityState);
+  const [packageRateState, packageRateFormAction] = useActionState(savePackageRatesAction, initialRateCalendarState);
   const [monthlyRateState, monthlyRateFormAction] = useActionState(saveMonthlyRateAction, initialRateCalendarState);
   const [selectedDateRateState, selectedDateRateFormAction] = useActionState(saveSelectedDateRateAction, initialRateCalendarState);
 
@@ -327,7 +332,9 @@ export function HostCalendar({
             listings={listings}
             selectedListingId={selectedListingId}
             monthlyAction={monthlyRateFormAction}
+            packageRateAction={packageRateFormAction}
             selectedDateAction={selectedDateRateFormAction}
+            packageRateState={packageRateState}
             monthlyState={monthlyRateState}
             selectedDateState={selectedDateRateState}
           />
@@ -684,8 +691,10 @@ function RateCalendarForm({
   listings,
   selectedListingId,
   monthlyAction,
+  packageRateAction,
   selectedDateAction,
   csrfToken,
+  packageRateState,
   monthlyState,
   selectedDateState,
 }: {
@@ -694,14 +703,31 @@ function RateCalendarForm({
   listings: HostCalendarListing[];
   selectedListingId: string;
   monthlyAction: (formData: FormData) => void;
+  packageRateAction: (formData: FormData) => void;
   selectedDateAction: (formData: FormData) => void;
+  packageRateState: RateCalendarFormState;
   monthlyState: RateCalendarFormState;
   selectedDateState: RateCalendarFormState;
 }) {
   const selectedListing = listings.find((listing) => listing.id === selectedListingId);
+  const [rateListingId, setRateListingId] = useState(selectedListing?.id ?? "");
+  const rateListing = selectedListing ?? listings.find((listing) => listing.id === rateListingId);
+  const packageOptions = useMemo(() => activePackagesForListing(rateListing), [rateListing]);
+  const [selectedPackageId, setSelectedPackageId] = useState("");
+  const selectedPackage = packageOptions.find((pkg) => pkg.id === selectedPackageId);
   const [adjustmentType, setAdjustmentType] = useState<"percent_discount" | "custom_price">("percent_discount");
   const endDate = addDays(dateKey, 1);
   const amountLabel = adjustmentType === "percent_discount" ? "Discount %" : "Custom price";
+
+  useEffect(() => {
+    if (selectedListing?.id) setRateListingId(selectedListing.id);
+  }, [selectedListing?.id]);
+
+  useEffect(() => {
+    setSelectedPackageId((current) => (
+      packageOptions.some((pkg) => pkg.id === current) ? current : packageOptions[0]?.id ?? ""
+    ));
+  }, [packageOptions]);
 
   return (
     <section className="mt-4 rounded-lg border border-black/10 bg-white p-3 lg:mt-7 lg:p-4">
@@ -709,13 +735,47 @@ function RateCalendarForm({
         <span className="grid size-8 place-items-center rounded-full bg-black/[0.05]"><Tag size={16} /></span>
         <div>
           <h2 className="font-semibold">Rates & promos</h2>
-          <p className="text-sm text-black/55">Set future monthly rates or discounts for selected dates.</p>
+          <p className="text-sm text-black/55">Set package prices, monthly rates, or discounts for selected dates.</p>
         </div>
       </div>
 
+      <form action={packageRateAction} className="mt-4 space-y-3 rounded-lg bg-black/[0.03] p-3">
+        <input type="hidden" name={csrfFieldName} value={csrfToken} />
+        <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
+        {rateListing ? (
+          packageOptions.length > 0 ? (
+            <>
+              <label className="text-sm font-semibold text-black/65">
+                Package
+                <select
+                  name="packageId"
+                  value={selectedPackageId}
+                  onChange={(event) => setSelectedPackageId(event.currentTarget.value)}
+                  required
+                  className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold"
+                >
+                  {packageOptions.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                  ))}
+                </select>
+              </label>
+              {selectedPackage ? (
+                <PackageRateFields key={selectedPackage.id} pkg={selectedPackage} />
+              ) : null}
+              {packageRateState.message ? <FormMessage state={packageRateState} /> : null}
+              <RateCalendarSubmitButton label="Save package prices" pendingLabel="Saving..." />
+            </>
+          ) : (
+            <p className="rounded-lg bg-white px-3 py-2 text-sm text-black/55">No active booking packages for this listing.</p>
+          )
+        ) : (
+          <p className="rounded-lg bg-white px-3 py-2 text-sm text-black/55">Choose a listing to edit package prices.</p>
+        )}
+      </form>
+
       <form action={monthlyAction} className="mt-4 space-y-3 rounded-lg bg-black/[0.03] p-3">
         <input type="hidden" name={csrfFieldName} value={csrfToken} />
-        <ListingPicker selectedListing={selectedListing} listings={listings} />
+        <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           <label className="text-sm font-semibold text-black/65">
             Month
@@ -723,7 +783,7 @@ function RateCalendarForm({
           </label>
           <label className="text-sm font-semibold text-black/65">
             Price
-            <input name="rate" type="number" min={1} max={1000000} step={1} defaultValue={selectedListing?.pricePerNight ?? ""} placeholder="Monthly price" required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+            <input key={rateListing?.id ?? "monthly-rate"} name="rate" type="number" min={1} max={1000000} step={1} defaultValue={rateListing?.pricePerNight ?? ""} placeholder="Monthly price" required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
           </label>
         </div>
         {monthlyState.message ? <FormMessage state={monthlyState} /> : null}
@@ -732,7 +792,7 @@ function RateCalendarForm({
 
       <form action={selectedDateAction} className="mt-3 space-y-3 rounded-lg bg-black/[0.03] p-3">
         <input type="hidden" name={csrfFieldName} value={csrfToken} />
-        <ListingPicker selectedListing={selectedListing} listings={listings} />
+        <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           <label className="text-sm font-semibold text-black/65">
             Start
@@ -780,7 +840,42 @@ function RateCalendarForm({
   );
 }
 
-function ListingPicker({ selectedListing, listings }: { selectedListing?: HostCalendarListing; listings: HostCalendarListing[] }) {
+function PackageRateFields({ pkg }: { pkg: HostCalendarBookingPackage }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
+      <label className="text-sm font-semibold text-black/65">
+        Weekday price
+        <input name="weekdayRate" type="number" min={1} max={1000000} step={1} defaultValue={pkg.weekdayRate} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+      </label>
+      <label className="text-sm font-semibold text-black/65">
+        Weekend price
+        <input name="weekendRate" type="number" min={0} max={1000000} step={1} defaultValue={pkg.weekendRate} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+      </label>
+      <label className="text-sm font-semibold text-black/65">
+        Holiday price
+        <input name="holidayRate" type="number" min={0} max={1000000} step={1} defaultValue={pkg.holidayRate ?? 0} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+      </label>
+    </div>
+  );
+}
+
+function activePackagesForListing(listing?: HostCalendarListing) {
+  return [...(listing?.bookingPackages ?? [])]
+    .filter((pkg) => pkg.enabled && pkg.status !== "inactive")
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || a.name.localeCompare(b.name));
+}
+
+function ListingPicker({
+  selectedListing,
+  listings,
+  value,
+  onChange,
+}: {
+  selectedListing?: HostCalendarListing;
+  listings: HostCalendarListing[];
+  value: string;
+  onChange: (listingId: string) => void;
+}) {
   if (selectedListing) {
     return (
       <>
@@ -791,7 +886,7 @@ function ListingPicker({ selectedListing, listings }: { selectedListing?: HostCa
   }
 
   return (
-    <select name="propertyId" required className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
+    <select name="propertyId" value={value} onChange={(event) => onChange(event.currentTarget.value)} required className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
       <option value="">Choose listing</option>
       {listings.map((listing) => (
         <option key={listing.id} value={listing.id}>{listing.title}</option>

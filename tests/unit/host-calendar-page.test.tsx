@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { Booking, Property, User } from "@/lib/types";
+import type { Booking, BookingPackage, Property, User } from "@/lib/types";
 
 vi.mock("@/components/host/hosting-shell", () => ({
   HostingShell: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -15,6 +15,7 @@ vi.mock("@/app/host/calendar/actions", () => ({
   blockHostAvailability: vi.fn(),
   deleteHostRateAdjustment: vi.fn(),
   removeHostAvailabilityBlock: vi.fn(),
+  saveBookingPackageRates: vi.fn(),
   saveMonthlyHostRate: vi.fn(),
   saveSelectedDateHostRate: vi.fn(),
   setHostRateAdjustmentActive: vi.fn(),
@@ -103,11 +104,30 @@ const booking: Booking = {
   createdAt: "2026-06-01",
 };
 
+const bookingPackage: BookingPackage = {
+  id: "overnight-whole-villa",
+  name: "Overnight - Whole Villa",
+  status: "active",
+  displayOrder: 1,
+  accessType: "Whole villa",
+  unit: "night",
+  weekdayRate: 15000,
+  weekendRate: 18000,
+  holidayRate: 18000,
+  includedGuests: 16,
+  maxGuests: 40,
+  additionalGuestFee: 0,
+  extensionHourlyFee: 0,
+  checkInTime: "15:00",
+  checkOutTime: "11:00",
+  enabled: true,
+};
+
 describe("HostCalendarScreen", () => {
   it("passes only visible host listings and their calendar data to the calendar", async () => {
     vi.mocked(getCurrentUser).mockResolvedValue(host);
     vi.mocked(getPropertiesForHost).mockResolvedValue([
-      property({ id: "visible-listing", title: "The Caya" }),
+      property({ id: "visible-listing", title: "The Caya", bookingPackages: [bookingPackage] }),
     ]);
     vi.mocked(getBookings).mockResolvedValue([
       booking,
@@ -124,6 +144,7 @@ describe("HostCalendarScreen", () => {
 
     expect(getPropertiesForHost).toHaveBeenCalledWith(host.id);
     expect(vi.mocked(HostCalendar).mock.calls[0]?.[0].listings.map((listing) => listing.id)).toEqual(["visible-listing"]);
+    expect(vi.mocked(HostCalendar).mock.calls[0]?.[0].listings[0]?.bookingPackages?.map((pkg) => pkg.name)).toEqual(["Overnight - Whole Villa"]);
     expect(vi.mocked(HostCalendar).mock.calls[0]?.[0].bookings.map((item) => item.id)).toEqual(["booking-2"]);
     expect(vi.mocked(HostCalendar).mock.calls[0]?.[0].availabilityBlocks.map((item) => item.id)).toEqual(["block-2"]);
   });
