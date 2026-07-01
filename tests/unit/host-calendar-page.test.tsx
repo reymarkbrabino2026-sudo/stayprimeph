@@ -16,7 +16,6 @@ vi.mock("@/app/host/calendar/actions", () => ({
   deleteHostRateAdjustment: vi.fn(),
   removeHostAvailabilityBlock: vi.fn(),
   saveBookingPackageRates: vi.fn(),
-  saveMonthlyHostRate: vi.fn(),
   saveSelectedDateHostRate: vi.fn(),
   setHostRateAdjustmentActive: vi.fn(),
 }));

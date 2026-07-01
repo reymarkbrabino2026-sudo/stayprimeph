@@ -73,7 +73,6 @@ type HostCalendarProps = {
   csrfToken: string;
   removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
   savePackageRatesAction: (state: RateCalendarFormState, formData: FormData) => Promise<RateCalendarFormState>;
-  saveMonthlyRateAction: (state: RateCalendarFormState, formData: FormData) => Promise<RateCalendarFormState>;
   saveSelectedDateRateAction: (state: RateCalendarFormState, formData: FormData) => Promise<RateCalendarFormState>;
   setRateAdjustmentActiveAction: (formData: FormData) => Promise<void>;
   deleteRateAdjustmentAction: (formData: FormData) => Promise<void>;
@@ -90,7 +89,6 @@ export function HostCalendar({
   csrfToken,
   removeAvailabilityBlockAction,
   savePackageRatesAction,
-  saveMonthlyRateAction,
   saveSelectedDateRateAction,
   setRateAdjustmentActiveAction,
   deleteRateAdjustmentAction,
@@ -103,7 +101,6 @@ export function HostCalendar({
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [availabilityState, availabilityFormAction] = useActionState(blockAvailabilityAction, initialAvailabilityState);
   const [packageRateState, packageRateFormAction] = useActionState(savePackageRatesAction, initialRateCalendarState);
-  const [monthlyRateState, monthlyRateFormAction] = useActionState(saveMonthlyRateAction, initialRateCalendarState);
   const [selectedDateRateState, selectedDateRateFormAction] = useActionState(saveSelectedDateRateAction, initialRateCalendarState);
 
   const activeBookings = useMemo(() => bookings.filter((booking) => booking.status !== "cancelled"), [bookings]);
@@ -331,11 +328,9 @@ export function HostCalendar({
             csrfToken={csrfToken}
             listings={listings}
             selectedListingId={selectedListingId}
-            monthlyAction={monthlyRateFormAction}
             packageRateAction={packageRateFormAction}
             selectedDateAction={selectedDateRateFormAction}
             packageRateState={packageRateState}
-            monthlyState={monthlyRateState}
             selectedDateState={selectedDateRateState}
           />
           <AvailabilityBlockForm
@@ -690,23 +685,19 @@ function RateCalendarForm({
   dateKey,
   listings,
   selectedListingId,
-  monthlyAction,
   packageRateAction,
   selectedDateAction,
   csrfToken,
   packageRateState,
-  monthlyState,
   selectedDateState,
 }: {
   dateKey: string;
   csrfToken: string;
   listings: HostCalendarListing[];
   selectedListingId: string;
-  monthlyAction: (formData: FormData) => void;
   packageRateAction: (formData: FormData) => void;
   selectedDateAction: (formData: FormData) => void;
   packageRateState: RateCalendarFormState;
-  monthlyState: RateCalendarFormState;
   selectedDateState: RateCalendarFormState;
 }) {
   const selectedListing = listings.find((listing) => listing.id === selectedListingId);
@@ -735,7 +726,7 @@ function RateCalendarForm({
         <span className="grid size-8 place-items-center rounded-full bg-black/[0.05]"><Tag size={16} /></span>
         <div>
           <h2 className="font-semibold">Rates & promos</h2>
-          <p className="text-sm text-black/55">Set package prices, monthly rates, or discounts for selected dates.</p>
+          <p className="text-sm text-black/55">Set package prices or discounts for selected dates.</p>
         </div>
       </div>
 
@@ -771,23 +762,6 @@ function RateCalendarForm({
         ) : (
           <p className="rounded-lg bg-white px-3 py-2 text-sm text-black/55">Choose a listing to edit package prices.</p>
         )}
-      </form>
-
-      <form action={monthlyAction} className="mt-4 space-y-3 rounded-lg bg-black/[0.03] p-3">
-        <input type="hidden" name={csrfFieldName} value={csrfToken} />
-        <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-          <label className="text-sm font-semibold text-black/65">
-            Month
-            <input name="month" type="month" defaultValue={dateKey.slice(0, 7)} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
-          </label>
-          <label className="text-sm font-semibold text-black/65">
-            Price
-            <input key={rateListing?.id ?? "monthly-rate"} name="rate" type="number" min={1} max={1000000} step={1} defaultValue={rateListing?.pricePerNight ?? ""} placeholder="Monthly price" required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
-          </label>
-        </div>
-        {monthlyState.message ? <FormMessage state={monthlyState} /> : null}
-        <RateCalendarSubmitButton label="Save monthly price" pendingLabel="Saving..." />
       </form>
 
       <form action={selectedDateAction} className="mt-3 space-y-3 rounded-lg bg-black/[0.03] p-3">
