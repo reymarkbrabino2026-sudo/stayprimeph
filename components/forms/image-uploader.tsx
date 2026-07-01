@@ -142,16 +142,16 @@ export function ImageUploader({
   }
 
   return (
-    <div className="rounded-[1.5rem] bg-white p-5 soft-card">
+    <div className="rounded-[1.35rem] border border-black/10 bg-white p-4 shadow-[0_14px_45px_rgba(53,31,8,0.07)] sm:p-5" data-listing-error-target="photoUrls">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Photos</h3>
+          <h3 className="text-lg font-bold text-[#21170f]">Photos</h3>
           <p className="mt-1 text-sm text-black/55">{photos.length} of {maxPhotos} uploaded</p>
         </div>
         <button
           type="button"
           onClick={() => listingId ? inputRef.current?.click() : window.alert("Save the listing first, then add photos.")}
-          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#21170f] px-4 text-sm font-semibold text-white"
+          className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#21170f] px-4 text-sm font-semibold text-white transition hover:bg-[#083f35] focus:outline-none focus:ring-4 focus:ring-[#083f35]/20"
         >
           <ImagePlus className="size-4" aria-hidden="true" />
           Add photos
@@ -163,15 +163,23 @@ export function ImageUploader({
           <button
             type="button"
             onClick={() => listingId ? inputRef.current?.click() : window.alert("Save the listing first, then add photos.")}
-            className="grid min-h-44 place-items-center rounded-[1.25rem] border border-dashed bg-[#fbfaf8] text-sm font-semibold text-black/55"
+            className="grid min-h-52 place-items-center rounded-[1.25rem] border border-dashed border-black/20 bg-[#fbfaf8] text-sm font-semibold text-black/55 transition hover:border-[#083f35]/40 hover:bg-white"
           >
-            Add listing photos
+            <span className="grid place-items-center gap-3">
+              <ImagePlus className="size-8 text-[#083f35]" aria-hidden="true" />
+              Add listing photos
+            </span>
           </button>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-1">
             {photos.map((photo, index) => (
-              <article key={`${photo.id}-${photo.url}`} className="grid gap-3 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3 sm:grid-cols-[112px_1fr]">
-                <button type="button" onClick={() => setPreview(photo)} className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04]">
+              <article key={`${photo.id}-${photo.url}`} className="grid gap-3 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3 shadow-sm sm:grid-cols-[112px_1fr]">
+                <button
+                  type="button"
+                  onClick={() => setPreview(photo)}
+                  className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04] outline-none transition focus:ring-4 focus:ring-[#083f35]/15"
+                  aria-label={`Preview ${photo.name}`}
+                >
                   {isRenderableImage(photo.url) ? (
                     <Image src={photo.url} alt={photo.name} fill sizes="112px" className="object-cover" unoptimized />
                   ) : (
@@ -188,22 +196,22 @@ export function ImageUploader({
                 </button>
                 <div className="flex min-w-0 flex-col justify-between gap-3">
                   <div>
-                    <p className="truncate text-sm font-semibold">{index === 0 ? "Shown first on your listing" : photo.name}</p>
-                    <p className="mt-1 text-xs text-black/45">Photo {index + 1}</p>
+                    <p className="truncate text-sm font-bold text-[#21170f]">{index === 0 ? "Shown first on your listing" : photo.name}</p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Photo {index + 1}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, -1))} disabled={index === 0} className="inline-grid size-9 place-items-center rounded-full border border-black/10 disabled:opacity-40" aria-label={`Move ${photo.name} earlier`} title="Move earlier">
+                    <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, -1))} disabled={index === 0} className="inline-grid size-11 place-items-center rounded-full border border-black/10 bg-white transition hover:border-black/20 disabled:opacity-40" aria-label={`Move ${photo.name} earlier`} title="Move earlier">
                       <ArrowUp className="size-4" aria-hidden="true" />
                     </button>
-                    <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, 1))} disabled={index === photos.length - 1} className="inline-grid size-9 place-items-center rounded-full border border-black/10 disabled:opacity-40" aria-label={`Move ${photo.name} later`} title="Move later">
+                    <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, 1))} disabled={index === photos.length - 1} className="inline-grid size-11 place-items-center rounded-full border border-black/10 bg-white transition hover:border-black/20 disabled:opacity-40" aria-label={`Move ${photo.name} later`} title="Move later">
                       <ArrowDown className="size-4" aria-hidden="true" />
                     </button>
                     {index !== 0 ? (
-                      <button type="button" onClick={() => setPhotos((current) => [photo, ...current.filter((item) => item !== photo)])} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-black/10 px-3 text-xs font-semibold">
+                      <button type="button" onClick={() => setPhotos((current) => [photo, ...current.filter((item) => item !== photo)])} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 bg-white px-3 text-xs font-semibold transition hover:border-[#083f35]/30">
                         <Star className="size-3" aria-hidden="true" /> Make hero
                       </button>
                     ) : null}
-                    <button type="button" onClick={() => setPhotos((current) => current.filter((item) => item !== photo))} className="inline-grid size-9 place-items-center rounded-full border border-black/10 text-rose-700" aria-label={`Delete ${photo.name}`} title="Delete photo">
+                    <button type="button" onClick={() => setPhotos((current) => current.filter((item) => item !== photo))} className="inline-grid size-11 place-items-center rounded-full border border-rose-100 bg-white text-rose-700 transition hover:bg-rose-50" aria-label={`Delete ${photo.name}`} title="Delete photo">
                       <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </div>
@@ -239,7 +247,7 @@ export function ImageUploader({
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-3xl overflow-hidden rounded-[1.5rem] bg-white">
             <div className="flex justify-end p-3">
-              <button type="button" onClick={() => setPreview(null)} className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold">Close</button>
+              <button type="button" onClick={() => setPreview(null)} className="min-h-11 rounded-full border border-black/10 px-5 text-sm font-semibold transition hover:bg-black/[0.04]">Close</button>
             </div>
             <div className="relative aspect-[4/3] bg-black/[0.03]">
               {isRenderableImage(preview.url) ? <Image src={preview.url} alt={preview.name} fill className="object-contain" unoptimized /> : null}

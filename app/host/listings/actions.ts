@@ -229,8 +229,114 @@ const listingFormSchema = z.object({
   rules: z.array(z.string().trim().max(120)).max(30).optional(),
 });
 
+export type ListingFormState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  fieldErrors?: Record<string, string>;
+  updatedAt?: number;
+};
+
 type HostListingDraftSaveInput = z.infer<typeof hostListingDraftSaveSchema>;
 const roomCapacityFormSchema = z.coerce.number().int().min(1).max(100);
+
+const listingFieldLabels: Record<string, string> = {
+  id: "Listing",
+  title: "Title",
+  description: "Description",
+  virtualTourUrl: "Virtual tour URL",
+  listingVideoUrl: "Listing video link",
+  address: "Address",
+  city: "City",
+  country: "Country",
+  propertyType: "Property type",
+  pricePerNight: "Price per night",
+  weekendPrice: "Weekend price",
+  cleaningFee: "Cleaning fee",
+  securityDeposit: "Security deposit",
+  currency: "Currency",
+  bookingType: "Booking type",
+  holidayPrice: "Holiday price",
+  holidayDates: "Holiday dates",
+  bedrooms: "Bedrooms",
+  bathrooms: "Bathrooms",
+  maxGuests: "Guests",
+  amenities: "Amenities",
+  rules: "House rules",
+  photoUrls: "Photos",
+};
+
+class ListingFormSubmissionError extends Error {
+  fieldErrors: Record<string, string>;
+
+  constructor(message: string, fieldErrors: Record<string, string> = {}) {
+    super(message);
+    this.name = "ListingFormSubmissionError";
+    this.fieldErrors = fieldErrors;
+  }
+}
+
+function listingFormInput(formData: FormData) {
+  return {
+    id: formData.get("id"),
+    title: formData.get("title"),
+    description: formData.get("description"),
+    virtualTourUrl: formData.get("virtualTourUrl"),
+    listingVideoUrl: formData.get("listingVideoUrl"),
+    address: formData.get("address"),
+    city: formData.get("city"),
+    country: formData.get("country"),
+    propertyType: formData.get("propertyType"),
+    pricePerNight: formData.get("pricePerNight"),
+    weekendPrice: formData.get("weekendPrice") || "0",
+    cleaningFee: formData.get("cleaningFee") || "0",
+    securityDeposit: formData.get("securityDeposit") || "0",
+    currency: formData.get("currency") || "PHP",
+    bookingType: formData.get("bookingType") || "stay",
+    holidayPrice: formData.get("holidayPrice") || "0",
+    holidayDates: csvDateKeys(formData.get("holidayDates")),
+    bedrooms: formData.get("bedrooms"),
+    bathrooms: formData.get("bathrooms"),
+    maxGuests: formData.get("maxGuests"),
+    amenities: submittedAmenityValues(formData),
+    rules: submittedRuleValues(formData),
+  };
+}
+
+function listingIssueMessage(fieldName: string, issue: { message: string }) {
+  const label = listingFieldLabels[fieldName] ?? "This field";
+  const message = issue.message.toLowerCase();
+
+  if (message.includes("required") || message.includes("too small") || message.includes("expected string to have >=1")) {
+    return `${label} is required.`;
+  }
+  if (message.includes("too big") || message.includes("at most")) {
+    return `${label} is too long.`;
+  }
+  if (message.includes("invalid") || message.includes("valid")) {
+    return `${label} is invalid.`;
+  }
+
+  return `${label}: ${issue.message}`;
+}
+
+function listingFieldErrors(error: z.ZodError) {
+  const fieldErrors: Record<string, string> = {};
+
+  for (const issue of error.issues) {
+    const fieldName = String(issue.path[0] ?? "form");
+    if (!fieldErrors[fieldName]) fieldErrors[fieldName] = listingIssueMessage(fieldName, issue);
+  }
+
+  return fieldErrors;
+}
+
+function isNextRedirectError(error: unknown) {
+  return typeof error === "object"
+    && error !== null
+    && "digest" in error
+    && typeof (error as { digest?: unknown }).digest === "string"
+    && (error as { digest: string }).digest.startsWith("NEXT_REDIRECT");
+}
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -287,7 +393,11 @@ function submittedRooms(formData: FormData, existing: Property) {
     if (submittedCapacity === null) return room;
 
     const parsedCapacity = roomCapacityFormSchema.safeParse(submittedCapacity);
-    if (!parsedCapacity.success) throw new Error("Room pax must be between 1 and 100.");
+    if (!parsedCapacity.success) {
+      throw new ListingFormSubmissionError("Room pax must be between 1 and 100.", {
+        [`roomCapacity:${room.id}`]: `${room.name} pax must be between 1 and 100.`,
+      });
+    }
 
     return { ...room, capacity: parsedCapacity.data };
   });
@@ -393,7 +503,9 @@ function readSubmittedImages(formData: FormData, existing: Property, userId: str
       cloudName: env.CLOUDINARY_CLOUD_NAME,
     });
     if (!retainedExistingPhoto && !uploadedForThisListing) {
-      throw new Error("Listing photos must be uploaded through StayPrimePH before saving.");
+      throw new ListingFormSubmissionError("Listing photos must be uploaded through StayPrimePH before saving.", {
+        photoUrls: "Listing photos must be uploaded through StayPrimePH before saving.",
+      });
     }
   }
 
@@ -733,37 +845,19 @@ export async function createListing(formData: FormData) {
   redirect("/host/listings");
 }
 
-export async function updateListing(formData: FormData) {
+async function persistListingUpdate(formData: FormData) {
   const user = await requireHost("Only hosts can edit listings.");
   await assertValidCsrfForm(formData);
-  const parsed = listingFormSchema.safeParse({
-    id: formData.get("id"),
-    title: formData.get("title"),
-    description: formData.get("description"),
-    virtualTourUrl: formData.get("virtualTourUrl"),
-    listingVideoUrl: formData.get("listingVideoUrl"),
-    address: formData.get("address"),
-    city: formData.get("city"),
-    country: formData.get("country"),
-    propertyType: formData.get("propertyType"),
-    pricePerNight: formData.get("pricePerNight"),
-    weekendPrice: formData.get("weekendPrice") || "0",
-    cleaningFee: formData.get("cleaningFee") || "0",
-    securityDeposit: formData.get("securityDeposit") || "0",
-    currency: formData.get("currency") || "PHP",
-    bookingType: formData.get("bookingType") || "stay",
-    holidayPrice: formData.get("holidayPrice") || "0",
-    holidayDates: csvDateKeys(formData.get("holidayDates")),
-    bedrooms: formData.get("bedrooms"),
-    bathrooms: formData.get("bathrooms"),
-    maxGuests: formData.get("maxGuests"),
-    amenities: submittedAmenityValues(formData),
-    rules: submittedRuleValues(formData),
-  });
-  if (!parsed.success || !parsed.data.id) throw new Error("Please complete all required listing fields.");
+  const parsed = listingFormSchema.safeParse(listingFormInput(formData));
+  if (!parsed.success) {
+    throw new ListingFormSubmissionError("Please fix the highlighted fields before saving.", listingFieldErrors(parsed.error));
+  }
+  if (!parsed.data.id) {
+    throw new ListingFormSubmissionError("Listing not found.", { id: "Listing not found." });
+  }
 
   const existing = await getPropertyById(parsed.data.id);
-  if (!existing || existing.hostId !== user.id) throw new Error("Listing not found.");
+  if (!existing || existing.hostId !== user.id) throw new ListingFormSubmissionError("Listing not found.", { id: "Listing not found." });
 
   const weekendPrice = parsed.data.weekendPrice && parsed.data.weekendPrice > 0
     ? parsed.data.weekendPrice
@@ -819,7 +913,43 @@ export async function updateListing(formData: FormData) {
   revalidatePath(`/host/listings/${nextProperty.id}`);
   revalidatePath(`/property/${nextProperty.slug}`);
   revalidatePath(`/rooms/${nextProperty.id}`);
+  return nextProperty;
+}
+
+export async function updateListing(formData: FormData) {
+  const nextProperty = await persistListingUpdate(formData);
   redirect(`/host/listings/${nextProperty.id}?updated=1`);
+}
+
+export async function updateListingWithFeedback(_state: ListingFormState, formData: FormData): Promise<ListingFormState> {
+  try {
+    await persistListingUpdate(formData);
+    return {
+      status: "success",
+      message: "Listing updated successfully.",
+      fieldErrors: {},
+      updatedAt: Date.now(),
+    };
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+
+    if (error instanceof ListingFormSubmissionError) {
+      return {
+        status: "error",
+        message: error.message,
+        fieldErrors: error.fieldErrors,
+        updatedAt: Date.now(),
+      };
+    }
+
+    logger.warn("listing_update_failed", { error });
+    return {
+      status: "error",
+      message: "We couldn't save your changes. Please try again.",
+      fieldErrors: {},
+      updatedAt: Date.now(),
+    };
+  }
 }
 
 export async function deleteListing(formData: FormData) {

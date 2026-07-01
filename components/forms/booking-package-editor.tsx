@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BookingPackage, BookingPackageUnit, Property, PropertyRoom } from "@/lib/types";
 
 const maxBookingPackages = 8;
+const packageInputClassName =
+  "min-h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10";
 
 type EditablePackage = {
   id: string;
@@ -158,7 +160,7 @@ function newPackage(property: Property, displayOrder: number): EditablePackage {
   };
 }
 
-export function BookingPackageEditor({ property, formId }: { property: Property; formId: string }) {
+export function BookingPackageEditor({ property, formId, hideTitle = false }: { property: Property; formId: string; hideTitle?: boolean }) {
   const initialPackages = useMemo(
     () => [...(property.bookingPackages ?? [])]
       .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || a.name.localeCompare(b.name))
@@ -183,62 +185,65 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Booking packages</h3>
-          <p className="mt-1 text-xs text-black/45">{packages.length}/{maxBookingPackages} packages</p>
+          {hideTitle ? null : <h3 className="font-bold text-[#21170f]">Booking packages</h3>}
+          <p className={hideTitle ? "text-sm font-semibold text-black/60" : "mt-1 text-sm text-black/55"}>{packages.length}/{maxBookingPackages} packages</p>
         </div>
         <button
           type="button"
           onClick={addPackage}
           disabled={!canAddPackage}
-          className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28] disabled:cursor-not-allowed disabled:bg-black/20"
+          className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28] focus:outline-none focus:ring-4 focus:ring-[#083f35]/20 disabled:cursor-not-allowed disabled:bg-black/20"
         >
           <Plus size={16} aria-hidden="true" />
           Add package
         </button>
       </div>
 
-      <div className="mt-3 grid gap-3">
+      <div className="mt-4 grid gap-4">
         {packages.length ? packages.map((pkg) => (
-          <div key={pkg.id} className="rounded-2xl bg-[#fbf7f2] p-4 text-sm">
+          <div key={pkg.id} className="rounded-[1.25rem] border border-black/10 bg-[#fbf7f2] p-4 text-sm shadow-sm">
             <PackageHiddenFields pkg={pkg} formId={formId} />
-            <div className="flex items-start justify-between gap-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <label className="min-w-0 flex-1">
-                <span className="sr-only">Package name</span>
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-black/45">Package name</span>
                 <input
                   form={formId}
                   name="bookingPackageName"
                   value={pkg.name}
                   maxLength={80}
                   onChange={(event) => updatePackage(pkg.id, { name: event.target.value })}
-                  className="min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 font-semibold outline-none transition focus:border-black"
+                  className={`${packageInputClassName} font-semibold`}
                   placeholder="Package name"
                   required
                 />
               </label>
-              <select
-                form={formId}
-                name="bookingPackageEnabled"
-                value={pkg.enabled ? "true" : "false"}
-                onChange={(event) => {
-                  const enabled = event.target.value === "true";
-                  updatePackage(pkg.id, { enabled, status: enabled ? "active" : "inactive" });
-                }}
-                className="h-10 shrink-0 rounded-full border border-black/10 bg-white px-3 text-xs font-semibold text-black/60"
-              >
-                <option value="true">Enabled</option>
-                <option value="false">Off</option>
-              </select>
+              <label>
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-black/45">Status</span>
+                <select
+                  form={formId}
+                  name="bookingPackageEnabled"
+                  value={pkg.enabled ? "true" : "false"}
+                  onChange={(event) => {
+                    const enabled = event.target.value === "true";
+                    updatePackage(pkg.id, { enabled, status: enabled ? "active" : "inactive" });
+                  }}
+                  className="h-11 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-black/70 outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10"
+                >
+                  <option value="true">Enabled</option>
+                  <option value="false">Off</option>
+                </select>
+              </label>
             </div>
 
             <label className="mt-2 block">
-              <span className="sr-only">Guest access</span>
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-black/45">Guest access</span>
               <input
                 form={formId}
                 name="bookingPackageAccessType"
                 value={pkg.accessType}
                 maxLength={120}
                 onChange={(event) => updatePackage(pkg.id, { accessType: event.target.value })}
-                className="min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-black/65 outline-none transition focus:border-black"
+                className={`${packageInputClassName} text-black/70`}
                 placeholder="Guest access"
                 required
               />
@@ -251,13 +256,13 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
               <PackageNumberField formId={formId} label="Sleeps" name="bookingPackageSleepingCapacity" value={pkg.sleepingCapacity} min={0} onChange={(sleepingCapacity) => updatePackage(pkg.id, { sleepingCapacity })} />
               <PackageNumberField formId={formId} label="Hours" name="bookingPackageDurationHours" value={pkg.durationHours} min={1} onChange={(durationHours) => updatePackage(pkg.id, { durationHours })} />
               <label>
-                <span className="mb-1 block text-xs text-black/45">Unit</span>
+                <span className="mb-2 block text-xs font-semibold text-black/50">Unit</span>
                 <select
                   form={formId}
                   name="bookingPackageUnit"
                   value={pkg.unit}
                   onChange={(event) => updatePackage(pkg.id, { unit: event.target.value as BookingPackageUnit })}
-                  className="min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 outline-none transition focus:border-black"
+                  className={packageInputClassName}
                 >
                   <option value="night">Night</option>
                   <option value="day">Day</option>
@@ -278,7 +283,7 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
             />
           </div>
         )) : (
-          <div className="rounded-2xl bg-[#fbf7f2] p-4 text-sm text-black/55">
+          <div className="rounded-2xl border border-black/10 bg-[#fbf7f2] p-4 text-sm text-black/55">
             No booking packages yet. Use Add package to create one for guests.
           </div>
         )}
@@ -331,8 +336,8 @@ function PackageAmenityChecklist({
   const selectedKeys = new Set(csvTextValues(selectedAmenities).map(normalizeListValue));
 
   return (
-    <fieldset className="mt-3 rounded-xl border border-black/10 bg-white/70 p-3">
-      <legend className="px-1 text-xs text-black/45">Amenities</legend>
+    <fieldset className="mt-3 rounded-xl border border-black/10 bg-white/75 p-3">
+      <legend className="px-1 text-xs font-semibold text-black/50">Amenities</legend>
       {amenities.length ? (
         <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto pr-1">
           {amenities.map((amenity) => {
@@ -340,7 +345,7 @@ function PackageAmenityChecklist({
             return (
               <label
                 key={amenity}
-                className={`inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                   checked
                     ? "border-[#083f35] bg-[#083f35] text-white"
                     : "border-black/10 bg-white text-black/65 hover:border-black/25 hover:text-black"
@@ -402,7 +407,7 @@ function PackageRoomDropdown({
     <div className="mt-3">
       <span className="mb-1 block text-xs text-black/45">Rooms</span>
       <details className="group relative">
-        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition hover:border-black/20 focus-visible:border-black [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition hover:border-black/20 focus-visible:border-[#083f35] focus-visible:ring-4 focus-visible:ring-[#083f35]/10 [&::-webkit-details-marker]:hidden">
           <span className="truncate">{selectedRoomSummary(rooms, selectedRoomIds)}</span>
           <ChevronDown size={16} className="shrink-0 text-black/45 transition group-open:rotate-180" aria-hidden="true" />
         </summary>
@@ -471,7 +476,7 @@ function PackageNumberField({
 
   return (
     <label>
-      <span className="mb-1 block text-xs text-black/45">{label}</span>
+      <span className="mb-2 block text-xs font-semibold text-black/50">{label}</span>
       <input
         form={formId}
         name={name}
@@ -494,7 +499,7 @@ function PackageNumberField({
           setInputValue(nextValue);
           if (nextValue.trim() === "" || Number.isFinite(numericValue)) onChange(numericValue);
         }}
-        className="min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 outline-none transition focus:border-black"
+        className={packageInputClassName}
       />
     </label>
   );
