@@ -12,7 +12,7 @@ import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getCsrfToken } from "@/lib/csrf";
-import { getProperties } from "@/lib/properties";
+import { getPropertiesForHost } from "@/lib/properties";
 import { getUsers } from "@/lib/users";
 
 export default async function HostCalendarPage() {
@@ -21,12 +21,18 @@ export default async function HostCalendarPage() {
 
 export async function HostCalendarScreen({ active = "Calendar" }: { active?: string }) {
   const user = await getCurrentUser();
-  const [bookings, properties, users, availabilityBlocks, csrfToken] = await Promise.all([getBookings(), getProperties(), getUsers(), getAvailabilityBlocks(), getCsrfToken()]);
-  const hostListings = properties.filter((property) => property.hostId === user?.id);
+  const [bookings, hostListings, users, availabilityBlocks, csrfToken] = await Promise.all([
+    getBookings(),
+    user ? getPropertiesForHost(user.id) : Promise.resolve([]),
+    getUsers(),
+    getAvailabilityBlocks(),
+    getCsrfToken(),
+  ]);
+  const visibleListingIds = new Set(hostListings.map((property) => property.id));
   const hostBookings = bookings
-    .filter((booking) => booking.hostId === user?.id)
+    .filter((booking) => booking.hostId === user?.id && visibleListingIds.has(booking.propertyId))
     .map((booking) => {
-      const property = properties.find((item) => item.id === booking.propertyId);
+      const property = hostListings.find((item) => item.id === booking.propertyId);
       const guest = users.find((item) => item.id === booking.guestId);
 
       return {
@@ -67,7 +73,7 @@ export async function HostCalendarScreen({ active = "Calendar" }: { active?: str
           .map((block) => ({
             id: block.id,
             propertyId: block.propertyId,
-            propertyTitle: properties.find((property) => property.id === block.propertyId)?.title ?? "Property",
+            propertyTitle: hostListings.find((property) => property.id === block.propertyId)?.title ?? "Property",
             date: block.date,
             reason: block.reason,
             note: block.note,

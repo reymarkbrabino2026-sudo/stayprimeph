@@ -94,7 +94,7 @@ async function requireHostForAvailability() {
 async function requireHostProperty(propertyId: string) {
   const user = await requireHostForAvailability();
   const property = await getPropertyById(propertyId);
-  if (!property || property.hostId !== user.id) throw new Error("Choose one of your listings.");
+  if (!property || property.hostId !== user.id || property.status === "deleted") throw new Error("Choose one of your listings.");
   return property;
 }
 
@@ -147,7 +147,7 @@ export async function blockHostAvailability(_state: AvailabilityFormState, formD
 
   const { propertyId, checkIn, checkOut, reason, note } = parsed.data;
   const property = await getPropertyById(propertyId);
-  if (!property || property.hostId !== user.id) return { status: "error", message: "Choose one of your listings." };
+  if (!property || property.hostId !== user.id || property.status === "deleted") return { status: "error", message: "Choose one of your listings." };
 
   const checkInTime = dateTime(checkIn);
   const checkOutTime = dateTime(checkOut);

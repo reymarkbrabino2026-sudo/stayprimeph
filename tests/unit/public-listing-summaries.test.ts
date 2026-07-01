@@ -83,4 +83,15 @@ describe("getPropertiesForHost", () => {
 
     expect(listings.map((listing) => listing.id)).toEqual(["new", "old"]);
   });
+
+  it("hides soft-deleted host listings from host-facing selectors", async () => {
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([
+      property({ id: "visible", hostId: "host-1", slug: "visible", status: "approved", createdAt: "2026-06-20" }),
+      property({ id: "deleted", hostId: "host-1", slug: "deleted", status: "deleted", createdAt: "2026-07-01" }),
+    ]);
+
+    const listings = await getPropertiesForHost("host-1");
+
+    expect(listings.map((listing) => listing.id)).toEqual(["visible"]);
+  });
 });
