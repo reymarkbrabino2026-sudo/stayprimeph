@@ -3,6 +3,7 @@ import { FooterPage } from "@/components/home/footer-page";
 import { SiteFooter } from "@/components/home/site-footer";
 import { Navbar } from "@/components/public/navbar";
 import { HelpCenterPage } from "@/components/support/help-center-page";
+import { UserGuidePage } from "@/components/support/user-guide-page";
 import { footerPages } from "@/lib/home-data";
 
 export default async function SupportPage({
@@ -20,7 +21,13 @@ export default async function SupportPage({
   return (
     <>
       <Navbar />
-      {slug === "help-center" ? <HelpCenterPage searchParams={query} /> : <FooterPage page={page} />}
+      {slug === "help-center" ? (
+        <HelpCenterPage searchParams={query} />
+      ) : slug === "user-guide" ? (
+        <UserGuidePage />
+      ) : (
+        <FooterPage page={page} />
+      )}
       <SiteFooter />
     </>
   );

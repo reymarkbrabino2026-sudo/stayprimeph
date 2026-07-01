@@ -66,6 +66,7 @@ export const footerColumns = [
     title: "Support",
     links: [
       { label: "Guest support desk", href: "/support/help-center" },
+      { label: "User guide", href: "/support/user-guide" },
       { label: "Report a stay concern", href: "/support/safety" },
       { label: "Trip assurance", href: "/support/aircover" },
       { label: "Travel protection basics", href: "/support/travel-insurance" },
@@ -124,6 +125,16 @@ export const footerPages: Record<string, Record<string, FooterPage>> = {
         { title: "When timing matters", body: "Use the concern-reporting page for active stay issues so the right review queue receives the details first." },
       ],
       cta: { label: "View your trips", href: "/guest/bookings" },
+    },
+    "user-guide": {
+      eyebrow: "Support",
+      title: "User guide",
+      intro: "Step-by-step guidance for guests, hosts, and admins using StayPrimePH.",
+      sections: [
+        { title: "Linked steps", body: "Every step in this guide includes a direct link to the app page where the user can complete that action." },
+        { title: "Common struggles covered", body: "The guide covers registration, login, search, booking, payments, dashboards, listing setup, account settings, admin review, and support escalation." },
+      ],
+      cta: { label: "Open user guide", href: "/support/user-guide" },
     },
     safety: {
       eyebrow: "Support",
