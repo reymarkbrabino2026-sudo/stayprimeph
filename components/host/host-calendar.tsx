@@ -1141,6 +1141,7 @@ function AvailabilityBlockForm({
         </div>
         <select name="reason" defaultValue="booked_elsewhere" className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
           <option value="booked_elsewhere">Booked on another platform</option>
+          <option value="booked_by_guest">Booked by guest</option>
           <option value="owner_use">Booked by owner (no pay)</option>
           <option value="maintenance">Maintenance</option>
           <option value="other">Other</option>
@@ -1418,6 +1419,8 @@ function formatBlockReason(reason: AvailabilityBlockReason) {
   switch (reason) {
     case "booked_elsewhere":
       return "Booked on another platform";
+    case "booked_by_guest":
+      return "Booked by guest";
     case "owner_use":
       return "Booked by owner (no pay)";
     case "maintenance":

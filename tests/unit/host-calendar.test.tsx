@@ -66,6 +66,12 @@ function renderCalendar(overrides: Partial<HostCalendarProps> = {}) {
 }
 
 describe("HostCalendar", () => {
+  test("offers booked by guest as an unavailable reason", () => {
+    renderCalendar();
+
+    expect(screen.getByRole("option", { name: "Booked by guest" })).toHaveValue("booked_by_guest");
+  });
+
   test("shows calendar prices for the selected package", async () => {
     const user = userEvent.setup();
     const premiumPackage = {

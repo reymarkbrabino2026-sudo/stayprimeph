@@ -5,7 +5,7 @@ export type ListingStatus = "approved" | "pending" | "rejected" | "draft" | "del
 export type BookingStatus = "confirmed" | "pending" | "cancelled" | "completed";
 export type PaymentMethod = "stripe" | "gcash" | "bank_transfer" | "other";
 export type PaymentStatus = "paid" | "partially_paid" | "pending" | "submitted" | "rejected" | "refunded";
-export type AvailabilityBlockReason = "booked_elsewhere" | "owner_use" | "maintenance" | "other";
+export type AvailabilityBlockReason = "booked_elsewhere" | "booked_by_guest" | "owner_use" | "maintenance" | "other";
 export type ListingBookingType = "stay" | "package" | "both";
 export type ListingRateAdjustmentType = "monthly" | "custom" | "discount";
 

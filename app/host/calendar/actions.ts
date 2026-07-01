@@ -25,7 +25,7 @@ export type AvailabilityFormState = {
 
 export type RateCalendarFormState = AvailabilityFormState;
 
-const availabilityReasons = ["booked_elsewhere", "owner_use", "maintenance", "other"] as const;
+const availabilityReasons = ["booked_elsewhere", "booked_by_guest", "owner_use", "maintenance", "other"] as const;
 const selectedDateRateTypes = ["custom_price", "percent_discount"] as const;
 
 const blockAvailabilitySchema = z.object({

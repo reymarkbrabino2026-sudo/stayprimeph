@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   createAvailabilityBlocks: vi.fn(),
   deleteAvailabilityBlock: vi.fn(),
   getAvailabilityBlocks: vi.fn(async () => []),
-  getBlockedDateKeys: vi.fn(() => []),
+  getBlockedDateKeys: vi.fn((): string[] => []),
   getBookings: vi.fn(async () => []),
   getPropertyById: vi.fn(),
   hasAvailabilityBlockConflict: vi.fn(() => false),
@@ -79,7 +79,7 @@ vi.mock("@/lib/request-safety", () => ({
   assertTrustedRequestOrigin: mocks.assertTrustedRequestOrigin,
 }));
 
-import { saveBookingPackageRates } from "@/app/host/calendar/actions";
+import { blockHostAvailability, saveBookingPackageRates } from "@/app/host/calendar/actions";
 
 const host: User = {
   id: "host-1",
@@ -150,6 +150,55 @@ function packageRatesForm(input: { propertyId: string; packageId: string; weekda
   formData.set("holidayRate", input.holidayRate);
   return formData;
 }
+
+function availabilityForm(input: { propertyId: string; checkIn: string; checkOut: string; reason: string; note?: string }) {
+  const formData = new FormData();
+  formData.set("csrfToken", "csrf-token");
+  formData.set("propertyId", input.propertyId);
+  formData.set("checkIn", input.checkIn);
+  formData.set("checkOut", input.checkOut);
+  formData.set("reason", input.reason);
+  if (input.note) formData.set("note", input.note);
+  return formData;
+}
+
+describe("blockHostAvailability", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireRole.mockResolvedValue(host);
+    mocks.getBookings.mockResolvedValue([]);
+    mocks.getAvailabilityBlocks.mockResolvedValue([]);
+    mocks.getBlockedDateKeys.mockReturnValue(["2026-07-04"]);
+    mocks.hasDateConflict.mockReturnValue(false);
+    mocks.hasAvailabilityBlockConflict.mockReturnValue(false);
+  });
+
+  it("saves booked by guest as an unavailable reason", async () => {
+    const caya = property();
+    mocks.getPropertyById.mockResolvedValue(caya);
+
+    const result = await blockHostAvailability(
+      { status: "idle", message: "" },
+      availabilityForm({
+        propertyId: caya.id,
+        checkIn: "2026-07-04",
+        checkOut: "2026-07-05",
+        reason: "booked_by_guest",
+        note: "Walk-in guest",
+      }),
+    );
+
+    expect(result).toEqual({ status: "success", message: "1 night marked unavailable." });
+    expect(mocks.createAvailabilityBlocks).toHaveBeenCalledWith([
+      expect.objectContaining({
+        propertyId: caya.id,
+        date: "2026-07-04",
+        reason: "booked_by_guest",
+        note: "Walk-in guest",
+      }),
+    ]);
+  });
+});
 
 describe("saveBookingPackageRates", () => {
   beforeEach(() => {
