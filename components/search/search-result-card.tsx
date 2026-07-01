@@ -3,6 +3,7 @@ import { Bath, BedDouble, Star, Trophy } from "lucide-react";
 import { CardImageCarousel } from "@/components/search/card-image-carousel";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, nightsBetweenDateKeys } from "@/lib/pricing";
+import { getPropertyTypeLabel } from "@/lib/property-types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import type { ListingDiscounts, PublicListingSummary } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -12,14 +13,6 @@ type DisplayDiscount = {
   percent: number;
   amount: number;
 };
-
-function toTitleCase(value: string) {
-  return value
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
 
 function pluralize(value: number, singular: string) {
   return `${value} ${singular}${value === 1 ? "" : "s"}`;
@@ -31,7 +24,7 @@ function ratingLabel(rating: number) {
 }
 
 function listingLabel(property: PublicListingSummary) {
-  const type = toTitleCase(property.propertyType || "Home");
+  const type = getPropertyTypeLabel(property.propertyType, "Home");
   const location = property.city || formatPropertyLocation(property);
   return location ? `${type} in ${location}` : type;
 }

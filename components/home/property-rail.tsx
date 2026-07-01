@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import { calculateGuestPriceWithMarkup } from "@/lib/pricing";
+import { getPropertyTypeLabel } from "@/lib/property-types";
 import { destinationHrefForLocation } from "@/lib/seo-location-links";
 import type { PublicListingSummary } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -14,16 +15,8 @@ function isRenderableImage(src?: string) {
   return Boolean(src && (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://")));
 }
 
-function toTitleCase(value: string) {
-  return value
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function listingLabel(property: PublicListingSummary) {
-  const type = toTitleCase(property.propertyType || "Home");
+  const type = getPropertyTypeLabel(property.propertyType, "Home");
   const location = property.city || property.country;
   return location ? `${type} in ${location}` : property.title;
 }

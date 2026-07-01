@@ -18,6 +18,7 @@ import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { normalizeListingVideoUrl } from "@/lib/listing-video";
 import { logger } from "@/lib/logger";
 import { calculateDefaultWeekendPrice } from "@/lib/pricing";
+import { getPropertyTypeId } from "@/lib/property-types";
 import { getPropertyById, revalidatePublicListingSummaries } from "@/lib/properties";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import { isIntendedListingPhotoUrl } from "@/lib/upload-paths";
@@ -213,7 +214,7 @@ const listingFormSchema = z.object({
   address: z.string().trim().min(1).max(240),
   city: z.string().trim().min(1).max(80),
   country: z.string().trim().min(1).max(80),
-  propertyType: z.string().trim().min(1).max(80),
+  propertyType: z.string().trim().min(1).max(80).transform((value) => getPropertyTypeId(value, value)),
   pricePerNight: moneyFormValue(1, 1000000),
   weekendPrice: moneyFormValue(0, 1000000).optional(),
   cleaningFee: moneyFormValue(0, 1000000),
@@ -761,7 +762,7 @@ export async function createListing(formData: FormData) {
     address: formData.get("address"),
     city: formData.get("city"),
     country: formData.get("country"),
-    propertyType: formData.get("propertyType") || "House",
+    propertyType: formData.get("propertyType") || "house",
     pricePerNight: formData.get("pricePerNight"),
     weekendPrice: formData.get("weekendPrice") || "0",
     cleaningFee: formData.get("cleaningFee") || "0",

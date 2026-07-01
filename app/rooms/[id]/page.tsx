@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Mountain,
   ParkingCircle,
+  Palmtree,
   Quote,
   ShieldCheck,
   Siren,
@@ -55,6 +56,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForProperty } from "@/lib/bookings";
 import { getListingVideoEmbed } from "@/lib/listing-video";
 import { getPropertyById } from "@/lib/properties";
+import { getPropertyTypeIconName, getPropertyTypeLabel } from "@/lib/property-types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
 import { getReviewsForProperty } from "@/lib/reviews";
@@ -92,6 +94,10 @@ function amenityIcon(amenity: string) {
   if (value.includes("sun") || value.includes("deck") || value.includes("terrace") || value.includes("balcony")) return Sun;
   if (value.includes("workspace") || value.includes("work")) return ListChecks;
   return House;
+}
+
+function propertyTypeIcon(propertyType: string) {
+  return getPropertyTypeIconName(propertyType) === "palmtree" ? Palmtree : House;
 }
 
 export async function generateMetadata({
@@ -178,8 +184,9 @@ export default async function RoomPage({
   const placeParts = compactStrings([property.barangay, property.city, property.province, property.country]);
   const cityLabel = property.city || property.province || property.country || "the Philippines";
   const areaLabel = placeParts.length ? placeParts.join(", ") : locationLabel;
-  const propertyTypeLabel = property.propertyType || "stay";
+  const propertyTypeLabel = getPropertyTypeLabel(property.propertyType, "stay");
   const lowerPropertyType = propertyTypeLabel.toLowerCase();
+  const PropertyTypeIcon = propertyTypeIcon(property.propertyType);
   const bedroomsLabel = `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"}`;
   const bathsLabel = `${property.bathrooms} bath${property.bathrooms === 1 ? "" : "s"}`;
   const nightlyLabel = formatGuestNightlyPriceRange(property);
@@ -195,7 +202,7 @@ export default async function RoomPage({
     { icon: Users, label: `${property.maxGuests} guests` },
     { icon: BedDouble, label: bedroomsLabel },
     { icon: Bath, label: bathsLabel },
-    { icon: House, label: propertyTypeLabel },
+    { icon: PropertyTypeIcon, label: propertyTypeLabel },
   ];
 
   const featureHighlights = [

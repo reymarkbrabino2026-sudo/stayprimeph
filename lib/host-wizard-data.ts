@@ -32,7 +32,7 @@ export const propertyTypes: WizardOption[] = [
   ["house", "House", "house"], ["apartment", "Apartment", "building-2"], ["cabin", "Cabin", "tent-tree"],
   ["villa", "Villa", "landmark"], ["tiny-home", "Tiny home", "home"], ["hotel", "Hotel", "hotel"],
   ["farm", "Farm", "tractor"], ["guesthouse", "Guesthouse", "door-open"], ["condo", "Condo", "building"],
-  ["resort", "Resort", "palmtree"], ["beach-house", "Beach house", "waves"], ["treehouse", "Treehouse", "tree-pine"],
+  ["private-resort", "Private Resort", "palmtree"], ["resort", "Resort", "palmtree"], ["beach-house", "Beach house", "waves"], ["treehouse", "Treehouse", "tree-pine"],
 ].map(([id, label, icon]) => ({ id, label, icon }));
 
 export const privacyTypes: WizardOption[] = [

@@ -9,6 +9,7 @@ import { ImageUploader } from "@/components/forms/image-uploader";
 import { createListing, updateListingWithFeedback, type ListingFormState } from "@/app/host/listings/actions";
 import { csrfFieldName } from "@/lib/csrf-fields";
 import { amenityGroups, propertyTypes } from "@/lib/host-wizard-data";
+import { getPropertyTypeId } from "@/lib/property-types";
 import type { ListingBookingType, Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -275,13 +276,13 @@ export function ListingForm({
             <span className="mb-2 block text-sm font-medium">Property type</span>
             <select
               name="propertyType"
-              defaultValue={property?.propertyType ?? "House"}
+              defaultValue={getPropertyTypeId(property?.propertyType, "house")}
               aria-invalid={Boolean(fieldError("propertyType"))}
               aria-describedby={fieldError("propertyType") ? fieldErrorId("propertyType") : undefined}
               className={controlClass("propertyType", "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
             >
               {propertyTypes.map((item) => (
-                <option key={item.id} value={item.label}>{item.label}</option>
+                <option key={item.id} value={item.id}>{item.label}</option>
               ))}
             </select>
             <FieldError id={fieldErrorId("propertyType")} message={fieldError("propertyType")} />

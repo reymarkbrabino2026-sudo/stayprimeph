@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { getCurrentUser } from "@/lib/auth";
 import { hostLinks } from "@/lib/navigation";
 import { getPropertiesForHost } from "@/lib/properties";
+import { getPropertyTypeLabel } from "@/lib/property-types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
@@ -60,9 +61,7 @@ export default async function HostListingsPage({ searchParams }: { searchParams:
           {properties.map((property, index) => {
             const cover = property.images[0]?.imageUrl;
             const createdAt = listingDateFormatter.format(new Date(property.createdAt));
-            const typeLabel = property.propertyType
-              ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1)
-              : "Stay";
+            const typeLabel = getPropertyTypeLabel(property.propertyType);
             return (
               <Link key={property.id} href={`/host/listings/${property.id}`} className="group block rounded-[1.5rem] bg-white p-4 soft-card transition hover:-translate-y-1">
                 <div className="relative aspect-[4/3] overflow-hidden rounded-[1.1rem] bg-gradient-to-br from-rose-100 via-orange-50 to-stone-100">

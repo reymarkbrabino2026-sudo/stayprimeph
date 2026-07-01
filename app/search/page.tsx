@@ -10,6 +10,7 @@ import { SearchResultCard } from "@/components/search/search-result-card";
 import { SearchResultsLayout } from "@/components/search/search-results-layout";
 import { propertyMatchesAmenityFilter } from "@/lib/amenity-filters";
 import { getPublicListingSummaries } from "@/lib/properties";
+import { getPropertyTypeId, getPropertyTypeLabel, propertyTypeMatches } from "@/lib/property-types";
 import { formatSearchLocationLabel, normalizePropertyLocationSearchQuery, propertyMatchesLocationSearch } from "@/lib/property-location";
 import { resolvePropertyCoordinates } from "@/lib/property-map";
 import type { PublicListingSummary } from "@/lib/types";
@@ -84,7 +85,7 @@ export default async function SearchPage({
     ? { lat: nearParts[0], lng: nearParts[1] }
     : null;
 
-  const typeFilter = query.type ?? "";
+  const typeFilter = getPropertyTypeId(query.type, "");
   const minPrice = Number(query.minPrice ?? "");
   const maxPrice = Number(query.maxPrice ?? "");
   const beds = Number(query.beds ?? "");
@@ -94,7 +95,7 @@ export default async function SearchPage({
     const matchesGuests = requestedGuests > 0 ? property.maxGuests >= requestedGuests : true;
     const matchesLocation = requestedNearby ? true : propertyMatchesLocationSearch(property, query.location);
     const matchesNearby = requestedNearby ? (nearPoint ? distanceKm(nearPoint, property) <= NEARBY_RADIUS_KM : false) : true;
-    const matchesType = typeFilter ? property.propertyType === typeFilter : true;
+    const matchesType = typeFilter ? propertyTypeMatches(property.propertyType, typeFilter) : true;
     const matchesMin = minPrice > 0 ? property.pricePerNight >= minPrice : true;
     const matchesMax = maxPrice > 0 ? property.pricePerNight <= maxPrice : true;
     const matchesBeds = beds > 0 ? property.bedrooms >= beds : true;
@@ -102,14 +103,14 @@ export default async function SearchPage({
     return matchesGuests && matchesLocation && matchesNearby && matchesType && matchesMin && matchesMax && matchesBeds && matchesAmenities;
   });
 
-  const typeLabels: Record<string, string> = {
-    house: "House", villa: "Villa", resort: "Resort", apartment: "Apartment", condo: "Condo",
-    cabin: "Cabin", "tiny-home": "Tiny home", hotel: "Hotel", farm: "Farm", guesthouse: "Guesthouse",
-  };
-  const availableTypes = Array.from(new Set(approved.map((property) => property.propertyType)))
-    .filter(Boolean)
-    .sort()
-    .map((value) => ({ value, label: typeLabels[value] ?? value.charAt(0).toUpperCase() + value.slice(1) }));
+  const availableTypes = Array.from(new Map(
+    approved
+      .map((property) => getPropertyTypeId(property.propertyType, ""))
+      .filter(Boolean)
+      .map((value) => [value, getPropertyTypeLabel(value)]),
+  ))
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([value, label]) => ({ value, label }));
   const availableAmenities = Array.from(new Set(approved.flatMap((property) => property.amenities))).sort();
 
   const orderedResults = nearPoint

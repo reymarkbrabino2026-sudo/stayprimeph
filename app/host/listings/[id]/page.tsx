@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Bath, BedDouble, DoorOpen, MapPin, PackageCheck, Users, WalletCards, type LucideIcon } from "lucide-react";
+import { Bath, BedDouble, DoorOpen, Home, MapPin, PackageCheck, Palmtree, Users, WalletCards, type LucideIcon } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { BookingPackageEditor } from "@/components/forms/booking-package-editor";
 import { ListingForm } from "@/components/forms/listing-form";
@@ -11,6 +11,7 @@ import { getCsrfToken } from "@/lib/csrf";
 import { hostLinks } from "@/lib/navigation";
 import { isEntirePlaceListing } from "@/lib/pricing";
 import { getPropertyById } from "@/lib/properties";
+import { getPropertyTypeIconName, getPropertyTypeLabel } from "@/lib/property-types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ export default async function EditListingPage({ params, searchParams }: { params
   const visibleRooms = wholePlaceAccessEnabled ? property.rooms?.filter((room) => room.active) ?? [] : [];
   const packageOnlyListing = property.bookingType === "package";
   const editFormId = `listing-edit-${property.id}`;
+  const propertyTypeLabel = getPropertyTypeLabel(property.propertyType);
+  const PropertyTypeIcon = getPropertyTypeIconName(property.propertyType) === "palmtree" ? Palmtree : Home;
 
   return (
     <DashboardShell title="Listing Details" subtitle="Host dashboard" description="Review the listing guests and admins will see." links={hostLinks}>
@@ -45,6 +48,7 @@ export default async function EditListingPage({ params, searchParams }: { params
                 <Info icon={Users} label="Guests" value={String(property.maxGuests)} />
                 <Info icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
                 <Info icon={Bath} label="Bathrooms" value={String(property.bathrooms)} />
+                <Info icon={PropertyTypeIcon} label="Property type" value={propertyTypeLabel} />
               </div>
               <div className="mt-5 rounded-[1.25rem] border border-black/10 bg-[#fbf7f2] p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/45">Description</p>
