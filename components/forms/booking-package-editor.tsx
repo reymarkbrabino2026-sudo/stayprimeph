@@ -87,6 +87,14 @@ function toggleCsvTextValue(value: string, option: string) {
   ).join(", ");
 }
 
+function formatPackageRate(value: number, currency = "PHP") {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
 function packageToEditable(pkg: BookingPackage, index: number, property: Property): EditablePackage {
   const activeRoomIds = new Set((property.rooms ?? []).filter((room) => room.active).map((room) => room.id));
   return {
@@ -160,7 +168,17 @@ function newPackage(property: Property, displayOrder: number): EditablePackage {
   };
 }
 
-export function BookingPackageEditor({ property, formId, hideTitle = false }: { property: Property; formId: string; hideTitle?: boolean }) {
+export function BookingPackageEditor({
+  property,
+  formId,
+  hideTitle = false,
+  compactByDefault = false,
+}: {
+  property: Property;
+  formId: string;
+  hideTitle?: boolean;
+  compactByDefault?: boolean;
+}) {
   const initialPackages = useMemo(
     () => [...(property.bookingPackages ?? [])]
       .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || a.name.localeCompare(b.name))
@@ -201,9 +219,22 @@ export function BookingPackageEditor({ property, formId, hideTitle = false }: { 
 
       <div className="mt-4 grid gap-4">
         {packages.length ? packages.map((pkg) => (
-          <div key={pkg.id} className="rounded-[1.25rem] border border-black/10 bg-[#fbf7f2] p-4 text-sm shadow-sm">
-            <PackageHiddenFields pkg={pkg} formId={formId} />
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          <details key={pkg.id} open={!compactByDefault} className="group rounded-[1.25rem] border border-black/10 bg-[#fbf7f2] p-3 text-sm shadow-sm">
+            <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3 outline-none transition hover:bg-white/80 focus-visible:ring-4 focus-visible:ring-[#083f35]/10 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                <span className="block truncate font-bold text-[#21170f]">{pkg.name || "Untitled package"}</span>
+                <span className="mt-1 flex flex-wrap gap-1.5 text-[0.68rem] font-semibold text-black/55">
+                  <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{pkg.enabled ? "Enabled" : "Off"}</span>
+                  <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{formatPackageRate(pkg.weekdayRate, property.currency)} weekday</span>
+                  <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{pkg.maxGuests} guests</span>
+                  <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{pkg.durationHours} hrs</span>
+                </span>
+              </span>
+              <ChevronDown size={18} className="shrink-0 text-black/45 transition group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="mt-3">
+              <PackageHiddenFields pkg={pkg} formId={formId} />
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <label className="min-w-0 flex-1">
                 <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-black/45">Package name</span>
                 <input
@@ -281,7 +312,8 @@ export function BookingPackageEditor({ property, formId, hideTitle = false }: { 
               selectedAmenities={pkg.includedAmenities}
               onChange={(includedAmenities) => updatePackage(pkg.id, { includedAmenities })}
             />
-          </div>
+            </div>
+          </details>
         )) : (
           <div className="rounded-2xl border border-black/10 bg-[#fbf7f2] p-4 text-sm text-black/55">
             No booking packages yet. Use Add package to create one for guests.

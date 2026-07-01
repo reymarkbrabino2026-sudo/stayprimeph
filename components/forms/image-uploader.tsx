@@ -10,6 +10,7 @@ import type { PropertyImage } from "@/lib/types";
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
 const maxClientUploadBytes = 4 * 1024 * 1024;
 const maxPhotos = 20;
+const defaultVisiblePhotos = 6;
 const uploadTimeoutMs = 90_000;
 
 type EditablePhoto = {
@@ -141,6 +142,58 @@ export function ImageUploader({
     }
   }
 
+  const visiblePhotos = photos.slice(0, defaultVisiblePhotos);
+  const remainingPhotos = photos.slice(defaultVisiblePhotos);
+
+  function renderPhotoCard(photo: EditablePhoto, index: number) {
+    return (
+      <article key={`${photo.id}-${photo.url}`} className="grid gap-3 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3 shadow-sm sm:grid-cols-[112px_1fr]">
+        <button
+          type="button"
+          onClick={() => setPreview(photo)}
+          className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04] outline-none transition focus:ring-4 focus:ring-[#083f35]/15"
+          aria-label={`Preview ${photo.name}`}
+        >
+          {isRenderableImage(photo.url) ? (
+            <Image src={photo.url} alt={photo.name} fill sizes="112px" className="object-cover" unoptimized />
+          ) : (
+            <span className="grid h-full place-items-center text-xs font-semibold text-black/45">No photo</span>
+          )}
+          {index === 0 ? (
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/80 px-2 py-1 text-[11px] font-semibold text-white">
+              <Star className="size-3" aria-hidden="true" /> Hero
+            </span>
+          ) : null}
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-black shadow-sm">
+            {listingPhotoCategoryLabel(photo.category)}
+          </span>
+        </button>
+        <div className="flex min-w-0 flex-col justify-between gap-3">
+          <div>
+            <p className="truncate text-sm font-bold text-[#21170f]">{index === 0 ? "Shown first on your listing" : photo.name}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Photo {index + 1}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, -1))} disabled={index === 0} className="inline-grid size-11 place-items-center rounded-full border border-black/10 bg-white transition hover:border-black/20 disabled:opacity-40" aria-label={`Move ${photo.name} earlier`} title="Move earlier">
+              <ArrowUp className="size-4" aria-hidden="true" />
+            </button>
+            <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, 1))} disabled={index === photos.length - 1} className="inline-grid size-11 place-items-center rounded-full border border-black/10 bg-white transition hover:border-black/20 disabled:opacity-40" aria-label={`Move ${photo.name} later`} title="Move later">
+              <ArrowDown className="size-4" aria-hidden="true" />
+            </button>
+            {index !== 0 ? (
+              <button type="button" onClick={() => setPhotos((current) => [photo, ...current.filter((item) => item !== photo)])} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 bg-white px-3 text-xs font-semibold transition hover:border-[#083f35]/30">
+                <Star className="size-3" aria-hidden="true" /> Make hero
+              </button>
+            ) : null}
+            <button type="button" onClick={() => setPhotos((current) => current.filter((item) => item !== photo))} className="inline-grid size-11 place-items-center rounded-full border border-rose-100 bg-white text-rose-700 transition hover:bg-rose-50" aria-label={`Delete ${photo.name}`} title="Delete photo">
+              <Trash2 className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <div className="rounded-[1.35rem] border border-black/10 bg-white p-4 shadow-[0_14px_45px_rgba(53,31,8,0.07)] sm:p-5" data-listing-error-target="photoUrls">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -172,52 +225,18 @@ export function ImageUploader({
           </button>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-1">
-            {photos.map((photo, index) => (
-              <article key={`${photo.id}-${photo.url}`} className="grid gap-3 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3 shadow-sm sm:grid-cols-[112px_1fr]">
-                <button
-                  type="button"
-                  onClick={() => setPreview(photo)}
-                  className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black/[0.04] outline-none transition focus:ring-4 focus:ring-[#083f35]/15"
-                  aria-label={`Preview ${photo.name}`}
-                >
-                  {isRenderableImage(photo.url) ? (
-                    <Image src={photo.url} alt={photo.name} fill sizes="112px" className="object-cover" unoptimized />
-                  ) : (
-                    <span className="grid h-full place-items-center text-xs font-semibold text-black/45">No photo</span>
-                  )}
-                  {index === 0 ? (
-                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/80 px-2 py-1 text-[11px] font-semibold text-white">
-                      <Star className="size-3" aria-hidden="true" /> Hero
-                    </span>
-                  ) : null}
-                  <span className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-black shadow-sm">
-                    {listingPhotoCategoryLabel(photo.category)}
-                  </span>
-                </button>
-                <div className="flex min-w-0 flex-col justify-between gap-3">
-                  <div>
-                    <p className="truncate text-sm font-bold text-[#21170f]">{index === 0 ? "Shown first on your listing" : photo.name}</p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-black/45">Photo {index + 1}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, -1))} disabled={index === 0} className="inline-grid size-11 place-items-center rounded-full border border-black/10 bg-white transition hover:border-black/20 disabled:opacity-40" aria-label={`Move ${photo.name} earlier`} title="Move earlier">
-                      <ArrowUp className="size-4" aria-hidden="true" />
-                    </button>
-                    <button type="button" onClick={() => setPhotos((current) => moveItem(current, index, 1))} disabled={index === photos.length - 1} className="inline-grid size-11 place-items-center rounded-full border border-black/10 bg-white transition hover:border-black/20 disabled:opacity-40" aria-label={`Move ${photo.name} later`} title="Move later">
-                      <ArrowDown className="size-4" aria-hidden="true" />
-                    </button>
-                    {index !== 0 ? (
-                      <button type="button" onClick={() => setPhotos((current) => [photo, ...current.filter((item) => item !== photo)])} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 bg-white px-3 text-xs font-semibold transition hover:border-[#083f35]/30">
-                        <Star className="size-3" aria-hidden="true" /> Make hero
-                      </button>
-                    ) : null}
-                    <button type="button" onClick={() => setPhotos((current) => current.filter((item) => item !== photo))} className="inline-grid size-11 place-items-center rounded-full border border-rose-100 bg-white text-rose-700 transition hover:bg-rose-50" aria-label={`Delete ${photo.name}`} title="Delete photo">
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </button>
-                  </div>
+            {visiblePhotos.map((photo, index) => renderPhotoCard(photo, index))}
+            {remainingPhotos.length ? (
+              <details className="md:col-span-2 2xl:col-span-1 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-white px-3 text-sm font-bold text-[#21170f] outline-none transition hover:bg-white/80 focus-visible:ring-4 focus-visible:ring-[#083f35]/10 [&::-webkit-details-marker]:hidden">
+                  <span>Show {remainingPhotos.length} more photo{remainingPhotos.length === 1 ? "" : "s"}</span>
+                  <span className="text-xs font-semibold text-black/45">All details kept</span>
+                </summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 2xl:grid-cols-1">
+                  {remainingPhotos.map((photo, offset) => renderPhotoCard(photo, offset + defaultVisiblePhotos))}
                 </div>
-              </article>
-            ))}
+              </details>
+            ) : null}
           </div>
         )}
       </div>

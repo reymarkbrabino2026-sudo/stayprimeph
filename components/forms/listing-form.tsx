@@ -4,12 +4,12 @@ import type { FormEvent } from "react";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
-import { AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, Loader2, X } from "lucide-react";
 import { ImageUploader } from "@/components/forms/image-uploader";
 import { createListing, updateListingWithFeedback, type ListingFormState } from "@/app/host/listings/actions";
 import { csrfFieldName } from "@/lib/csrf-fields";
 import { amenityGroups, propertyTypes } from "@/lib/host-wizard-data";
-import type { Property } from "@/lib/types";
+import type { ListingBookingType, Property } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type ActiveListingFeedback = ListingFormState & { status: "success" | "error" };
@@ -75,6 +75,7 @@ export function ListingForm({
   const [clientFeedback, setClientFeedback] = useState<ListingFormState>(initialListingFormState);
   const [dismissedFeedbackAt, setDismissedFeedbackAt] = useState<number | undefined>();
   const [clearedFieldNames, setClearedFieldNames] = useState<Set<string>>(() => new Set());
+  const [selectedBookingType, setSelectedBookingType] = useState<ListingBookingType>(property?.bookingType ?? "stay");
   const propertyAmenities = property?.amenities ?? [];
   const propertyRules = property?.rules ?? [];
   const selectedAmenityNames = new Set(propertyAmenities.map(normalizeAmenityName));
@@ -99,13 +100,22 @@ export function ListingForm({
     [clearedFieldNames, rawFieldErrors],
   );
   const showFeedback = Boolean(activeFeedback && feedbackKey !== dismissedFeedbackAt);
+  const showSimplePricingFields = selectedBookingType !== "package";
+  const hiddenSimplePricingValues = showSimplePricingFields ? [] : [
+    ["pricePerNight", property?.pricePerNight ?? 1],
+    ["weekendPrice", property?.weekendPrice ?? property?.pricePerNight ?? 0],
+    ["holidayPrice", property?.holidayPrice ?? 0],
+    ["holidayDates", (property?.holidayDates ?? []).join(", ")],
+  ] as const;
   const fields: Array<{ label: string; name: string; type: "text" | "number"; defaultValue?: string | number; step?: number }> = [
     { label: "Title", name: "title", type: "text", defaultValue: property?.title },
     { label: "Address", name: "address", type: "text", defaultValue: property?.address },
     { label: "City", name: "city", type: "text", defaultValue: property?.city },
     { label: "Country", name: "country", type: "text", defaultValue: property?.country },
-    { label: "Price per night", name: "pricePerNight", type: "number", defaultValue: property?.pricePerNight, step: 0.01 },
-    { label: "Weekend price", name: "weekendPrice", type: "number", defaultValue: property?.weekendPrice ?? property?.pricePerNight, step: 0.01 },
+    ...(showSimplePricingFields ? [
+      { label: "Price per night", name: "pricePerNight", type: "number" as const, defaultValue: property?.pricePerNight, step: 0.01 },
+      { label: "Weekend price", name: "weekendPrice", type: "number" as const, defaultValue: property?.weekendPrice ?? property?.pricePerNight, step: 0.01 },
+    ] : []),
     { label: "Cleaning fee", name: "cleaningFee", type: "number", defaultValue: property?.cleaningFee ?? 0, step: 0.01 },
     { label: "Security deposit", name: "securityDeposit", type: "number", defaultValue: property?.securityDeposit ?? 0, step: 0.01 },
   ];
@@ -171,6 +181,10 @@ export function ListingForm({
     setClearedFieldNames((current) => new Set(current).add(target.name));
   }
 
+  function amenityGroupSelectedCount(group: (typeof amenityGroups)[number]) {
+    return group.items.filter((item) => selectedAmenityNames.has(normalizeAmenityName(item.label))).length;
+  }
+
   return (
     <>
       {showFeedback && activeFeedback ? (
@@ -187,6 +201,9 @@ export function ListingForm({
       >
         {csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
         {!canCreate && property ? <input type="hidden" name="id" value={property.id} /> : null}
+        {hiddenSimplePricingValues.map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
         <div className="space-y-4 rounded-[1.5rem] bg-white p-5 soft-card">
           {fields.map(({ label, name, type, defaultValue, step }) => {
             const error = fieldError(name);
@@ -274,6 +291,7 @@ export function ListingForm({
             <select
               name="bookingType"
               defaultValue={property?.bookingType ?? "stay"}
+              onChange={(event) => setSelectedBookingType(event.currentTarget.value as ListingBookingType)}
               aria-invalid={Boolean(fieldError("bookingType"))}
               aria-describedby={fieldError("bookingType") ? fieldErrorId("bookingType") : undefined}
               className={controlClass("bookingType", "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
@@ -299,35 +317,37 @@ export function ListingForm({
             </select>
             <FieldError id={fieldErrorId("currency")} message={fieldError("currency")} />
           </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Holiday price</span>
-              <input
-                name="holidayPrice"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={property?.holidayPrice ?? 0}
-                aria-invalid={Boolean(fieldError("holidayPrice"))}
-                aria-describedby={fieldError("holidayPrice") ? fieldErrorId("holidayPrice") : undefined}
-                className={controlClass("holidayPrice", "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
-              />
-              <FieldError id={fieldErrorId("holidayPrice")} message={fieldError("holidayPrice")} />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Holiday dates</span>
-              <input
-                name="holidayDates"
-                type="text"
-                defaultValue={(property?.holidayDates ?? []).join(", ")}
-                aria-invalid={Boolean(fieldError("holidayDates"))}
-                aria-describedby={fieldError("holidayDates") ? fieldErrorId("holidayDates") : undefined}
-                className={controlClass("holidayDates", "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
-                placeholder="2026-12-24, 2026-12-31"
-              />
-              <FieldError id={fieldErrorId("holidayDates")} message={fieldError("holidayDates")} />
-            </label>
-          </div>
+          {showSimplePricingFields ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium">Holiday price</span>
+                <input
+                  name="holidayPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={property?.holidayPrice ?? 0}
+                  aria-invalid={Boolean(fieldError("holidayPrice"))}
+                  aria-describedby={fieldError("holidayPrice") ? fieldErrorId("holidayPrice") : undefined}
+                  className={controlClass("holidayPrice", "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
+                />
+                <FieldError id={fieldErrorId("holidayPrice")} message={fieldError("holidayPrice")} />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium">Holiday dates</span>
+                <input
+                  name="holidayDates"
+                  type="text"
+                  defaultValue={(property?.holidayDates ?? []).join(", ")}
+                  aria-invalid={Boolean(fieldError("holidayDates"))}
+                  aria-describedby={fieldError("holidayDates") ? fieldErrorId("holidayDates") : undefined}
+                  className={controlClass("holidayDates", "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
+                  placeholder="2026-12-24, 2026-12-31"
+                />
+                <FieldError id={fieldErrorId("holidayDates")} message={fieldError("holidayDates")} />
+              </label>
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-3">
             {capacityFields.map(({ label, name, defaultValue }) => {
               const error = fieldError(name);
@@ -360,17 +380,26 @@ export function ListingForm({
             <h3 className="text-lg font-bold text-[#21170f]">Amenities</h3>
             <div className="mt-4 grid gap-5 text-sm">
               {amenityGroups.map((group) => (
-                <fieldset key={group.id}>
-                  <legend className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-black/45">{group.title}</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {group.items.map((item) => (
-                      <label key={item.id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-black/10 bg-[#fbf7f2] px-3 py-2 font-semibold text-black/70 transition hover:border-[#083f35]/35 hover:bg-white">
-                        <input type="checkbox" name="amenities" value={item.label} defaultChecked={selectedAmenityNames.has(normalizeAmenityName(item.label))} className="size-4 accent-[#083f35]" />
-                        <span>{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+                <details key={group.id} className="group rounded-2xl border border-black/10 bg-[#fbf7f2] p-2">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-xl bg-white px-3 text-sm font-bold text-[#21170f] outline-none transition hover:bg-white/80 focus-visible:ring-4 focus-visible:ring-[#083f35]/10 [&::-webkit-details-marker]:hidden">
+                    <span>{group.title}</span>
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-black/45">
+                      {amenityGroupSelectedCount(group)} selected
+                      <ChevronDown size={15} className="transition group-open:rotate-180" aria-hidden="true" />
+                    </span>
+                  </summary>
+                  <fieldset className="mt-3 px-1 pb-1">
+                    <legend className="sr-only">{group.title}</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {group.items.map((item) => (
+                        <label key={item.id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-2 font-semibold text-black/70 transition hover:border-[#083f35]/35">
+                          <input type="checkbox" name="amenities" value={item.label} defaultChecked={selectedAmenityNames.has(normalizeAmenityName(item.label))} className="size-4 accent-[#083f35]" />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                </details>
               ))}
               <label className="block">
                 <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-black/45">Custom amenities</span>

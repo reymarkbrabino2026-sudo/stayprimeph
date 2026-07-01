@@ -22,6 +22,7 @@ export default async function EditListingPage({ params, searchParams }: { params
   const cover = property.images[0]?.imageUrl;
   const wholePlaceAccessEnabled = isEntirePlaceListing(property);
   const visibleRooms = wholePlaceAccessEnabled ? property.rooms?.filter((room) => room.active) ?? [] : [];
+  const packageOnlyListing = property.bookingType === "package";
   const editFormId = `listing-edit-${property.id}`;
 
   return (
@@ -40,7 +41,7 @@ export default async function EditListingPage({ params, searchParams }: { params
                 <span>{property.address}, {formatPropertyLocation(property)}</span>
               </p>
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <Info icon={WalletCards} label="Nightly price" value={formatCurrency(property.pricePerNight)} />
+                {packageOnlyListing ? null : <Info icon={WalletCards} label="Nightly price" value={formatCurrency(property.pricePerNight)} />}
                 <Info icon={Users} label="Guests" value={String(property.maxGuests)} />
                 <Info icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
                 <Info icon={Bath} label="Bathrooms" value={String(property.bathrooms)} />
@@ -83,7 +84,7 @@ export default async function EditListingPage({ params, searchParams }: { params
                       <p className="mt-1 text-sm text-black/55">Package access and included amenities</p>
                     </div>
                   </div>
-                  <BookingPackageEditor property={property} formId={editFormId} hideTitle />
+                  <BookingPackageEditor property={property} formId={editFormId} hideTitle compactByDefault />
                 </div>
               ) : null}
             </section>
