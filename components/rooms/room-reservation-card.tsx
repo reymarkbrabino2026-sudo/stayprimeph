@@ -374,15 +374,11 @@ export function RoomReservationCard({
               }}
               className="min-h-12 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-[#083f35] focus:ring-2 focus:ring-[#083f35]/10"
             >
-              {bookingPackages.map((item) => {
-                const priceLabel = formatCurrency(calculateGuestPriceWithMarkup(item.weekdayRate));
-
-                return (
-                  <option key={item.id} value={item.id}>
-                    {formatPackageSelectName(item.name, priceLabel)} - {priceLabel}
-                  </option>
-                );
-              })}
+              {bookingPackages.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {formatPackageSelectName(item.name)}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -694,15 +690,11 @@ function formatShortList(items: string[], limit = 2) {
   return `${shown.join(", ")}${remaining > 0 ? ` +${remaining} more` : ""}`;
 }
 
-function formatPackageSelectName(name: string, priceLabel: string) {
+function formatPackageSelectName(name: string) {
   const trimmedName = name.trim();
-  const fullLabel = `${trimmedName} - ${priceLabel}`;
-  if (fullLabel.length <= packageSelectLabelMaxLength) return trimmedName;
+  if (trimmedName.length <= packageSelectLabelMaxLength) return trimmedName;
 
-  const maxNameLength = Math.max(
-    1,
-    packageSelectLabelMaxLength - priceLabel.length - packageSelectEllipsis.length - " - ".length,
-  );
+  const maxNameLength = Math.max(1, packageSelectLabelMaxLength - packageSelectEllipsis.length);
   const displayName = trimmedName.slice(0, maxNameLength).trimEnd();
 
   return `${displayName}${packageSelectEllipsis}`;

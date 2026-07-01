@@ -229,6 +229,7 @@ const listingFormSchema = z.object({
 });
 
 type HostListingDraftSaveInput = z.infer<typeof hostListingDraftSaveSchema>;
+const roomCapacityFormSchema = z.coerce.number().int().min(1).max(100);
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -267,6 +268,18 @@ function submittedAmenityValues(formData: FormData) {
     .filter(Boolean);
 
   return Array.from(new Set(values)).slice(0, 50);
+}
+
+function submittedRooms(formData: FormData, existing: Property) {
+  return (existing.rooms ?? []).map((room) => {
+    const submittedCapacity = formData.get(`roomCapacity:${room.id}`);
+    if (submittedCapacity === null) return room;
+
+    const parsedCapacity = roomCapacityFormSchema.safeParse(submittedCapacity);
+    if (!parsedCapacity.success) throw new Error("Room pax must be between 1 and 100.");
+
+    return { ...room, capacity: parsedCapacity.data };
+  });
 }
 
 function formDataStrings(formData: FormData, name: string) {
@@ -751,6 +764,7 @@ export async function updateListing(formData: FormData) {
       bookingPackages: bookingPackageDrafts,
     }, existing.id)
     : existing.bookingPackages ?? [];
+  const rooms = submittedRooms(formData, existing);
   const nextProperty = {
     ...existing,
     title: parsed.data.title,
@@ -774,6 +788,7 @@ export async function updateListing(formData: FormData) {
     maxGuests: bookingPackages.length ? Math.max(parsed.data.maxGuests, ...bookingPackages.map((pkg) => pkg.maxGuests)) : parsed.data.maxGuests,
     amenities: parsed.data.amenities,
     images: readSubmittedImages(formData, existing, user.id),
+    rooms,
     bookingPackages,
   } satisfies Property;
 

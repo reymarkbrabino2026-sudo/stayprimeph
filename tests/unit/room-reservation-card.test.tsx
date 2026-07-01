@@ -116,11 +116,11 @@ describe("RoomReservationCard", () => {
       expect(useReservationStore.getState().bookingMode).toBe("package");
       expect(useReservationStore.getState().packageId).toBe("overnight-full-access");
     });
-    expect(screen.getAllByText("Overnight Full Access")).toHaveLength(2);
+    expect(screen.getAllByText("Overnight Full Access", { selector: "p" })).toHaveLength(2);
     expect(screen.getAllByRole("option", { name: /Daytime Ground Floor & Outdoor/ })).toHaveLength(2);
   });
 
-  test("truncates long package option names while keeping the price visible", async () => {
+  test("shows package option names without prices", async () => {
     render(
       <RoomReservationCard
         property={{
@@ -145,8 +145,9 @@ describe("RoomReservationCard", () => {
     await waitFor(() => {
       expect(useReservationStore.getState().packageId).toBe("event-overnight");
     });
-    expect(screen.getByRole("option", { name: "Event With Overnight Packa.... - ₱21,000" })).toBeInTheDocument();
-    expect(screen.getByText("Event With Overnight Package Whole Villa")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Event With Overnight Package Whole Villa" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /21,000/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Event With Overnight Package Whole Villa", { selector: "p" })).toBeInTheDocument();
   });
 
   test("applies the new-listing 20% promotion to the reservation total", () => {

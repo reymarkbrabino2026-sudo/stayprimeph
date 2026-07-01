@@ -1017,7 +1017,7 @@ function jsonArrayValue(value?: unknown[]) {
   return JSON.stringify(value ?? []);
 }
 
-async function insertPropertyRooms(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Property) {
+async function insertPropertyRooms(db: Pick<Prisma.TransactionClient, "$executeRaw" | "$executeRawUnsafe">, property: Pick<Property, "id" | "rooms">) {
   if (property.rooms?.length) {
     await ensureListingRoomTable(db);
     await Promise.all(
@@ -1179,7 +1179,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images" | "bookingPackages"
+  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "images" | "rooms" | "bookingPackages"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1241,6 +1241,9 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         },
       },
     });
+    await ensureListingRoomTable(tx);
+    await tx.$executeRaw`DELETE FROM "ListingRoom" WHERE "propertyId" = ${property.id}`;
+    await insertPropertyRooms(tx, property);
     await ensureListingBookingPackageTable(tx);
     await tx.$executeRaw`DELETE FROM "ListingBookingPackage" WHERE "propertyId" = ${property.id}`;
     await insertPropertyBookingPackages(tx, property);

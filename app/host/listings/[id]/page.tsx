@@ -47,7 +47,7 @@ export default async function EditListingPage({ params, searchParams }: { params
                   <h3 className="font-semibold">Rooms</h3>
                   <div className="mt-3 grid gap-2">
                     {visibleRooms.map((room) => (
-                      <Info key={room.id} label={`${room.name} (${room.floor})`} value={`${room.capacity} pax`} />
+                      <RoomPaxInput key={room.id} formId={editFormId} room={room} />
                     ))}
                   </div>
                 </div>
@@ -83,6 +83,34 @@ function Info({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl bg-[#fbf7f2] p-4">
       <p className="text-xs text-black/45">{label}</p>
       <p className="mt-1 font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function RoomPaxInput({
+  formId,
+  room,
+}: {
+  formId: string;
+  room: { id: string; name: string; floor: string; capacity: number };
+}) {
+  return (
+    <div className="rounded-2xl bg-[#fbf7f2] p-4">
+      <p className="text-xs text-black/45">{room.name} ({room.floor})</p>
+      <label className="mt-1 flex max-w-28 items-center gap-2">
+        <input
+          form={formId}
+          name={`roomCapacity:${room.id}`}
+          type="number"
+          min={1}
+          max={100}
+          defaultValue={room.capacity}
+          required
+          aria-label={`${room.name} pax`}
+          className="min-h-9 w-16 rounded-lg border border-black/10 bg-white px-2 font-semibold outline-none transition focus:border-black"
+        />
+        <span className="font-semibold">pax</span>
+      </label>
     </div>
   );
 }
