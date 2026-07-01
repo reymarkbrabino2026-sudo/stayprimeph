@@ -123,6 +123,9 @@ export function SiteFooter({ flushTop = false }: { flushTop?: boolean } = {}) {
               <Link className={cn("inline-flex min-h-8 items-center font-medium text-white transition hover:text-[#f5cf86]", darkFocus)} href="/newsroom">
                 Newsroom
               </Link>
+              <Link className={cn("inline-flex min-h-8 items-center font-medium text-white transition hover:text-[#f5cf86]", darkFocus)} href="/support/user-guide">
+                User Guide
+              </Link>
               <Link className={cn("inline-flex min-h-8 items-center font-medium text-white transition hover:text-[#f5cf86]", darkFocus)} href="/blog">
                 Blog
               </Link>
