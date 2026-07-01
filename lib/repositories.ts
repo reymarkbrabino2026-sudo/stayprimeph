@@ -792,7 +792,7 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
   };
 }
 
-function toPublicListingSummary(property: DatabasePublicListingSummary): PublicListingSummary {
+function toPublicListingSummary(property: DatabasePublicListingSummary, packagesByProperty: Record<string, BookingPackage[]> = {}): PublicListingSummary {
   return {
     id: property.id,
     slug: property.slug,
@@ -807,6 +807,7 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
     holidayDates: parseStringArray(property.pricing?.holidayDates),
     seasonalRates: parseSeasonalRates(property.pricing?.seasonalRates),
     rateAdjustments: parseRateAdjustments(property.pricing?.seasonalRates),
+    ...(packagesByProperty[property.id]?.length ? { bookingPackages: packagesByProperty[property.id] } : {}),
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
@@ -932,6 +933,7 @@ export async function listPropertiesByStatusFromDatabase(status: Property["statu
 
 export async function listPublicListingSummariesFromDatabase(): Promise<PublicListingSummary[]> {
   await ensurePropertyAdvancedPricingColumns();
+  await ensureListingBookingPackageTable();
   const properties = await prisma.property.findMany({
     where: { status: "approved" },
     select: {
@@ -958,8 +960,10 @@ export async function listPublicListingSummariesFromDatabase(): Promise<PublicLi
     },
     orderBy: { createdAt: "desc" },
   });
+  const packageRows = await listBookingPackageRowsForProperties(properties.map((property) => property.id));
+  const packagesByProperty = groupBookingPackages(packageRows);
 
-  return properties.map(toPublicListingSummary);
+  return properties.map((property) => toPublicListingSummary(property, packagesByProperty));
 }
 
 export async function findPropertyByIdFromDatabase(id: string): Promise<Property | null> {

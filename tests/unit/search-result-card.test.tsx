@@ -41,6 +41,39 @@ afterEach(() => {
 });
 
 describe("SearchResultCard", () => {
+  test("shows the lowest-to-highest package nightly range when dates are not selected", () => {
+    render(
+      <SearchResultCard
+        property={{
+          ...property,
+          bookingType: "package",
+          bookingPackages: [
+            {
+              id: "overnight-whole-villa",
+              name: "Overnight - Whole Villa",
+              status: "active",
+              displayOrder: 1,
+              accessType: "whole_villa",
+              unit: "night",
+              weekdayRate: 10000,
+              weekendRate: 15000,
+              includedGuests: 10,
+              maxGuests: 20,
+              additionalGuestFee: 0,
+              extensionHourlyFee: 0,
+              checkInTime: "19:00",
+              checkOutTime: "08:00",
+              enabled: true,
+            },
+          ],
+        }}
+        isAuthenticated={false}
+      />,
+    );
+
+    expect(screen.getByText("₱12,000 to ₱18,000 night")).toBeInTheDocument();
+  });
+
   test("shows favorite badge, carousel controls, all-fee stay total, and weekly discount", () => {
     render(
       <SearchResultCard
@@ -52,7 +85,7 @@ describe("SearchResultCard", () => {
     );
 
     expect(screen.getByText("Guest favorite")).toBeInTheDocument();
-    expect(screen.getByText("Tiny Home in Baguio")).toBeInTheDocument();
+    expect(screen.getByText("Tiny home in Baguio")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show next photo" })).toBeInTheDocument();
     expect(screen.getByText("Weekly discount")).toBeInTheDocument();
     expect(screen.getByText("for 9 nights")).toBeInTheDocument();

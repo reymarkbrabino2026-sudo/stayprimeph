@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Bath, BedDouble, Star, Trophy } from "lucide-react";
 import { CardImageCarousel } from "@/components/search/card-image-carousel";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
-import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, nightsBetweenDateKeys } from "@/lib/pricing";
+import { calculateGuestPriceWithMarkup, calculateNightlySubtotal, formatGuestNightlyPriceRange, nightsBetweenDateKeys } from "@/lib/pricing";
 import { getPropertyTypeLabel } from "@/lib/property-types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import type { ListingDiscounts, PublicListingSummary } from "@/lib/types";
@@ -60,6 +60,16 @@ function bestDisplayDiscount({
 function priceSummary(property: PublicListingSummary, checkIn?: string, checkOut?: string) {
   const nights = checkIn && checkOut ? nightsBetweenDateKeys(checkIn, checkOut) : 0;
   const hasStayDates = nights > 0;
+  if (!hasStayDates) {
+    return {
+      discount: null,
+      price: 0,
+      priceLabel: formatGuestNightlyPriceRange(property).replace(" / ", " "),
+      originalPrice: null,
+      suffix: "",
+    };
+  }
+
   const staySubtotal = hasStayDates ? calculateNightlySubtotal(property, checkIn!, checkOut!) : null;
   const subtotal = staySubtotal && staySubtotal.subtotal > 0 ? staySubtotal.subtotal : property.pricePerNight;
   const discount = hasStayDates ? bestDisplayDiscount({ discounts: property.discounts, nights, subtotal, checkIn }) : null;
@@ -68,6 +78,7 @@ function priceSummary(property: PublicListingSummary, checkIn?: string, checkOut
   return {
     discount,
     price: calculateGuestPriceWithMarkup(discountedSubtotal),
+    priceLabel: "",
     originalPrice: discount ? calculateGuestPriceWithMarkup(subtotal) : null,
     suffix: hasStayDates ? `for ${pluralize(nights, "night")}` : "night",
   };
@@ -127,8 +138,14 @@ export function SearchResultCard({
           {displayPrice.originalPrice ? (
             <span className="mr-1.5 text-black/45 line-through">{formatCurrency(displayPrice.originalPrice)}</span>
           ) : null}
-          <span className="font-semibold text-[#1f1b16]">{formatCurrency(displayPrice.price)}</span>{" "}
-          <span>{displayPrice.suffix}</span>
+          {displayPrice.priceLabel ? (
+            <span className="font-semibold text-[#1f1b16]">{displayPrice.priceLabel}</span>
+          ) : (
+            <>
+              <span className="font-semibold text-[#1f1b16]">{formatCurrency(displayPrice.price)}</span>{" "}
+              <span>{displayPrice.suffix}</span>
+            </>
+          )}
         </p>
         {displayPrice.discount ? (
           <span className="inline-flex rounded-full bg-[#dff5e6] px-2 py-0.5 text-xs font-semibold text-[#08743e]">

@@ -29,6 +29,7 @@ function toPublicListingSummary(property: Property): PublicListingSummary {
     holidayDates: property.holidayDates,
     seasonalRates: property.seasonalRates,
     rateAdjustments: property.rateAdjustments,
+    ...(property.bookingPackages?.length ? { bookingPackages: property.bookingPackages } : {}),
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,

@@ -69,6 +69,41 @@ describe("getPublicListingSummaries", () => {
     expect(summaries[0]).not.toHaveProperty("rules");
     expect(summaries[0]).not.toHaveProperty("bookingPackages");
   });
+
+  it("includes booking package prices for public search cards", async () => {
+    vi.mocked(readStoredProperties).mockResolvedValueOnce([
+      property({
+        bookingType: "package",
+        bookingPackages: [
+          {
+            id: "overnight-whole-villa",
+            name: "Overnight - Whole Villa",
+            accessType: "whole_villa",
+            unit: "night",
+            weekdayRate: 10000,
+            weekendRate: 15000,
+            includedGuests: 10,
+            maxGuests: 20,
+            additionalGuestFee: 0,
+            extensionHourlyFee: 0,
+            checkInTime: "19:00",
+            checkOutTime: "08:00",
+            enabled: true,
+          },
+        ],
+      }),
+    ]);
+
+    const summaries = await getPublicListingSummaries();
+
+    expect(summaries[0].bookingPackages?.map((pkg) => ({
+      id: pkg.id,
+      weekdayRate: pkg.weekdayRate,
+      weekendRate: pkg.weekendRate,
+    }))).toEqual([
+      { id: "overnight-whole-villa", weekdayRate: 10000, weekendRate: 15000 },
+    ]);
+  });
 });
 
 describe("getPropertiesForHost", () => {

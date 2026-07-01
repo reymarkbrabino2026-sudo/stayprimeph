@@ -25,6 +25,7 @@ export interface PublicListingSummary {
   holidayDates?: string[];
   seasonalRates?: SeasonalRate[];
   rateAdjustments?: ListingRateAdjustment[];
+  bookingPackages?: BookingPackage[];
   bedrooms: number;
   bathrooms: number;
   maxGuests: number;
