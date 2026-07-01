@@ -1,7 +1,7 @@
 "use client";
 
-import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, Tag, Trash2, Users } from "lucide-react";
-import { useActionState, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, RotateCcw, Tag, Trash2, Users } from "lucide-react";
+import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { avatarFallbackText } from "@/lib/avatar";
 import { csrfFieldName } from "@/lib/csrf-fields";
@@ -59,6 +59,7 @@ type AvailabilityFormState = {
 };
 
 type RateCalendarFormState = AvailabilityFormState;
+type RateEditMode = "packages" | "selectedDates";
 
 type HostRateAdjustment = ListingRateAdjustment & {
   propertyId: string;
@@ -598,7 +599,7 @@ function SelectedDatePanel({
       <h2 className="mt-1 text-lg font-semibold sm:text-xl lg:mt-2 lg:text-2xl">{hasReservations ? "Reserved" : hasBlocks ? "Unavailable" : "Available"}</h2>
       <div className="mt-2 space-y-2 lg:mt-4 lg:space-y-3">
         {!hasReservations && !hasBlocks ? (
-          <p className="rounded-lg bg-[#f7f7f7] p-2 text-sm text-black/60 lg:p-3">No host reservations are blocking this date.</p>
+          <p className="rounded-lg bg-[#f7f7f7] p-2 text-sm text-black/60 lg:p-3">No reservations or host blocks on this date.</p>
         ) : (
           <>
             {bookings.map((booking) => (
@@ -667,8 +668,13 @@ function SelectedDatePanel({
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="propertyId" value={adjustment.propertyId} />
                     <input type="hidden" name="adjustmentId" value={adjustment.id} />
-                    <button type="submit" className="grid size-9 place-items-center rounded-full text-black/45 transition hover:bg-black/[0.06] hover:text-black" aria-label="Delete rate or promo">
-                      <Trash2 size={16} />
+                    <button
+                      type="submit"
+                      className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-xs font-semibold text-black/55 transition hover:bg-black/[0.06] hover:text-black"
+                      aria-label="Undo rate or promo"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Undo</span>
                     </button>
                   </form>
                 </div>
@@ -702,115 +708,157 @@ function RateCalendarForm({
 }) {
   const selectedListing = listings.find((listing) => listing.id === selectedListingId);
   const [rateListingId, setRateListingId] = useState(selectedListing?.id ?? "");
-  const rateListing = selectedListing ?? listings.find((listing) => listing.id === rateListingId);
+  const activeRateListingId = selectedListing?.id ?? rateListingId;
+  const rateListing = selectedListing ?? listings.find((listing) => listing.id === activeRateListingId);
   const packageOptions = useMemo(() => activePackagesForListing(rateListing), [rateListing]);
   const [selectedPackageId, setSelectedPackageId] = useState("");
-  const selectedPackage = packageOptions.find((pkg) => pkg.id === selectedPackageId);
+  const selectedPackage = packageOptions.find((pkg) => pkg.id === selectedPackageId) ?? packageOptions[0];
+  const [activeMode, setActiveMode] = useState<RateEditMode>("packages");
   const [adjustmentType, setAdjustmentType] = useState<"percent_discount" | "custom_price">("percent_discount");
   const endDate = addDays(dateKey, 1);
   const amountLabel = adjustmentType === "percent_discount" ? "Discount %" : "Custom price";
 
-  useEffect(() => {
-    if (selectedListing?.id) setRateListingId(selectedListing.id);
-  }, [selectedListing?.id]);
-
-  useEffect(() => {
-    setSelectedPackageId((current) => (
-      packageOptions.some((pkg) => pkg.id === current) ? current : packageOptions[0]?.id ?? ""
-    ));
-  }, [packageOptions]);
-
   return (
-    <section className="mt-4 rounded-lg border border-black/10 bg-white p-3 lg:mt-7 lg:p-4">
+    <section className="mt-4 border-b border-black/10 pb-4 lg:mt-7 lg:pb-7">
       <div className="flex items-center gap-2">
         <span className="grid size-8 place-items-center rounded-full bg-black/[0.05]"><Tag size={16} /></span>
         <div>
           <h2 className="font-semibold">Rates & promos</h2>
-          <p className="text-sm text-black/55">Set package prices or discounts for selected dates.</p>
+          <p className="text-sm text-black/55">Rates for packages, promos for selected dates.</p>
         </div>
       </div>
 
-      <form action={packageRateAction} className="mt-4 space-y-3 rounded-lg bg-black/[0.03] p-3">
-        <input type="hidden" name={csrfFieldName} value={csrfToken} />
-        <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
-        {rateListing ? (
-          packageOptions.length > 0 ? (
-            <>
-              <label className="text-sm font-semibold text-black/65">
-                Package
-                <select
-                  name="packageId"
-                  value={selectedPackageId}
-                  onChange={(event) => setSelectedPackageId(event.currentTarget.value)}
-                  required
-                  className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold"
-                >
-                  {packageOptions.map((pkg) => (
-                    <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                  ))}
-                </select>
-              </label>
-              {selectedPackage ? (
-                <PackageRateFields key={selectedPackage.id} pkg={selectedPackage} />
-              ) : null}
-              {packageRateState.message ? <FormMessage state={packageRateState} /> : null}
-              <RateCalendarSubmitButton label="Save package prices" pendingLabel="Saving..." />
-            </>
-          ) : (
-            <p className="rounded-lg bg-white px-3 py-2 text-sm text-black/55">No active booking packages for this listing.</p>
-          )
-        ) : (
-          <p className="rounded-lg bg-white px-3 py-2 text-sm text-black/55">Choose a listing to edit package prices.</p>
-        )}
-      </form>
+      <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-black/[0.04] p-1" role="group" aria-label="Rate edit type">
+        <RateModeButton active={activeMode === "packages"} icon={<Tag size={15} />} onClick={() => setActiveMode("packages")}>
+          Rates
+        </RateModeButton>
+        <RateModeButton active={activeMode === "selectedDates"} icon={<CalendarDays size={15} />} onClick={() => setActiveMode("selectedDates")}>
+          Promos
+        </RateModeButton>
+      </div>
 
-      <form action={selectedDateAction} className="mt-3 space-y-3 rounded-lg bg-black/[0.03] p-3">
-        <input type="hidden" name={csrfFieldName} value={csrfToken} />
-        <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+      {activeMode === "packages" ? (
+        <form action={packageRateAction} className="mt-4 space-y-3">
+          <input type="hidden" name={csrfFieldName} value={csrfToken} />
+          <div>
+            <h3 className="text-base font-semibold text-black">Rates</h3>
+            <p className="mt-1 text-sm text-black/55">Set the base prices for each package.</p>
+          </div>
+          <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
+          {rateListing ? (
+            packageOptions.length > 0 ? (
+              <>
+                <label className="text-sm font-semibold text-black/65">
+                  Package
+                  <select
+                    name="packageId"
+                    value={selectedPackage?.id ?? ""}
+                    onChange={(event) => setSelectedPackageId(event.currentTarget.value)}
+                    required
+                    className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold"
+                  >
+                    {packageOptions.map((pkg) => (
+                      <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                    ))}
+                  </select>
+                </label>
+                {selectedPackage ? (
+                  <PackageRateFields key={selectedPackage.id} pkg={selectedPackage} />
+                ) : null}
+                {packageRateState.message ? <FormMessage state={packageRateState} /> : null}
+                <RateCalendarSubmitButton label="Save rates" pendingLabel="Saving..." />
+              </>
+            ) : (
+              <p className="rounded-lg bg-black/[0.03] px-3 py-2 text-sm text-black/55">No active booking packages for this listing.</p>
+            )
+          ) : (
+            <p className="rounded-lg bg-black/[0.03] px-3 py-2 text-sm text-black/55">Choose a listing to edit package prices.</p>
+          )}
+        </form>
+      ) : (
+        <form action={selectedDateAction} className="mt-4 space-y-3">
+          <input type="hidden" name={csrfFieldName} value={csrfToken} />
+          <div>
+            <h3 className="text-base font-semibold text-black">Promos</h3>
+            <p className="mt-1 text-sm text-black/55">Add a discount or custom price for selected dates.</p>
+            <p className="mt-1 rounded-lg bg-black/[0.03] px-3 py-2 text-sm font-semibold text-black/60">{formatDisplayDate(dateKey)}</p>
+          </div>
+          <ListingPicker selectedListing={selectedListing} listings={listings} value={rateListingId} onChange={setRateListingId} />
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <label className="text-sm font-semibold text-black/65">
+              Start
+              <input name="checkIn" type="date" defaultValue={dateKey} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+            </label>
+            <label className="text-sm font-semibold text-black/65">
+              End
+              <input name="checkOut" type="date" defaultValue={endDate} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+            </label>
+          </div>
           <label className="text-sm font-semibold text-black/65">
-            Start
-            <input name="checkIn" type="date" defaultValue={dateKey} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+            Rate type
+            <select
+              name="adjustmentType"
+              value={adjustmentType}
+              onChange={(event) => setAdjustmentType(event.target.value as "percent_discount" | "custom_price")}
+              className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold"
+            >
+              <option value="percent_discount">Discount percentage</option>
+              <option value="custom_price">Custom price</option>
+            </select>
           </label>
           <label className="text-sm font-semibold text-black/65">
-            End
-            <input name="checkOut" type="date" defaultValue={endDate} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
+            Promo or rate name
+            <input name="name" type="text" maxLength={80} placeholder={adjustmentType === "percent_discount" ? "Promo name" : "Rate name"} className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
           </label>
-        </div>
-        <select
-          name="adjustmentType"
-          value={adjustmentType}
-          onChange={(event) => setAdjustmentType(event.target.value as "percent_discount" | "custom_price")}
-          className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold"
-        >
-          <option value="percent_discount">Discount percentage</option>
-          <option value="custom_price">Custom price</option>
-        </select>
-        <label className="text-sm font-semibold text-black/65">
-          Promo or rate name
-          <input name="name" type="text" maxLength={80} placeholder={adjustmentType === "percent_discount" ? "Promo name" : "Rate name"} className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm" />
-        </label>
-        <label className="text-sm font-semibold text-black/65">
-          {amountLabel}
-          <input
-            name="amount"
-            type="number"
-            min={1}
-            max={adjustmentType === "percent_discount" ? 100 : 1000000}
-            step={1}
-            placeholder={adjustmentType === "percent_discount" ? "Discount percent" : "Custom price"}
-            required
-            className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm"
-          />
-        </label>
-        <label className="flex min-h-11 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold text-black/70">
-          <input name="active" type="checkbox" defaultChecked className="size-4" />
-          Active
-        </label>
-        {selectedDateState.message ? <FormMessage state={selectedDateState} /> : null}
-        <RateCalendarSubmitButton label="Save selected dates" pendingLabel="Saving..." />
-      </form>
+          <label className="text-sm font-semibold text-black/65">
+            {amountLabel}
+            <input
+              name="amount"
+              type="number"
+              min={1}
+              max={adjustmentType === "percent_discount" ? 100 : 1000000}
+              step={1}
+              placeholder={adjustmentType === "percent_discount" ? "Discount percent" : "Custom price"}
+              required
+              className="mt-1 min-h-11 w-full rounded-lg border border-black/10 px-3 text-sm"
+            />
+          </label>
+          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold text-black/70">
+            <input name="active" type="checkbox" defaultChecked className="size-4" />
+            Active
+          </label>
+          {selectedDateState.message ? <FormMessage state={selectedDateState} /> : null}
+          <RateCalendarSubmitButton label="Save promo" pendingLabel="Saving..." />
+        </form>
+      )}
     </section>
+  );
+}
+
+function RateModeButton({
+  active,
+  children,
+  icon,
+  onClick,
+}: {
+  active: boolean;
+  children: ReactNode;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cx(
+        "inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-md px-2 text-sm font-semibold transition",
+        active ? "bg-white text-black shadow-sm" : "text-black/55 hover:bg-white/70 hover:text-black",
+      )}
+    >
+      {icon}
+      <span className="truncate">{children}</span>
+    </button>
   );
 }
 
@@ -852,20 +900,24 @@ function ListingPicker({
 }) {
   if (selectedListing) {
     return (
-      <>
+      <div>
         <input type="hidden" name="propertyId" value={selectedListing.id} />
-        <p className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-black/70">{selectedListing.title}</p>
-      </>
+        <p className="text-sm font-semibold text-black/65">Listing</p>
+        <p className="mt-1 rounded-lg bg-black/[0.03] px-3 py-2 text-sm font-semibold text-black/70">{selectedListing.title}</p>
+      </div>
     );
   }
 
   return (
-    <select name="propertyId" value={value} onChange={(event) => onChange(event.currentTarget.value)} required className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
-      <option value="">Choose listing</option>
-      {listings.map((listing) => (
-        <option key={listing.id} value={listing.id}>{listing.title}</option>
-      ))}
-    </select>
+    <label className="text-sm font-semibold text-black/65">
+      Listing
+      <select name="propertyId" value={value} onChange={(event) => onChange(event.currentTarget.value)} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
+        <option value="">Choose listing</option>
+        {listings.map((listing) => (
+          <option key={listing.id} value={listing.id}>{listing.title}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
