@@ -32,7 +32,7 @@ export function HomeHeroSlider() {
   }
 
   return (
-    <section className="relative mt-[72px] block h-[14rem] overflow-hidden bg-[#053f34] text-white sm:h-[18rem] md:mt-0 md:h-[51vh] md:min-h-0">
+    <section className="relative block h-[100svh] w-full overflow-hidden bg-[#053f34] text-white">
       <Image
         key={slides[active].src}
         src={slides[active].src}
@@ -46,7 +46,7 @@ export function HomeHeroSlider() {
       <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-black/10" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
 
-      <div className="absolute inset-x-5 bottom-10 z-10 mx-auto max-w-5xl text-center sm:bottom-14 md:bottom-24 lg:bottom-32">
+      <div className="absolute inset-x-5 top-1/2 z-10 mx-auto max-w-5xl -translate-y-1/2 text-center">
         <h1 className="text-[1.75rem] font-bold leading-[1.15] tracking-normal text-white [font-stretch:92%] drop-shadow-[0_2px_16px_rgb(0_0_0_/_0.55)] sm:text-4xl md:text-5xl lg:text-[58px]">
           Staycations in the Philippines
         </h1>
@@ -69,7 +69,7 @@ export function HomeHeroSlider() {
         <ChevronRight size={22} />
       </button>
 
-      <div className="absolute bottom-1 left-1/2 z-10 flex -translate-x-1/2 md:bottom-5">
+      <div className="absolute bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-10 flex -translate-x-1/2 md:bottom-8">
         {slides.map((slide, index) => (
           <button
             key={slide.src}
