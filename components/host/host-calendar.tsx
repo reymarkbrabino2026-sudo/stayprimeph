@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, RotateCcw, Tag, Trash2, Users } from "lucide-react";
+import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Home, RotateCcw, Tag, Users } from "lucide-react";
 import { useActionState, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { avatarFallbackText } from "@/lib/avatar";
@@ -367,7 +367,9 @@ export function HostCalendar({
             csrfToken={csrfToken}
             listings={listings}
             selectedListingId={selectedListingId}
+            availabilityBlocks={selectedDayBlocks}
             action={availabilityFormAction}
+            removeAvailabilityBlockAction={removeAvailabilityBlockAction}
             state={availabilityState}
           />
           <div className="hidden lg:block">
@@ -688,8 +690,13 @@ function SelectedDatePanel({
                   <form action={removeAvailabilityBlockAction}>
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="blockId" value={block.id} />
-                    <button type="submit" className="grid size-9 place-items-center rounded-full text-black/45 transition hover:bg-black/[0.06] hover:text-black" aria-label="Remove availability block">
-                      <Trash2 size={16} />
+                    <button
+                      type="submit"
+                      className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-semibold text-black/55 transition hover:bg-black/[0.06] hover:text-black"
+                      aria-label="Undo availability block"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Undo</span>
                     </button>
                   </form>
                 </div>
@@ -1091,7 +1098,9 @@ function AvailabilityBlockForm({
   dateKey,
   listings,
   selectedListingId,
+  availabilityBlocks,
   action,
+  removeAvailabilityBlockAction,
   csrfToken,
   state,
 }: {
@@ -1099,11 +1108,14 @@ function AvailabilityBlockForm({
   csrfToken: string;
   listings: HostCalendarListing[];
   selectedListingId: string;
+  availabilityBlocks: HostAvailabilityBlock[];
   action: (formData: FormData) => void;
+  removeAvailabilityBlockAction: (formData: FormData) => Promise<void>;
   state: AvailabilityFormState;
 }) {
   const selectedListing = listings.find((listing) => listing.id === selectedListingId);
   const endDate = addDays(dateKey, 1);
+  const hasBlocks = availabilityBlocks.length > 0;
 
   return (
     <section className="mt-4 rounded-lg border border-black/10 bg-white p-3 lg:mt-7 lg:p-4">
@@ -1114,6 +1126,24 @@ function AvailabilityBlockForm({
           <p className="text-sm text-black/55">Block owner-use dates with no payment, outside bookings, or maintenance.</p>
         </div>
       </div>
+      {hasBlocks ? (
+        <div className="mt-4 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-950">Already blocked on this date</p>
+          {availabilityBlocks.map((block) => (
+            <div key={block.id} className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-black/80">{formatBlockReason(block.reason)}</p>
+                <p className="truncate text-xs text-black/50">{block.propertyTitle}</p>
+              </div>
+              <form action={removeAvailabilityBlockAction}>
+                <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                <input type="hidden" name="blockId" value={block.id} />
+                <UndoAvailabilityBlockButton block={block} />
+              </form>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <form action={action} className="mt-4 space-y-3">
         <input type="hidden" name={csrfFieldName} value={csrfToken} />
         {selectedListing ? (
@@ -1151,6 +1181,22 @@ function AvailabilityBlockForm({
         <AvailabilitySubmitButton />
       </form>
     </section>
+  );
+}
+
+function UndoAvailabilityBlockButton({ block }: { block: HostAvailabilityBlock }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-md bg-white px-2 text-xs font-semibold text-black/70 ring-1 ring-black/10 transition hover:bg-black/[0.04] hover:text-black disabled:cursor-wait disabled:text-black/45"
+      aria-label={`Undo ${formatBlockReason(block.reason)} block for ${block.propertyTitle}`}
+    >
+      <RotateCcw size={14} />
+      <span>{pending ? "Undoing..." : "Undo"}</span>
+    </button>
   );
 }
 

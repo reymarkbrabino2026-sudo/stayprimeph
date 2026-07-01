@@ -72,6 +72,33 @@ describe("HostCalendar", () => {
     expect(screen.getByRole("option", { name: "Booked by guest" })).toHaveValue("booked_by_guest");
   });
 
+  test("allows a selected availability block to be undone from the block form", async () => {
+    const user = userEvent.setup();
+    const selectedDate = dateKey();
+    const removeAvailabilityBlockAction = vi.fn<HostCalendarProps["removeAvailabilityBlockAction"]>(async () => undefined);
+
+    renderCalendar({
+      availabilityBlocks: [
+        {
+          id: "block-1",
+          propertyId: listing.id,
+          propertyTitle: listing.title,
+          date: selectedDate,
+          reason: "booked_by_guest",
+        },
+      ],
+      removeAvailabilityBlockAction,
+    });
+
+    expect(screen.getByText("Already blocked on this date")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Undo Booked by guest block for The Caya" }));
+
+    await waitFor(() => expect(removeAvailabilityBlockAction).toHaveBeenCalledTimes(1));
+    const formData = removeAvailabilityBlockAction.mock.calls[0][0] as FormData;
+    expect(formData.get("blockId")).toBe("block-1");
+  });
+
   test("shows calendar prices for the selected package", async () => {
     const user = userEvent.setup();
     const premiumPackage = {
