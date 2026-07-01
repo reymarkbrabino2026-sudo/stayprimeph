@@ -26,7 +26,7 @@ const bookingPackage = {
   checkOutTime: "7:00 PM",
   accessibleFloors: ["Ground Floor"],
   accessibleRoomIds: ["property-1-room-1"],
-  includedAmenities: ["Kitchen"],
+  includedAmenities: ["Kitchen", "Karaoke"],
   excludedAmenities: [],
   availableDays: [0, 1, 2, 3, 4, 5, 6],
   minimumAdvanceBookingDays: 0,
@@ -73,6 +73,10 @@ function accessibleRoomsInput(container: HTMLElement) {
   return container.querySelector('input[name="bookingPackageAccessibleRoomIds"]') as HTMLInputElement;
 }
 
+function includedAmenitiesInput(container: HTMLElement) {
+  return container.querySelector('input[name="bookingPackageIncludedAmenities"]') as HTMLInputElement;
+}
+
 describe("BookingPackageEditor", () => {
   test("allows decimal package rates", () => {
     render(
@@ -111,31 +115,32 @@ describe("BookingPackageEditor", () => {
     expect(accessibleRoomsInput(container).value).toBe("[]");
   });
 
-  test("syncs included amenities between the text list and amenity checkboxes", () => {
-    render(
+  test("updates included amenities through amenity checkboxes", () => {
+    const { container } = render(
       <>
         <form id="listing-form" />
         <BookingPackageEditor property={property} formId="listing-form" />
       </>,
     );
 
-    const includedAmenities = screen.getByLabelText("Included amenities") as HTMLTextAreaElement;
-    expect(includedAmenities.value).toBe("Kitchen");
+    const includedAmenities = includedAmenitiesInput(container);
+    expect(includedAmenities.value).toBe("Kitchen, Karaoke");
+    expect(screen.queryByLabelText("Included amenities")).not.toBeInTheDocument();
 
     expect(screen.getByRole("checkbox", { name: "Kitchen" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Karaoke" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "WiFi" })).not.toBeChecked();
 
     fireEvent.click(screen.getByRole("checkbox", { name: "WiFi" }));
-    expect(includedAmenities.value).toBe("Kitchen, WiFi");
+    expect(includedAmenities.value).toBe("Kitchen, Karaoke, WiFi");
     expect(screen.getByRole("checkbox", { name: "WiFi" })).toBeChecked();
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Kitchen" }));
-    expect(includedAmenities.value).toBe("WiFi");
+    expect(includedAmenities.value).toBe("Karaoke, WiFi");
     expect(screen.getByRole("checkbox", { name: "Kitchen" })).not.toBeChecked();
 
-    fireEvent.change(includedAmenities, { target: { value: "Pool, Karaoke" } });
-    expect(screen.getByRole("checkbox", { name: "Pool" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Karaoke" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "WiFi" })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Karaoke" }));
+    expect(includedAmenities.value).toBe("WiFi");
+    expect(screen.queryByRole("checkbox", { name: "Karaoke" })).not.toBeInTheDocument();
   });
 });

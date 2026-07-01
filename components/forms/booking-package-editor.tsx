@@ -271,18 +271,6 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
               onChange={(accessibleRoomIds) => updatePackage(pkg.id, { accessibleRoomIds })}
             />
 
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs text-black/45">Included amenities</span>
-              <textarea
-                form={formId}
-                name="bookingPackageIncludedAmenities"
-                value={pkg.includedAmenities}
-                rows={3}
-                onChange={(event) => updatePackage(pkg.id, { includedAmenities: event.target.value })}
-                className="w-full rounded-xl border border-black/10 bg-white p-3 leading-6 outline-none transition focus:border-black"
-                placeholder="WiFi, Kitchen, Pool"
-              />
-            </label>
             <PackageAmenityChecklist
               amenities={mergeTextValues(amenityOptions, csvTextValues(pkg.includedAmenities))}
               selectedAmenities={pkg.includedAmenities}
@@ -313,6 +301,7 @@ function PackageHiddenFields({ pkg, formId }: { pkg: EditablePackage; formId: st
     ["bookingPackageCheckOutTime", pkg.checkOutTime],
     ["bookingPackageAccessibleFloors", pkg.accessibleFloors],
     ["bookingPackageAccessibleRoomIds", json(pkg.accessibleRoomIds)],
+    ["bookingPackageIncludedAmenities", pkg.includedAmenities],
     ["bookingPackageExcludedAmenities", pkg.excludedAmenities],
     ["bookingPackageAvailableDays", pkg.availableDays],
     ["bookingPackageMinimumAdvanceBookingDays", pkg.minimumAdvanceBookingDays],
@@ -342,7 +331,7 @@ function PackageAmenityChecklist({
   const selectedKeys = new Set(csvTextValues(selectedAmenities).map(normalizeListValue));
 
   return (
-    <fieldset className="mt-2 rounded-xl border border-black/10 bg-white/70 p-3">
+    <fieldset className="mt-3 rounded-xl border border-black/10 bg-white/70 p-3">
       <legend className="px-1 text-xs text-black/45">Amenities</legend>
       {amenities.length ? (
         <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto pr-1">
