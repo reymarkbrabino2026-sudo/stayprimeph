@@ -28,7 +28,7 @@ const bookingPackages: BookingPackage[] = [
     checkInTime: "2:00 PM",
     checkOutTime: "11:00 AM",
     accessibleFloors: ["Ground Floor", "Second Floor", "Outdoor Areas"],
-    accessibleRoomIds: [],
+    accessibleRoomIds: ["ground-floor-room", "second-floor-room"],
     includedAmenities: ["WiFi", "Kitchen"],
     excludedAmenities: [],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
@@ -59,6 +59,36 @@ const bookingPackages: BookingPackage[] = [
     checkOutTime: "10:00 PM",
     accessibleFloors: ["Ground Floor", "Outdoor Areas"],
     accessibleRoomIds: ["ground-floor-room"],
+    includedAmenities: ["WiFi", "Kitchen"],
+    excludedAmenities: ["Bedrooms"],
+    availableDays: [0, 1, 2, 3, 4, 5, 6],
+    minimumAdvanceBookingDays: 0,
+    blockedPackageIds: ["overnight-full-access"],
+    enabled: true,
+  },
+  {
+    id: "daytime-no-bedrooms",
+    name: "Daytime No Bedroom Access",
+    description: "Daytime event access without bedrooms.",
+    status: "active",
+    displayOrder: 3,
+    accessType: "Custom access",
+    unit: "day",
+    weekdayRate: 4000,
+    weekendRate: 0,
+    holidayRate: 0,
+    holidayDates: [],
+    seasonalRates: [],
+    includedGuests: 10,
+    maxGuests: 20,
+    sleepingCapacity: 0,
+    durationHours: 9,
+    additionalGuestFee: 500,
+    extensionHourlyFee: 1500,
+    checkInTime: "12:00 PM",
+    checkOutTime: "9:00 PM",
+    accessibleFloors: ["Ground Floor"],
+    accessibleRoomIds: [],
     includedAmenities: ["WiFi", "Kitchen"],
     excludedAmenities: ["Bedrooms"],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
@@ -191,8 +221,9 @@ describe("RoomReservationCard", () => {
     render(<RoomReservationCard property={property} rating="New" />);
 
     expect(screen.getByText("Up to 20 guests")).toBeInTheDocument();
-    expect(screen.getByText("6 bedrooms")).toBeInTheDocument();
+    expect(screen.getByText("2 bedrooms")).toBeInTheDocument();
     expect(screen.getByText("Sleeps 20")).toBeInTheDocument();
+    expect(screen.queryByText("6 bedrooms")).not.toBeInTheDocument();
     expect(screen.queryByText(/sleeping capacity/i)).not.toBeInTheDocument();
   });
 
@@ -206,6 +237,19 @@ describe("RoomReservationCard", () => {
 
     expect(screen.getByText("Up to 15 guests")).toBeInTheDocument();
     expect(screen.getByText("1 bedroom")).toBeInTheDocument();
+    expect(screen.queryByText("6 bedrooms")).not.toBeInTheDocument();
+  });
+
+  test("does not fall back to listing bedrooms when package rooms are none", () => {
+    useReservationStore.setState({
+      bookingMode: "package",
+      packageId: bookingPackages[2].id,
+    });
+
+    render(<RoomReservationCard property={property} rating="New" />);
+
+    expect(screen.getByText("Up to 20 guests")).toBeInTheDocument();
+    expect(screen.getByText("No bedroom access")).toBeInTheDocument();
     expect(screen.queryByText("6 bedrooms")).not.toBeInTheDocument();
   });
 });

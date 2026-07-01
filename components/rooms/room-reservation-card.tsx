@@ -233,11 +233,16 @@ export function RoomReservationCard({
   const packageBedroomCount = packageAccessibleRoomIds.length
     ? selectedPackageRooms.length || new Set(packageAccessibleRoomIds).size
     : null;
+  const bedroomSummary = activePackage
+    ? packageBedroomCount === null
+      ? "No bedroom access"
+      : formatBedroomCount(packageBedroomCount)
+    : formatBedroomCount(property.bedrooms);
   const maxGuests = activePackage?.maxGuests ?? property.maxGuests;
   const sleepingCapacity = activePackage?.sleepingCapacity && activePackage.sleepingCapacity > 0 ? activePackage.sleepingCapacity : 0;
   const capacitySummaryParts = [
     `Up to ${maxGuests} guests`,
-    formatBedroomCount(packageBedroomCount ?? property.bedrooms),
+    bedroomSummary,
     sleepingCapacity ? `Sleeps ${sleepingCapacity}` : null,
   ].filter((part): part is string => Boolean(part));
   const changeGuests = (next: number) => setGuests(Math.min(maxGuests, Math.max(1, next)));
