@@ -8,7 +8,7 @@ import {
   Plus, Puzzle, ShieldAlert, Snowflake, Sofa, Sparkles, Sun, Target, TentTree, Tractor, Trash2, TreePine, Tv, Umbrella, Users,
   UtensilsCrossed, WashingMachine, Waves, Wifi,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
@@ -244,16 +244,44 @@ function ChipCheckbox({ checked, label, sublabel, onChange }: { checked: boolean
 }
 
 function PackageFieldInput({ pkg, field, onChange }: { pkg: HostBookingPackageDraft; field: PackageScalarField; onChange: (patch: Partial<HostBookingPackageDraft>) => void }) {
+  const rawValue = pkg[field.key];
+  const [inputValue, setInputValue] = useState(String(rawValue));
+  const isEditing = useRef(false);
+
+  useEffect(() => {
+    if (!isEditing.current) setInputValue(String(rawValue));
+  }, [rawValue]);
+
   return (
     <label className={field.className}>
       <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{field.label}</span>
       <input
-        value={String(pkg[field.key])}
+        value={field.type === "number" ? inputValue : String(rawValue)}
         type={field.type}
         min={field.type === "number" ? field.min ?? 0 : undefined}
         step={field.type === "number" ? field.step ?? 1 : undefined}
+        onFocus={() => {
+          if (field.type === "number") isEditing.current = true;
+        }}
+        onBlur={() => {
+          if (field.type !== "number") return;
+          isEditing.current = false;
+          if (inputValue.trim() === "" || !Number.isFinite(Number(inputValue))) {
+            setInputValue(String(rawValue));
+          }
+        }}
         onChange={(event) => {
-          const value = field.type === "number" ? Number(event.target.value) : event.target.value;
+          if (field.type === "number") {
+            const nextValue = event.target.value;
+            const numericValue = Number(nextValue);
+            setInputValue(nextValue);
+            if (nextValue.trim() !== "" && !Number.isFinite(numericValue)) return;
+
+            onChange({ [field.key]: numericValue } as Partial<HostBookingPackageDraft>);
+            return;
+          }
+
+          const value = event.target.value;
           onChange({ [field.key]: value } as Partial<HostBookingPackageDraft>);
         }}
         className="min-h-12 w-full rounded-lg border border-black/10 px-3 outline-none transition focus:border-black"
