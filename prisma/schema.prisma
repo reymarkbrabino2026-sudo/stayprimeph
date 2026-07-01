@@ -36,43 +36,45 @@ model User {
 }
 
 model Property {
-  id              String                  @id
-  hostId          String
-  slug            String                  @unique
-  title           String
-  description     String
-  address         String
-  city            String
-  country         String
-  virtualTourUrl  String?
-  listingVideoUrl String?
-  bookingType     String                  @default("stay")
-  pricePerNight   Int
-  bedrooms        Int
-  bathrooms       Int
-  maxGuests       Int
-  propertyType    String
-  privacyType     String                  @default("entire")
-  status          String                  @default("pending")
-  rating          Float                   @default(0)
-  rules           String
-  createdAt       DateTime                @default(now())
-  host            User                    @relation(fields: [hostId], references: [id])
-  images          PropertyImage[]
-  amenities       PropertyAmenity[]
-  bookings        Booking[]
-  reviews         Review[]
-  wishlists       Wishlist[]
-  location        ListingLocation?
-  pricing         ListingPricing?
-  availability    ListingAvailability?
-  rooms           ListingRoom[]
-  bookingPackages ListingBookingPackage[]
-  calendar        AvailabilityBlock[]
-  highlights      ListingHighlight[]
-  cancellations   Cancellation[]
-  reports         Report[]
-  messages        Message[]
+  id               String                  @id
+  hostId           String
+  slug             String                  @unique
+  title            String
+  description      String
+  address          String
+  city             String
+  country          String
+  virtualTourUrl   String?
+  listingVideoUrl  String?
+  bookingType      String                  @default("stay")
+  pricePerNight    Int
+  bedrooms         Int
+  bathrooms        Int
+  maxGuests        Int
+  eventCapacity    Int?
+  sleepingCapacity Int?
+  propertyType     String
+  privacyType      String                  @default("entire")
+  status           String                  @default("pending")
+  rating           Float                   @default(0)
+  rules            String
+  createdAt        DateTime                @default(now())
+  host             User                    @relation(fields: [hostId], references: [id])
+  images           PropertyImage[]
+  amenities        PropertyAmenity[]
+  bookings         Booking[]
+  reviews          Review[]
+  wishlists        Wishlist[]
+  location         ListingLocation?
+  pricing          ListingPricing?
+  availability     ListingAvailability?
+  rooms            ListingRoom[]
+  bookingPackages  ListingBookingPackage[]
+  calendar         AvailabilityBlock[]
+  highlights       ListingHighlight[]
+  cancellations    Cancellation[]
+  reports          Report[]
+  messages         Message[]
 
   @@index([hostId])
   @@index([status, city])

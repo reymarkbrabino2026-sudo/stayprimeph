@@ -284,6 +284,8 @@ async function ensurePropertyAdvancedPricingColumns(db: Pick<typeof prisma, "$ex
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "virtualTourUrl" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "listingVideoUrl" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "privacyType" TEXT NOT NULL DEFAULT 'entire'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "eventCapacity" INTEGER`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "sleepingCapacity" INTEGER`);
     await db.$executeRawUnsafe(`ALTER TABLE "PropertyImage" ADD COLUMN IF NOT EXISTS "category" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayPrice" INTEGER`);
     await db.$executeRawUnsafe(`ALTER TABLE "ListingPricing" ADD COLUMN IF NOT EXISTS "holidayDates" JSONB`);
@@ -570,6 +572,8 @@ type DatabasePublicListingSummary = Prisma.PropertyGetPayload<{
     bedrooms: true;
     bathrooms: true;
     maxGuests: true;
+    eventCapacity: true;
+    sleepingCapacity: true;
     propertyType: true;
     rating: true;
     createdAt: true;
@@ -767,6 +771,8 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
+    eventCapacity: property.eventCapacity ?? undefined,
+    sleepingCapacity: property.sleepingCapacity ?? undefined,
     propertyType: property.propertyType,
     privacyType: property.privacyType,
     status: property.status as Property["status"],
@@ -804,6 +810,8 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
+    eventCapacity: property.eventCapacity ?? undefined,
+    sleepingCapacity: property.sleepingCapacity ?? undefined,
     propertyType: property.propertyType,
     amenities: property.amenities.map((entry) => entry.amenity.name),
     rating: property.rating,
@@ -939,6 +947,8 @@ export async function listPublicListingSummariesFromDatabase(): Promise<PublicLi
       bedrooms: true,
       bathrooms: true,
       maxGuests: true,
+      eventCapacity: true,
+      sleepingCapacity: true,
       propertyType: true,
       rating: true,
       createdAt: true,
@@ -1029,6 +1039,8 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
+    eventCapacity: property.eventCapacity ?? null,
+    sleepingCapacity: property.sleepingCapacity ?? null,
     propertyType: property.propertyType,
     privacyType: property.privacyType ?? "entire",
     status: property.status,
@@ -1242,7 +1254,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "rateAdjustments" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "rules" | "images" | "rooms" | "bookingPackages"
+  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "rateAdjustments" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "eventCapacity" | "sleepingCapacity" | "propertyType" | "privacyType" | "amenities" | "rules" | "images" | "rooms" | "bookingPackages"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1264,6 +1276,8 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
         maxGuests: property.maxGuests,
+        eventCapacity: property.eventCapacity ?? null,
+        sleepingCapacity: property.sleepingCapacity ?? null,
         propertyType: property.propertyType,
         privacyType: property.privacyType ?? "entire",
         rules: JSON.stringify(property.rules),

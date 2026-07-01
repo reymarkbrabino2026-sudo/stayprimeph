@@ -58,6 +58,12 @@ const moneyFormValue = (min: number, max: number) =>
     .refine(hasAtMostTwoDecimalPlaces, { message: "Use no more than 2 decimal places." })
     .transform(normalizeMoneyAmount);
 
+const optionalIntegerFormValue = (min: number, max: number) =>
+  z.preprocess((value) => {
+    if (value === null || value === undefined || value === "") return undefined;
+    return Number(value);
+  }, z.number().int().min(min).max(max).optional());
+
 const dateKeyList = z.array(z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/)).max(80).catch([]);
 
 const virtualTourFormUrl = z.preprocess(
@@ -226,6 +232,8 @@ const listingFormSchema = z.object({
   bedrooms: z.coerce.number().int().min(0).max(50),
   bathrooms: z.coerce.number().min(0).max(50),
   maxGuests: z.coerce.number().int().min(1).max(100),
+  eventCapacity: optionalIntegerFormValue(1, 500),
+  sleepingCapacity: optionalIntegerFormValue(1, 500),
   amenities: z.array(z.string().trim().max(80)).max(50).catch([]),
   rules: z.array(z.string().trim().max(120)).max(30).optional(),
 });
@@ -261,6 +269,8 @@ const listingFieldLabels: Record<string, string> = {
   bedrooms: "Bedrooms",
   bathrooms: "Bathrooms",
   maxGuests: "Guests",
+  eventCapacity: "Event guests",
+  sleepingCapacity: "Sleep guests",
   amenities: "Amenities",
   rules: "House rules",
   photoUrls: "Photos",
@@ -298,6 +308,8 @@ function listingFormInput(formData: FormData) {
     bedrooms: formData.get("bedrooms"),
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
+    eventCapacity: formData.get("eventCapacity"),
+    sleepingCapacity: formData.get("sleepingCapacity"),
     amenities: submittedAmenityValues(formData),
     rules: submittedRuleValues(formData),
   };
@@ -774,6 +786,8 @@ export async function createListing(formData: FormData) {
     bedrooms: formData.get("bedrooms"),
     bathrooms: formData.get("bathrooms"),
     maxGuests: formData.get("maxGuests"),
+    eventCapacity: formData.get("eventCapacity"),
+    sleepingCapacity: formData.get("sleepingCapacity"),
     amenities: submittedAmenityValues(formData),
     rules: submittedRuleValues(formData),
   });
@@ -798,6 +812,8 @@ export async function createListing(formData: FormData) {
     bedrooms,
     bathrooms,
     maxGuests,
+    eventCapacity,
+    sleepingCapacity,
     amenities,
   } = parsed.data;
   const rules = parsed.data.rules ?? [];
@@ -826,6 +842,8 @@ export async function createListing(formData: FormData) {
     bedrooms,
     bathrooms,
     maxGuests,
+    eventCapacity,
+    sleepingCapacity,
     propertyType,
     privacyType: "entire",
     status: "pending",
@@ -895,6 +913,8 @@ async function persistListingUpdate(formData: FormData) {
     bedrooms: parsed.data.bedrooms,
     bathrooms: parsed.data.bathrooms,
     maxGuests: bookingPackages.length ? Math.max(parsed.data.maxGuests, ...bookingPackages.map((pkg) => pkg.maxGuests)) : parsed.data.maxGuests,
+    eventCapacity: parsed.data.eventCapacity,
+    sleepingCapacity: parsed.data.sleepingCapacity,
     amenities: parsed.data.amenities,
     rules: parsed.data.rules ?? existing.rules,
     images: readSubmittedImages(formData, existing, user.id),

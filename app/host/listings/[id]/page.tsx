@@ -27,6 +27,7 @@ export default async function EditListingPage({ params, searchParams }: { params
   const editFormId = `listing-edit-${property.id}`;
   const propertyTypeLabel = getPropertyTypeLabel(property.propertyType);
   const PropertyTypeIcon = getPropertyTypeIconName(property.propertyType) === "palmtree" ? Palmtree : Home;
+  const capacityLabel = capacityInfoValue(property);
 
   return (
     <DashboardShell title="Listing Details" subtitle="Host dashboard" description="Review the listing guests and admins will see." links={hostLinks}>
@@ -45,7 +46,7 @@ export default async function EditListingPage({ params, searchParams }: { params
               </p>
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 {packageOnlyListing ? null : <Info icon={WalletCards} label="Nightly price" value={formatCurrency(property.pricePerNight)} />}
-                <Info icon={Users} label="Guests" value={String(property.maxGuests)} />
+                <Info icon={Users} label="Capacity" value={capacityLabel} />
                 <Info icon={BedDouble} label="Bedrooms" value={String(property.bedrooms)} />
                 <Info icon={Bath} label="Bathrooms" value={String(property.bathrooms)} />
                 <Info icon={PropertyTypeIcon} label="Property type" value={propertyTypeLabel} />
@@ -116,9 +117,25 @@ function Info({ icon: Icon, label, value }: { icon: LucideIcon; label: string; v
     <div className="rounded-2xl border border-black/10 bg-[#fbf7f2] p-4">
       <Icon size={18} className="text-[#083f35]" aria-hidden="true" />
       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</p>
-      <p className="mt-1 text-lg font-bold text-[#21170f]">{value}</p>
+      <p className="mt-1 whitespace-pre-line text-lg font-bold leading-snug text-[#21170f]">{value}</p>
     </div>
   );
+}
+
+function pluralGuests(value: number) {
+  return `${value} guest${value === 1 ? "" : "s"}`;
+}
+
+function capacityInfoValue(property: { maxGuests: number; eventCapacity?: number; sleepingCapacity?: number }) {
+  const eventCapacity = property.eventCapacity;
+  const sleepingCapacity = property.sleepingCapacity;
+
+  if (eventCapacity && sleepingCapacity) {
+    return `Events - ${pluralGuests(eventCapacity)}\nSleep - ${pluralGuests(sleepingCapacity)}`;
+  }
+  if (eventCapacity) return `Events - ${pluralGuests(eventCapacity)}`;
+  if (sleepingCapacity) return `Sleep - ${pluralGuests(sleepingCapacity)}`;
+  return pluralGuests(property.maxGuests);
 }
 
 function RoomPaxInput({

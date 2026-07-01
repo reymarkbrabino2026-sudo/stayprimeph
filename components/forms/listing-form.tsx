@@ -36,7 +36,9 @@ const clientFieldLabels: Record<string, string> = {
   holidayDates: "Holiday dates",
   bedrooms: "Bedrooms",
   bathrooms: "Bathrooms",
-  maxGuests: "Guests",
+  maxGuests: "Bookable guests",
+  eventCapacity: "Event guests",
+  sleepingCapacity: "Sleep guests",
   bookingPackageName: "Package name",
   bookingPackageAccessType: "Guest access",
   bookingPackageWeekdayRate: "Weekday rate",
@@ -120,10 +122,12 @@ export function ListingForm({
     { label: "Cleaning fee", name: "cleaningFee", type: "number", defaultValue: property?.cleaningFee ?? 0, step: 0.01 },
     { label: "Security deposit", name: "securityDeposit", type: "number", defaultValue: property?.securityDeposit ?? 0, step: 0.01 },
   ];
-  const capacityFields: Array<{ label: string; name: string; defaultValue?: number }> = [
+  const capacityFields: Array<{ label: string; name: string; defaultValue?: number; required?: boolean; min?: number; max?: number; placeholder?: string }> = [
+    { label: "Event guests", name: "eventCapacity", defaultValue: property?.eventCapacity, min: 1, max: 500, placeholder: "40" },
+    { label: "Sleep guests", name: "sleepingCapacity", defaultValue: property?.sleepingCapacity, min: 1, max: 500, placeholder: "20" },
+    { label: "Bookable guests", name: "maxGuests", defaultValue: property?.maxGuests, required: true, min: 1, max: 100 },
     { label: "Bedrooms", name: "bedrooms", defaultValue: property?.bedrooms },
     { label: "Bathrooms", name: "bathrooms", defaultValue: property?.bathrooms },
-    { label: "Guests", name: "maxGuests", defaultValue: property?.maxGuests },
   ];
 
   useEffect(() => {
@@ -349,8 +353,8 @@ export function ListingForm({
               </label>
             </div>
           ) : null}
-          <div className="grid gap-4 sm:grid-cols-3">
-            {capacityFields.map(({ label, name, defaultValue }) => {
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {capacityFields.map(({ label, name, defaultValue, required, min, max, placeholder }) => {
               const error = fieldError(name);
               const errorId = fieldErrorId(name);
 
@@ -360,13 +364,14 @@ export function ListingForm({
                   <input
                     name={name}
                     type="number"
-                    min="0"
+                    min={min ?? 0}
+                    max={max}
                     defaultValue={defaultValue}
-                    required
+                    required={required}
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? errorId : undefined}
                     className={controlClass(name, "min-h-12 w-full rounded-2xl border p-3 outline-none transition focus:border-black")}
-                    placeholder="0"
+                    placeholder={placeholder ?? "0"}
                   />
                   <FieldError id={errorId} message={error} />
                 </label>

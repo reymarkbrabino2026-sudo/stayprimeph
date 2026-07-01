@@ -1,0 +1,2 @@
+ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "eventCapacity" INTEGER;
+ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "sleepingCapacity" INTEGER;

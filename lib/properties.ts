@@ -32,6 +32,8 @@ function toPublicListingSummary(property: Property): PublicListingSummary {
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
+    eventCapacity: property.eventCapacity,
+    sleepingCapacity: property.sleepingCapacity,
     propertyType: property.propertyType,
     amenities: property.amenities ?? [],
     rating: property.rating,

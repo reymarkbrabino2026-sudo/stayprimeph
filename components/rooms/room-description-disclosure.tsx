@@ -7,6 +7,27 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function capacitySummary({
+  propertyTypeLabel,
+  maxGuests,
+  eventCapacity,
+  sleepingCapacity,
+}: {
+  propertyTypeLabel: string;
+  maxGuests: number;
+  eventCapacity?: number;
+  sleepingCapacity?: number;
+}) {
+  const type = propertyTypeLabel.toLowerCase();
+
+  if (eventCapacity && sleepingCapacity) {
+    return `This ${type} can host events up to ${pluralize(eventCapacity, "guest")} and sleeps ${pluralize(sleepingCapacity, "guest")}`;
+  }
+  if (eventCapacity) return `This ${type} can host events up to ${pluralize(eventCapacity, "guest")}`;
+  if (sleepingCapacity) return `This ${type} sleeps ${pluralize(sleepingCapacity, "guest")}`;
+  return `This ${type} accommodates up to ${pluralize(maxGuests, "guest")}`;
+}
+
 export function RoomDescriptionDisclosure({
   description,
   propertyTypeLabel,
@@ -14,6 +35,8 @@ export function RoomDescriptionDisclosure({
   bedroomsLabel,
   bathsLabel,
   maxGuests,
+  eventCapacity,
+  sleepingCapacity,
   amenities,
   rules,
 }: {
@@ -23,6 +46,8 @@ export function RoomDescriptionDisclosure({
   bedroomsLabel: string;
   bathsLabel: string;
   maxGuests: number;
+  eventCapacity?: number;
+  sleepingCapacity?: number;
   amenities: string[];
   rules: string[];
 }) {
@@ -33,7 +58,7 @@ export function RoomDescriptionDisclosure({
   const visibleAmenities = amenities.slice(0, 8);
   const visibleRules = rules.slice(0, 5);
   const amenitySummary = amenities.slice(0, 4).join(", ");
-  const spaceSummary = `This ${propertyTypeLabel.toLowerCase()} accommodates up to ${pluralize(maxGuests, "guest")} with ${bedroomsLabel.toLowerCase()} and ${bathsLabel.toLowerCase()}. It is set in ${locationLabel}${amenitySummary ? ` and includes ${amenitySummary}.` : "."}`;
+  const spaceSummary = `${capacitySummary({ propertyTypeLabel, maxGuests, eventCapacity, sleepingCapacity })} with ${bedroomsLabel.toLowerCase()} and ${bathsLabel.toLowerCase()}. It is set in ${locationLabel}${amenitySummary ? ` and includes ${amenitySummary}.` : "."}`;
 
   useEffect(() => {
     if (!open) return;

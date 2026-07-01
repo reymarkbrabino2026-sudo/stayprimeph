@@ -100,6 +100,22 @@ function propertyTypeIcon(propertyType: string) {
   return getPropertyTypeIconName(propertyType) === "palmtree" ? Palmtree : House;
 }
 
+function pluralGuests(value: number) {
+  return `${value} guest${value === 1 ? "" : "s"}`;
+}
+
+function capacityStatLabel(property: { maxGuests: number; eventCapacity?: number; sleepingCapacity?: number }) {
+  const eventCapacity = property.eventCapacity;
+  const sleepingCapacity = property.sleepingCapacity;
+
+  if (eventCapacity && sleepingCapacity) {
+    return `Events - ${pluralGuests(eventCapacity)}\nSleep - ${pluralGuests(sleepingCapacity)}`;
+  }
+  if (eventCapacity) return `Events - ${pluralGuests(eventCapacity)}`;
+  if (sleepingCapacity) return `Sleep - ${pluralGuests(sleepingCapacity)}`;
+  return pluralGuests(property.maxGuests);
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -199,7 +215,7 @@ export default async function RoomPage({
   });
 
   const stats = [
-    { icon: Users, label: `${property.maxGuests} guests` },
+    { icon: Users, label: capacityStatLabel(property) },
     { icon: BedDouble, label: bedroomsLabel },
     { icon: Bath, label: bathsLabel },
     { icon: PropertyTypeIcon, label: propertyTypeLabel },
@@ -359,6 +375,8 @@ export default async function RoomPage({
                 bedroomsLabel={bedroomsLabel}
                 bathsLabel={bathsLabel}
                 maxGuests={property.maxGuests}
+                eventCapacity={property.eventCapacity}
+                sleepingCapacity={property.sleepingCapacity}
                 amenities={property.amenities}
                 rules={property.rules}
               />
@@ -377,7 +395,7 @@ export default async function RoomPage({
               {stats.map((stat) => (
                 <div key={stat.label} className="flex min-h-20 items-center gap-3 bg-[#f7f5ef] p-4 sm:min-h-28 sm:gap-4 sm:p-5">
                   <stat.icon size={24} className="shrink-0 text-[#0f5750]" />
-                  <p className="text-base font-semibold sm:text-lg">{stat.label}</p>
+                  <p className="whitespace-pre-line text-base font-semibold leading-snug sm:text-lg">{stat.label}</p>
                 </div>
               ))}
             </div>
