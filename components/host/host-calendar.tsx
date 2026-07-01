@@ -539,8 +539,9 @@ function CalendarCell({
   const pending = dayBookings.some((booking) => booking.status === "pending" || booking.paymentStatus === "submitted");
   const completed = dayBookings.some((booking) => booking.status === "completed");
   const blocked = dayBlocks.length > 0;
-  const rateDetails = selectedPackage ? getPackageRateDetails(selectedPackage, cell.dateKey) : getAverageRateDetails(listings, cell.dateKey);
-  const rate = cell.price || rateDetails.netRate;
+  const selectedPackageListing = selectedPackage ? listings.find((listing) => listing.bookingPackages?.some((pkg) => pkg.id === selectedPackage.id)) : undefined;
+  const rateDetails = selectedPackage ? getPackageRateDetails(selectedPackage, cell.dateKey, selectedPackageListing) : getAverageRateDetails(listings, cell.dateKey);
+  const rate = rateDetails.netRate;
   const hasPromo = rateDetails.discountAmount > 0;
   const label = `${formatDisplayDate(cell.dateKey)} ${
     dayBookings.length > 0
@@ -572,7 +573,7 @@ function CalendarCell({
       <span className={cx("mt-6 hidden text-sm font-semibold sm:block", confirmed ? "text-white/90" : "text-black/70")}>{formatCurrency(rate)}</span>
       {hasPromo ? (
         <span className={cx("mt-1 hidden max-w-full truncate rounded-md px-2 py-1 text-[11px] font-semibold sm:inline-flex", confirmed ? "bg-white/20 text-white" : "bg-emerald-50 text-emerald-700")}>
-          {rateDetails.discountLabel || "Promo"}
+          {formatCalendarDiscountLabel(rateDetails)}
         </span>
       ) : null}
       <MobileBookingAvatars bookings={dayBookings} confirmed={confirmed} />
@@ -1391,13 +1392,14 @@ function getAverageRateDetails(listings: HostCalendarListing[], dateKey: string)
   };
 }
 
-function getPackageRateDetails(pkg: HostCalendarBookingPackage, dateKey: string) {
+function getPackageRateDetails(pkg: HostCalendarBookingPackage, dateKey: string, listing?: HostCalendarListing) {
   return getNightlyRateDetails({
     pricePerNight: pkg.weekdayRate,
     weekendPrice: pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate,
     holidayPrice: pkg.holidayRate,
     holidayDates: pkg.holidayDates,
     seasonalRates: pkg.seasonalRates,
+    rateAdjustments: listing?.rateAdjustments,
   }, dateKey);
 }
 
@@ -1441,6 +1443,10 @@ function formatRateAdjustmentSummary(adjustment: ListingRateAdjustment) {
 
   const rate = adjustment.weekdayRate ? formatCurrency(adjustment.weekdayRate) : "Custom price";
   return `${rate} - ${dates} - ${status}`;
+}
+
+function formatCalendarDiscountLabel(rateDetails: { discountLabel?: string; discountPercent?: number }) {
+  return rateDetails.discountPercent ? `${rateDetails.discountPercent}% off` : rateDetails.discountLabel || "Promo";
 }
 
 function formatCompactPrice(value: number) {

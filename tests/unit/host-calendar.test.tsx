@@ -150,6 +150,34 @@ describe("HostCalendar", () => {
     expect(screen.getAllByText("₱20,000").length).toBeGreaterThan(0);
   });
 
+  test("applies selected-date discounts to selected package calendar prices", async () => {
+    const user = userEvent.setup();
+    const selectedDate = dateKey();
+
+    renderCalendar({
+      listings: [{
+        ...listing,
+        bookingPackages: [{ ...bookingPackage, weekdayRate: 15000, weekendRate: 15000 }],
+        rateAdjustments: [
+          {
+            id: "promo-1",
+            type: "discount",
+            name: "Selected date promo",
+            startDate: selectedDate,
+            endDate: selectedDate,
+            active: true,
+            discountPercent: 10,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }],
+    });
+    await user.click(screen.getByRole("button", { name: "The Caya" }));
+
+    expect(screen.getByText("10% off")).toBeInTheDocument();
+    expect(screen.getAllByText(/13,500/).length).toBeGreaterThan(0);
+  });
+
   test("separates rates from promos", async () => {
     const user = userEvent.setup();
 
