@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Booking, Property } from "@/lib/types";
+import type { AvailabilityBlock, Booking, Property } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  unstable_cache: (callback: unknown) => callback,
+}));
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 vi.mock("@/lib/repositories", () => ({
   usesPrismaPersistence: () => false,
@@ -12,6 +17,9 @@ vi.mock("@/lib/repositories", () => ({
 }));
 vi.mock("@/lib/booking-store", () => ({
   readStoredBookings: vi.fn(),
+}));
+vi.mock("@/lib/availability-store", () => ({
+  readStoredAvailabilityBlocks: vi.fn(),
 }));
 vi.mock("@/lib/cancellation-store", () => ({
   readStoredCancellations: vi.fn(),
@@ -29,8 +37,9 @@ vi.mock("@/lib/review-store", () => ({
   readStoredReviews: vi.fn(),
 }));
 
-import { readStoredBookings } from "@/lib/booking-store";
 import { getAdminDashboardSummary } from "@/lib/admin-data";
+import { readStoredAvailabilityBlocks } from "@/lib/availability-store";
+import { readStoredBookings } from "@/lib/booking-store";
 import { readStoredProperties } from "@/lib/property-store";
 
 function propertyWithStatus(id: string, status: Property["status"]): Property {
@@ -44,6 +53,7 @@ function propertyWithStatus(id: string, status: Property["status"]): Property {
     city: "Tagaytay",
     country: "Philippines",
     pricePerNight: 5000,
+    weekendPrice: 5000,
     bedrooms: 1,
     bathrooms: 1,
     maxGuests: 2,
@@ -54,6 +64,16 @@ function propertyWithStatus(id: string, status: Property["status"]): Property {
     rules: [],
     createdAt: "2026-06-01",
     images: [],
+  };
+}
+
+function availabilityBlock(id: string, reason: AvailabilityBlock["reason"]): AvailabilityBlock {
+  return {
+    id,
+    propertyId: "approved-listing",
+    date: "2099-07-15",
+    reason,
+    createdAt: "2026-06-01T00:00:00.000Z",
   };
 }
 
@@ -87,15 +107,21 @@ describe("getAdminDashboardSummary", () => {
       bookingWithTotal("booking-1", 12000, "pending"),
       bookingWithTotal("booking-2", 6000, "confirmed"),
     ]);
+    vi.mocked(readStoredAvailabilityBlocks).mockResolvedValue([
+      availabilityBlock("external-1", "booked_by_guest"),
+      availabilityBlock("owner-1", "owner_use"),
+    ]);
 
     const summary = await getAdminDashboardSummary();
 
     expect(summary).toMatchObject({
       pendingListings: 1,
       approvedListings: 1,
-      openBookings: 1,
-      grossBookingValue: 18000,
+      openBookings: 2,
+      grossBookingValue: 23000,
       stayprimeEarningsValue: 3000,
+      externalPaidBlocks: 1,
+      externalPaidValue: 5000,
     });
   });
 });

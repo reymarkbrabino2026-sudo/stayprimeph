@@ -9,12 +9,14 @@ import { HostMonthlyReportForm } from "@/components/forms/host-monthly-report-fo
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { deleteHostExpense, deleteHostMonthlyReport, saveHostExpense, saveHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
+import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getCsrfToken } from "@/lib/csrf";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { hostLinks } from "@/lib/navigation";
+import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getProperties } from "@/lib/properties";
 import { getUsers } from "@/lib/users";
@@ -63,7 +65,7 @@ export default async function HostReportsPage({
   searchParams: Promise<{ expenseDeleted?: string; expenseError?: string; expenseSaved?: string; expenseUpdated?: string; month?: string; reportDeleted?: string; reportEdit?: string; reportError?: string; reportSaved?: string; salesAdded?: string }>;
 }) {
   const user = await getCurrentUser();
-  const [{ expenseDeleted, expenseError, expenseSaved, expenseUpdated, month, reportDeleted, reportEdit, reportError, reportSaved, salesAdded }, bookings, reports, expenses, properties, users, csrfToken] = await Promise.all([searchParams, getBookings(), readHostMonthlyReports(), readHostExpenses(), getProperties(), getUsers(), getCsrfToken()]);
+  const [{ expenseDeleted, expenseError, expenseSaved, expenseUpdated, month, reportDeleted, reportEdit, reportError, reportSaved, salesAdded }, bookings, availabilityBlocks, reports, expenses, properties, users, csrfToken] = await Promise.all([searchParams, getBookings(), getAvailabilityBlocks(), readHostMonthlyReports(), readHostExpenses(), getProperties(), getUsers(), getCsrfToken()]);
   const isAdmin = user?.role === "admin";
   const selectedMonth = month?.match(/^\d{4}-\d{2}$/) ? month : currentMonth();
   const scopedReports = isAdmin ? reports : reports.filter((report) => report.hostId === user?.id);
@@ -74,6 +76,8 @@ export default async function HostReportsPage({
   const scopedProperties = isAdmin ? properties : properties.filter((property) => property.hostId === user?.id);
   const scopedBookings = isAdmin ? bookings : bookings.filter((booking) => booking.hostId === user?.id);
   const monthBookings = scopedBookings.filter((booking) => booking.paymentStatus === "paid" && paidNightsInMonth(booking, selectedMonth) > 0);
+  const paidBlocks = paidAvailabilityBlocksForProperties(availabilityBlocks, scopedProperties);
+  const monthPaidBlocks = paidBlocks.filter((block) => block.date.startsWith(`${selectedMonth}-`));
   const guestIds = new Set(scopedBookings.map((booking) => booking.guestId));
   const hostUsers = users.filter((item) => item.role === "host");
   const hostNameCounts = hostUsers.reduce<Record<string, number>>((counts, host) => {
@@ -87,21 +91,24 @@ export default async function HostReportsPage({
       name: hostNameCounts[item.name.trim().toLowerCase()] > 1 ? `${item.name} (${item.email})` : item.name,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const bookingPayout = monthBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
+  const externalPaidTotal = monthPaidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
+  const lifetimeExternalPaidTotal = paidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
+  const bookingPayout = monthBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + externalPaidTotal;
   const lifetimePaidPayout = scopedBookings
     .filter((booking) => booking.paymentStatus === "paid")
-    .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
+    .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + lifetimeExternalPaidTotal;
   const selectedMonthReports = scopedReports.filter((report) => report.month === selectedMonth);
   const manualSales = selectedMonthReports.reduce((sum, report) => sum + report.salesAmount, 0);
   const monthlyExpenseTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   const netIncome = bookingPayout + manualSales - monthlyExpenseTotal;
-  const bookedNights = monthBookings.reduce((sum, booking) => sum + paidNightsInMonth(booking, selectedMonth), 0);
+  const bookedNights = monthBookings.reduce((sum, booking) => sum + paidNightsInMonth(booking, selectedMonth), 0) + monthPaidBlocks.length;
   const daysInSelectedMonth = nightsBetween(monthRange(selectedMonth).start, monthRange(selectedMonth).end);
   const activeListings = scopedProperties.filter((property) => property.status === "approved").length;
   const availableNights = activeListings * daysInSelectedMonth;
   const occupancyRate = availableNights > 0 ? (bookedNights / availableNights) * 100 : 0;
   const averageDailyRate = bookedNights > 0 ? bookingPayout / bookedNights : 0;
-  const openReservations = scopedBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed").length;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const openReservations = scopedBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed").length + paidBlocks.filter((block) => block.date >= todayKey).length;
   const operationsMetrics = [
     { label: "Open reservations", value: String(openReservations), icon: BedDouble },
     { label: "Booked nights", value: String(bookedNights), icon: CalendarDays },
@@ -134,9 +141,10 @@ export default async function HostReportsPage({
       return isAdmin ? [report.hostName, ...cells] : cells;
     });
   const propertyById = new Map(scopedProperties.map((property) => [property.id, property]));
-  const packagePerformance = Array.from(monthBookings.reduce((groups, booking) => {
+  const packagePerformanceGroups = new Map<string, { bookings: number; guests: number; label: string; listing: string; payout: number; units: number }>();
+  monthBookings.forEach((booking) => {
     const key = `${booking.propertyId}:${booking.bookingPackageId ?? "stay"}`;
-    const current = groups.get(key) ?? {
+    const current = packagePerformanceGroups.get(key) ?? {
       bookings: 0,
       guests: 0,
       label: booking.bookingPackageName ?? "Stay bookings",
@@ -149,9 +157,25 @@ export default async function HostReportsPage({
     current.guests += booking.guests;
     current.units += paidNightsInMonth(booking, selectedMonth);
     current.payout += calculateHostPayoutFromTotal(booking.totalPrice);
-    groups.set(key, current);
-    return groups;
-  }, new Map<string, { bookings: number; guests: number; label: string; listing: string; payout: number; units: number }>()).values())
+    packagePerformanceGroups.set(key, current);
+  });
+  monthPaidBlocks.forEach((block) => {
+    const key = `${block.propertyId}:${block.bookingPackageId ?? block.reason}`;
+    const current = packagePerformanceGroups.get(key) ?? {
+      bookings: 0,
+      guests: 0,
+      label: block.bookingPackageName ?? block.reasonLabel,
+      listing: block.propertyTitle,
+      payout: 0,
+      units: 0,
+    };
+
+    current.bookings += 1;
+    current.units += 1;
+    current.payout += block.totalPrice;
+    packagePerformanceGroups.set(key, current);
+  });
+  const packagePerformance = Array.from(packagePerformanceGroups.values())
     .sort((a, b) => b.payout - a.payout || b.bookings - a.bookings);
   const expenseSuccessMessage = expenseSaved
     ? `${expenseSaved} expense${expenseSaved === "1" ? "" : "s"} saved.`
@@ -188,7 +212,7 @@ export default async function HostReportsPage({
       </section>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard description="From paid bookings overlapping this month." label="Paid booking payout" value={formatCurrency(bookingPayout)} />
+        <StatsCard description="From paid bookings and paid blocked dates overlapping this month." label="Paid booking payout" value={formatCurrency(bookingPayout)} />
         <StatsCard description="Offline events, adjustments, or other host revenue." label="Manual sales reported" value={formatCurrency(manualSales)} />
         <StatsCard description="Manual operating costs recorded below." label="Manual expenses" value={formatCurrency(monthlyExpenseTotal)} />
         <StatsCard description="Booking payout plus manual sales minus expenses." label="Net income" value={formatCurrency(netIncome)} />
@@ -217,10 +241,10 @@ export default async function HostReportsPage({
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Package performance</p>
             <h2 className="mt-2 text-2xl font-bold">Booking mix</h2>
           </div>
-          <p className="text-sm font-semibold text-black/55">{monthBookings.length} paid bookings in {monthLabel(selectedMonth)}</p>
+          <p className="text-sm font-semibold text-black/55">{monthBookings.length + monthPaidBlocks.length} paid bookings / external blocks in {monthLabel(selectedMonth)}</p>
         </div>
         {packagePerformance.length === 0 ? (
-          <EmptyState title="No package performance yet" body="Paid stay and package bookings for the selected month will appear here." />
+          <EmptyState title="No package performance yet" body="Paid stay, package, and external blocked-date revenue for the selected month will appear here." />
         ) : (
           <DataTable
             embedded

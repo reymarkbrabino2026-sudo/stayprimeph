@@ -1,13 +1,15 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
-import { readStoredBookings } from "@/lib/booking-store";
+import { getAvailabilityBlocks } from "@/lib/availability";
+import { getBookings } from "@/lib/bookings";
 import { readStoredCancellations } from "@/lib/cancellation-store";
 import { readStoredPayments } from "@/lib/payment-store";
+import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { readStoredPlatformLedger } from "@/lib/platform-ledger-store";
-import { readStoredProperties } from "@/lib/property-store";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import { getAdminDashboardSummaryFromDatabase, listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
+import { getProperties } from "@/lib/properties";
+import { listPaymentsFromDatabase, listPlatformLedgerFromDatabase, listReviewsFromDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { readStoredReviews } from "@/lib/review-store";
 import type { Dispute, Payment, PlatformLedgerEntry, Report, Review } from "@/lib/types";
 
@@ -27,16 +29,20 @@ export async function getAdminReviews(): Promise<Review[]> {
 }
 
 export async function getAdminDashboardSummary() {
-  if (usesPrismaPersistence()) return getAdminDashboardSummaryFromDatabase();
-
-  const [properties, bookings] = await Promise.all([readStoredProperties(), readStoredBookings()]);
+  const [properties, bookings, availabilityBlocks] = await Promise.all([getProperties(), getBookings(), getAvailabilityBlocks()]);
+  const paidBlocks = paidAvailabilityBlocksForProperties(availabilityBlocks, properties);
   const grossBookingValue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
+  const externalPaidValue = paidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
+  const todayKey = new Date().toISOString().slice(0, 10);
+
   return {
     pendingListings: properties.filter((property) => property.status === "pending").length,
     approvedListings: properties.filter((property) => property.status === "approved").length,
-    openBookings: bookings.filter((booking) => booking.status === "pending").length,
-    grossBookingValue,
+    openBookings: bookings.filter((booking) => booking.status === "pending").length + paidBlocks.filter((block) => block.date >= todayKey).length,
+    grossBookingValue: grossBookingValue + externalPaidValue,
     stayprimeEarningsValue: calculateStayprimeMarkupFromTotal(grossBookingValue),
+    externalPaidBlocks: paidBlocks.length,
+    externalPaidValue,
   };
 }
 

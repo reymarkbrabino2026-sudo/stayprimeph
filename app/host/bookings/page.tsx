@@ -3,10 +3,12 @@ import { BookingActionSubmitButton } from "@/app/host/bookings/booking-action-su
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForHost } from "@/lib/bookings";
 import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { hostLinks } from "@/lib/navigation";
+import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { formatPaymentMethod, getPaymentsForHost } from "@/lib/payments";
 import { getPropertiesForHost } from "@/lib/properties";
 import { getUsersByIds } from "@/lib/users";
@@ -15,19 +17,21 @@ import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/
 export default async function HostBookingsPage() {
   const user = await getCurrentUser();
   const hostId = user?.id ?? "";
-  const [hostBookings, properties, payments, csrfToken] = await Promise.all([
+  const [hostBookings, properties, payments, availabilityBlocks, csrfToken] = await Promise.all([
     hostId ? getBookingsForHost(hostId) : Promise.resolve([]),
     hostId ? getPropertiesForHost(hostId) : Promise.resolve([]),
     hostId ? getPaymentsForHost(hostId) : Promise.resolve([]),
+    hostId ? getAvailabilityBlocks() : Promise.resolve([]),
     getCsrfToken(),
   ]);
   const users = await getUsersByIds(hostBookings.map((booking) => booking.guestId));
+  const paidBlocks = paidAvailabilityBlocksForProperties(availabilityBlocks, properties);
 
   return (
     <DashboardShell title="Booking Requests" subtitle="Host dashboard" links={hostLinks}>
       <DataTable
         headers={["Guest", "Property", "Dates", "Payment", "Status", "Actions"]}
-        rows={hostBookings.map((booking) => {
+        rows={[...hostBookings.map((booking) => {
           const payment = payments.find((item) => item.bookingId === booking.id);
           const paymentWaiting = payment?.paymentStatus === "submitted";
           const balanceWaiting = booking.paymentStatus === "partially_paid" && payment?.paymentStatus === "partially_paid";
@@ -139,7 +143,24 @@ export default async function HostBookingsPage() {
               )}
             </div>,
           ];
-        })}
+        }), ...paidBlocks.map((block) => [
+          "External guest",
+          block.propertyTitle,
+          <div key={`${block.id}-dates`} className="min-w-48">
+            {block.bookingPackageName ? <p className="font-semibold">{block.bookingPackageName}</p> : null}
+            <p>{formatStayDateRange(block.checkIn, block.checkOut)}</p>
+            <p className="mt-1 text-xs text-black/50">{block.reasonLabel}</p>
+          </div>,
+          <div key={`${block.id}-payment`} className="min-w-48 space-y-1 text-sm">
+            <p className="font-semibold">{formatCurrency(block.totalPrice)}</p>
+            <p className="text-black/55">Paid outside StayPrimePH</p>
+          </div>,
+          <div key={`${block.id}-status`} className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">{block.reasonLabel}</span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Paid</span>
+          </div>,
+          <span key={`${block.id}-actions`} className="text-sm font-semibold text-black/45">No action needed</span>,
+        ])]}
       />
     </DashboardShell>
   );

@@ -19,12 +19,14 @@ export default async function AdminDashboardPage() {
     ["Approved listings", String(summary.approvedListings)],
     ["Open bookings", String(summary.openBookings)],
     ["Gross booking value", formatPesoValue(summary.grossBookingValue)],
+    ["External paid blocks", String(summary.externalPaidBlocks)],
+    ["External paid value", formatPesoValue(summary.externalPaidValue)],
     ["StayPrimePH earnings", formatPesoValue(summary.stayprimeEarningsValue)],
   ];
 
   return (
     <DashboardShell title="Admin Overview" subtitle="Admin dashboard" links={adminLinks}>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
         {stats.map(([label, value]) => <StatsCard key={label} label={label} value={value} />)}
       </div>
 

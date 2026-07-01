@@ -4,9 +4,11 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getAccountSettings } from "@/lib/account-settings";
+import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForHost } from "@/lib/bookings";
 import { hostLinks } from "@/lib/navigation";
+import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getPropertiesForHost } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
@@ -15,16 +17,23 @@ import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/
 export default async function HostDashboardPage() {
   const user = await getCurrentUser();
   const hostId = user?.id ?? "";
-  const [hostBookings, hostListings, accountSettings] = await Promise.all([
+  const [hostBookings, hostListings, availabilityBlocks, accountSettings] = await Promise.all([
     hostId ? getBookingsForHost(hostId) : Promise.resolve([]),
     hostId ? getPropertiesForHost(hostId) : Promise.resolve([]),
+    hostId ? getAvailabilityBlocks() : Promise.resolve([]),
     user ? getAccountSettings(user) : Promise.resolve(null),
   ]);
   const upcomingBookings = hostBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
+  const paidBlocks = paidAvailabilityBlocksForProperties(availabilityBlocks, hostListings);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const upcomingExternalBlocks = paidBlocks.filter((block) => block.date >= todayKey);
+  const upcomingBookingPreview = upcomingBookings.slice(0, 3);
+  const externalBlockPreview = upcomingExternalBlocks.slice(0, Math.max(0, 3 - upcomingBookingPreview.length));
+  const upcomingReservationCount = upcomingBookings.length + upcomingExternalBlocks.length;
   const hasPayoutMethod = Boolean(accountSettings?.financial.payoutMethods.length);
   const paidTotal = hostBookings
     .filter((booking) => booking.paymentStatus === "paid")
-    .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
+    .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + paidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
 
   return (
     <DashboardShell
@@ -35,8 +44,8 @@ export default async function HostDashboardPage() {
     >
       <div className="grid gap-4 md:grid-cols-3">
         <StatsCard label="Listings" value={String(hostListings.length)} />
-        <StatsCard label="Upcoming bookings" value={String(upcomingBookings.length)} />
-        <StatsCard label="Paid earnings" value={formatCurrency(paidTotal)} />
+        <StatsCard description="Includes paid blocked dates marked as guest or external bookings." label="Upcoming bookings" value={String(upcomingReservationCount)} />
+        <StatsCard description="Includes outside paid bookings recorded on the host calendar." label="Paid earnings" value={formatCurrency(paidTotal)} />
       </div>
 
       {!hasPayoutMethod ? (
@@ -63,13 +72,13 @@ export default async function HostDashboardPage() {
             </div>
             <Link href="/host/bookings" className="text-sm font-semibold text-[#d85d32]">View all</Link>
           </div>
-          {upcomingBookings.length === 0 ? (
+          {upcomingReservationCount === 0 ? (
             <div className="mt-5">
               <EmptyState title="No reservations yet" body="Once guests book your places, requests and confirmed trips will appear here." />
             </div>
           ) : (
             <div className="mt-5 space-y-3">
-              {upcomingBookings.slice(0, 3).map((booking) => {
+              {upcomingBookingPreview.map((booking) => {
                 const property = hostListings.find((item) => item.id === booking.propertyId);
                 return (
                   <article key={booking.id} className="rounded-2xl border p-4">
@@ -87,6 +96,22 @@ export default async function HostDashboardPage() {
                   </article>
                 );
               })}
+              {externalBlockPreview.map((block) => (
+                <article key={block.id} className="rounded-2xl border p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold">{block.propertyTitle}</h3>
+                      <p className="mt-1 text-sm text-black/55">{formatStayDateRange(block.checkIn, block.checkOut)}</p>
+                      {block.bookingPackageName ? <p className="mt-1 text-xs text-black/45">{block.bookingPackageName}</p> : null}
+                      <p className="mt-1 text-xs font-semibold text-emerald-700">{formatCurrency(block.totalPrice)} external paid block</p>
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">{block.reasonLabel}</span>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Paid</span>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
