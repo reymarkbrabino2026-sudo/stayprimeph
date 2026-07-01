@@ -74,6 +74,24 @@ function accessibleRoomsInput(container: HTMLElement) {
 }
 
 describe("BookingPackageEditor", () => {
+  test("allows decimal package rates", () => {
+    render(
+      <>
+        <form id="listing-form" />
+        <BookingPackageEditor property={property} formId="listing-form" />
+      </>,
+    );
+
+    const weekdayRate = screen.getByLabelText("Weekday rate") as HTMLInputElement;
+    const weekendRate = screen.getByLabelText("Weekend rate") as HTMLInputElement;
+
+    expect(weekdayRate.step).toBe("0.01");
+    expect(weekendRate.step).toBe("0.01");
+
+    fireEvent.change(weekdayRate, { target: { value: "6666.67" } });
+    expect(weekdayRate.value).toBe("6666.67");
+  });
+
   test("updates package room access through the rooms dropdown", () => {
     const { container } = render(
       <>

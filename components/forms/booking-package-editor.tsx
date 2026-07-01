@@ -204,8 +204,8 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
             </label>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <PackageNumberField formId={formId} label="Weekday rate" name="bookingPackageWeekdayRate" value={pkg.weekdayRate} min={1} onChange={(weekdayRate) => updatePackage(pkg.id, { weekdayRate })} />
-              <PackageNumberField formId={formId} label="Weekend rate" name="bookingPackageWeekendRate" value={pkg.weekendRate} min={0} onChange={(weekendRate) => updatePackage(pkg.id, { weekendRate })} />
+              <PackageNumberField formId={formId} label="Weekday rate" name="bookingPackageWeekdayRate" value={pkg.weekdayRate} min={1} step={0.01} onChange={(weekdayRate) => updatePackage(pkg.id, { weekdayRate })} />
+              <PackageNumberField formId={formId} label="Weekend rate" name="bookingPackageWeekendRate" value={pkg.weekendRate} min={0} step={0.01} onChange={(weekendRate) => updatePackage(pkg.id, { weekendRate })} />
               <PackageNumberField formId={formId} label="Guests" name="bookingPackageMaxGuests" value={pkg.maxGuests} min={1} onChange={(maxGuests) => updatePackage(pkg.id, { maxGuests, includedGuests: Math.min(pkg.includedGuests, maxGuests) })} />
               <PackageNumberField formId={formId} label="Sleeps" name="bookingPackageSleepingCapacity" value={pkg.sleepingCapacity} min={0} onChange={(sleepingCapacity) => updatePackage(pkg.id, { sleepingCapacity })} />
               <PackageNumberField formId={formId} label="Hours" name="bookingPackageDurationHours" value={pkg.durationHours} min={1} onChange={(durationHours) => updatePackage(pkg.id, { durationHours })} />
@@ -363,6 +363,7 @@ function PackageNumberField({
   name,
   value,
   min,
+  step = 1,
   onChange,
 }: {
   formId: string;
@@ -370,6 +371,7 @@ function PackageNumberField({
   name: string;
   value: number;
   min: number;
+  step?: number;
   onChange: (value: number) => void;
 }) {
   const [inputValue, setInputValue] = useState(String(value));
@@ -387,6 +389,7 @@ function PackageNumberField({
         name={name}
         type="number"
         min={min}
+        step={step}
         value={inputValue}
         onFocus={() => {
           isEditing.current = true;

@@ -17,15 +17,15 @@ export function ListingForm({ mode, property, csrfToken, formId }: { mode: "Crea
   const propertyAmenities = property?.amenities ?? [];
   const selectedAmenityNames = new Set(propertyAmenities.map(normalizeAmenityName));
   const customAmenities = propertyAmenities.filter((amenity) => !presetAmenityNames.has(normalizeAmenityName(amenity)));
-  const fields: Array<{ label: string; name: string; type: "text" | "number"; defaultValue?: string | number }> = [
+  const fields: Array<{ label: string; name: string; type: "text" | "number"; defaultValue?: string | number; step?: number }> = [
     { label: "Title", name: "title", type: "text", defaultValue: property?.title },
     { label: "Address", name: "address", type: "text", defaultValue: property?.address },
     { label: "City", name: "city", type: "text", defaultValue: property?.city },
     { label: "Country", name: "country", type: "text", defaultValue: property?.country },
-    { label: "Price per night", name: "pricePerNight", type: "number", defaultValue: property?.pricePerNight },
-    { label: "Weekend price", name: "weekendPrice", type: "number", defaultValue: property?.weekendPrice ?? property?.pricePerNight },
-    { label: "Cleaning fee", name: "cleaningFee", type: "number", defaultValue: property?.cleaningFee ?? 0 },
-    { label: "Security deposit", name: "securityDeposit", type: "number", defaultValue: property?.securityDeposit ?? 0 },
+    { label: "Price per night", name: "pricePerNight", type: "number", defaultValue: property?.pricePerNight, step: 0.01 },
+    { label: "Weekend price", name: "weekendPrice", type: "number", defaultValue: property?.weekendPrice ?? property?.pricePerNight, step: 0.01 },
+    { label: "Cleaning fee", name: "cleaningFee", type: "number", defaultValue: property?.cleaningFee ?? 0, step: 0.01 },
+    { label: "Security deposit", name: "securityDeposit", type: "number", defaultValue: property?.securityDeposit ?? 0, step: 0.01 },
   ];
   const capacityFields: Array<{ label: string; name: string; defaultValue?: number }> = [
     { label: "Bedrooms", name: "bedrooms", defaultValue: property?.bedrooms },
@@ -38,10 +38,10 @@ export function ListingForm({ mode, property, csrfToken, formId }: { mode: "Crea
       {csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
       {!canCreate && property ? <input type="hidden" name="id" value={property.id} /> : null}
       <div className="space-y-4 rounded-[1.5rem] bg-white p-5 soft-card">
-        {fields.map(({ label, name, type, defaultValue }) => (
+        {fields.map(({ label, name, type, defaultValue, step }) => (
           <label key={name} className="block">
             <span className="mb-2 block text-sm font-medium">{label}</span>
-            <input name={name} type={type} defaultValue={defaultValue} required className="min-h-12 w-full rounded-2xl border p-3" placeholder={label} />
+            <input name={name} type={type} step={type === "number" ? step : undefined} defaultValue={defaultValue} required className="min-h-12 w-full rounded-2xl border p-3" placeholder={label} />
           </label>
         ))}
         <label className="block">
@@ -98,7 +98,7 @@ export function ListingForm({ mode, property, csrfToken, formId }: { mode: "Crea
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-2 block text-sm font-medium">Holiday price</span>
-            <input name="holidayPrice" type="number" min="0" defaultValue={property?.holidayPrice ?? 0} className="min-h-12 w-full rounded-2xl border p-3" />
+            <input name="holidayPrice" type="number" min="0" step="0.01" defaultValue={property?.holidayPrice ?? 0} className="min-h-12 w-full rounded-2xl border p-3" />
           </label>
           <label className="block">
             <span className="mb-2 block text-sm font-medium">Holiday dates</span>
