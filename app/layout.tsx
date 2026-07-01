@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { headers } from "next/headers";
+import { FirstVisitLoader } from "@/components/first-visit-loader";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { JsonLd } from "@/components/seo/json-ld";
 import { cspNonceHeaderName } from "@/lib/content-security-policy";
@@ -35,6 +36,16 @@ const websiteLd = {
     "query-input": "required name=search_term_string",
   },
 };
+
+const firstVisitLoaderBootScript = `
+(function () {
+  try {
+    if (window.localStorage.getItem("hasSeenFirstVisitLoader") === "true") {
+      document.documentElement.dataset.firstVisitLoader = "seen";
+    }
+  } catch (error) {}
+})();
+`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
@@ -117,10 +128,14 @@ export default async function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: firstVisitLoaderBootScript }} />
         <JsonLd data={organizationLd} nonce={nonce} />
         <JsonLd data={websiteLd} nonce={nonce} />
+        <FirstVisitLoader />
         <SmoothScroll />
-        {children}
+        <div id="app-content" className="contents">
+          {children}
+        </div>
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled" ? <Analytics /> : null}
       </body>
     </html>
