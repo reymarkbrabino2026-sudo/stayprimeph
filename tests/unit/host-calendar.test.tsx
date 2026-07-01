@@ -91,10 +91,14 @@ describe("HostCalendar", () => {
 
     expect(screen.getAllByText("₱12,500").length).toBeGreaterThan(0);
 
-    const packageSelects = screen.getAllByRole("combobox", { name: "Package" }) as HTMLSelectElement[];
-    await user.selectOptions(packageSelects[1], premiumPackage.id);
+    let packageSelects = screen.getAllByRole("combobox", { name: "Package" }) as HTMLSelectElement[];
+    expect(packageSelects).toHaveLength(3);
+    await user.selectOptions(packageSelects[2], premiumPackage.id);
 
+    packageSelects = screen.getAllByRole("combobox", { name: "Package" }) as HTMLSelectElement[];
     expect(packageSelects[0]).toHaveValue(premiumPackage.id);
+    expect(packageSelects[1]).toHaveValue(premiumPackage.id);
+    expect(packageSelects[2]).toHaveValue(premiumPackage.id);
     expect(screen.getAllByText("₱20,000").length).toBeGreaterThan(0);
   });
 

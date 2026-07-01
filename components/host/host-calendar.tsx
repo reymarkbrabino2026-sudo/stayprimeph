@@ -848,11 +848,15 @@ function RateCalendarForm({
             <form key={`month-${rateListing.id}-${selectedPackage.id}-${selectedMonth}`} action={monthlyRateAction} className="space-y-3 rounded-lg border border-black/10 bg-black/[0.02] p-3">
               <input type="hidden" name={csrfFieldName} value={csrfToken} />
               <input type="hidden" name="propertyId" value={rateListing.id} />
-              <input type="hidden" name="packageId" value={selectedPackage.id} />
               <div>
                 <h3 className="text-base font-semibold text-black">Month price</h3>
                 <p className="mt-1 text-sm text-black/55">Set one price for every day in the month.</p>
               </div>
+              <PackageSelect
+                packageOptions={packageOptions}
+                selectedPackageId={selectedPackage.id}
+                onChange={(packageId) => onPackageChange(rateListing.id, packageId)}
+              />
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
                 <label className="text-sm font-semibold text-black/65">
                   Month
