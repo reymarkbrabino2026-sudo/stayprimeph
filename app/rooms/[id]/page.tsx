@@ -476,10 +476,11 @@ export default async function RoomPage({
                 />
               </div>
               <div className="grid gap-px overflow-hidden border border-black/10 bg-black/10 sm:grid-cols-2">
-                {property.amenities.map((amenity) => {
+                {property.amenities.map((amenity, index) => {
                   const Icon = amenityIcon(amenity);
+                  const fillsLastRow = property.amenities.length % 2 === 1 && index === property.amenities.length - 1;
                   return (
-                    <div key={amenity} className="flex min-h-20 items-center gap-3 bg-[#f8f6f1] p-4 sm:min-h-24 sm:gap-4 sm:p-5">
+                    <div key={amenity} className={`flex min-h-20 items-center gap-3 bg-[#f8f6f1] p-4 sm:min-h-24 sm:gap-4 sm:p-5 ${fillsLastRow ? "sm:col-span-2" : ""}`}>
                       <Icon className="shrink-0 text-[#0f5750]" size={24} />
                       <p className="text-base font-semibold leading-snug">{amenity}</p>
                     </div>
