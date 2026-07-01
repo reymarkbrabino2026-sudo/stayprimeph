@@ -445,35 +445,35 @@ export function RoomReservationCard({
           />
         </div>
 
-        <div className="border-t border-black/10 p-2.5 min-[390px]:p-3">
+        <div className="border-t border-black/10 p-3 min-[390px]:p-4">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => moveMonth(-1)}
-              className="grid size-9 place-items-center rounded-full transition hover:bg-black/[0.05]"
+              className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.05]"
               aria-label="Previous month"
             >
               <ChevronLeft size={18} />
             </button>
-            <p className="text-sm font-semibold">
+            <p className="text-base font-bold">
               {monthNames[calendarMonth.month]} {calendarMonth.year}
             </p>
             <button
               type="button"
               onClick={() => moveMonth(1)}
-              className="grid size-9 place-items-center rounded-full transition hover:bg-black/[0.05]"
+              className="grid size-10 place-items-center rounded-full transition hover:bg-black/[0.05]"
               aria-label="Next month"
             >
               <ChevronRight size={18} />
             </button>
           </div>
 
-          <div className="mt-2 grid grid-cols-7 text-center text-[0.65rem] font-bold text-black/45">
+          <div className="mt-3 grid grid-cols-7 text-center text-[0.68rem] font-bold text-black/45 min-[390px]:text-xs">
             {weekdays.map((day) => (
               <div key={day}>{day}</div>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-7 gap-0.5 min-[390px]:gap-1">
+          <div className="mt-2 grid grid-cols-7 gap-1">
             {calendarMonth.cells.map((cell, index) =>
               cell ? (
                 <CalendarDateButton
@@ -487,12 +487,12 @@ export function RoomReservationCard({
                   onSelect={selectDate}
                 />
               ) : (
-                <div key={`blank-${index}`} className="min-h-11 rounded-lg min-[390px]:min-h-12" />
+                <div key={`blank-${index}`} className="min-h-[3.35rem] rounded-xl min-[390px]:min-h-[3.55rem]" />
               ),
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-3 text-[0.68rem] font-semibold text-black/50">
+          <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold text-black/55">
             <Legend swatch="bg-white ring-1 ring-black/15" label="Available" />
             <Legend swatch="bg-black/[0.08] ring-1 ring-black/10" label="Booked" />
             <Legend swatch="bg-[#083f35]" label="Selected" />
@@ -630,15 +630,24 @@ function CalendarDateButton({
   const selected = isStart || isEnd;
   const disabled = !selected && (activeField === "checkIn" || !checkIn ? unavailable : !canSelectCheckout);
   const statusLabel = isStart ? (singleDayPackage ? "Selected" : "Check-in") : isEnd ? "Check-out" : unavailable ? "Booked" : "Open";
-  const compactStatusLabel = isStart ? (singleDayPackage ? "Set" : "In") : isEnd ? "Out" : unavailable ? "Booked" : "Open";
-  const narrowStatusLabel = unavailable ? "Full" : compactStatusLabel;
+  const visibleStatusLabel = isStart ? (singleDayPackage ? "Selected" : "In") : isEnd ? "Out" : unavailable ? "Booked" : "Open";
   const toneClass = selected
-    ? "border-[#083f35] bg-[#083f35] text-white"
+    ? "border-[#083f35] bg-[#083f35] text-white shadow-[0_6px_14px_rgba(8,63,53,0.22)]"
     : inRange && !unavailable
       ? "border-[#91d5c4] bg-[#e1f4ee] text-[#083f35]"
       : unavailable
-        ? "border-black/10 bg-black/[0.08] text-black/35"
+        ? "border-black/10 bg-black/[0.07] text-black/45"
         : "border-black/10 bg-white text-black/70 hover:border-[#083f35]";
+  const statusClass = selected
+    ? "text-white/95"
+    : inRange && !unavailable
+      ? "bg-white/70 text-[#083f35]"
+      : unavailable
+        ? "bg-white/70 text-black/50"
+        : "bg-black/[0.03] text-black/60";
+  const statusShapeClass = selected
+    ? "px-0 text-[0.56rem] min-[390px]:text-[0.6rem]"
+    : "rounded-full px-1.5 py-0.5 text-[0.6rem] min-[390px]:text-[0.64rem]";
 
   return (
     <button
@@ -646,22 +655,17 @@ function CalendarDateButton({
       disabled={disabled}
       onClick={() => onSelect(cell.dateKey)}
       aria-label={`${formatDisplayDate(cell.dateKey)} ${statusLabel}${unavailable ? ", unavailable" : ", available"}`}
+      title={`${formatDisplayDate(cell.dateKey)} - ${statusLabel}`}
       className={cx(
-        "flex min-h-11 flex-col items-center justify-center rounded-md border p-1 text-center text-[0.7rem] transition min-[390px]:min-h-12 min-[390px]:rounded-lg min-[390px]:text-xs",
+        "flex min-h-[3.35rem] min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition min-[390px]:min-h-[3.55rem]",
         toneClass,
         disabled && "cursor-not-allowed hover:border-black/10",
         isPast && !selected && "opacity-35",
       )}
     >
-      <span className="block font-semibold">{cell.day}</span>
-      <span className={cx("mt-0.5 block text-[0.56rem] font-semibold leading-none min-[360px]:hidden", unavailable && !selected && "line-through")}>
-        {narrowStatusLabel}
-      </span>
-      <span className={cx("mt-0.5 hidden text-[0.56rem] font-semibold leading-none min-[360px]:block min-[430px]:hidden", unavailable && !selected && "line-through")}>
-        {compactStatusLabel}
-      </span>
-      <span className={cx("mt-1 hidden text-[0.6rem] font-semibold leading-none min-[430px]:block", unavailable && !selected && "line-through")}>
-        {statusLabel}
+      <span className="block text-sm font-bold leading-none min-[390px]:text-base">{cell.day}</span>
+      <span className={cx("mt-1 block max-w-full whitespace-nowrap font-bold leading-none", statusShapeClass, statusClass)}>
+        {visibleStatusLabel}
       </span>
     </button>
   );

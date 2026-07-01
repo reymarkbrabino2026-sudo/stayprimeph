@@ -183,7 +183,7 @@ export function ListingForm({
         noValidate
         onSubmit={handleSubmit}
         onInputCapture={handleInputCapture}
-        className="grid gap-5 lg:grid-cols-[1fr_320px]"
+        className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(340px,380px)] 2xl:items-start"
       >
         {csrfToken ? <input type="hidden" name={csrfFieldName} value={csrfToken} /> : null}
         {!canCreate && property ? <input type="hidden" name="id" value={property.id} /> : null}
@@ -352,22 +352,21 @@ export function ListingForm({
               );
             })}
           </div>
-          <SubmitButton canCreate={canCreate} />
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 2xl:sticky 2xl:top-6">
           <ImageUploader listingId={property?.id} initialPhotos={property?.images} csrfToken={csrfToken} />
           <FieldError id={fieldErrorId("photoUrls")} message={fieldError("photoUrls")} />
-          <div className="rounded-[1.5rem] bg-white p-5 soft-card">
-            <h3 className="font-semibold">Amenities</h3>
+          <div className="rounded-[1.35rem] border border-black/10 bg-white p-4 shadow-[0_14px_45px_rgba(53,31,8,0.07)] sm:p-5">
+            <h3 className="text-lg font-bold text-[#21170f]">Amenities</h3>
             <div className="mt-4 grid gap-5 text-sm">
               {amenityGroups.map((group) => (
                 <fieldset key={group.id}>
-                  <legend className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-black/45">{group.title}</legend>
+                  <legend className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-black/45">{group.title}</legend>
                   <div className="flex flex-wrap gap-2">
                     {group.items.map((item) => (
-                      <label key={item.id} className="cursor-pointer rounded-full bg-[#fbf7f2] px-3 py-2">
-                        <input type="checkbox" name="amenities" value={item.label} defaultChecked={selectedAmenityNames.has(normalizeAmenityName(item.label))} className="mr-2" />
-                        {item.label}
+                      <label key={item.id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-black/10 bg-[#fbf7f2] px-3 py-2 font-semibold text-black/70 transition hover:border-[#083f35]/35 hover:bg-white">
+                        <input type="checkbox" name="amenities" value={item.label} defaultChecked={selectedAmenityNames.has(normalizeAmenityName(item.label))} className="size-4 accent-[#083f35]" />
+                        <span>{item.label}</span>
                       </label>
                     ))}
                   </div>
@@ -386,8 +385,8 @@ export function ListingForm({
               </label>
             </div>
           </div>
-          <div className="rounded-[1.5rem] bg-white p-5 soft-card">
-            <h3 className="font-semibold">Rules</h3>
+          <div className="rounded-[1.35rem] border border-black/10 bg-white p-4 shadow-[0_14px_45px_rgba(53,31,8,0.07)] sm:p-5">
+            <h3 className="text-lg font-bold text-[#21170f]">Rules</h3>
             <label className="mt-4 block">
               <span className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-black/45">House rules</span>
               <textarea
@@ -399,6 +398,15 @@ export function ListingForm({
                 placeholder="One rule per line"
               />
             </label>
+          </div>
+        </div>
+        <div className="sticky bottom-4 z-20 rounded-[1.25rem] border border-black/10 bg-white/95 p-3 shadow-[0_20px_60px_rgba(33,23,15,0.14)] backdrop-blur 2xl:col-span-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold text-[#21170f]">{canCreate ? "Create listing" : "Save listing updates"}</p>
+              <p className="mt-1 text-sm text-black/55">Photos, amenities, rules, pricing, and booking settings will be saved together.</p>
+            </div>
+            <SubmitButton canCreate={canCreate} />
           </div>
         </div>
       </form>
