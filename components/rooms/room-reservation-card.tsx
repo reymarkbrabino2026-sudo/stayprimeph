@@ -74,7 +74,8 @@ export function RoomStickyReservationCard({
         const boundaryRect = boundary?.getBoundingClientRect();
         const boundaryBottom = boundaryRect ? window.scrollY + boundaryRect.bottom : Number.POSITIVE_INFINITY;
         const shellTop = window.scrollY + shellRect.top;
-        const nextHeight = cardRect.height;
+        const maxStickyHeight = Math.max(0, window.innerHeight - desktopStickyTopPx - desktopStickyBottomPx);
+        const nextHeight = Math.min(card.scrollHeight || cardRect.height, maxStickyHeight);
         const stickyTop = window.scrollY + desktopStickyTopPx;
         const stopTop = Math.max(shellTop, boundaryBottom - desktopStickyBottomPx - nextHeight);
         const mode: StickyMode =
