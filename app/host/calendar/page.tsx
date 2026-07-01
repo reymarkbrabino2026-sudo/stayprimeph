@@ -5,6 +5,7 @@ import {
   deleteHostRateAdjustment,
   removeHostAvailabilityBlock,
   saveBookingPackageRates,
+  saveMonthlyHostRate,
   saveSelectedDateHostRate,
   setHostRateAdjustmentActive,
 } from "@/app/host/calendar/actions";
@@ -83,6 +84,7 @@ export async function HostCalendarScreen({ active = "Calendar" }: { active?: str
         csrfToken={csrfToken}
         removeAvailabilityBlockAction={removeHostAvailabilityBlock}
         savePackageRatesAction={saveBookingPackageRates}
+        saveMonthlyRateAction={saveMonthlyHostRate}
         saveSelectedDateRateAction={saveSelectedDateHostRate}
         setRateAdjustmentActiveAction={setHostRateAdjustmentActive}
         deleteRateAdjustmentAction={deleteHostRateAdjustment}

@@ -53,6 +53,7 @@ function renderCalendar(overrides: Partial<HostCalendarProps> = {}) {
     csrfToken: "csrf-token",
     removeAvailabilityBlockAction: vi.fn(async () => undefined),
     savePackageRatesAction: vi.fn(async () => formState),
+    saveMonthlyRateAction: vi.fn(async () => formState),
     saveSelectedDateRateAction: vi.fn(async () => formState),
     setRateAdjustmentActiveAction: vi.fn(async () => undefined),
     deleteRateAdjustmentAction: vi.fn(async () => undefined),
@@ -65,6 +66,38 @@ function renderCalendar(overrides: Partial<HostCalendarProps> = {}) {
 }
 
 describe("HostCalendar", () => {
+  test("shows calendar prices for the selected package", async () => {
+    const user = userEvent.setup();
+    const premiumPackage = {
+      ...bookingPackage,
+      id: "event-whole-villa",
+      name: "Event - Overnight - Whole Villa",
+      displayOrder: 2,
+      weekdayRate: 20000,
+      weekendRate: 20000,
+      holidayRate: 20000,
+    };
+
+    renderCalendar({
+      listings: [{
+        ...listing,
+        bookingPackages: [
+          { ...bookingPackage, weekdayRate: 12500, weekendRate: 12500, holidayRate: 12500 },
+          premiumPackage,
+        ],
+      }],
+    });
+    await user.click(screen.getByRole("button", { name: "The Caya" }));
+
+    expect(screen.getAllByText("₱12,500").length).toBeGreaterThan(0);
+
+    const packageSelects = screen.getAllByRole("combobox", { name: "Package" }) as HTMLSelectElement[];
+    await user.selectOptions(packageSelects[1], premiumPackage.id);
+
+    expect(packageSelects[0]).toHaveValue(premiumPackage.id);
+    expect(screen.getAllByText("₱20,000").length).toBeGreaterThan(0);
+  });
+
   test("separates rates from promos", async () => {
     const user = userEvent.setup();
 

@@ -16,7 +16,7 @@ import { readStoredProperties, writeStoredProperties } from "@/lib/property-stor
 import { saveListingRateAdjustments } from "@/lib/rate-adjustments";
 import { updatePropertyDetailsInDatabase, usesPrismaPersistence } from "@/lib/repositories";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
-import type { AvailabilityBlock, AvailabilityBlockReason, BookingPackage, ListingRateAdjustment, Property } from "@/lib/types";
+import type { AvailabilityBlock, AvailabilityBlockReason, BookingPackage, ListingRateAdjustment, Property, SeasonalRate } from "@/lib/types";
 
 export type AvailabilityFormState = {
   status: "idle" | "success" | "error";
@@ -38,6 +38,7 @@ const blockAvailabilitySchema = z.object({
 
 const monthlyRateSchema = z.object({
   propertyId: z.string().trim().min(1, "Choose a listing."),
+  packageId: z.string().trim().optional(),
   month: z.string().trim().regex(/^\d{4}-\d{2}$/, "Choose a valid month."),
   rate: z.coerce.number().int().min(1, "Enter a monthly price.").max(1000000, "Monthly price is too high."),
 });
@@ -82,6 +83,10 @@ function monthRange(month: string) {
 function monthLabel(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(year, monthNumber - 1, 1)));
+}
+
+function monthlyPackageSeasonalRateId(packageId: string, month: string) {
+  return `monthly-package-${packageId}-${month}`;
 }
 
 function cleanNote(value?: string) {
@@ -137,6 +142,15 @@ function sortedRateAdjustments(adjustments: ListingRateAdjustment[]) {
     a.endDate.localeCompare(b.endDate) ||
     a.type.localeCompare(b.type) ||
     a.name.localeCompare(b.name),
+  );
+}
+
+function sortedSeasonalRates(rates: SeasonalRate[]) {
+  return [...rates].sort((a, b) =>
+    a.startDate.localeCompare(b.startDate) ||
+    a.endDate.localeCompare(b.endDate) ||
+    a.name.localeCompare(b.name) ||
+    (a.id ?? "").localeCompare(b.id ?? ""),
   );
 }
 
@@ -250,6 +264,7 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
 
   const parsed = monthlyRateSchema.safeParse({
     propertyId: formData.get("propertyId"),
+    packageId: formData.get("packageId") || undefined,
     month: formData.get("month"),
     rate: formData.get("rate"),
   });
@@ -266,6 +281,41 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
   }
 
   const { startDate, endDate } = monthRange(parsed.data.month);
+  const selectedMonthLabel = monthLabel(parsed.data.month);
+
+  if (parsed.data.packageId) {
+    const packages = property.bookingPackages ?? [];
+    const selectedPackage = activeBookingPackages(property).find((pkg) => pkg.id === parsed.data.packageId);
+    if (!selectedPackage) return { status: "error", message: "Choose an active booking package for this listing." };
+
+    const monthlyRate: SeasonalRate = {
+      id: monthlyPackageSeasonalRateId(selectedPackage.id, parsed.data.month),
+      name: `${selectedMonthLabel} rate`,
+      startDate,
+      endDate,
+      weekdayRate: parsed.data.rate,
+      weekendRate: parsed.data.rate,
+      holidayRate: parsed.data.rate,
+    };
+
+    await savePropertyBookingPackages(property, packages.map((pkg) => (
+      pkg.id === selectedPackage.id
+        ? {
+            ...pkg,
+            seasonalRates: sortedSeasonalRates([
+              ...(pkg.seasonalRates ?? []).filter((rate) =>
+                rate.id !== monthlyRate.id &&
+                !(rate.startDate === startDate && rate.endDate === endDate),
+              ),
+              monthlyRate,
+            ]),
+          }
+        : pkg
+    )));
+    revalidateCalendarPricing(property);
+    return { status: "success", message: `${selectedPackage.name} ${selectedMonthLabel} price saved.` };
+  }
+
   const existing = currentRateAdjustments(property).find((adjustment) =>
     adjustment.type === "monthly" &&
     adjustment.startDate === startDate &&
@@ -274,7 +324,7 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
   const monthlyRate: ListingRateAdjustment = {
     id: existing?.id ?? `monthly-${property.id}-${parsed.data.month}`,
     type: "monthly",
-    name: `${monthLabel(parsed.data.month)} rate`,
+    name: `${selectedMonthLabel} rate`,
     startDate,
     endDate,
     active: true,
@@ -289,7 +339,7 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
 
   await saveListingRateAdjustments(property, nextAdjustments);
   revalidateCalendarPricing(property);
-  return { status: "success", message: `${monthLabel(parsed.data.month)} rate saved.` };
+  return { status: "success", message: `${selectedMonthLabel} rate saved.` };
 }
 
 export async function saveBookingPackageRates(_state: RateCalendarFormState, formData: FormData): Promise<RateCalendarFormState> {
