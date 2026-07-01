@@ -7,6 +7,16 @@ import type { BookingPackage, BookingPackageUnit, Property, PropertyRoom } from 
 const maxBookingPackages = 8;
 const packageInputClassName =
   "min-h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition focus:border-[#083f35] focus:ring-4 focus:ring-[#083f35]/10";
+const defaultAvailableDays = [0, 1, 2, 3, 4, 5, 6];
+const weekdayOptions = [
+  ["Sun", 0],
+  ["Mon", 1],
+  ["Tue", 2],
+  ["Wed", 3],
+  ["Thu", 4],
+  ["Fri", 5],
+  ["Sat", 6],
+] as const;
 
 type EditablePackage = {
   id: string;
@@ -31,7 +41,7 @@ type EditablePackage = {
   accessibleRoomIds: string[];
   includedAmenities: string;
   excludedAmenities: string;
-  availableDays: string;
+  availableDays: number[];
   minimumAdvanceBookingDays: number;
   blockedPackageIds: string;
   holidayDates: string;
@@ -45,6 +55,11 @@ function csv(values?: string[]) {
 
 function json(values?: unknown[]) {
   return JSON.stringify(values ?? []);
+}
+
+function normalizeDayValues(values?: number[]) {
+  const days = Array.from(new Set((values ?? []).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)));
+  return days.length ? days.sort((a, b) => a - b) : defaultAvailableDays;
 }
 
 function normalizeListValue(value: string) {
@@ -95,6 +110,11 @@ function formatPackageRate(value: number, currency = "PHP") {
   }).format(value || 0);
 }
 
+function formatPackageDays(days: number[]) {
+  if (days.length === 7) return "Every day";
+  return weekdayOptions.filter(([, value]) => days.includes(value)).map(([label]) => label).join(", ");
+}
+
 function packageToEditable(pkg: BookingPackage, index: number, property: Property): EditablePackage {
   const activeRoomIds = new Set((property.rooms ?? []).filter((room) => room.active).map((room) => room.id));
   return {
@@ -120,7 +140,7 @@ function packageToEditable(pkg: BookingPackage, index: number, property: Propert
     accessibleRoomIds: (pkg.accessibleRoomIds ?? []).filter((roomId) => activeRoomIds.has(roomId)),
     includedAmenities: csv(pkg.includedAmenities?.length ? pkg.includedAmenities : property.amenities),
     excludedAmenities: csv(pkg.excludedAmenities),
-    availableDays: json(pkg.availableDays?.length ? pkg.availableDays : [0, 1, 2, 3, 4, 5, 6]),
+    availableDays: normalizeDayValues(pkg.availableDays),
     minimumAdvanceBookingDays: pkg.minimumAdvanceBookingDays ?? 0,
     blockedPackageIds: json(pkg.blockedPackageIds),
     holidayDates: csv(pkg.holidayDates),
@@ -159,7 +179,7 @@ function newPackage(property: Property, displayOrder: number): EditablePackage {
     accessibleRoomIds: [],
     includedAmenities: csv(property.amenities),
     excludedAmenities: "",
-    availableDays: "[0,1,2,3,4,5,6]",
+    availableDays: defaultAvailableDays,
     minimumAdvanceBookingDays: 0,
     blockedPackageIds: json(property.bookingPackages?.map((pkg) => pkg.id)),
     holidayDates: "",
@@ -226,6 +246,7 @@ export function BookingPackageEditor({
                 <span className="mt-1 flex flex-wrap gap-1.5 text-[0.68rem] font-semibold text-black/55">
                   <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{pkg.enabled ? "Enabled" : "Off"}</span>
                   <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{formatPackageRate(pkg.weekdayRate, property.currency)} weekday</span>
+                  <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{formatPackageDays(pkg.availableDays)}</span>
                   <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{pkg.maxGuests} guests</span>
                   <span className="rounded-full bg-[#fbf7f2] px-2 py-1">{pkg.durationHours} hrs</span>
                 </span>
@@ -301,6 +322,11 @@ export function BookingPackageEditor({
               </label>
             </div>
 
+            <PackageAvailableDays
+              selectedDays={pkg.availableDays}
+              onChange={(availableDays) => updatePackage(pkg.id, { availableDays })}
+            />
+
             <PackageRoomDropdown
               rooms={roomOptions}
               selectedRoomIds={pkg.accessibleRoomIds}
@@ -340,7 +366,7 @@ function PackageHiddenFields({ pkg, formId }: { pkg: EditablePackage; formId: st
     ["bookingPackageAccessibleRoomIds", json(pkg.accessibleRoomIds)],
     ["bookingPackageIncludedAmenities", pkg.includedAmenities],
     ["bookingPackageExcludedAmenities", pkg.excludedAmenities],
-    ["bookingPackageAvailableDays", pkg.availableDays],
+    ["bookingPackageAvailableDays", json(pkg.availableDays)],
     ["bookingPackageMinimumAdvanceBookingDays", pkg.minimumAdvanceBookingDays],
     ["bookingPackageBlockedPackageIds", pkg.blockedPackageIds],
     ["bookingPackageHolidayDates", pkg.holidayDates],
@@ -353,6 +379,52 @@ function PackageHiddenFields({ pkg, formId }: { pkg: EditablePackage; formId: st
         <input key={name} type="hidden" form={formId} name={name} value={value} />
       ))}
     </>
+  );
+}
+
+function PackageAvailableDays({
+  selectedDays,
+  onChange,
+}: {
+  selectedDays: number[];
+  onChange: (days: number[]) => void;
+}) {
+  const selectedDaySet = new Set(selectedDays);
+
+  function toggleDay(day: number) {
+    const nextDays = selectedDaySet.has(day)
+      ? selectedDays.filter((item) => item !== day)
+      : [...selectedDays, day];
+    onChange(normalizeDayValues(nextDays.length ? nextDays : selectedDays));
+  }
+
+  return (
+    <fieldset className="mt-3 rounded-xl border border-black/10 bg-white/75 p-3">
+      <legend className="px-1 text-xs font-semibold text-black/50">Days operated</legend>
+      <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-7">
+        {weekdayOptions.map(([label, value]) => {
+          const checked = selectedDaySet.has(value);
+          return (
+            <label
+              key={value}
+              className={`inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border px-2 text-sm font-semibold transition ${
+                checked
+                  ? "border-[#083f35] bg-[#083f35] text-white"
+                  : "border-black/10 bg-white text-black/65 hover:border-black/25 hover:text-black"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggleDay(value)}
+                className="sr-only"
+              />
+              {label}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 

@@ -77,6 +77,10 @@ function includedAmenitiesInput(container: HTMLElement) {
   return container.querySelector('input[name="bookingPackageIncludedAmenities"]') as HTMLInputElement;
 }
 
+function availableDaysInput(container: HTMLElement) {
+  return container.querySelector('input[name="bookingPackageAvailableDays"]') as HTMLInputElement;
+}
+
 describe("BookingPackageEditor", () => {
   test("allows decimal package rates", () => {
     render(
@@ -142,5 +146,26 @@ describe("BookingPackageEditor", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Karaoke" }));
     expect(includedAmenities.value).toBe("WiFi");
     expect(screen.queryByRole("checkbox", { name: "Karaoke" })).not.toBeInTheDocument();
+  });
+
+  test("updates package operating days through day checkboxes", () => {
+    const { container } = render(
+      <>
+        <form id="listing-form" />
+        <BookingPackageEditor property={property} formId="listing-form" />
+      </>,
+    );
+
+    const availableDays = availableDaysInput(container);
+    expect(availableDays.value).toBe(JSON.stringify([0, 1, 2, 3, 4, 5, 6]));
+    expect(screen.getByText("Every day")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Tue" }));
+    expect(availableDays.value).toBe(JSON.stringify([0, 1, 3, 4, 5, 6]));
+    expect(screen.getByRole("checkbox", { name: "Tue" })).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Tue" }));
+    expect(availableDays.value).toBe(JSON.stringify([0, 1, 2, 3, 4, 5, 6]));
+    expect(screen.getByRole("checkbox", { name: "Tue" })).toBeChecked();
   });
 });
