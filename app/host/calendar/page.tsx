@@ -79,6 +79,8 @@ export async function HostCalendarScreen({ active = "Calendar" }: { active?: str
             date: block.date,
             reason: block.reason,
             note: block.note,
+            bookingPackageId: block.bookingPackageId,
+            bookingPackageName: block.bookingPackageName,
           }))}
         blockAvailabilityAction={blockHostAvailability}
         csrfToken={csrfToken}

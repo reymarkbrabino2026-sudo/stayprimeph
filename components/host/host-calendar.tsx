@@ -51,6 +51,8 @@ type HostAvailabilityBlock = {
   date: string;
   reason: AvailabilityBlockReason;
   note?: string;
+  bookingPackageId?: string;
+  bookingPackageName?: string;
 };
 
 type AvailabilityFormState = {
@@ -591,7 +593,7 @@ function CalendarCell({
         ) : null}
         {dayBookings.length === 0 && dayBlocks.slice(0, 1).map((block) => (
           <span key={block.id} className="block max-w-full truncate rounded-md bg-white px-2 py-1 text-xs font-semibold text-black/75">
-            {formatBlockReason(block.reason)}
+            {formatBlockCalendarLabel(block)}
           </span>
         ))}
       </span>
@@ -685,6 +687,7 @@ function SelectedDatePanel({
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{formatBlockReason(block.reason)}</p>
                     <p className="mt-1 truncate text-sm text-black/55">{block.propertyTitle}</p>
+                    {block.bookingPackageName ? <p className="mt-1 truncate text-sm font-semibold text-black/65">{block.bookingPackageName}</p> : null}
                     {block.note ? <p className="mt-1 text-sm text-black/65">{block.note}</p> : null}
                   </div>
                   <form action={removeAvailabilityBlockAction}>
@@ -1114,6 +1117,10 @@ function AvailabilityBlockForm({
   state: AvailabilityFormState;
 }) {
   const selectedListing = listings.find((listing) => listing.id === selectedListingId);
+  const initialFormListingId = selectedListing?.id ?? (listings.length === 1 ? listings[0]?.id ?? "" : "");
+  const [formListingId, setFormListingId] = useState(initialFormListingId);
+  const formListing = selectedListing ?? listings.find((listing) => listing.id === formListingId);
+  const packageOptions = activePackagesForListing(formListing);
   const endDate = addDays(dateKey, 1);
   const hasBlocks = availabilityBlocks.length > 0;
 
@@ -1134,6 +1141,7 @@ function AvailabilityBlockForm({
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-black/80">{formatBlockReason(block.reason)}</p>
                 <p className="truncate text-xs text-black/50">{block.propertyTitle}</p>
+                {block.bookingPackageName ? <p className="truncate text-xs font-semibold text-black/60">{block.bookingPackageName}</p> : null}
               </div>
               <form action={removeAvailabilityBlockAction}>
                 <input type="hidden" name={csrfFieldName} value={csrfToken} />
@@ -1146,19 +1154,13 @@ function AvailabilityBlockForm({
       ) : null}
       <form action={action} className="mt-4 space-y-3">
         <input type="hidden" name={csrfFieldName} value={csrfToken} />
-        {selectedListing ? (
-          <>
-            <input type="hidden" name="propertyId" value={selectedListing.id} />
-            <p className="rounded-lg bg-black/[0.04] px-3 py-2 text-sm font-semibold text-black/70">{selectedListing.title}</p>
-          </>
-        ) : (
-          <select name="propertyId" required className="min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold">
-            <option value="">Choose listing</option>
-            {listings.map((listing) => (
-              <option key={listing.id} value={listing.id}>{listing.title}</option>
-            ))}
-          </select>
-        )}
+        <ListingPicker
+          selectedListing={selectedListing}
+          listings={listings}
+          value={formListingId}
+          onChange={setFormListingId}
+        />
+        {packageOptions.length > 0 ? <AvailabilityBlockPackageSelect packageOptions={packageOptions} /> : null}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
           <label className="text-sm font-semibold text-black/65">
             Start
@@ -1181,6 +1183,24 @@ function AvailabilityBlockForm({
         <AvailabilitySubmitButton />
       </form>
     </section>
+  );
+}
+
+function AvailabilityBlockPackageSelect({ packageOptions }: { packageOptions: HostCalendarBookingPackage[] }) {
+  return (
+    <label className="text-sm font-semibold text-black/65">
+      Booked package
+      <select
+        name="bookingPackageId"
+        defaultValue=""
+        className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold"
+      >
+        <option value="">No specific package</option>
+        {packageOptions.map((pkg) => (
+          <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -1474,6 +1494,10 @@ function formatBlockReason(reason: AvailabilityBlockReason) {
     case "other":
       return "Unavailable";
   }
+}
+
+function formatBlockCalendarLabel(block: HostAvailabilityBlock) {
+  return block.bookingPackageName ? `${formatBlockReason(block.reason)} - ${block.bookingPackageName}` : formatBlockReason(block.reason);
 }
 
 function cx(...classes: Array<string | false | undefined>) {

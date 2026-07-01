@@ -30,6 +30,7 @@ const selectedDateRateTypes = ["custom_price", "percent_discount"] as const;
 
 const blockAvailabilitySchema = z.object({
   propertyId: z.string().trim().min(1, "Choose a listing."),
+  bookingPackageId: z.string().trim().max(120, "Choose a valid booking package.").optional(),
   checkIn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid start date."),
   checkOut: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid end date."),
   reason: z.enum(availabilityReasons),
@@ -173,6 +174,7 @@ export async function blockHostAvailability(_state: AvailabilityFormState, formD
 
   const parsed = blockAvailabilitySchema.safeParse({
     propertyId: formData.get("propertyId"),
+    bookingPackageId: formData.get("bookingPackageId") || undefined,
     checkIn: formData.get("checkIn"),
     checkOut: formData.get("checkOut"),
     reason: formData.get("reason"),
@@ -190,9 +192,11 @@ export async function blockHostAvailability(_state: AvailabilityFormState, formD
     return { status: "error", message: actionError(error, "Use a host account to update availability.") };
   }
 
-  const { propertyId, checkIn, checkOut, reason, note } = parsed.data;
+  const { propertyId, bookingPackageId, checkIn, checkOut, reason, note } = parsed.data;
   const property = await getPropertyById(propertyId);
   if (!property || property.hostId !== user.id || property.status === "deleted") return { status: "error", message: "Choose one of your listings." };
+  const bookingPackage = bookingPackageId ? activeBookingPackages(property).find((pkg) => pkg.id === bookingPackageId) : undefined;
+  if (bookingPackageId && !bookingPackage) return { status: "error", message: "Choose an active booking package for this listing." };
 
   const checkInTime = dateTime(checkIn);
   const checkOutTime = dateTime(checkOut);
@@ -218,6 +222,8 @@ export async function blockHostAvailability(_state: AvailabilityFormState, formD
     date,
     reason: reason as AvailabilityBlockReason,
     note: cleanNote(note),
+    bookingPackageId: bookingPackage?.id,
+    bookingPackageName: bookingPackage?.name,
     createdAt,
   }));
 

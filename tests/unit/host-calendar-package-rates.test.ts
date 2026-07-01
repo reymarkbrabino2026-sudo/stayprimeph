@@ -151,10 +151,11 @@ function packageRatesForm(input: { propertyId: string; packageId: string; weekda
   return formData;
 }
 
-function availabilityForm(input: { propertyId: string; checkIn: string; checkOut: string; reason: string; note?: string }) {
+function availabilityForm(input: { propertyId: string; checkIn: string; checkOut: string; reason: string; note?: string; bookingPackageId?: string }) {
   const formData = new FormData();
   formData.set("csrfToken", "csrf-token");
   formData.set("propertyId", input.propertyId);
+  if (input.bookingPackageId) formData.set("bookingPackageId", input.bookingPackageId);
   formData.set("checkIn", input.checkIn);
   formData.set("checkOut", input.checkOut);
   formData.set("reason", input.reason);
@@ -175,6 +176,7 @@ describe("blockHostAvailability", () => {
 
   it("saves booked by guest as an unavailable reason", async () => {
     const caya = property();
+    const packageId = caya.bookingPackages?.[0]?.id;
     mocks.getPropertyById.mockResolvedValue(caya);
 
     const result = await blockHostAvailability(
@@ -185,6 +187,7 @@ describe("blockHostAvailability", () => {
         checkOut: "2026-07-05",
         reason: "booked_by_guest",
         note: "Walk-in guest",
+        bookingPackageId: packageId,
       }),
     );
 
@@ -195,6 +198,8 @@ describe("blockHostAvailability", () => {
         date: "2026-07-04",
         reason: "booked_by_guest",
         note: "Walk-in guest",
+        bookingPackageId: packageId,
+        bookingPackageName: "Overnight - Whole Villa",
       }),
     ]);
   });

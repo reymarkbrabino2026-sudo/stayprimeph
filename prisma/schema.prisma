@@ -415,6 +415,8 @@ model AvailabilityBlock {
   minNights  Int?
   reason     String?
   note       String?
+  bookingPackageId   String?
+  bookingPackageName String?
   createdAt  DateTime @default(now())
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 

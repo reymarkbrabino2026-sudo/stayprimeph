@@ -72,6 +72,14 @@ describe("HostCalendar", () => {
     expect(screen.getByRole("option", { name: "Booked by guest" })).toHaveValue("booked_by_guest");
   });
 
+  test("offers active listing packages when blocking dates", () => {
+    renderCalendar();
+
+    const packageSelect = screen.getByRole("combobox", { name: "Booked package" }) as HTMLSelectElement;
+    expect(packageSelect).toHaveValue("");
+    expect(screen.getByRole("option", { name: "Overnight - Whole Villa" })).toHaveValue("overnight-whole-villa");
+  });
+
   test("allows a selected availability block to be undone from the block form", async () => {
     const user = userEvent.setup();
     const selectedDate = dateKey();
@@ -85,12 +93,14 @@ describe("HostCalendar", () => {
           propertyTitle: listing.title,
           date: selectedDate,
           reason: "booked_by_guest",
+          bookingPackageName: "Overnight - Whole Villa",
         },
       ],
       removeAvailabilityBlockAction,
     });
 
     expect(screen.getByText("Already blocked on this date")).toBeInTheDocument();
+    expect(screen.getAllByText("Overnight - Whole Villa").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Undo Booked by guest block for The Caya" }));
 

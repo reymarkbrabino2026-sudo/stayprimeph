@@ -41,6 +41,7 @@ let platformLedgerTableReady: Promise<void> | null = null;
 let listingBookingPackageTableReady: Promise<void> | null = null;
 let listingRoomTableReady: Promise<void> | null = null;
 let bookingPackageColumnsReady: Promise<void> | null = null;
+let availabilityBlockBookingPackageColumnsReady: Promise<void> | null = null;
 let propertyAdvancedPricingColumnsReady: Promise<void> | null = null;
 let paymentColumnsReady: Promise<void> | null = null;
 let authSessionTableReady: Promise<void> | null = null;
@@ -273,6 +274,15 @@ async function ensureBookingPackageColumns(db: Pick<typeof prisma, "$executeRawU
     await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageId" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageName" TEXT`);
     await db.$executeRawUnsafe(`ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingPackageUnit" TEXT`);
+  });
+}
+
+async function ensureAvailabilityBlockBookingPackageColumns(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, availabilityBlockBookingPackageColumnsReady, (promise) => {
+    availabilityBlockBookingPackageColumnsReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`ALTER TABLE "AvailabilityBlock" ADD COLUMN IF NOT EXISTS "bookingPackageId" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "AvailabilityBlock" ADD COLUMN IF NOT EXISTS "bookingPackageName" TEXT`);
   });
 }
 
@@ -1446,58 +1456,88 @@ export async function listBookingsForGuestFromDatabase(guestId: string): Promise
   return bookings.map((booking) => toBooking(booking, packageByBookingId));
 }
 
-export async function listAvailabilityBlocksFromDatabase(): Promise<AvailabilityBlock[]> {
-  const blocks = await prisma.availabilityBlock.findMany({
-    where: { available: false },
-    orderBy: { date: "asc" },
-  });
+type DatabaseAvailabilityBlock = {
+  id: string;
+  propertyId: string;
+  date: Date;
+  reason: string | null;
+  note: string | null;
+  bookingPackageId: string | null;
+  bookingPackageName: string | null;
+  createdAt: Date;
+};
 
-  return blocks.map((block) => ({
+function toAvailabilityBlock(block: DatabaseAvailabilityBlock): AvailabilityBlock {
+  return {
     id: block.id,
     propertyId: block.propertyId,
     date: block.date.toISOString().slice(0, 10),
     reason: (block.reason ?? "other") as AvailabilityBlock["reason"],
     note: block.note ?? undefined,
+    bookingPackageId: block.bookingPackageId ?? undefined,
+    bookingPackageName: block.bookingPackageName ?? undefined,
     createdAt: block.createdAt.toISOString(),
-  }));
+  };
+}
+
+export async function listAvailabilityBlocksFromDatabase(): Promise<AvailabilityBlock[]> {
+  await ensureAvailabilityBlockBookingPackageColumns();
+  const blocks = await prisma.$queryRaw<DatabaseAvailabilityBlock[]>`
+    SELECT "id", "propertyId", "date", "reason", "note", "bookingPackageId", "bookingPackageName", "createdAt"
+    FROM "AvailabilityBlock"
+    WHERE "available" = false
+    ORDER BY "date" ASC
+  `;
+
+  return blocks.map(toAvailabilityBlock);
 }
 
 export async function listAvailabilityBlocksForPropertyFromDatabase(propertyId: string): Promise<AvailabilityBlock[]> {
-  const blocks = await prisma.availabilityBlock.findMany({
-    where: { propertyId, available: false },
-    orderBy: { date: "asc" },
-  });
+  await ensureAvailabilityBlockBookingPackageColumns();
+  const blocks = await prisma.$queryRaw<DatabaseAvailabilityBlock[]>`
+    SELECT "id", "propertyId", "date", "reason", "note", "bookingPackageId", "bookingPackageName", "createdAt"
+    FROM "AvailabilityBlock"
+    WHERE "propertyId" = ${propertyId} AND "available" = false
+    ORDER BY "date" ASC
+  `;
 
-  return blocks.map((block) => ({
-    id: block.id,
-    propertyId: block.propertyId,
-    date: block.date.toISOString().slice(0, 10),
-    reason: (block.reason ?? "other") as AvailabilityBlock["reason"],
-    note: block.note ?? undefined,
-    createdAt: block.createdAt.toISOString(),
-  }));
+  return blocks.map(toAvailabilityBlock);
 }
 
 export async function createAvailabilityBlocksInDatabase(blocks: AvailabilityBlock[]) {
+  await ensureAvailabilityBlockBookingPackageColumns();
   await prisma.$transaction(
     blocks.map((block) =>
-      prisma.availabilityBlock.upsert({
-        where: { propertyId_date: { propertyId: block.propertyId, date: new Date(block.date) } },
-        update: {
-          available: false,
-          reason: block.reason,
-          note: block.note ?? null,
-        },
-        create: {
-          id: block.id,
-          propertyId: block.propertyId,
-          date: new Date(block.date),
-          available: false,
-          reason: block.reason,
-          note: block.note ?? null,
-          createdAt: new Date(block.createdAt),
-        },
-      }),
+      prisma.$executeRaw`
+        INSERT INTO "AvailabilityBlock" (
+          "id",
+          "propertyId",
+          "date",
+          "available",
+          "reason",
+          "note",
+          "bookingPackageId",
+          "bookingPackageName",
+          "createdAt"
+        )
+        VALUES (
+          ${block.id},
+          ${block.propertyId},
+          ${new Date(block.date)},
+          ${false},
+          ${block.reason},
+          ${block.note ?? null},
+          ${block.bookingPackageId ?? null},
+          ${block.bookingPackageName ?? null},
+          ${new Date(block.createdAt)}
+        )
+        ON CONFLICT ("propertyId", "date") DO UPDATE SET
+          "available" = false,
+          "reason" = EXCLUDED."reason",
+          "note" = EXCLUDED."note",
+          "bookingPackageId" = EXCLUDED."bookingPackageId",
+          "bookingPackageName" = EXCLUDED."bookingPackageName"
+      `,
     ),
   );
 }
