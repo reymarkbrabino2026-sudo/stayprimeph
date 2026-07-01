@@ -31,6 +31,11 @@ html[data-first-visit-loader="seen"] .first-visit-loader {
   display: none;
 }
 
+html[data-first-visit-loader="active"] #app-content {
+  pointer-events: none;
+  user-select: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;

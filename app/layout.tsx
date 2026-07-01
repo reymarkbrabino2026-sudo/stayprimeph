@@ -42,8 +42,24 @@ const firstVisitLoaderBootScript = `
   try {
     if (window.localStorage.getItem("hasSeenFirstVisitLoader") === "true") {
       document.documentElement.dataset.firstVisitLoader = "seen";
+    } else {
+      window.localStorage.setItem("hasSeenFirstVisitLoader", "true");
+      document.documentElement.dataset.firstVisitLoader = "active";
     }
-  } catch (error) {}
+  } catch (error) {
+    document.documentElement.dataset.firstVisitLoader = "active";
+  }
+})();
+`;
+
+const firstVisitLoaderContentLockScript = `
+(function () {
+  if (document.documentElement.dataset.firstVisitLoader !== "active") return;
+  var appContent = document.getElementById("app-content");
+  if (!appContent) return;
+  appContent.setAttribute("inert", "");
+  appContent.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "hidden";
 })();
 `;
 
@@ -136,6 +152,7 @@ export default async function RootLayout({
         <div id="app-content" className="contents">
           {children}
         </div>
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: firstVisitLoaderContentLockScript }} />
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === "enabled" ? <Analytics /> : null}
       </body>
     </html>

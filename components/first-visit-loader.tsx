@@ -32,7 +32,9 @@ export function FirstVisitLoader() {
   const letters = useMemo(() => Array.from(logoText), []);
 
   useEffect(() => {
-    if (hasSeenLoader()) {
+    const bootState = document.documentElement.dataset.firstVisitLoader;
+
+    if (bootState === "seen" || (bootState !== "active" && hasSeenLoader())) {
       const hideTimer = window.setTimeout(() => setIsVisible(false), 0);
       document.documentElement.dataset.firstVisitLoader = "seen";
       setAppContentInert(false);
