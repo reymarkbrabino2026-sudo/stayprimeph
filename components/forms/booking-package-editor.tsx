@@ -45,6 +45,46 @@ function json(values?: unknown[]) {
   return JSON.stringify(values ?? []);
 }
 
+function normalizeListValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function csvTextValues(value: string) {
+  const seen = new Set<string>();
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => {
+      const key = normalizeListValue(item);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function mergeTextValues(...groups: string[][]) {
+  const seen = new Set<string>();
+  return groups
+    .flat()
+    .map((item) => item.trim())
+    .filter((item) => {
+      const key = normalizeListValue(item);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function toggleCsvTextValue(value: string, option: string) {
+  const values = csvTextValues(value);
+  const optionKey = normalizeListValue(option);
+  const hasOption = values.some((item) => normalizeListValue(item) === optionKey);
+  return (hasOption
+    ? values.filter((item) => normalizeListValue(item) !== optionKey)
+    : [...values, option]
+  ).join(", ");
+}
+
 function packageToEditable(pkg: BookingPackage, index: number, property: Property): EditablePackage {
   const activeRoomIds = new Set((property.rooms ?? []).filter((room) => room.active).map((room) => room.id));
   return {
@@ -128,6 +168,7 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
   const [packages, setPackages] = useState(initialPackages);
   const canAddPackage = packages.length < maxBookingPackages;
   const roomOptions = useMemo(() => (property.rooms ?? []).filter((room) => room.active), [property.rooms]);
+  const amenityOptions = useMemo(() => mergeTextValues(property.amenities), [property.amenities]);
 
   function updatePackage(id: string, patch: Partial<EditablePackage>) {
     setPackages((current) => current.map((pkg) => pkg.id === id ? { ...pkg, ...patch } : pkg));
@@ -242,6 +283,11 @@ export function BookingPackageEditor({ property, formId }: { property: Property;
                 placeholder="WiFi, Kitchen, Pool"
               />
             </label>
+            <PackageAmenityChecklist
+              amenities={mergeTextValues(amenityOptions, csvTextValues(pkg.includedAmenities))}
+              selectedAmenities={pkg.includedAmenities}
+              onChange={(includedAmenities) => updatePackage(pkg.id, { includedAmenities })}
+            />
           </div>
         )) : (
           <div className="rounded-2xl bg-[#fbf7f2] p-4 text-sm text-black/55">
@@ -281,6 +327,59 @@ function PackageHiddenFields({ pkg, formId }: { pkg: EditablePackage; formId: st
         <input key={name} type="hidden" form={formId} name={name} value={value} />
       ))}
     </>
+  );
+}
+
+function PackageAmenityChecklist({
+  amenities,
+  selectedAmenities,
+  onChange,
+}: {
+  amenities: string[];
+  selectedAmenities: string;
+  onChange: (includedAmenities: string) => void;
+}) {
+  const selectedKeys = new Set(csvTextValues(selectedAmenities).map(normalizeListValue));
+
+  return (
+    <fieldset className="mt-2 rounded-xl border border-black/10 bg-white/70 p-3">
+      <legend className="px-1 text-xs text-black/45">Amenities</legend>
+      {amenities.length ? (
+        <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto pr-1">
+          {amenities.map((amenity) => {
+            const checked = selectedKeys.has(normalizeListValue(amenity));
+            return (
+              <label
+                key={amenity}
+                className={`inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                  checked
+                    ? "border-[#083f35] bg-[#083f35] text-white"
+                    : "border-black/10 bg-white text-black/65 hover:border-black/25 hover:text-black"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onChange(toggleCsvTextValue(selectedAmenities, amenity))}
+                  className="sr-only"
+                />
+                <span
+                  className={`grid size-4 shrink-0 place-items-center rounded border ${
+                    checked ? "border-white/30 bg-white text-[#083f35]" : "border-black/20 bg-white text-transparent"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Check size={12} />
+                </span>
+                <span className="leading-tight">{amenity}</span>
+              </label>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-black/45">No amenities added yet.</p>
+      )}
+    </fieldset>
   );
 }
 

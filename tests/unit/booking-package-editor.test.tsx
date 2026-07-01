@@ -53,7 +53,7 @@ const property = {
   privacyType: "entire",
   status: "approved",
   rating: 0,
-  amenities: ["Kitchen"],
+  amenities: ["Kitchen", "WiFi", "Pool"],
   rules: [],
   createdAt: "2026-06-01",
   images: [],
@@ -109,5 +109,33 @@ describe("BookingPackageEditor", () => {
 
     fireEvent.click(screen.getByRole("checkbox", { name: "None" }));
     expect(accessibleRoomsInput(container).value).toBe("[]");
+  });
+
+  test("syncs included amenities between the text list and amenity checkboxes", () => {
+    render(
+      <>
+        <form id="listing-form" />
+        <BookingPackageEditor property={property} formId="listing-form" />
+      </>,
+    );
+
+    const includedAmenities = screen.getByLabelText("Included amenities") as HTMLTextAreaElement;
+    expect(includedAmenities.value).toBe("Kitchen");
+
+    expect(screen.getByRole("checkbox", { name: "Kitchen" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "WiFi" })).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "WiFi" }));
+    expect(includedAmenities.value).toBe("Kitchen, WiFi");
+    expect(screen.getByRole("checkbox", { name: "WiFi" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Kitchen" }));
+    expect(includedAmenities.value).toBe("WiFi");
+    expect(screen.getByRole("checkbox", { name: "Kitchen" })).not.toBeChecked();
+
+    fireEvent.change(includedAmenities, { target: { value: "Pool, Karaoke" } });
+    expect(screen.getByRole("checkbox", { name: "Pool" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Karaoke" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "WiFi" })).not.toBeChecked();
   });
 });
