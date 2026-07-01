@@ -193,11 +193,13 @@ export function HostCalendar({
   }
 
   return (
-    <main className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_26rem]">
+    <main className="grid min-w-0 lg:h-[calc(100svh-6rem-1px)] lg:overflow-hidden lg:grid-cols-[minmax(0,1fr)_26rem]">
       <section
         ref={scrollerRef}
+        data-lenis-prevent
+        data-lenis-prevent-wheel
         onScroll={updateActiveMonth}
-        className="h-[calc(100svh-6rem)] min-w-0 overflow-y-auto scroll-smooth px-3 pb-48 pt-0 sm:px-6 sm:pb-48 lg:px-14 lg:pb-10"
+        className="h-[calc(100svh-6rem)] min-w-0 overflow-y-auto overscroll-contain scroll-smooth px-3 pb-48 pt-0 sm:px-6 sm:pb-48 lg:h-[calc(100svh-6rem-1px)] lg:px-14 lg:pb-10"
       >
         <div className="sticky top-0 z-10 -mx-3 bg-white/95 px-3 pb-3 pt-4 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-14 lg:px-14">
           <div className="flex items-end justify-between gap-3">
@@ -302,8 +304,12 @@ export function HostCalendar({
         </button>
       </section>
 
-      <aside className="fixed inset-x-0 bottom-0 z-30 max-h-44 overflow-y-auto rounded-t-lg border-t border-black/10 bg-white px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgb(0_0_0_/_0.10)] sm:max-h-44 sm:px-6 lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-l lg:border-t-0 lg:px-10 lg:py-14 lg:shadow-none">
-        <div className="lg:sticky lg:top-8">
+      <aside
+        data-lenis-prevent
+        data-lenis-prevent-wheel
+        className="fixed inset-x-0 bottom-0 z-30 max-h-44 overflow-y-auto overscroll-contain rounded-t-lg border-t border-black/10 bg-white px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgb(0_0_0_/_0.10)] sm:max-h-44 sm:px-6 lg:static lg:h-[calc(100svh-6rem-1px)] lg:max-h-none lg:overflow-y-auto lg:rounded-none lg:border-l lg:border-t-0 lg:px-10 lg:py-14 lg:shadow-none"
+      >
+        <div>
           <SelectedDatePanel
             dateKey={selectedDate}
             bookings={selectedDayBookings}
