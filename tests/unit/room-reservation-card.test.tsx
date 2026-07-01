@@ -186,7 +186,9 @@ describe("RoomReservationCard", () => {
 
     render(<RoomReservationCard property={property} rating="New" />);
 
-    expect(screen.getByText("Up to 20 guests / 6 bedrooms / Sleeps 20")).toBeInTheDocument();
+    expect(screen.getByText("Up to 20 guests")).toBeInTheDocument();
+    expect(screen.getByText("6 bedrooms")).toBeInTheDocument();
+    expect(screen.getByText("Sleeps 20")).toBeInTheDocument();
     expect(screen.queryByText(/sleeping capacity/i)).not.toBeInTheDocument();
   });
 });

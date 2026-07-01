@@ -226,11 +226,11 @@ export function RoomReservationCard({
   const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id) : "#";
   const maxGuests = activePackage?.maxGuests ?? property.maxGuests;
   const sleepingCapacity = activePackage?.sleepingCapacity && activePackage.sleepingCapacity > 0 ? activePackage.sleepingCapacity : 0;
-  const capacitySummary = [
+  const capacitySummaryParts = [
     `Up to ${maxGuests} guests`,
     `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"}`,
     sleepingCapacity ? `Sleeps ${sleepingCapacity}` : null,
-  ].filter(Boolean).join(" / ");
+  ].filter((part): part is string => Boolean(part));
   const selectedPackageRooms = activePackage?.accessibleRoomIds?.length
     ? (property.rooms ?? []).filter((room) => activePackage.accessibleRoomIds?.includes(room.id))
     : [];
@@ -319,7 +319,7 @@ export function RoomReservationCard({
     <div className="scroll-mt-24 rounded-lg border border-black/10 bg-white p-4 shadow-[0_18px_44px_rgb(8_63_53_/_0.12)] sm:p-6">
       <div
         data-reservation-summary
-        className="lg:sticky lg:top-0 lg:z-20 lg:-mx-6 lg:-mt-6 lg:rounded-t-lg lg:bg-white lg:px-6 lg:pt-6 lg:after:pointer-events-none lg:after:absolute lg:after:inset-x-0 lg:after:top-full lg:after:h-4 lg:after:bg-white lg:after:content-['']"
+        className="sticky top-0 z-20 -mx-4 -mt-4 rounded-t-lg bg-white px-4 pt-4 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-white after:content-[''] sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -327,7 +327,14 @@ export function RoomReservationCard({
               {formatCurrency(headlinePrice)}
               <span className="ml-1 text-sm font-medium text-black/50 min-[390px]:text-base">{headlinePriceLabel}</span>
             </p>
-            <p className="mt-1 text-sm text-black/55">{capacitySummary}</p>
+            <p className="mt-1 text-sm leading-5 text-black/55">
+              {capacitySummaryParts.map((part, index) => (
+                <span key={part} className="whitespace-nowrap">
+                  {index > 0 ? <span className="mx-1 text-black/35">/</span> : null}
+                  {part}
+                </span>
+              ))}
+            </p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f6f1e9] px-2.5 py-1.5 text-xs font-semibold text-[#083f35] min-[390px]:px-3 min-[390px]:text-sm">
             <Star size={14} fill="currentColor" /> {rating}
