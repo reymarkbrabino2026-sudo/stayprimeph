@@ -789,6 +789,9 @@ function RateCalendarForm({
   const selectedMonth = activeMonthKey;
   const endDate = addDays(dateKey, 1);
   const amountLabel = adjustmentType === "percent_discount" ? "Discount %" : "Custom price";
+  const selectedPackageMonthRates = selectedPackage ? getPackageMonthRates(selectedPackage, selectedMonth) : null;
+  const selectedPackageWeekdayRate = selectedPackageMonthRates?.weekdayRate ?? selectedPackage?.weekdayRate ?? 0;
+  const selectedPackageWeekendRate = selectedPackageMonthRates?.weekendRate ?? (selectedPackage ? positiveOrFallback(selectedPackage.weekendRate, selectedPackage.weekdayRate) : 0);
 
   function handleRateListingChange(listingId: string) {
     setRateListingId(listingId);
@@ -850,7 +853,7 @@ function RateCalendarForm({
               <input type="hidden" name="propertyId" value={rateListing.id} />
               <div>
                 <h3 className="text-base font-semibold text-black">Month price</h3>
-                <p className="mt-1 text-sm text-black/55">Set one price for every day in the month.</p>
+                <p className="mt-1 text-sm text-black/55">Set weekday and weekend prices for the month.</p>
               </div>
               <PackageSelect
                 packageOptions={packageOptions}
@@ -863,14 +866,27 @@ function RateCalendarForm({
                   <input name="month" type="month" defaultValue={selectedMonth} required className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm" />
                 </label>
                 <label className="text-sm font-semibold text-black/65">
-                  Whole month price
+                  Weekday price
                   <input
-                    name="rate"
+                    name="weekdayRate"
                     type="number"
                     min={1}
                     max={1000000}
                     step={1}
-                    defaultValue={getPackageMonthRate(selectedPackage, selectedMonth) ?? getPackageRateDetails(selectedPackage, dateKey).grossRate}
+                    defaultValue={selectedPackageWeekdayRate}
+                    required
+                    className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm"
+                  />
+                </label>
+                <label className="text-sm font-semibold text-black/65">
+                  Weekend price
+                  <input
+                    name="weekendRate"
+                    type="number"
+                    min={1}
+                    max={1000000}
+                    step={1}
+                    defaultValue={selectedPackageWeekendRate}
                     required
                     className="mt-1 min-h-11 w-full rounded-lg border border-black/10 bg-white px-3 text-sm"
                   />
@@ -1318,9 +1334,19 @@ function getPackageRateDetails(pkg: HostCalendarBookingPackage, dateKey: string)
   }, dateKey);
 }
 
-function getPackageMonthRate(pkg: HostCalendarBookingPackage, month: string) {
+function getPackageMonthRates(pkg: HostCalendarBookingPackage, month: string) {
   const { startDate, endDate } = monthBounds(month);
-  return (pkg.seasonalRates ?? []).find((rate) => rate.startDate === startDate && rate.endDate === endDate)?.weekdayRate;
+  const rate = (pkg.seasonalRates ?? []).find((item) => item.startDate === startDate && item.endDate === endDate);
+  if (!rate) return null;
+
+  return {
+    weekdayRate: rate.weekdayRate,
+    weekendRate: positiveOrFallback(rate.weekendRate, rate.weekdayRate),
+  };
+}
+
+function positiveOrFallback(value: number | null | undefined, fallback: number) {
+  return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback;
 }
 
 function monthBounds(month: string) {

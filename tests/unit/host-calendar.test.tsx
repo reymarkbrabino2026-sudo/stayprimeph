@@ -74,8 +74,8 @@ describe("HostCalendar", () => {
       name: "Event - Overnight - Whole Villa",
       displayOrder: 2,
       weekdayRate: 20000,
-      weekendRate: 20000,
-      holidayRate: 20000,
+      weekendRate: 22000,
+      holidayRate: 22000,
     };
 
     renderCalendar({
@@ -99,6 +99,11 @@ describe("HostCalendar", () => {
     expect(packageSelects[0]).toHaveValue(premiumPackage.id);
     expect(packageSelects[1]).toHaveValue(premiumPackage.id);
     expect(packageSelects[2]).toHaveValue(premiumPackage.id);
+    const weekdayInputs = screen.getAllByRole("spinbutton", { name: "Weekday price" }) as HTMLInputElement[];
+    const weekendInputs = screen.getAllByRole("spinbutton", { name: "Weekend price" }) as HTMLInputElement[];
+    expect(screen.queryByRole("spinbutton", { name: "Whole month price" })).not.toBeInTheDocument();
+    expect(weekdayInputs[1]).toHaveValue(20000);
+    expect(weekendInputs[1]).toHaveValue(22000);
     expect(screen.getAllByText("₱20,000").length).toBeGreaterThan(0);
   });
 

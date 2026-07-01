@@ -40,7 +40,9 @@ const monthlyRateSchema = z.object({
   propertyId: z.string().trim().min(1, "Choose a listing."),
   packageId: z.string().trim().optional(),
   month: z.string().trim().regex(/^\d{4}-\d{2}$/, "Choose a valid month."),
-  rate: z.coerce.number().int().min(1, "Enter a monthly price.").max(1000000, "Monthly price is too high."),
+  rate: z.coerce.number().int().min(1, "Enter a monthly price.").max(1000000, "Monthly price is too high.").optional(),
+  weekdayRate: z.coerce.number().int().min(1, "Enter a weekday price.").max(1000000, "Weekday price is too high.").optional(),
+  weekendRate: z.coerce.number().int().min(1, "Enter a weekend price.").max(1000000, "Weekend price is too high.").optional(),
 });
 
 const packageRateSchema = z.object({
@@ -266,11 +268,19 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
     propertyId: formData.get("propertyId"),
     packageId: formData.get("packageId") || undefined,
     month: formData.get("month"),
-    rate: formData.get("rate"),
+    rate: formData.get("rate") || undefined,
+    weekdayRate: formData.get("weekdayRate") || undefined,
+    weekendRate: formData.get("weekendRate") || undefined,
   });
 
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the monthly rate details." };
+  }
+
+  const weekdayRate = parsed.data.weekdayRate ?? parsed.data.rate;
+  const weekendRate = parsed.data.weekendRate ?? parsed.data.rate ?? weekdayRate;
+  if (!weekdayRate || !weekendRate) {
+    return { status: "error", message: "Enter weekday and weekend prices for the month." };
   }
 
   let property;
@@ -293,9 +303,9 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
       name: `${selectedMonthLabel} rate`,
       startDate,
       endDate,
-      weekdayRate: parsed.data.rate,
-      weekendRate: parsed.data.rate,
-      holidayRate: parsed.data.rate,
+      weekdayRate,
+      weekendRate,
+      holidayRate: weekendRate,
     };
 
     await savePropertyBookingPackages(property, packages.map((pkg) => (
@@ -328,8 +338,8 @@ export async function saveMonthlyHostRate(_state: RateCalendarFormState, formDat
     startDate,
     endDate,
     active: true,
-    weekdayRate: parsed.data.rate,
-    weekendRate: parsed.data.rate,
+    weekdayRate,
+    weekendRate,
     createdAt: existing?.createdAt ?? new Date().toISOString(),
   };
   const nextAdjustments = sortedRateAdjustments([
