@@ -58,7 +58,7 @@ const bookingPackages: BookingPackage[] = [
     checkInTime: "10:00 AM",
     checkOutTime: "10:00 PM",
     accessibleFloors: ["Ground Floor", "Outdoor Areas"],
-    accessibleRoomIds: [],
+    accessibleRoomIds: ["ground-floor-room"],
     includedAmenities: ["WiFi", "Kitchen"],
     excludedAmenities: ["Bedrooms"],
     availableDays: [0, 1, 2, 3, 4, 5, 6],
@@ -91,6 +91,10 @@ const property: Property = {
   rules: [],
   createdAt: "2026-06-01",
   images: [],
+  rooms: [
+    { id: "ground-floor-room", name: "Oasis Room", capacity: 4, floor: "Ground Floor", photos: [], amenities: [], active: true },
+    { id: "second-floor-room", name: "Nest Room", capacity: 4, floor: "Second Floor", photos: [], amenities: [], active: true },
+  ],
   bookingPackages,
 };
 
@@ -190,5 +194,18 @@ describe("RoomReservationCard", () => {
     expect(screen.getByText("6 bedrooms")).toBeInTheDocument();
     expect(screen.getByText("Sleeps 20")).toBeInTheDocument();
     expect(screen.queryByText(/sleeping capacity/i)).not.toBeInTheDocument();
+  });
+
+  test("uses selected package rooms for the bedroom summary", () => {
+    useReservationStore.setState({
+      bookingMode: "package",
+      packageId: bookingPackages[1].id,
+    });
+
+    render(<RoomReservationCard property={property} rating="New" />);
+
+    expect(screen.getByText("Up to 15 guests")).toBeInTheDocument();
+    expect(screen.getByText("1 bedroom")).toBeInTheDocument();
+    expect(screen.queryByText("6 bedrooms")).not.toBeInTheDocument();
   });
 });

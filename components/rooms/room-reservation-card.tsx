@@ -224,16 +224,20 @@ export function RoomReservationCard({
   const selectedStartsUnavailable = Boolean(effectiveStay.checkIn) && (effectiveStay.checkIn < TODAY || bookedNightSet.has(effectiveStay.checkIn));
   const canReserve = validStay && !selectedStartsUnavailable && !selectedHasUnavailableNight;
   const reserveHref = canReserve ? buildReserveHref(property.id, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id) : "#";
+  const packageAccessibleRoomIds = activePackage?.accessibleRoomIds?.filter(Boolean) ?? [];
+  const selectedPackageRooms = packageAccessibleRoomIds.length
+    ? (property.rooms ?? []).filter((room) => packageAccessibleRoomIds.includes(room.id))
+    : [];
+  const packageBedroomCount = packageAccessibleRoomIds.length
+    ? selectedPackageRooms.length || new Set(packageAccessibleRoomIds).size
+    : null;
   const maxGuests = activePackage?.maxGuests ?? property.maxGuests;
   const sleepingCapacity = activePackage?.sleepingCapacity && activePackage.sleepingCapacity > 0 ? activePackage.sleepingCapacity : 0;
   const capacitySummaryParts = [
     `Up to ${maxGuests} guests`,
-    `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"}`,
+    formatBedroomCount(packageBedroomCount ?? property.bedrooms),
     sleepingCapacity ? `Sleeps ${sleepingCapacity}` : null,
   ].filter((part): part is string => Boolean(part));
-  const selectedPackageRooms = activePackage?.accessibleRoomIds?.length
-    ? (property.rooms ?? []).filter((room) => activePackage.accessibleRoomIds?.includes(room.id))
-    : [];
   const changeGuests = (next: number) => setGuests(Math.min(maxGuests, Math.max(1, next)));
   const [activeField, setActiveField] = useState<"checkIn" | "checkOut">("checkIn");
   const [visibleMonth, setVisibleMonth] = useState(() => getMonthCursor(effectiveStay.checkIn || TODAY));
@@ -663,6 +667,10 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
       {label}
     </span>
   );
+}
+
+function formatBedroomCount(count: number) {
+  return `${count} bedroom${count === 1 ? "" : "s"}`;
 }
 
 function PackageAccessSummary({
