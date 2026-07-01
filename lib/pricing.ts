@@ -1,4 +1,5 @@
 import type { Booking, BookingPackage, ListingDiscounts, Property, SeasonalRate } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
 
 export const STAYPRIME_MARKUP_RATE = 0.2;
 export const DEFAULT_WEEKEND_PREMIUM_RATE = 0.2;
@@ -237,6 +238,52 @@ export function calculateStayprimeMarkup(subtotal: number) {
 
 export function calculateGuestPriceWithMarkup(hostAmount: number) {
   return hostAmount + calculateStayprimeMarkup(hostAmount);
+}
+
+function positiveRates(values: Array<number | null | undefined>) {
+  return values
+    .filter((value): value is number => Number.isFinite(value) && Number(value) > 0)
+    .map((value) => Number(value));
+}
+
+function seasonalRatesForDisplay(rates: SeasonalRate[] = []) {
+  return rates.flatMap((rate) => positiveRates([rate.weekdayRate, rate.weekendRate, rate.holidayRate]));
+}
+
+function bookingPackageRatesForDisplay(pkg: BookingPackage) {
+  return [
+    ...positiveRates([
+      pkg.weekdayRate,
+      pkg.weekendRate > 0 ? pkg.weekendRate : undefined,
+      pkg.holidayRate,
+    ]),
+    ...seasonalRatesForDisplay(pkg.seasonalRates),
+  ];
+}
+
+export function formatGuestNightlyPriceRange(
+  property: Pick<Property, "pricePerNight" | "weekendPrice" | "holidayPrice" | "seasonalRates" | "bookingType" | "bookingPackages" | "privacyType">,
+) {
+  const stayRates = allowsStayBooking(property)
+    ? [
+        ...positiveRates([property.pricePerNight, property.weekendPrice, property.holidayPrice]),
+        ...seasonalRatesForDisplay(property.seasonalRates),
+      ]
+    : [];
+  const packageRates = allowsPackageBooking(property)
+    ? getEnabledBookingPackages(property).flatMap((pkg) => (pkg.unit === "night" ? bookingPackageRatesForDisplay(pkg) : []))
+    : [];
+  const rates = Array.from(new Set([...stayRates, ...packageRates])).sort((a, b) => a - b);
+
+  if (!rates.length) return `${formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight))} / night`;
+
+  const [lowest] = rates;
+  const highest = rates[rates.length - 1];
+  const lowestLabel = formatCurrency(calculateGuestPriceWithMarkup(lowest));
+  const highestLabel = formatCurrency(calculateGuestPriceWithMarkup(highest));
+
+  if (lowest === highest) return `${lowestLabel} / night`;
+  return `${lowestLabel} to ${highestLabel} / night`;
 }
 
 export function calculateStayprimeMarkupFromTotal(total: number) {

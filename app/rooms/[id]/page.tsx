@@ -36,7 +36,7 @@ import { SiteFooter } from "@/components/home/site-footer";
 import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
 import { env } from "@/lib/env";
-import { allowsPackageBooking, calculateGuestPriceWithMarkup, isEntirePlaceListing } from "@/lib/pricing";
+import { allowsPackageBooking, calculateGuestPriceWithMarkup, formatGuestNightlyPriceRange, isEntirePlaceListing } from "@/lib/pricing";
 import { Navbar } from "@/components/public/navbar";
 import { RoomBookingBar } from "@/components/rooms/room-booking-bar";
 import { RoomGalleryShowcase } from "@/components/rooms/room-gallery-showcase";
@@ -58,7 +58,7 @@ import { getPropertyById } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
 import { getReviewsForProperty } from "@/lib/reviews";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { getUserById, getUsersByIds } from "@/lib/users";
 
 function isRenderableImage(src?: string): src is string {
@@ -182,7 +182,7 @@ export default async function RoomPage({
   const lowerPropertyType = propertyTypeLabel.toLowerCase();
   const bedroomsLabel = `${property.bedrooms} bedroom${property.bedrooms === 1 ? "" : "s"}`;
   const bathsLabel = `${property.bathrooms} bath${property.bathrooms === 1 ? "" : "s"}`;
-  const nightlyLabel = `${formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight))} / night`;
+  const nightlyLabel = formatGuestNightlyPriceRange(property);
   const bookingVerb = instantBook ? "Reserve instantly" : "Request to book";
   const photoTourGroups = buildRoomPhotoTourGroups({
     propertyTitle: property.title,

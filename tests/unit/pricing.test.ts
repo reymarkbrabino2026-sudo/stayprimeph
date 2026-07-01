@@ -6,12 +6,13 @@ import {
   calculateStayprimeMarkup,
   calculateStayprimeMarkupFromTotal,
   calculatePackageSubtotal,
+  formatGuestNightlyPriceRange,
   getBestDiscount,
   allowsPackageBooking,
   getEnabledBookingPackages,
   STAYPRIME_MARKUP_RATE,
 } from "@/lib/pricing";
-import type { Booking, Property } from "@/lib/types";
+import type { Booking, BookingPackage, Property } from "@/lib/types";
 
 const property: Property = {
   id: "p1", hostId: "h1", slug: "stay", title: "Stay", description: "Nice",
@@ -72,6 +73,41 @@ describe("calculateStayprimeMarkup", () => {
     expect(markup).toBe(833);
     expect(hostPayout).toBe(4167);
     expect(markup + hostPayout).toBe(guestTotal);
+  });
+});
+
+describe("formatGuestNightlyPriceRange", () => {
+  const nightPackage: BookingPackage = {
+    id: "overnight-full-access",
+    name: "Overnight Full Access",
+    accessType: "Full access",
+    unit: "night",
+    weekdayRate: 600,
+    weekendRate: 900,
+    includedGuests: 2,
+    maxGuests: 4,
+    additionalGuestFee: 0,
+    extensionHourlyFee: 0,
+    checkInTime: "2:00 PM",
+    checkOutTime: "11:00 AM",
+    enabled: true,
+  };
+
+  it("displays simple stay prices from smallest to highest", () => {
+    expect(formatGuestNightlyPriceRange({ ...property, weekendPrice: 1500 })).toBe("₱1,200 to ₱1,800 / night");
+  });
+
+  it("uses enabled overnight package rates in sorted order", () => {
+    expect(formatGuestNightlyPriceRange({
+      ...property,
+      bookingType: "package",
+      privacyType: "entire",
+      bookingPackages: [
+        { ...nightPackage, weekdayRate: 9500, weekendRate: 12500 },
+        { ...nightPackage, id: "inactive", enabled: false, weekdayRate: 4000, weekendRate: 5000 },
+        { ...nightPackage, id: "daytime", unit: "day", weekdayRate: 3000, weekendRate: 3500 },
+      ],
+    })).toBe("₱11,400 to ₱15,000 / night");
   });
 });
 
