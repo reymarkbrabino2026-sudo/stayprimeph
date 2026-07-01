@@ -214,7 +214,9 @@ export function RoomReservationCard({
     weekendNights,
     validStay,
     discount,
+    rateAdjustmentDiscounts,
     guestSubtotal,
+    guestRateAdjustmentDiscountAmount,
     guestDiscountAmount,
     total,
   } = computePrice(property, effectiveStay.checkIn, effectiveStay.checkOut, guests, activePackage?.id, pricingBookings);
@@ -569,6 +571,12 @@ export function RoomReservationCard({
             </span>
             <span className="shrink-0 font-medium">{formatCurrency(guestSubtotal)}</span>
           </div>
+          {guestRateAdjustmentDiscountAmount > 0 ? (
+            <div className="flex justify-between gap-4 text-[#08743e]">
+              <span>{formatCalendarPromoLabel(rateAdjustmentDiscounts)}</span>
+              <span className="shrink-0 font-medium">-{formatCurrency(guestRateAdjustmentDiscountAmount)}</span>
+            </div>
+          ) : null}
           {discount && guestDiscountAmount > 0 ? (
             <div className="flex justify-between gap-4 text-[#08743e]">
               <span>{discount.label} ({discount.percent}% off)</span>
@@ -809,6 +817,16 @@ function formatRateSummary({
 
   const displayedRate = weekendNights > 0 && weekdayNights === 0 ? guestWeekendPrice : guestNightlyPrice;
   return `${formatCurrency(displayedRate)} x ${nights} ${unitName}${nights === 1 ? "" : "s"}`;
+}
+
+function formatCalendarPromoLabel(discounts: Array<{ label: string; percent?: number }>) {
+  const labels = Array.from(new Set(discounts.map((discount) => (
+    discount.percent ? `${discount.label} (${discount.percent}% off)` : discount.label
+  ))));
+
+  if (labels.length === 0) return "Calendar promo";
+  if (labels.length === 1) return labels[0];
+  return "Calendar promos";
 }
 
 function cx(...classes: Array<string | false | undefined>) {

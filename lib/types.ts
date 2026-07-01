@@ -7,6 +7,7 @@ export type PaymentMethod = "stripe" | "gcash" | "bank_transfer" | "other";
 export type PaymentStatus = "paid" | "partially_paid" | "pending" | "submitted" | "rejected" | "refunded";
 export type AvailabilityBlockReason = "booked_elsewhere" | "owner_use" | "maintenance" | "other";
 export type ListingBookingType = "stay" | "package" | "both";
+export type ListingRateAdjustmentType = "monthly" | "custom" | "discount";
 
 export interface User { id: string; name: string; email: string; role: UserRole; avatar: string; phone: string; createdAt: string; passwordHash?: string; emailVerifiedAt?: string; passwordChangedAt?: string; }
 export interface PropertyImage { id: string; propertyId: string; imageUrl: string; tone: string; category?: ListingPhotoCategory; }
@@ -23,6 +24,7 @@ export interface PublicListingSummary {
   holidayPrice?: number;
   holidayDates?: string[];
   seasonalRates?: SeasonalRate[];
+  rateAdjustments?: ListingRateAdjustment[];
   bedrooms: number;
   bathrooms: number;
   maxGuests: number;
@@ -50,6 +52,19 @@ export interface SeasonalRate {
   weekdayRate: number;
   weekendRate?: number;
   holidayRate?: number;
+}
+export interface ListingRateAdjustment {
+  id: string;
+  type: ListingRateAdjustmentType;
+  name: string;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  weekdayRate?: number;
+  weekendRate?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  createdAt?: string;
 }
 export interface PropertyRoom {
   id: string;
@@ -91,7 +106,7 @@ export interface BookingPackage {
   blockedPackageIds?: string[];
   enabled: boolean;
 }
-export interface Property { id: string; hostId: string; slug: string; title: string; description: string; address: string; city: string; country: string; virtualTourUrl?: string; listingVideoUrl?: string; bookingType?: ListingBookingType; pricePerNight: number; weekendPrice?: number; holidayPrice?: number; holidayDates?: string[]; seasonalRates?: SeasonalRate[]; cleaningFee?: number; securityDeposit?: number; currency?: string; bedrooms: number; bathrooms: number; maxGuests: number; propertyType: string; privacyType?: string; status: ListingStatus; rating: number; amenities: string[]; rules: string[]; createdAt: string; images: PropertyImage[]; discounts?: ListingDiscounts; rooms?: PropertyRoom[]; bookingPackages?: BookingPackage[]; latitude?: number; longitude?: number; barangay?: string; province?: string; zipCode?: string; preciseLocation?: boolean; }
+export interface Property { id: string; hostId: string; slug: string; title: string; description: string; address: string; city: string; country: string; virtualTourUrl?: string; listingVideoUrl?: string; bookingType?: ListingBookingType; pricePerNight: number; weekendPrice?: number; holidayPrice?: number; holidayDates?: string[]; seasonalRates?: SeasonalRate[]; rateAdjustments?: ListingRateAdjustment[]; cleaningFee?: number; securityDeposit?: number; currency?: string; bedrooms: number; bathrooms: number; maxGuests: number; propertyType: string; privacyType?: string; status: ListingStatus; rating: number; amenities: string[]; rules: string[]; createdAt: string; images: PropertyImage[]; discounts?: ListingDiscounts; rooms?: PropertyRoom[]; bookingPackages?: BookingPackage[]; latitude?: number; longitude?: number; barangay?: string; province?: string; zipCode?: string; preciseLocation?: boolean; }
 export interface Booking { id: string; propertyId: string; guestId: string; hostId: string; checkIn: string; checkOut: string; guests: number; totalPrice: number; status: BookingStatus; paymentStatus: PaymentStatus; createdAt: string; bookingPackageId?: string; bookingPackageName?: string; bookingPackageUnit?: BookingPackageUnit; }
 export interface AvailabilityBlock { id: string; propertyId: string; date: string; reason: AvailabilityBlockReason; note?: string; createdAt: string; }
 export interface Review { id: string; propertyId: string; guestId: string; rating: number; comment: string; createdAt: string; bookingId?: string; }

@@ -83,15 +83,17 @@ export default async function BookingCheckoutPage({
   const nightlySubtotal = selectedPackage
     ? calculatePackageSubtotal(selectedPackage, checkIn, pricedCheckOut, guests)
     : calculateNightlySubtotal(property, checkIn, pricedCheckOut);
-  const { nights, subtotal } = nightlySubtotal;
+  const { nights, grossSubtotal, subtotal, rateAdjustmentDiscounts } = nightlySubtotal;
   const extraGuestFee = selectedPackage && "extraGuestFee" in nightlySubtotal ? Number(nightlySubtotal.extraGuestFee) : 0;
   const bookings = await getBookings();
   const discount = getBestDiscount({ property, bookings, checkIn, nights, subtotal });
   const discountedSubtotal = subtotal - (discount?.amount ?? 0);
   const serviceFee = calculateStayprimeMarkup(discountedSubtotal);
   const total = discountedSubtotal + serviceFee;
-  const guestSubtotal = calculateGuestPriceWithMarkup(subtotal);
-  const guestSavings = guestSubtotal - total;
+  const guestSubtotal = calculateGuestPriceWithMarkup(grossSubtotal);
+  const guestSubtotalAfterRateAdjustments = calculateGuestPriceWithMarkup(subtotal);
+  const guestRateAdjustmentSavings = Math.max(0, guestSubtotal - guestSubtotalAfterRateAdjustments);
+  const guestListingSavings = discount ? Math.max(0, guestSubtotalAfterRateAdjustments - total) : 0;
   const unavailable = hasDateConflict(bookings, property.id, checkIn, checkOut, selectedPackage?.id, property.bookingPackages ?? []);
   const availabilityBlocks = await getAvailabilityBlocksForProperty(property.id);
   const unavailableRanges = bookings
@@ -278,10 +280,16 @@ export default async function BookingCheckoutPage({
                     <span>{formatCurrency(calculateGuestPriceWithMarkup(extraGuestFee))}</span>
                   </div>
                 ) : null}
-                {discount && guestSavings > 0 ? (
+                {guestRateAdjustmentSavings > 0 ? (
+                  <div className="flex justify-between gap-4 text-emerald-700">
+                    <span>{formatCalendarPromoLabel(rateAdjustmentDiscounts)}</span>
+                    <span>-{formatCurrency(guestRateAdjustmentSavings)}</span>
+                  </div>
+                ) : null}
+                {discount && guestListingSavings > 0 ? (
                   <div className="flex justify-between gap-4 text-emerald-700">
                     <span>{discount.label}</span>
-                    <span>-{formatCurrency(guestSavings)}</span>
+                    <span>-{formatCurrency(guestListingSavings)}</span>
                   </div>
                 ) : null}
               </div>
@@ -296,6 +304,16 @@ export default async function BookingCheckoutPage({
       </main>
     </div>
   );
+}
+
+function formatCalendarPromoLabel(discounts: Array<{ label: string; percent?: number }>) {
+  const labels = Array.from(new Set(discounts.map((discount) => (
+    discount.percent ? `${discount.label} (${discount.percent}% off)` : discount.label
+  ))));
+
+  if (labels.length === 0) return "Calendar promo";
+  if (labels.length === 1) return labels[0];
+  return "Calendar promos";
 }
 
 function AccessList({ label, items, fallback }: { label: string; items: string[]; fallback: string }) {

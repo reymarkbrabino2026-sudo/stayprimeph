@@ -13,6 +13,7 @@ import {
   type AppliedDiscount,
   type DiscountBooking,
   type NightlyRates,
+  type RateAdjustmentDiscount,
 } from "@/lib/pricing";
 import type { Property } from "@/lib/types";
 
@@ -45,10 +46,13 @@ export interface PriceBreakdown {
   weekdayNights: number;
   weekendNights: number;
   validStay: boolean;
+  grossSubtotal: number;
   subtotal: number;
   discountedSubtotal: number;
   discount: AppliedDiscount | null;
+  rateAdjustmentDiscounts: RateAdjustmentDiscount[];
   guestSubtotal: number;
+  guestRateAdjustmentDiscountAmount: number;
   guestDiscountAmount: number;
   serviceFee: number;
   total: number;
@@ -68,24 +72,29 @@ export function computePrice(
   const nightlySubtotal = bookingPackage
     ? calculatePackageSubtotal(bookingPackage, checkIn, checkOut, guests)
     : calculateNightlySubtotal(nightlyRates, checkIn, checkOut);
-  const { nights, weekdayNights, weekendNights, subtotal } = nightlySubtotal;
+  const { nights, weekdayNights, weekendNights, grossSubtotal, subtotal, rateAdjustmentDiscounts } = nightlySubtotal;
   const validStay = nights >= 1;
   const discount = validStay && property ? getBestDiscount({ property, bookings, checkIn, nights, subtotal }) : null;
   const discountedSubtotal = validStay ? Math.max(0, subtotal - (discount?.amount ?? 0)) : 0;
   const serviceFee = validStay ? calculateStayprimeMarkup(discountedSubtotal) : 0;
   const total = discountedSubtotal + serviceFee;
-  const guestSubtotal = validStay ? calculateGuestPriceWithMarkup(subtotal) : 0;
-  const guestDiscountAmount = discount ? Math.max(0, guestSubtotal - total) : 0;
+  const guestSubtotal = validStay ? calculateGuestPriceWithMarkup(grossSubtotal) : 0;
+  const guestSubtotalAfterRateAdjustments = validStay ? calculateGuestPriceWithMarkup(subtotal) : 0;
+  const guestRateAdjustmentDiscountAmount = Math.max(0, guestSubtotal - guestSubtotalAfterRateAdjustments);
+  const guestDiscountAmount = discount ? Math.max(0, guestSubtotalAfterRateAdjustments - total) : 0;
 
   return {
     nights,
     weekdayNights,
     weekendNights,
     validStay,
+    grossSubtotal,
     subtotal,
     discountedSubtotal,
     discount,
+    rateAdjustmentDiscounts,
     guestSubtotal,
+    guestRateAdjustmentDiscountAmount,
     guestDiscountAmount,
     serviceFee,
     total,

@@ -114,22 +114,22 @@ describe("formatGuestNightlyPriceRange", () => {
 describe("calculateNightlySubtotal", () => {
   it("uses the weekday rate for Monday through Thursday nights", () => {
     const total = calculateNightlySubtotal({ pricePerNight: 1000, weekendPrice: 1500 }, "2026-06-15", "2026-06-19");
-    expect(total).toEqual({ nights: 4, weekdayNights: 4, weekendNights: 0, subtotal: 4000 });
+    expect(total).toMatchObject({ nights: 4, weekdayNights: 4, weekendNights: 0, grossSubtotal: 4000, subtotal: 4000, rateAdjustmentDiscounts: [] });
   });
 
   it("uses the weekend rate for Friday through Sunday nights", () => {
     const total = calculateNightlySubtotal({ pricePerNight: 1000, weekendPrice: 1500 }, "2026-06-19", "2026-06-22");
-    expect(total).toEqual({ nights: 3, weekdayNights: 0, weekendNights: 3, subtotal: 4500 });
+    expect(total).toMatchObject({ nights: 3, weekdayNights: 0, weekendNights: 3, grossSubtotal: 4500, subtotal: 4500, rateAdjustmentDiscounts: [] });
   });
 
   it("mixes weekday and weekend rates across the selected stay", () => {
     const total = calculateNightlySubtotal({ pricePerNight: 1000, weekendPrice: 1500 }, "2026-06-18", "2026-06-22");
-    expect(total).toEqual({ nights: 4, weekdayNights: 1, weekendNights: 3, subtotal: 5500 });
+    expect(total).toMatchObject({ nights: 4, weekdayNights: 1, weekendNights: 3, grossSubtotal: 5500, subtotal: 5500, rateAdjustmentDiscounts: [] });
   });
 
   it("applies the default weekend premium when no weekend rate is set", () => {
     const total = calculateNightlySubtotal({ pricePerNight: 1000 }, "2026-06-19", "2026-06-22");
-    expect(total).toEqual({ nights: 3, weekdayNights: 0, weekendNights: 3, subtotal: 3600 });
+    expect(total).toMatchObject({ nights: 3, weekdayNights: 0, weekendNights: 3, grossSubtotal: 3600, subtotal: 3600, rateAdjustmentDiscounts: [] });
   });
 
   it("uses holiday rates on configured holiday dates", () => {
@@ -140,7 +140,7 @@ describe("calculateNightlySubtotal", () => {
       holidayDates: ["2026-06-18"],
     }, "2026-06-18", "2026-06-20");
 
-    expect(total).toEqual({ nights: 2, weekdayNights: 1, weekendNights: 1, subtotal: 4000 });
+    expect(total).toMatchObject({ nights: 2, weekdayNights: 1, weekendNights: 1, grossSubtotal: 4000, subtotal: 4000, rateAdjustmentDiscounts: [] });
   });
 
   it("uses seasonal rates inside configured date windows", () => {
@@ -150,7 +150,62 @@ describe("calculateNightlySubtotal", () => {
       seasonalRates: [{ name: "Peak", startDate: "2026-06-18", endDate: "2026-06-20", weekdayRate: 2000, weekendRate: 3000 }],
     }, "2026-06-18", "2026-06-21");
 
-    expect(total).toEqual({ nights: 3, weekdayNights: 1, weekendNights: 2, subtotal: 8000 });
+    expect(total).toMatchObject({ nights: 3, weekdayNights: 1, weekendNights: 2, grossSubtotal: 8000, subtotal: 8000, rateAdjustmentDiscounts: [] });
+  });
+
+  it("uses active monthly rates for future months", () => {
+    const total = calculateNightlySubtotal({
+      pricePerNight: 1000,
+      weekendPrice: 1500,
+      rateAdjustments: [{
+        id: "july-rate",
+        type: "monthly",
+        name: "July 2026 rate",
+        startDate: "2026-07-01",
+        endDate: "2026-07-31",
+        active: true,
+        weekdayRate: 18000,
+        weekendRate: 18000,
+      }],
+    }, "2026-07-04", "2026-07-06");
+
+    expect(total).toMatchObject({ nights: 2, grossSubtotal: 36000, subtotal: 36000, rateAdjustmentDiscounts: [] });
+  });
+
+  it("applies active selected-date percentage discounts after calendar rates", () => {
+    const total = calculateNightlySubtotal({
+      pricePerNight: 1000,
+      weekendPrice: 1000,
+      rateAdjustments: [
+        {
+          id: "july-rate",
+          type: "monthly",
+          name: "July 2026 rate",
+          startDate: "2026-07-01",
+          endDate: "2026-07-31",
+          active: true,
+          weekdayRate: 18000,
+          weekendRate: 18000,
+        },
+        {
+          id: "opening-promo",
+          type: "discount",
+          name: "Opening promo",
+          startDate: "2026-07-04",
+          endDate: "2026-07-18",
+          active: true,
+          discountPercent: 10,
+        },
+      ],
+    }, "2026-07-04", "2026-07-06");
+
+    expect(total).toMatchObject({
+      nights: 2,
+      grossSubtotal: 36000,
+      subtotal: 32400,
+    });
+    expect(total.rateAdjustmentDiscounts).toHaveLength(2);
+    expect(total.rateAdjustmentDiscounts[0]).toMatchObject({ label: "Opening promo", amount: 1800, percent: 10 });
   });
 });
 

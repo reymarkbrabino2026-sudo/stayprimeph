@@ -1,4 +1,4 @@
-import type { Booking, BookingPackage, ListingDiscounts, Property, SeasonalRate } from "@/lib/types";
+import type { Booking, BookingPackage, ListingDiscounts, ListingRateAdjustment, Property, SeasonalRate } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 export const STAYPRIME_MARKUP_RATE = 0.2;
@@ -18,13 +18,24 @@ export interface NightlyRates {
   holidayPrice?: number | null;
   holidayDates?: string[];
   seasonalRates?: SeasonalRate[];
+  rateAdjustments?: ListingRateAdjustment[];
+}
+
+export interface RateAdjustmentDiscount {
+  id: string;
+  label: string;
+  date: string;
+  amount: number;
+  percent?: number;
 }
 
 export interface NightlySubtotal {
   nights: number;
   weekdayNights: number;
   weekendNights: number;
+  grossSubtotal: number;
   subtotal: number;
+  rateAdjustmentDiscounts: RateAdjustmentDiscount[];
 }
 
 export interface PackageSubtotal extends NightlySubtotal {
@@ -66,7 +77,54 @@ function seasonalRateForDate(dateKey: string, seasonalRates: SeasonalRate[] = []
   ) ?? null;
 }
 
-function nightlyRateForDate(rates: NightlyRates, dateKey: string) {
+function adjustmentIsActive(adjustment: ListingRateAdjustment) {
+  return adjustment.active !== false;
+}
+
+function adjustmentMatchesDate(adjustment: ListingRateAdjustment, dateKey: string) {
+  return adjustmentIsActive(adjustment) &&
+    isDateKey(adjustment.startDate) &&
+    isDateKey(adjustment.endDate) &&
+    adjustment.startDate <= dateKey &&
+    dateKey <= adjustment.endDate;
+}
+
+function adjustmentRangeDays(adjustment: ListingRateAdjustment) {
+  const start = dateKeyToUtcTime(adjustment.startDate);
+  const end = dateKeyToUtcTime(adjustment.endDate);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return Number.MAX_SAFE_INTEGER;
+  return Math.max(1, Math.round((end - start) / dayMs) + 1);
+}
+
+function rateAdjustmentRateForDate(adjustment: ListingRateAdjustment, dateKey: string) {
+  const weekdayRate = rateIsPositive(adjustment.weekdayRate) ? Number(adjustment.weekdayRate) : null;
+  const weekendRate = rateIsPositive(adjustment.weekendRate) ? Number(adjustment.weekendRate) : weekdayRate;
+  if (!weekdayRate) return null;
+  return isWeekendNight(dateKey) ? weekendRate ?? weekdayRate : weekdayRate;
+}
+
+function rateOverrideForDate(rates: NightlyRates, dateKey: string) {
+  const priority: Record<ListingRateAdjustment["type"], number> = { custom: 2, monthly: 1, discount: 0 };
+
+  return (rates.rateAdjustments ?? [])
+    .filter((adjustment) =>
+      (adjustment.type === "custom" || adjustment.type === "monthly") &&
+      adjustmentMatchesDate(adjustment, dateKey) &&
+      rateAdjustmentRateForDate(adjustment, dateKey) !== null,
+    )
+    .sort((a, b) =>
+      priority[b.type] - priority[a.type] ||
+      adjustmentRangeDays(a) - adjustmentRangeDays(b) ||
+      (b.createdAt ?? "").localeCompare(a.createdAt ?? "") ||
+      b.id.localeCompare(a.id),
+    )[0] ?? null;
+}
+
+function baseNightlyRateForDate(rates: NightlyRates, dateKey: string) {
+  const override = rateOverrideForDate(rates, dateKey);
+  const overrideRate = override ? rateAdjustmentRateForDate(override, dateKey) : null;
+  if (overrideRate !== null) return overrideRate;
+
   const season = seasonalRateForDate(dateKey, rates.seasonalRates);
   const weekdayRate = season?.weekdayRate ?? rates.pricePerNight;
   const weekendRate = rateIsPositive(season?.weekendRate)
@@ -82,6 +140,46 @@ function nightlyRateForDate(rates: NightlyRates, dateKey: string) {
 
   if ((rates.holidayDates ?? []).includes(dateKey) && holidayRate) return holidayRate;
   return isWeekendNight(dateKey) ? weekendRate : weekdayRate;
+}
+
+function discountAmountForAdjustment(adjustment: ListingRateAdjustment, grossRate: number) {
+  const percentAmount = rateIsPositive(adjustment.discountPercent)
+    ? Math.round(grossRate * (Number(adjustment.discountPercent) / 100))
+    : 0;
+  const fixedAmount = rateIsPositive(adjustment.discountAmount) ? Number(adjustment.discountAmount) : 0;
+  return Math.min(grossRate, Math.max(percentAmount, fixedAmount));
+}
+
+function discountAdjustmentForDate(rates: NightlyRates, dateKey: string, grossRate: number) {
+  return (rates.rateAdjustments ?? [])
+    .filter((adjustment) => adjustment.type === "discount" && adjustmentMatchesDate(adjustment, dateKey))
+    .map((adjustment) => ({
+      adjustment,
+      amount: discountAmountForAdjustment(adjustment, grossRate),
+    }))
+    .filter((item) => item.amount > 0)
+    .sort((a, b) =>
+      b.amount - a.amount ||
+      adjustmentRangeDays(a.adjustment) - adjustmentRangeDays(b.adjustment) ||
+      (b.adjustment.createdAt ?? "").localeCompare(a.adjustment.createdAt ?? "") ||
+      b.adjustment.id.localeCompare(a.adjustment.id),
+    )[0] ?? null;
+}
+
+export function getNightlyRateDetails(rates: NightlyRates, dateKey: string) {
+  const grossRate = baseNightlyRateForDate(rates, dateKey);
+  const discount = discountAdjustmentForDate(rates, dateKey, grossRate);
+  const discountAmount = discount?.amount ?? 0;
+
+  return {
+    dateKey,
+    grossRate,
+    netRate: Math.max(0, grossRate - discountAmount),
+    discountAmount,
+    discountLabel: discount?.adjustment.name,
+    discountPercent: discount?.adjustment.discountPercent,
+    discountId: discount?.adjustment.id,
+  };
 }
 
 export function getListingDiscounts(property: Property): ListingDiscounts {
@@ -142,9 +240,11 @@ export function calculateNightlySubtotal(rates: NightlyRates, checkIn: string, c
   const checkInTime = dateKeyToUtcTime(checkIn);
   let weekdayNights = 0;
   let weekendNights = 0;
+  let grossSubtotal = 0;
   let subtotal = 0;
+  const rateAdjustmentDiscounts: RateAdjustmentDiscount[] = [];
 
-  if (!Number.isFinite(checkInTime)) return { nights: 0, weekdayNights, weekendNights, subtotal };
+  if (!Number.isFinite(checkInTime)) return { nights: 0, weekdayNights, weekendNights, grossSubtotal, subtotal, rateAdjustmentDiscounts };
 
   for (let index = 0; index < nights; index += 1) {
     const dateKey = toDateKeyFromUtcTime(checkInTime + index * dayMs);
@@ -153,10 +253,21 @@ export function calculateNightlySubtotal(rates: NightlyRates, checkIn: string, c
     } else {
       weekdayNights += 1;
     }
-    subtotal += nightlyRateForDate(rates, dateKey);
+    const rateDetails = getNightlyRateDetails(rates, dateKey);
+    grossSubtotal += rateDetails.grossRate;
+    subtotal += rateDetails.netRate;
+    if (rateDetails.discountAmount > 0 && rateDetails.discountId) {
+      rateAdjustmentDiscounts.push({
+        id: rateDetails.discountId,
+        label: rateDetails.discountLabel || "Calendar promo",
+        date: dateKey,
+        amount: rateDetails.discountAmount,
+        percent: rateDetails.discountPercent,
+      });
+    }
   }
 
-  return { nights, weekdayNights, weekendNights, subtotal };
+  return { nights, weekdayNights, weekendNights, grossSubtotal, subtotal, rateAdjustmentDiscounts };
 }
 
 export function isEntirePlaceListing(property: Pick<Property, "privacyType">) {
@@ -204,7 +315,7 @@ export function getFullAccessBookingPackage(packages: BookingPackage[]) {
 }
 
 export function calculatePackageSubtotal(pkg: BookingPackage, checkIn: string, checkOut: string, guests: number, extensionHours = 0): PackageSubtotal {
-  const { nights, weekdayNights, weekendNights, subtotal } = calculateNightlySubtotal({
+  const { nights, weekdayNights, weekendNights, grossSubtotal, subtotal, rateAdjustmentDiscounts } = calculateNightlySubtotal({
     pricePerNight: pkg.weekdayRate,
     weekendPrice: pkg.weekendRate > 0 ? pkg.weekendRate : pkg.weekdayRate,
     holidayPrice: pkg.holidayRate,
@@ -221,7 +332,9 @@ export function calculatePackageSubtotal(pkg: BookingPackage, checkIn: string, c
     weekdayNights,
     weekendNights,
     unitCount,
+    grossSubtotal: grossSubtotal + extraGuestFee + extensionFee,
     subtotal: subtotal + extraGuestFee + extensionFee,
+    rateAdjustmentDiscounts,
     extraGuests,
     extraGuestFee,
     extensionFee,
@@ -250,6 +363,14 @@ function seasonalRatesForDisplay(rates: SeasonalRate[] = []) {
   return rates.flatMap((rate) => positiveRates([rate.weekdayRate, rate.weekendRate, rate.holidayRate]));
 }
 
+function rateAdjustmentsForDisplay(adjustments: ListingRateAdjustment[] = []) {
+  return adjustments.flatMap((adjustment) => (
+    adjustment.active !== false && (adjustment.type === "monthly" || adjustment.type === "custom")
+      ? positiveRates([adjustment.weekdayRate, adjustment.weekendRate])
+      : []
+  ));
+}
+
 function bookingPackageRatesForDisplay(pkg: BookingPackage) {
   return [
     ...positiveRates([
@@ -262,12 +383,13 @@ function bookingPackageRatesForDisplay(pkg: BookingPackage) {
 }
 
 export function formatGuestNightlyPriceRange(
-  property: Pick<Property, "pricePerNight" | "weekendPrice" | "holidayPrice" | "seasonalRates" | "bookingType" | "bookingPackages" | "privacyType">,
+  property: Pick<Property, "pricePerNight" | "weekendPrice" | "holidayPrice" | "seasonalRates" | "rateAdjustments" | "bookingType" | "bookingPackages" | "privacyType">,
 ) {
   const stayRates = allowsStayBooking(property)
     ? [
         ...positiveRates([property.pricePerNight, property.weekendPrice, property.holidayPrice]),
         ...seasonalRatesForDisplay(property.seasonalRates),
+        ...rateAdjustmentsForDisplay(property.rateAdjustments),
       ]
     : [];
   const packageRates = allowsPackageBooking(property)

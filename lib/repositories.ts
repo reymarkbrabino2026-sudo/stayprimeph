@@ -9,7 +9,7 @@ import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { bookingBlocksListingDelete } from "@/lib/listing-delete-guards";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
+import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, ListingRateAdjustment, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null; category?: string | null }): PropertyImage {
   return {
@@ -599,11 +599,19 @@ function jsonNumberValue(value: Prisma.JsonValue | undefined) {
   return typeof value === "number" ? value : Number(value);
 }
 
+function jsonBooleanValue(value: Prisma.JsonValue | undefined, fallback = true) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function parseSeasonalRates(value: Prisma.JsonValue | null | undefined): SeasonalRate[] {
   if (!Array.isArray(value)) return [];
 
   return value
     .filter(isPrismaJsonObject)
+    .filter((item) => {
+      const type = jsonStringValue(item.type);
+      return !type || type === "seasonal";
+    })
     .map((item) => {
       const name = jsonStringValue(item.name).trim();
 
@@ -628,6 +636,51 @@ function parseSeasonalRates(value: Prisma.JsonValue | null | undefined): Seasona
       ...item,
       weekendRate: Number.isFinite(item.weekendRate) && Number(item.weekendRate) > 0 ? Number(item.weekendRate) : undefined,
       holidayRate: Number.isFinite(item.holidayRate) && Number(item.holidayRate) > 0 ? Number(item.holidayRate) : undefined,
+    }));
+}
+
+function parseRateAdjustments(value: Prisma.JsonValue | null | undefined): ListingRateAdjustment[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter(isPrismaJsonObject)
+    .map((item) => {
+      const type = jsonStringValue(item.type);
+      const name = jsonStringValue(item.name).trim();
+      const weekdayRate = jsonNumberValue(item.weekdayRate);
+      const weekendRate = jsonNumberValue(item.weekendRate);
+      const discountPercent = jsonNumberValue(item.discountPercent);
+      const discountAmount = jsonNumberValue(item.discountAmount);
+
+      return {
+        id: jsonStringValue(item.id),
+        type,
+        name: name || (type === "discount" ? "Calendar promo" : "Calendar rate"),
+        startDate: jsonStringValue(item.startDate),
+        endDate: jsonStringValue(item.endDate),
+        active: jsonBooleanValue(item.active, true),
+        weekdayRate: Number.isFinite(weekdayRate) && weekdayRate > 0 ? weekdayRate : undefined,
+        weekendRate: Number.isFinite(weekendRate) && weekendRate > 0 ? weekendRate : undefined,
+        discountPercent: Number.isFinite(discountPercent) && discountPercent > 0 ? discountPercent : undefined,
+        discountAmount: Number.isFinite(discountAmount) && discountAmount > 0 ? discountAmount : undefined,
+        createdAt: jsonStringValue(item.createdAt) || undefined,
+      };
+    })
+    .filter((item) =>
+      Boolean(item.id) &&
+      (item.type === "monthly" || item.type === "custom" || item.type === "discount") &&
+      /^\d{4}-\d{2}-\d{2}$/.test(item.startDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(item.endDate) &&
+      item.endDate >= item.startDate &&
+      (
+        item.type === "discount"
+          ? Boolean(item.discountPercent || item.discountAmount)
+          : Boolean(item.weekdayRate)
+      ),
+    )
+    .map((item): ListingRateAdjustment => ({
+      ...item,
+      type: item.type as ListingRateAdjustment["type"],
     }));
 }
 
@@ -707,6 +760,7 @@ function toProperty(property: DatabaseProperty, packagesByProperty: Record<strin
     holidayPrice: property.pricing?.holidayPrice ?? undefined,
     holidayDates: parseStringArray(property.pricing?.holidayDates),
     seasonalRates: parseSeasonalRates(property.pricing?.seasonalRates),
+    rateAdjustments: parseRateAdjustments(property.pricing?.seasonalRates),
     cleaningFee: property.pricing?.cleaningFee,
     securityDeposit: property.pricing?.securityDeposit,
     currency: property.pricing?.currency,
@@ -746,6 +800,7 @@ function toPublicListingSummary(property: DatabasePublicListingSummary): PublicL
     holidayPrice: property.pricing?.holidayPrice ?? undefined,
     holidayDates: parseStringArray(property.pricing?.holidayDates),
     seasonalRates: parseSeasonalRates(property.pricing?.seasonalRates),
+    rateAdjustments: parseRateAdjustments(property.pricing?.seasonalRates),
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
@@ -947,6 +1002,14 @@ function inputJsonArrayValue(value?: unknown[]) {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+function pricingRulesJsonValue(property: Pick<Property, "seasonalRates" | "rateAdjustments">) {
+  const rules = [
+    ...(property.seasonalRates ?? []),
+    ...(property.rateAdjustments ?? []),
+  ];
+  return inputJsonArrayValue(rules);
+}
+
 function propertyCreateData(property: Property, amenityIds: string[]) {
   const hasCoordinates = Number.isFinite(property.latitude) && Number.isFinite(property.longitude);
 
@@ -992,7 +1055,7 @@ function propertyCreateData(property: Property, amenityIds: string[]) {
           weekendPrice: property.weekendPrice!,
           holidayPrice: property.holidayPrice ?? null,
           holidayDates: inputJsonArrayValue(property.holidayDates),
-          seasonalRates: inputJsonArrayValue(property.seasonalRates),
+          seasonalRates: pricingRulesJsonValue(property),
           cleaningFee: property.cleaningFee ?? 0,
           securityDeposit: property.securityDeposit ?? 0,
           currency: property.currency ?? "PHP",
@@ -1179,7 +1242,7 @@ export async function updatePropertyStatusInDatabase(id: string, status: Propert
 
 export type PropertyDetailsUpdate = Pick<Property,
   "id" | "title" | "description" | "address" | "city" | "country" | "pricePerNight" | "weekendPrice" |
-  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "rules" | "images" | "rooms" | "bookingPackages"
+  "virtualTourUrl" | "listingVideoUrl" | "bookingType" | "holidayPrice" | "holidayDates" | "seasonalRates" | "rateAdjustments" | "cleaningFee" | "securityDeposit" | "currency" | "bedrooms" | "bathrooms" | "maxGuests" | "propertyType" | "privacyType" | "amenities" | "rules" | "images" | "rooms" | "bookingPackages"
 >;
 
 export async function updatePropertyDetailsInDatabase(property: PropertyDetailsUpdate) {
@@ -1224,7 +1287,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
               weekendPrice: property.weekendPrice ?? property.pricePerNight,
               holidayPrice: property.holidayPrice ?? null,
               holidayDates: inputJsonArrayValue(property.holidayDates),
-              seasonalRates: inputJsonArrayValue(property.seasonalRates),
+              seasonalRates: pricingRulesJsonValue(property),
               cleaningFee: property.cleaningFee ?? 0,
               securityDeposit: property.securityDeposit ?? 0,
               currency: property.currency ?? "PHP",
@@ -1233,7 +1296,7 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
               weekendPrice: property.weekendPrice ?? property.pricePerNight,
               holidayPrice: property.holidayPrice ?? null,
               holidayDates: inputJsonArrayValue(property.holidayDates),
-              seasonalRates: inputJsonArrayValue(property.seasonalRates),
+              seasonalRates: pricingRulesJsonValue(property),
               cleaningFee: property.cleaningFee ?? 0,
               securityDeposit: property.securityDeposit ?? 0,
               currency: property.currency ?? "PHP",
@@ -1249,6 +1312,37 @@ export async function updatePropertyDetailsInDatabase(property: PropertyDetailsU
     await tx.$executeRaw`DELETE FROM "ListingBookingPackage" WHERE "propertyId" = ${property.id}`;
     await insertPropertyBookingPackages(tx, property);
   }, { maxWait: 10000, timeout: 15000 });
+}
+
+export async function updatePropertyPricingRulesInDatabase(property: Pick<Property,
+  "id" | "pricePerNight" | "weekendPrice" | "holidayPrice" | "holidayDates" | "seasonalRates" | "rateAdjustments" | "cleaningFee" | "securityDeposit" | "currency"
+>) {
+  await prisma.$transaction(async (tx) => {
+    await ensurePropertyAdvancedPricingColumns(tx);
+    await tx.listingPricing.upsert({
+      where: { propertyId: property.id },
+      create: {
+        id: `pricing-${property.id}`,
+        propertyId: property.id,
+        weekendPrice: property.weekendPrice ?? property.pricePerNight,
+        holidayPrice: property.holidayPrice ?? null,
+        holidayDates: inputJsonArrayValue(property.holidayDates),
+        seasonalRates: pricingRulesJsonValue(property),
+        cleaningFee: property.cleaningFee ?? 0,
+        securityDeposit: property.securityDeposit ?? 0,
+        currency: property.currency ?? "PHP",
+      },
+      update: {
+        weekendPrice: property.weekendPrice ?? property.pricePerNight,
+        holidayPrice: property.holidayPrice ?? null,
+        holidayDates: inputJsonArrayValue(property.holidayDates),
+        seasonalRates: pricingRulesJsonValue(property),
+        cleaningFee: property.cleaningFee ?? 0,
+        securityDeposit: property.securityDeposit ?? 0,
+        currency: property.currency ?? "PHP",
+      },
+    });
+  });
 }
 
 function toBooking(

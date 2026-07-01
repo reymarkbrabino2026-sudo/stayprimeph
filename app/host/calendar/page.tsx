@@ -1,6 +1,13 @@
 import { HostingShell } from "@/components/host/hosting-shell";
 import { HostCalendar } from "@/components/host/host-calendar";
-import { blockHostAvailability, removeHostAvailabilityBlock } from "@/app/host/calendar/actions";
+import {
+  blockHostAvailability,
+  deleteHostRateAdjustment,
+  removeHostAvailabilityBlock,
+  saveMonthlyHostRate,
+  saveSelectedDateHostRate,
+  setHostRateAdjustmentActive,
+} from "@/app/host/calendar/actions";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
@@ -9,6 +16,10 @@ import { getProperties } from "@/lib/properties";
 import { getUsers } from "@/lib/users";
 
 export default async function HostCalendarPage() {
+  return <HostCalendarScreen />;
+}
+
+export async function HostCalendarScreen({ active = "Calendar" }: { active?: string }) {
   const user = await getCurrentUser();
   const [bookings, properties, users, availabilityBlocks, csrfToken] = await Promise.all([getBookings(), getProperties(), getUsers(), getAvailabilityBlocks(), getCsrfToken()]);
   const hostListings = properties.filter((property) => property.hostId === user?.id);
@@ -35,7 +46,7 @@ export default async function HostCalendarPage() {
     });
 
   return (
-    <HostingShell active="Calendar">
+    <HostingShell active={active}>
       <HostCalendar
         listings={hostListings.map((property) => ({
           id: property.id,
@@ -44,6 +55,10 @@ export default async function HostCalendarPage() {
           country: property.country,
           pricePerNight: property.pricePerNight,
           weekendPrice: property.weekendPrice,
+          holidayPrice: property.holidayPrice,
+          holidayDates: property.holidayDates,
+          seasonalRates: property.seasonalRates,
+          rateAdjustments: property.rateAdjustments,
           status: property.status,
         }))}
         bookings={hostBookings}
@@ -60,6 +75,10 @@ export default async function HostCalendarPage() {
         blockAvailabilityAction={blockHostAvailability}
         csrfToken={csrfToken}
         removeAvailabilityBlockAction={removeHostAvailabilityBlock}
+        saveMonthlyRateAction={saveMonthlyHostRate}
+        saveSelectedDateRateAction={saveSelectedDateHostRate}
+        setRateAdjustmentActiveAction={setHostRateAdjustmentActive}
+        deleteRateAdjustmentAction={deleteHostRateAdjustment}
       />
     </HostingShell>
   );

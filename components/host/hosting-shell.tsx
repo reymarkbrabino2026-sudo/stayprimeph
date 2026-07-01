@@ -7,6 +7,7 @@ import { TravellerMenu } from "@/components/public/traveller-menu";
 const tabs = [
   { label: "Today", href: "/host/dashboard" },
   { label: "Calendar", href: "/host/calendar" },
+  { label: "Rates & Promos", href: "/host/rates-and-promos" },
   { label: "Listings", href: "/host/listings" },
   { label: "Messages", href: "/host/messages" },
 ];
