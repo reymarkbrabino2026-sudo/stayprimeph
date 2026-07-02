@@ -205,7 +205,7 @@ export default async function HostReportsPage({
     <DashboardShell
       title="Host Reports"
       subtitle="Host dashboard"
-      description={isAdmin ? "Review host booking payouts, manual sales, expenses, and itemized submissions." : "Review booking payouts, manual sales, and expenses for the selected month."}
+      description={isAdmin ? "Review host booking payouts, sales, expenses, and itemized submissions." : "Review booking payouts, sales, and expenses for the selected month."}
       links={isAdmin ? [{ label: "Admin Overview", href: "/admin/dashboard" }, ...hostLinks] : hostLinks}
     >
       <section className="rounded-[1.5rem] bg-white p-5 soft-card">
@@ -227,84 +227,66 @@ export default async function HostReportsPage({
         </div>
       </section>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard description="From paid bookings and paid blocked dates overlapping this month." label="Paid booking payout" value={formatCurrency(bookingPayout)} />
-        <StatsCard description="Offline events, adjustments, or other host revenue." label="Manual sales reported" value={formatCurrency(manualSales)} />
-        <StatsCard description="Manual operating costs recorded below." label="Manual expenses" value={formatCurrency(monthlyExpenseTotal)} />
-        <StatsCard description="Booking payout plus manual sales minus expenses." label="Net income" value={formatCurrency(netIncome)} />
-      </div>
-
-      <section className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {operationsMetrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <div key={metric.label} className="rounded-[1.25rem] bg-white p-5 soft-card">
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-black/55">{metric.label}</p>
-                <span className="grid size-10 place-items-center rounded-full bg-[#e8f7ef] text-[#0b8d65]">
-                  <Icon className="size-5" aria-hidden="true" />
-                </span>
-              </div>
-              <p className="mt-4 text-3xl font-bold text-[#21170f]">{metric.value}</p>
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
-        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mt-4 rounded-[1.5rem] bg-white p-5 soft-card">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Package performance</p>
-            <h2 className="mt-2 text-2xl font-bold">Booking mix</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Daily entries</p>
+            <h2 className="mt-2 text-2xl font-bold">What do you want to add?</h2>
           </div>
-          <p className="text-sm font-semibold text-black/55">{monthBookings.length + monthPaidBlocks.length} paid bookings / external blocks in {monthLabel(selectedMonth)}</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[28rem]">
+            <a
+              href="#manual-sale-form"
+              className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#0b8d65] px-5 text-base font-bold text-white transition hover:bg-[#076c4d]"
+            >
+              <ReceiptText className="size-5" aria-hidden="true" />
+              Add sale
+            </a>
+            <a
+              href="#manual-expenses"
+              className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#21170f] px-5 text-base font-bold text-white transition hover:bg-[#21170f]/90"
+            >
+              <ClipboardList className="size-5" aria-hidden="true" />
+              Add expense
+            </a>
+          </div>
         </div>
-        {packagePerformance.length === 0 ? (
-          <EmptyState title="No package performance yet" body="Paid stay, package, and external blocked-date revenue for the selected month will appear here." />
-        ) : (
-          <DataTable
-            embedded
-            headers={["Package", "Listing", "Bookings", "Units", "Guests", "Payout"]}
-            rows={packagePerformance.map((item) => [
-              item.label,
-              item.listing,
-              String(item.bookings),
-              String(item.units),
-              String(item.guests),
-              formatCurrency(item.payout),
-            ])}
-          />
-        )}
       </section>
 
       {expenseError || reportError ? (
-        <div className="mt-4 rounded-2xl border border-[#d85d32]/25 bg-[#fff3ed] p-4 text-sm font-semibold text-[#8a3519]">
+        <div className="mt-4 rounded-2xl border border-[#d85d32]/25 bg-[#fff3ed] p-4 text-base font-semibold text-[#8a3519]">
           {expenseError ?? reportError}
         </div>
       ) : null}
 
       {expenseSuccessMessage || reportSaved || reportDeleted || salesAdded ? (
-        <div className="mt-4 rounded-2xl border border-[#0b8d65]/20 bg-[#eefbf5] p-4 text-sm font-semibold text-[#075f44]">
-          {expenseSuccessMessage ?? (salesAdded ? "Manual sale added." : reportDeleted ? "Manual sale deleted." : "Manual sale saved.")}
+        <div className="mt-4 rounded-2xl border border-[#0b8d65]/20 bg-[#eefbf5] p-4 text-base font-semibold text-[#075f44]">
+          {expenseSuccessMessage ?? (salesAdded ? "Sale added." : reportDeleted ? "Sale deleted." : "Sale saved.")}
         </div>
       ) : null}
 
-      <section className="mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatsCard description="Paid booking payout for this month." label="Booking payout" value={formatCurrency(bookingPayout)} />
+        <StatsCard description="Sales you added below." label="Sales" value={formatCurrency(manualSales)} />
+        <StatsCard description="Expenses you added below." label="Expenses" value={formatCurrency(monthlyExpenseTotal)} />
+        <StatsCard description="Booking payout plus sales minus expenses." label="Net income" value={formatCurrency(netIncome)} />
+      </div>
+
+      <section id="manual-expenses" className="mt-6 scroll-mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Manual expense entry</p>
-            <h2 className="mt-2 text-2xl font-bold">Add manual expenses</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Expenses</p>
+            <h2 className="mt-2 text-2xl font-bold">Add expense</h2>
           </div>
           <p className="text-sm font-semibold text-black/55">Current total {formatCurrency(monthlyExpenseTotal)}</p>
         </div>
 
-        <HostExpenseForm action={saveHostExpense} categories={hostExpenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} hostOptions={isAdmin ? hostOptions : undefined} />
+        <HostExpenseForm action={saveHostExpense} categories={hostExpenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} defaultOpen hostOptions={isAdmin ? hostOptions : undefined} />
 
         <div className="mt-6 border-t border-black/10 pt-5">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Manual expenses</p>
-              <h3 className="mt-2 text-xl font-bold">Review entries</h3>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Expenses</p>
+              <h3 className="mt-2 text-xl font-bold">Saved expenses</h3>
             </div>
             <div className="flex flex-col gap-2 sm:items-end">
               <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
@@ -333,8 +315,8 @@ export default async function HostReportsPage({
         <section id="manual-sale-form" className="mt-6 scroll-mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Manual sales</p>
-              <h2 className="mt-2 text-2xl font-bold">{isEditingSale ? "Edit manual sale" : "Add manual sale"}</h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Sales</p>
+              <h2 className="mt-2 text-2xl font-bold">{isEditingSale ? "Edit sale" : "Add sale"}</h2>
               {editingReport ? (
                 <p className="mt-2 text-sm text-black/55">
                   Updating the {new Date(`${editingReport.reportDate ?? `${editingReport.month}-01`}T00:00:00Z`).toLocaleDateString()} entry.
@@ -347,13 +329,13 @@ export default async function HostReportsPage({
           <HostMonthlyReportForm
             key={editingReport?.id ?? `new-${selectedMonth}`}
             action={saveHostMonthlyReport}
-            buttonLabel="Add manual sale"
+            buttonLabel="Add sale"
             cancelHref={`/host/reports?month=${selectedMonth}#manual-sales`}
             csrfToken={csrfToken}
             defaultDate={editingReport?.reportDate ?? `${selectedMonth}-01`}
             defaultExpenses={0}
             defaultNotes={editingReport?.notes}
-            defaultOpen={Boolean(reportError) || Boolean(editingReport)}
+            defaultOpen
             defaultSales={editingReport?.salesAmount}
             intent={editingReport ? "saveReport" : "addSales"}
             reportId={editingReport?.id}
@@ -362,17 +344,17 @@ export default async function HostReportsPage({
           <div id="manual-sales" className="mt-6 scroll-mt-6 border-t border-black/10 pt-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Manual sales</p>
-                <h3 className="mt-2 text-xl font-bold">Sales entries</h3>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Sales</p>
+                <h3 className="mt-2 text-xl font-bold">Saved sales</h3>
               </div>
             </div>
             {selectedMonthReports.length === 0 ? (
               <div className="grid gap-4">
-                <EmptyState title="No manual sales for this month" body={`Add offline event income, adjustments, or other host revenue for ${monthLabel(selectedMonth)}.`} />
+                <EmptyState title="No sales for this month" body={`Add offline event income, adjustments, or other host revenue for ${monthLabel(selectedMonth)}.`} />
                 {recentOtherMonthReports.length > 0 ? (
                   <div className="grid gap-3">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                      <h4 className="text-base font-bold text-black">Recent saved manual sales</h4>
+                      <h4 className="text-base font-bold text-black">Recent saved sales</h4>
                       <p className="text-sm font-semibold text-black/55">{recentOtherMonthReports.length} entries from other months</p>
                     </div>
                     <DataTable
@@ -416,17 +398,17 @@ export default async function HostReportsPage({
         <section className="mt-6">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Manual sales</p>
-              <h2 className="mt-2 text-2xl font-bold">Sales entries</h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Sales</p>
+              <h2 className="mt-2 text-2xl font-bold">Saved sales</h2>
             </div>
           </div>
           {selectedMonthReports.length === 0 ? (
             <div className="grid gap-4">
-              <EmptyState title="No manual sales for this month" body="Host manual sales for the selected month will appear here once submitted." />
+              <EmptyState title="No sales for this month" body="Host sales for the selected month will appear here once submitted." />
               {recentOtherMonthReports.length > 0 ? (
                 <div className="grid gap-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                    <h3 className="text-xl font-bold">Recent saved manual sales</h3>
+                    <h3 className="text-xl font-bold">Recent saved sales</h3>
                     <p className="text-sm font-semibold text-black/55">{recentOtherMonthReports.length} entries from other months</p>
                   </div>
                   <DataTable
@@ -444,6 +426,49 @@ export default async function HostReportsPage({
           )}
         </section>
       ) : null}
+
+      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {operationsMetrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <div key={metric.label} className="rounded-[1.25rem] bg-white p-5 soft-card">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm font-semibold text-black/55">{metric.label}</p>
+                <span className="grid size-10 place-items-center rounded-full bg-[#e8f7ef] text-[#0b8d65]">
+                  <Icon className="size-5" aria-hidden="true" />
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-[#21170f]">{metric.value}</p>
+            </div>
+          );
+        })}
+      </section>
+
+      <section className="mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Business overview</p>
+            <h2 className="mt-2 text-2xl font-bold">Booking mix</h2>
+          </div>
+          <p className="text-sm font-semibold text-black/55">{monthBookings.length + monthPaidBlocks.length} paid bookings / external blocks in {monthLabel(selectedMonth)}</p>
+        </div>
+        {packagePerformance.length === 0 ? (
+          <EmptyState title="No booking mix yet" body="Paid stay, package, and external blocked-date revenue for the selected month will appear here." />
+        ) : (
+          <DataTable
+            embedded
+            headers={["Package", "Listing", "Bookings", "Units", "Guests", "Payout"]}
+            rows={packagePerformance.map((item) => [
+              item.label,
+              item.listing,
+              String(item.bookings),
+              String(item.units),
+              String(item.guests),
+              formatCurrency(item.payout),
+            ])}
+          />
+        )}
+      </section>
     </DashboardShell>
   );
 }

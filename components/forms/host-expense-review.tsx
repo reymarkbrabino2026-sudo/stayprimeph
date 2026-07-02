@@ -74,7 +74,7 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
   if (expenses.length === 0) {
     return (
       <div className="rounded-[1.25rem] border border-dashed border-black/15 bg-[#fbfaf8] p-5 text-center text-sm text-black/55">
-        Add your first manual expense above.
+        Add your first expense above.
       </div>
     );
   }
@@ -88,11 +88,11 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
               {isAdmin ? <th className="px-4 py-3 font-medium">Host</th> : null}
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Vendor</th>
+              <th className="px-4 py-3 font-medium">Supplier / item</th>
               <th className="px-4 py-3 font-medium">Unit amount</th>
               <th className="px-4 py-3 font-medium">Qty / Unit</th>
               <th className="px-4 py-3 font-medium">Total amount</th>
-              <th className="px-4 py-3 font-medium">Receipt</th>
+              <th className="px-4 py-3 font-medium">Receipt number</th>
               <th className="px-4 py-3 font-medium">Notes</th>
               <th className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
@@ -136,11 +136,11 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
                 {isAdmin ? <ExpenseDetail label="Host" value={expense.hostName ?? "Host"} /> : null}
                 <ExpenseDetail label="Date" value={displayDate(expense.expenseDate)} />
                 <ExpenseDetail label="Category" value={expense.category} />
-                <ExpenseDetail label="Vendor" value={expense.vendor} />
+                <ExpenseDetail label="Supplier / item" value={expense.vendor} />
                 <ExpenseDetail label="Unit amount" value={formatCurrency(expense.amount, true)} />
                 <ExpenseDetail label="Qty / Unit" value={formatQuantityUnit(expense)} />
                 <ExpenseDetail label="Total amount" value={formatCurrency(hostExpenseTotal(expense), true)} />
-                <ExpenseDetail label="Receipt" value={expense.receiptReference ?? "None"} />
+                <ExpenseDetail label="Receipt number" value={expense.receiptReference ?? "None"} />
                 <ExpenseDetail label="Notes" value={expense.description ?? "None"} />
                 <RowActions onDelete={() => setConfirmingExpense(expense)} onEdit={() => setEditingId(expense.id)} />
               </div>
@@ -227,7 +227,7 @@ function DeleteExpenseDialog({
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9b3b1d]/70">Confirm delete</p>
             <h2 id="delete-expense-title" className="mt-1 text-xl font-bold text-black">Delete this expense?</h2>
             <p className="mt-2 text-sm leading-6 text-black/60">
-              This will remove the {expense.category.toLowerCase()} entry for {formatCurrency(hostExpenseTotal(expense), true)} from your manual expenses.
+              This will remove the {expense.category.toLowerCase()} entry for {formatCurrency(hostExpenseTotal(expense), true)} from your expenses.
             </p>
           </div>
         </div>
@@ -345,11 +345,11 @@ function EditExpenseForm({
           </output>
         </div>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
-          Expense name or vendor
+          Supplier or item
           <input name="vendor" type="text" maxLength={120} defaultValue={expense.vendor} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
-          Receipt reference
+          Receipt number
           <input name="receiptReference" type="text" maxLength={180} defaultValue={expense.receiptReference} className="min-h-11 rounded-2xl border px-4 font-normal text-black" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-12">

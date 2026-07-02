@@ -61,16 +61,16 @@ export function HostMonthlyReportForm({
         <input name="reportDate" type="date" defaultValue={defaultDate} className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
       </label>
       <label className="grid gap-2 text-sm font-semibold text-black/70">
-        Amount
+        Sale amount
         <input name="salesAmount" type="number" min={isAddingSales ? "0.01" : "0"} step="0.01" defaultValue={defaultSales} className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
       </label>
       <label className="grid gap-2 text-sm font-semibold text-black/70 md:col-span-2">
         Note
-        <textarea name="notes" defaultValue={defaultNotes} rows={4} className="rounded-2xl border px-4 py-3 font-normal text-black" placeholder="Optional note about the sale, event, adjustment, or payment reference." />
+        <textarea name="notes" defaultValue={defaultNotes} rows={4} className="rounded-2xl border px-4 py-3 font-normal text-black" placeholder="Customer, event, adjustment, or payment reference" />
       </label>
       <div className="flex flex-col gap-3 sm:flex-row md:col-span-2">
         <button className="min-h-12 rounded-full bg-[#21170f] px-6 font-semibold text-white transition hover:bg-[#21170f]/90 md:w-fit">
-          {isAddingSales ? "Add manual sale" : "Save manual sale"}
+          {isAddingSales ? "Add sale" : "Save sale"}
         </button>
         {cancelHref ? (
           <Link

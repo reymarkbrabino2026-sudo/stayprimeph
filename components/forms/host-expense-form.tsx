@@ -157,12 +157,12 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
               </output>
             </div>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
-              Expense name or vendor
+              Supplier or item
               <input
                 name="vendor"
                 type="text"
                 maxLength={120}
-                placeholder="Trash can, supplier, contractor, utility company"
+                placeholder="S&R, trash can, contractor, utility company"
                 className="min-h-12 rounded-2xl border px-4 font-normal text-black"
                 onChange={(event) => {
                   const value = event.currentTarget.value;
@@ -172,12 +172,12 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
-              Receipt reference
-              <input name="receiptReference" type="text" maxLength={180} placeholder="Receipt number, invoice link, or payment reference" className="min-h-12 rounded-2xl border px-4 font-normal text-black" />
+              Receipt number
+              <input name="receiptReference" type="text" maxLength={180} placeholder="12345, invoice, or payment reference" className="min-h-12 rounded-2xl border px-4 font-normal text-black" />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-12">
               Description
-              <textarea name="description" rows={2} maxLength={500} className="rounded-2xl border px-4 py-3 font-normal text-black" placeholder="Optional notes about the expense." />
+              <textarea name="description" rows={2} maxLength={500} className="rounded-2xl border px-4 py-3 font-normal text-black" placeholder="MOP, trash can, cleaning refill, office supplies" />
             </label>
           </div>
         </fieldset>
