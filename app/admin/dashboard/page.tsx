@@ -44,9 +44,9 @@ export default async function AdminDashboardPage() {
         ) : (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             {pendingListings.map((property) => (
-              <article key={property.id} className="rounded-3xl border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+              <article key={property.id} className="min-w-0 rounded-3xl border p-4">
+                <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
+                  <div className="min-w-0">
                     <h3 className="font-semibold">{property.title}</h3>
                     <p className="mt-1 text-sm text-black/55">{formatPropertyLocation(property)} - {property.propertyType}</p>
                   </div>

@@ -42,7 +42,7 @@ export function HostMonthlyReportActions({ csrfToken, deleteAction, editHref, re
   }, [isDeleting]);
 
   return (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="grid gap-2 min-[380px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-end">
       <Link
         href={editHref}
         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-black/10 px-4 font-semibold text-black transition hover:border-black/25"

@@ -44,10 +44,10 @@ export default async function AdminPaymentsPage() {
           <ul className="divide-y divide-black/[0.06]">
             {payoutQueue.map((entry) => (
               <li key={`${entry.bookingId}-${entry.paymentId ?? "booking"}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold">{entry.host.name}</p>
-                  <p className="text-sm text-black/50">{entry.host.email}</p>
-                  <p className="mt-1 text-sm text-black/60">
+                  <p className="break-all text-sm text-black/50">{entry.host.email}</p>
+                  <p className="mt-1 break-words text-sm text-black/60">
                     Booking {entry.bookingId}{entry.transactionId ? ` - Ref ${entry.transactionId}` : ""}
                   </p>
                   <p className="mt-1 text-sm text-black/60">
@@ -58,13 +58,13 @@ export default async function AdminPaymentsPage() {
                   </p>
                 </div>
                 {entry.status === "available" ? (
-                  <form action={recordPayout} className="flex items-center gap-2">
+                  <form action={recordPayout} className="flex w-full items-center gap-2 sm:w-auto">
                     <input type="hidden" name={csrfFieldName} value={csrfToken} />
                     <input type="hidden" name="hostId" value={entry.host.id} />
                     <input type="hidden" name="bookingId" value={entry.bookingId} />
                     {entry.paymentId ? <input type="hidden" name="paymentId" value={entry.paymentId} /> : null}
                     <input type="hidden" name="amount" value={entry.hostPayout} />
-                    <button className="min-h-10 shrink-0 rounded-full bg-[#083f35] px-4 text-xs font-semibold text-white">Record transaction payout</button>
+                    <button className="min-h-10 w-full shrink-0 rounded-full bg-[#083f35] px-4 text-xs font-semibold text-white sm:w-auto">Record transaction payout</button>
                   </form>
                 ) : (
                   <span className="text-sm text-black/45">Clearing</span>

@@ -14,7 +14,7 @@ export function DashboardHeader({
   showHomeLogo?: boolean;
 }) {
   return (
-    <header className="flex flex-col gap-4">
+    <header className="flex min-w-0 flex-col gap-4">
       {showHomeLogo ? (
         <div className="flex items-center justify-between gap-3 lg:hidden">
           <Link
@@ -27,11 +27,11 @@ export function DashboardHeader({
           <NotificationBell variant="panel" />
         </div>
       ) : null}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.24em] text-black/45">{eyebrow}</p>
-          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{title}</h1>
-          {description && <p className="mt-2 text-black/60">{description}</p>}
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="break-words text-xs font-semibold uppercase tracking-[0.2em] text-black/45 sm:text-sm sm:tracking-[0.24em]">{eyebrow}</p>
+          <h1 className="mt-2 break-words text-2xl font-bold leading-tight sm:text-3xl">{title}</h1>
+          {description && <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-black/60 sm:text-base">{description}</p>}
         </div>
         <div className={showHomeLogo ? "hidden self-start lg:block" : "self-start"}>
           <NotificationBell variant="panel" />

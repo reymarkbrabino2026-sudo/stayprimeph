@@ -1659,7 +1659,42 @@ function FinancialDashboard({
           <div className="border-b border-black/10 p-5">
             <h3 className="font-bold">Monthly Summary</h3>
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 p-4 md:hidden">
+            {monthlySummaries.map((summary) => (
+              <article key={`${summary.month}-mobile`} className="rounded-2xl border border-black/10 bg-[#fbfaf8] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/40">Month</p>
+                    <h4 className="mt-1 break-words font-bold">{monthLabel(summary.month)}</h4>
+                  </div>
+                  <Link href={`/host/reports?month=${summary.month}`} className="shrink-0 rounded-lg border border-black/10 px-3 py-2 text-xs font-bold text-black/70">View</Link>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-black/45">Revenue</p>
+                    <p className="break-words font-bold">{formatCurrency(summary.revenue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-black/45">Expenses</p>
+                    <p className="break-words font-bold">{formatCurrency(summary.expenses)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-black/45">Net Profit</p>
+                    <p className="break-words font-bold">{formatCurrency(summary.netProfit)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-black/45">Margin</p>
+                    <p className="font-bold">{percent(summary.margin)}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-xl bg-white p-3 text-sm">
+                  <p className="text-xs text-black/45">Avg. Daily Revenue</p>
+                  <p className="mt-1 break-words font-bold">{formatCurrency(summary.averageDailyRevenue)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-[820px] w-full text-left text-sm">
               <thead className="bg-[#fbf7f2] text-xs text-black/50">
                 <tr>

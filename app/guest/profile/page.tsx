@@ -11,7 +11,7 @@ export default async function GuestProfilePage() {
 
   return (
     <DashboardShell title="Profile Settings" subtitle="Guest dashboard" description="Review the traveler identity used for bookings." links={guestLinks}>
-      <div className="max-w-2xl rounded-[1.5rem] bg-white p-5 soft-card">
+      <div className="max-w-2xl rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
         <div className="mb-6 border-b border-black/10 pb-6">
           <p className="mb-3 text-xs font-medium uppercase tracking-[0.14em] text-black/40">Profile photo</p>
           <AvatarUploader initialAvatar={guest?.avatar} name={guest?.name ?? "Guest"} csrfToken={csrfToken} />
@@ -37,7 +37,7 @@ function ProfileField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-[#fbf7f2] p-4">
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-black/40">{label}</p>
-      <p className="mt-2 font-semibold">{value}</p>
+      <p className="mt-2 break-words font-semibold">{value}</p>
     </div>
   );
 }

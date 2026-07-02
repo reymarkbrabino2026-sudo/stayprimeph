@@ -129,9 +129,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
 
 function ExpenseDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 text-sm">
+    <div className="flex min-w-0 items-start justify-between gap-4 text-sm">
       <span className="font-semibold text-black/45">{label}</span>
-      <span className="max-w-[65%] text-right font-medium text-black">{value}</span>
+      <span className="min-w-0 max-w-[65%] break-words text-right font-medium text-black">{value}</span>
     </div>
   );
 }
@@ -144,7 +144,7 @@ function RowActions({
   onEdit: () => void;
 }) {
   return (
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="grid gap-2 min-[380px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-end">
       <button
         type="button"
         onClick={onEdit}

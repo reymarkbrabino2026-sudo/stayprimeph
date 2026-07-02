@@ -45,6 +45,25 @@ const iconByLabel = {
   settings: UserCircle,
 };
 
+const shortLabelByLabel = {
+  "admin erp": "ERP",
+  "admin reports": "Reports",
+  "booking requests": "Bookings",
+  "calendar availability": "Calendar",
+  "create listing": "Create",
+  "host profile": "Profile",
+  "listings approval": "Listings",
+  "my bookings": "Trips",
+  "my listings": "Listings",
+  "payout settings": "Payouts",
+  "profile settings": "Profile",
+  "support inbox": "Support",
+};
+
+function mobileLabel(label: string) {
+  return shortLabelByLabel[label.toLowerCase() as keyof typeof shortLabelByLabel] ?? label;
+}
+
 export function MobileBottomNav({
   links,
 }: {
@@ -62,7 +81,7 @@ export function MobileBottomNav({
   const moreActive = moreLinks.some((link) => link.href === activeHref);
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 max-w-full overflow-x-hidden border-t bg-white/95 px-2 pt-2 backdrop-blur lg:hidden">
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 max-w-full overflow-x-hidden border-t bg-white/95 px-2 pt-2 shadow-[0_-10px_30px_rgba(33,23,15,0.08)] backdrop-blur lg:hidden">
       {hasMore && moreOpen ? (
         <div className="absolute inset-x-2 bottom-full mb-2 rounded-2xl border border-black/10 bg-white p-2 shadow-[0_16px_40px_rgba(33,23,15,0.16)]">
           <div className="grid max-h-[45vh] gap-1 overflow-y-auto">
@@ -93,7 +112,7 @@ export function MobileBottomNav({
                     setPendingHref(link.href);
                     setMoreOpen(false);
                   }}
-                  className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition active:scale-[0.99] ${
+                  className={`flex min-h-12 min-w-0 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition active:scale-[0.99] ${
                     active
                       ? "bg-[#21170f] text-white"
                       : pending
@@ -106,7 +125,7 @@ export function MobileBottomNav({
                   ) : (
                     <Icon size={19} strokeWidth={active ? 2.5 : 2} />
                   )}
-                  <span className="truncate">{link.label}</span>
+                  <span className="truncate">{mobileLabel(link.label)}</span>
                 </Link>
               );
             })}
@@ -140,7 +159,8 @@ export function MobileBottomNav({
                 setPendingHref(link.href);
                 setMoreOpen(false);
               }}
-              className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-2xl px-1 text-[11px] font-medium transition active:scale-95 ${
+              aria-label={link.label}
+              className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-semibold transition active:scale-95 min-[380px]:text-[11px] ${
                 active
                   ? "bg-[#21170f] text-white"
                   : pending
@@ -153,7 +173,7 @@ export function MobileBottomNav({
               ) : (
                 <Icon size={21} strokeWidth={active ? 2.5 : 2} />
               )}
-              <span className="mt-1 max-w-full truncate">{link.label}</span>
+              <span className="mt-1 max-w-full truncate">{mobileLabel(link.label)}</span>
             </Link>
           );
         })}

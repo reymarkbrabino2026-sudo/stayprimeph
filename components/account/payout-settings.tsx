@@ -173,7 +173,7 @@ export function PayoutSettings({
     <>
       <section className="mt-9">
         {message ? <p className="mb-4 rounded-xl bg-black/[0.04] px-4 py-3 text-sm font-semibold text-black/70">{message}</p> : null}
-        <h3 className="text-3xl font-semibold">How you&apos;ll get paid</h3>
+        <h3 className="break-words text-2xl font-semibold sm:text-3xl">How you&apos;ll get paid</h3>
         <p className="mt-2">Add at least one payout method so we know where to send your money.</p>
         {needsPasswordSetup ? (
           <div className="mt-5 max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -227,7 +227,7 @@ export function PayoutSettings({
         ) : null}
       </section>
 
-      <div className="mt-14 rounded-2xl border border-black/15 p-6">
+      <div className="mt-10 rounded-2xl border border-black/15 p-4 sm:mt-14 sm:p-6">
         <h3 className="text-xl font-semibold">Need help?</h3>
         <HelpRow title="When you'll get your payout" open={openPanel === "timing"} onClick={() => setOpenPanel((current) => (current === "timing" ? null : "timing"))}>
           <p className="text-sm text-black/65">Payouts are sent per paid booking transaction. StayPrimePH aims to send the host payout as soon as possible and within 24 hours after the guest payment is received and approved.</p>
@@ -243,10 +243,10 @@ export function PayoutSettings({
           {payoutHistory.length > 0 ? (
             <div className="mt-4 space-y-3">
               {payoutHistory.map((record) => (
-                <div key={record.id} className="grid gap-2 rounded-xl bg-white p-4 sm:grid-cols-[1fr_auto]">
+                <div key={record.id} className="grid min-w-0 gap-2 rounded-xl bg-white p-4 sm:grid-cols-[1fr_auto]">
                   <div>
                     <p className="font-semibold">{payoutDescription(record)}</p>
-                    <p className="mt-1 text-sm text-black/60">
+                    <p className="mt-1 break-all text-sm text-black/60">
                       {record.id} - {formatHistoryDate(record.status === "paid" ? record.createdAt : record.availableOn)} - {payoutStatusLabel(record.status)}
                     </p>
                     {record.paymentId ? <p className="mt-1 text-xs text-black/45">Payment {record.paymentId}</p> : null}
@@ -258,7 +258,7 @@ export function PayoutSettings({
           ) : (
             <p className="mt-4 rounded-xl bg-white p-4 text-sm text-black/60">No payout transactions have been sent yet.</p>
           )}
-          <button type="button" onClick={exportHistory} disabled={payoutHistory.length === 0} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={exportHistory} disabled={payoutHistory.length === 0} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-black/15 px-5 font-semibold transition hover:border-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
             <Download size={18} />
             Download history
           </button>
@@ -270,7 +270,7 @@ export function PayoutSettings({
 
 function PrimaryButton({ children, disabled = false, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className="mt-7 min-h-12 rounded-xl bg-[#222] px-6 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-black/25">
+    <button type="button" onClick={onClick} disabled={disabled} className="mt-7 min-h-12 w-full rounded-xl bg-[#222] px-6 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-black/25 sm:w-auto">
       {children}
     </button>
   );
@@ -278,7 +278,7 @@ function PrimaryButton({ children, disabled = false, onClick }: { children: Reac
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-5 rounded-2xl border border-black/15 bg-black/[0.02] p-5">
+    <div className="mt-5 rounded-2xl border border-black/15 bg-black/[0.02] p-4 sm:p-5">
       <h4 className="text-lg font-semibold">{title}</h4>
       <div className="mt-4 grid gap-4">{children}</div>
     </div>
@@ -291,17 +291,17 @@ function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdi
   const accountNumber = method.accountNumber || method.accountLast4 || "Account number saved";
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-black/15 p-4">
+    <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-black/15 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-4">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#eef8f4] text-[#083f35]">
           <Icon size={21} />
         </span>
         <div className="min-w-0">
           <p className="font-semibold">{provider}</p>
-          <p className="mt-1 truncate text-sm text-black/60">{method.accountName} - {accountNumber} - {method.currency}</p>
+          <p className="mt-1 break-words text-sm text-black/60 sm:truncate">{method.accountName} - {accountNumber} - {method.currency}</p>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="grid w-full grid-cols-[1fr_auto] gap-2 sm:w-auto">
         <button type="button" onClick={onEdit} className="rounded-full border border-black/15 px-4 py-2 text-sm font-semibold transition hover:border-black">
           Edit
         </button>
@@ -316,8 +316,8 @@ function SavedMethod({ method, onEdit, onRemove }: { method: PayoutMethod; onEdi
 function HelpRow({ title, open, onClick, children }: { title: string; open: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <div className="border-t border-black/10 first:mt-4">
-      <button type="button" aria-expanded={open} onClick={onClick} className="flex min-h-14 w-full items-center justify-between py-4 text-left font-semibold underline">
-        {title}
+      <button type="button" aria-expanded={open} onClick={onClick} className="flex min-h-14 w-full items-center justify-between gap-3 py-4 text-left font-semibold underline">
+        <span className="min-w-0 break-words">{title}</span>
         <ChevronRight className={`transition ${open ? "rotate-90" : ""}`} />
       </button>
       {open ? <div className="rounded-2xl bg-black/[0.02] p-4">{children}</div> : null}

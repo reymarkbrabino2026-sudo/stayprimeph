@@ -50,15 +50,15 @@ export function ListingReviewActions({ listingId, csrfToken, variant = "dashboar
 
   return (
     <div className={isTable ? "flex flex-col gap-2" : "mt-5 space-y-2"}>
-      <div className={isTable ? "flex gap-2" : "flex gap-2"}>
+      <div className={isTable ? "grid gap-2 min-[380px]:grid-cols-2" : "grid gap-2 min-[380px]:grid-cols-2"}>
         <button
           type="button"
           onClick={() => reviewListing("approved")}
           disabled={disabled}
           className={
             isTable
-              ? "min-w-20 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/35"
-              : "min-h-11 flex-1 rounded-full bg-black px-4 font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
+              ? "min-h-9 min-w-0 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/35"
+              : "min-h-11 min-w-0 rounded-full bg-black px-4 font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:bg-black/35"
           }
         >
           {pendingAction === "approved" ? "Approving..." : completedAction === "approved" ? "Approved" : "Approve"}
@@ -69,8 +69,8 @@ export function ListingReviewActions({ listingId, csrfToken, variant = "dashboar
           disabled={disabled}
           className={
             isTable
-              ? "min-w-20 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35"
-              : "min-h-11 flex-1 rounded-full border border-black/10 px-4 font-semibold transition hover:border-black/30 hover:bg-black/[0.02] disabled:cursor-not-allowed disabled:border-black/10 disabled:text-black/35"
+              ? "min-h-9 min-w-0 rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/35"
+              : "min-h-11 min-w-0 rounded-full border border-black/10 px-4 font-semibold transition hover:border-black/30 hover:bg-black/[0.02] disabled:cursor-not-allowed disabled:border-black/10 disabled:text-black/35"
           }
         >
           {pendingAction === "rejected" ? "Rejecting..." : completedAction === "rejected" ? "Rejected" : "Reject"}

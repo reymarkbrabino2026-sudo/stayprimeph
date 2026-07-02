@@ -56,7 +56,7 @@ export default async function HostDashboardPage() {
               <h2 className="mt-2 text-xl font-bold text-amber-950">Add where StayPrimePH should send your payouts</h2>
               <p className="mt-1 text-sm text-amber-950/70">Hosts need a payout method before approved earnings can be sent.</p>
             </div>
-            <Link href="/host/payouts" className="inline-flex min-h-11 w-fit items-center rounded-full bg-[#21170f] px-5 text-sm font-semibold text-white">
+            <Link href="/host/payouts" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#21170f] px-5 text-sm font-semibold text-white sm:w-fit">
               Set up payout method
             </Link>
           </div>
@@ -65,12 +65,12 @@ export default async function HostDashboardPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
         <section className="rounded-[1.75rem] bg-white p-5 soft-card">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Reservations</p>
               <h2 className="mt-2 text-2xl font-bold">Upcoming requests</h2>
             </div>
-            <Link href="/host/bookings" className="text-sm font-semibold text-[#d85d32]">View all</Link>
+            <Link href="/host/bookings" className="shrink-0 text-sm font-semibold text-[#d85d32]">View all</Link>
           </div>
           {upcomingReservationCount === 0 ? (
             <div className="mt-5">
@@ -82,13 +82,13 @@ export default async function HostDashboardPage() {
                 const property = hostListings.find((item) => item.id === booking.propertyId);
                 return (
                   <article key={booking.id} className="rounded-2xl border p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <h3 className="font-semibold">{property?.title ?? "Property"}</h3>
                         <p className="mt-1 text-sm text-black/55">{formatStayDateRange(booking.checkIn, booking.checkOut)} - {booking.guests} guests</p>
                         <p className="mt-1 text-xs text-black/45">{formatStayTimeRange()}</p>
                       </div>
-                      <div className="flex flex-wrap justify-end gap-2">
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
                         <StatusBadge status={booking.status} />
                         <StatusBadge status={booking.paymentStatus} />
                       </div>
@@ -98,14 +98,14 @@ export default async function HostDashboardPage() {
               })}
               {externalBlockPreview.map((block) => (
                 <article key={block.id} className="rounded-2xl border p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <h3 className="font-semibold">{block.propertyTitle}</h3>
                       <p className="mt-1 text-sm text-black/55">{formatStayDateRange(block.checkIn, block.checkOut)}</p>
                       {block.bookingPackageName ? <p className="mt-1 text-xs text-black/45">{block.bookingPackageName}</p> : null}
                       <p className="mt-1 text-xs font-semibold text-emerald-700">{formatCurrency(block.totalPrice)} external paid block</p>
                     </div>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
                       <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">{block.reasonLabel}</span>
                       <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Paid</span>
                     </div>
@@ -124,8 +124,8 @@ export default async function HostDashboardPage() {
               <EmptyState title="Create your first listing" body="Publish a place for admin review before guests can book it." />
             ) : (
               hostListings.slice(0, 4).map((property) => (
-                <div key={property.id} className="flex items-center justify-between gap-3 rounded-2xl bg-[#fbf7f2] p-4">
-                  <div>
+                <div key={property.id} className="flex flex-col gap-3 rounded-2xl bg-[#fbf7f2] p-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+                  <div className="min-w-0">
                     <p className="font-semibold">{property.title}</p>
                     <p className="text-sm text-black/55">{formatPropertyLocation(property)}</p>
                   </div>
@@ -134,7 +134,7 @@ export default async function HostDashboardPage() {
               ))
             )}
           </div>
-          <Link href="/host/listings/create" className="mt-5 inline-flex min-h-11 items-center rounded-full bg-black px-5 text-sm font-semibold text-white">
+          <Link href="/host/listings/create" className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-black px-5 text-sm font-semibold text-white sm:w-auto">
             Create listing
           </Link>
         </section>

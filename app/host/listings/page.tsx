@@ -41,7 +41,7 @@ export default async function HostListingsPage({ searchParams }: { searchParams:
             <Summary label="Pending review" value={pendingCount} />
             <Summary label="Drafts/rejected" value={draftCount + rejectedCount} />
           </div>
-          <Link href="/host/listings/create" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-black/85">
+          <Link href="/host/listings/create" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-black px-5 text-sm font-semibold text-white transition hover:bg-black/85 lg:w-fit">
             <Plus size={16} /> Add listing
           </Link>
         </div>
@@ -87,7 +87,7 @@ export default async function HostListingsPage({ searchParams }: { searchParams:
                     <span className="inline-flex items-center gap-1"><BedDouble size={14} /> {property.bedrooms} bed{property.bedrooms === 1 ? "" : "s"}</span>
                     <span className="inline-flex items-center gap-1"><Users size={14} /> {property.maxGuests} guest{property.maxGuests === 1 ? "" : "s"}</span>
                   </div>
-                  <div className="flex items-end justify-between gap-3 border-t border-black/10 pt-3">
+                  <div className="flex flex-col gap-2 border-t border-black/10 pt-3 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between">
                     <p className="text-sm text-black/55">Created {createdAt}</p>
                     <p className="text-sm font-semibold">{formatCurrency(property.pricePerNight)} / night</p>
                   </div>

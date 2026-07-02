@@ -37,12 +37,12 @@ export function WishlistGrid({ properties }: { properties: Property[] }) {
         const cover = property.images[0]?.imageUrl;
         const guestPrice = calculateGuestPriceWithMarkup(property.pricePerNight);
         return (
-          <Link key={property.id} href={`/rooms/${property.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-[1.75rem] bg-white p-4 soft-card transition hover:-translate-y-1">
+          <Link key={property.id} href={`/rooms/${property.id}`} target="_blank" rel="noopener noreferrer" className="block min-w-0 rounded-[1.5rem] bg-white p-4 soft-card transition hover:-translate-y-1 sm:rounded-[1.75rem]">
             <div className={`relative aspect-[4/3] overflow-hidden rounded-[1.25rem] bg-gradient-to-br ${property.images[0]?.tone ?? "from-rose-100 via-orange-50 to-stone-100"}`}>
               {isRenderableImage(cover) ? <Image src={cover!} alt={property.title} fill sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw" className="object-cover" /> : null}
             </div>
-            <h2 className="mt-4 font-semibold">{property.title}</h2>
-            <p className="mt-1 text-sm text-black/55">{property.city}, {property.country}</p>
+            <h2 className="mt-4 break-words font-semibold">{property.title}</h2>
+            <p className="mt-1 break-words text-sm text-black/55">{property.city}, {property.country}</p>
             <p className="mt-3 text-sm font-semibold">{formatCurrency(guestPrice)} / night</p>
           </Link>
         );

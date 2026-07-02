@@ -51,7 +51,7 @@ export default async function BookingDetailsPage({
 
   return (
     <DashboardShell title="Booking Details" subtitle="Guest dashboard" links={guestLinks}>
-      <div className="rounded-[1.5rem] bg-white p-6 soft-card">
+      <div className="rounded-[1.5rem] bg-white p-4 soft-card sm:p-6">
         {query.payment === "processing" && booking.paymentStatus !== "paid" ? (
           <p className="mb-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
             Payment is processing. This booking will show as paid only after provider webhook confirmation.
@@ -74,13 +74,13 @@ export default async function BookingDetailsPage({
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold">{property.title}</h2>
-            <p className="text-black/55">{formatPropertyLocation(property)}</p>
+            <h2 className="break-words text-xl font-bold">{property.title}</h2>
+            <p className="break-words text-black/55">{formatPropertyLocation(property)}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <Link
               href={messageHostHref}
-              className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28]"
+              className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-full bg-[#083f35] px-4 text-sm font-semibold text-white transition hover:bg-[#062f28] min-[420px]:w-auto"
             >
               <MessageCircle size={16} /> Message host
             </Link>
@@ -128,7 +128,7 @@ export default async function BookingDetailsPage({
         ) : isPartiallyPaid ? (
           <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold">Partially paid. Your booking is confirmed.</p>
                 <p className="mt-1">
                   Paid {formatCurrency(partialPaidAmount)}. Please pay the remaining balance of {formatCurrency(remainingBalance)} upon check-in.
@@ -144,7 +144,7 @@ export default async function BookingDetailsPage({
                   mode="balance"
                   balanceAmount={remainingBalance}
                   triggerLabel="Pay the balance now"
-                  wrapperClassName="shrink-0"
+                  wrapperClassName="w-full shrink-0 sm:w-auto"
                 />
               ) : null}
             </div>

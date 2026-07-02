@@ -30,11 +30,11 @@ export default async function GuestDashboardPage() {
           <StatsCard key={label} label={label} value={value} />
         ))}
       </div>
-      <div className="mt-6 rounded-[1.75rem] bg-white p-6 soft-card">
+      <div className="mt-6 rounded-[1.5rem] bg-white p-4 soft-card sm:rounded-[1.75rem] sm:p-6">
         <h2 className="text-xl font-bold">Upcoming stay</h2>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {property && upcoming ? (
-            <div className="text-black/60">
+            <div className="min-w-0 text-black/60">
               <p>{property.title} - {formatStayDateRange(upcoming.checkIn, upcoming.checkOut)}</p>
               <p className="mt-1 text-sm text-black/45">{formatStayTimeRange()}</p>
               {isPartiallyPaid ? (

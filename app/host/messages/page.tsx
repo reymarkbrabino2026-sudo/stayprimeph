@@ -78,13 +78,13 @@ export default async function HostMessagesPage({
       {messages.length === 0 && !canReply ? (
         <EmptyState title="No messages yet" body="Guest questions and booking conversations will appear here." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-          <aside className="rounded-[1.5rem] bg-white p-5 soft-card">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[320px_1fr] lg:gap-6">
+          <aside className="min-w-0 rounded-[1.5rem] bg-white p-5 soft-card">
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Active thread</p>
-            <h2 className="mt-2 text-xl font-bold">{guest?.name ?? "Guest"}</h2>
-            <p className="mt-2 text-sm text-black/55">{property?.title ?? "Booking conversation"}</p>
+            <h2 className="mt-2 break-words text-xl font-bold">{guest?.name ?? "Guest"}</h2>
+            <p className="mt-2 break-words text-sm text-black/55">{property?.title ?? "Booking conversation"}</p>
           </aside>
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {activeMessages.length ? (
               <MessageThread messages={activeMessages} currentUserId={user?.id} />
             ) : (
@@ -109,7 +109,7 @@ export default async function HostMessagesPage({
                   placeholder={`Reply to ${guest.name}`}
                 />
                 <div className="mt-3 flex justify-end">
-                  <button className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28]">
+                  <button className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28] sm:w-auto">
                     <Send size={16} /> Send reply
                   </button>
                 </div>

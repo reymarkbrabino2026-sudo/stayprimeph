@@ -55,20 +55,20 @@ export default async function AdminSupportPage({
       <MessageAutoRefresh />
 
       <div className="mb-5 grid gap-3 md:grid-cols-2">
-        <a href={supportContact.phoneHref} className="flex items-center gap-3 rounded-2xl bg-white p-4 soft-card">
+        <a href={supportContact.phoneHref} className="flex min-w-0 items-center gap-3 rounded-2xl bg-white p-4 soft-card">
           <span className="grid size-10 place-items-center rounded-full bg-[#083f35] text-white">
             <Phone size={18} />
           </span>
-          <span>
+          <span className="min-w-0">
             <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-black/40">Support number</span>
-            <span className="font-semibold">{supportContact.phoneDisplay}</span>
+            <span className="break-words font-semibold">{supportContact.phoneDisplay}</span>
           </span>
         </a>
-        <a href={`mailto:${supportContact.email}`} className="flex items-center gap-3 rounded-2xl bg-white p-4 soft-card">
+        <a href={`mailto:${supportContact.email}`} className="flex min-w-0 items-center gap-3 rounded-2xl bg-white p-4 soft-card">
           <span className="grid size-10 place-items-center rounded-full bg-[#21170f] text-white">
             <Mail size={18} />
           </span>
-          <span>
+          <span className="min-w-0">
             <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-black/40">Support email</span>
             <span className="break-all font-semibold">{supportContact.email}</span>
           </span>
@@ -78,8 +78,8 @@ export default async function AdminSupportPage({
       {threads.length === 0 ? (
         <EmptyState title="No support chats yet" body="Guest and host help-center messages will appear here." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-          <aside className="space-y-3">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[340px_1fr] lg:gap-6">
+          <aside className="min-w-0 space-y-3">
             {threads.map((thread) => {
               const isActive = thread.user.id === activeThread?.user.id;
               return (
@@ -92,7 +92,7 @@ export default async function AdminSupportPage({
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold">{thread.user.name}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.14em] text-black/40">{thread.user.role}</p>
                     </div>
@@ -104,18 +104,18 @@ export default async function AdminSupportPage({
             })}
           </aside>
 
-          <section className="space-y-4">
+          <section className="min-w-0 space-y-4">
             {activeThread ? (
               <>
                 <div className="rounded-[1.5rem] bg-white p-5 soft-card">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex gap-3">
+                    <div className="flex min-w-0 gap-3">
                       <span className="grid size-11 place-items-center rounded-full bg-[#fbf7f2] text-[#083f35]">
                         <MessageSquareText size={20} />
                       </span>
-                      <div>
-                        <h2 className="text-xl font-bold">{activeThread.user.name}</h2>
-                        <p className="mt-1 text-sm text-black/55">{activeThread.user.email}</p>
+                      <div className="min-w-0">
+                        <h2 className="break-words text-xl font-bold">{activeThread.user.name}</h2>
+                        <p className="mt-1 break-all text-sm text-black/55">{activeThread.user.email}</p>
                       </div>
                     </div>
                     <span className="w-fit rounded-full bg-black/[0.04] px-3 py-1 text-xs font-semibold capitalize text-black/55">
@@ -141,7 +141,7 @@ export default async function AdminSupportPage({
                     placeholder={`Reply to ${activeThread.user.name}`}
                   />
                   <div className="mt-3 flex justify-end">
-                    <button className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28]">
+                    <button className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#083f35] px-5 text-sm font-semibold text-white transition hover:bg-[#062f28] sm:w-auto">
                       <Send size={16} /> Send reply
                     </button>
                   </div>

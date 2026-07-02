@@ -53,10 +53,10 @@ export default async function HostPayoutsPage() {
           <h2 className="border-b border-black/10 p-5 font-semibold">Payout history</h2>
           <ul className="divide-y divide-black/[0.06]">
             {earnings.payouts.map((payout) => (
-              <li key={payout.id} className="flex items-center justify-between gap-4 p-5">
-                <div>
+              <li key={payout.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="font-semibold">{formatCurrency(payout.amount)}</p>
-                  <p className="text-sm text-black/50">
+                  <p className="break-words text-sm text-black/50">
                     Sent {formatDate(payout.createdAt)}{payout.bookingId ? ` - Booking ${payout.bookingId}` : ""}
                   </p>
                 </div>

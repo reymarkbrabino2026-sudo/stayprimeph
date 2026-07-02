@@ -131,10 +131,10 @@ export default async function AdminErpPage({ searchParams }: { searchParams: Pro
       links={adminLinks}
     >
       {/* Host filter */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      <div className="no-scrollbar touch-scroll mb-6 flex max-w-full gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
         <Link
           href="/admin/erp"
-          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selectedHostId ? "border border-black/15 text-black/70 hover:bg-black/[0.04]" : "bg-black text-white"}`}
+          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${selectedHostId ? "border border-black/15 text-black/70 hover:bg-black/[0.04]" : "bg-black text-white"}`}
         >
           All hosts
         </Link>
@@ -142,7 +142,7 @@ export default async function AdminErpPage({ searchParams }: { searchParams: Pro
           <Link
             key={host.id}
             href={`/admin/erp?host=${encodeURIComponent(host.id)}`}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selectedHostId === host.id ? "bg-black text-white" : "border border-black/15 text-black/70 hover:bg-black/[0.04]"}`}
+            className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${selectedHostId === host.id ? "bg-black text-white" : "border border-black/15 text-black/70 hover:bg-black/[0.04]"}`}
           >
             {host.name}
           </Link>
@@ -151,7 +151,7 @@ export default async function AdminErpPage({ searchParams }: { searchParams: Pro
 
       {selectedHost ? (
         <p className="mb-4 text-sm text-black/55">
-          Showing activity for <span className="font-semibold text-black">{selectedHost.name}</span> ({selectedHost.email}).
+          Showing activity for <span className="font-semibold text-black">{selectedHost.name}</span> <span className="break-all">({selectedHost.email})</span>.
         </p>
       ) : null}
 

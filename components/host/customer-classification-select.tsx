@@ -26,7 +26,7 @@ export function CustomerClassificationSelect({
   const vip = current === "vip";
 
   return (
-    <form action={action} className="relative inline-flex shrink-0">
+    <form action={action} className="relative inline-flex min-w-0 shrink-0">
       <input type="hidden" name="guestId" value={guestId} />
       <input type="hidden" name="hostId" value={hostId} />
       <input type="hidden" name="returnTo" value={returnTo} />
@@ -38,7 +38,7 @@ export function CustomerClassificationSelect({
           setCurrent(event.currentTarget.value as HostCustomerClassification);
           event.currentTarget.form?.requestSubmit();
         }}
-        className={`min-h-9 min-w-32 appearance-none rounded-lg border py-1.5 pl-3 pr-9 text-xs font-bold outline-none transition focus:ring-2 focus:ring-[#f97316]/25 ${
+        className={`min-h-9 min-w-28 appearance-none rounded-lg border py-1.5 pl-3 pr-9 text-xs font-bold outline-none transition focus:ring-2 focus:ring-[#f97316]/25 sm:min-w-32 ${
           vip
             ? "border-orange-200 bg-orange-50 text-orange-700"
             : "border-black/10 bg-white text-black/65"

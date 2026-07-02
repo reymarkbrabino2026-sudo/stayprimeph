@@ -122,7 +122,7 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
       <button
         type="button"
         onClick={() => setRows((current) => [...current, { id: `expense-${Date.now()}-${current.length}`, name: "" }])}
-        className="inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-full border border-black/10 px-5 font-semibold text-black/65 transition hover:border-black/25 hover:text-black"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-black/10 px-5 font-semibold text-black/65 transition hover:border-black/25 hover:text-black sm:w-fit"
       >
         <Plus className="size-4" aria-hidden="true" />
         Add another expense

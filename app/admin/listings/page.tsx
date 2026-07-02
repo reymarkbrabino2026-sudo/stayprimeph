@@ -78,7 +78,9 @@ export default async function AdminListingsPage() {
                         <p className="text-sm font-semibold">{formatCurrency(property.pricePerNight)} / night</p>
                         <p className="text-xs text-black/45">Submitted {listingDateFormatter.format(new Date(property.createdAt))}</p>
                       </div>
-                      <ListingReviewActions listingId={property.id} csrfToken={csrfToken} variant="table" />
+                      <div className="w-full sm:w-auto">
+                        <ListingReviewActions listingId={property.id} csrfToken={csrfToken} variant="table" />
+                      </div>
                     </div>
                   </div>
                 </div>

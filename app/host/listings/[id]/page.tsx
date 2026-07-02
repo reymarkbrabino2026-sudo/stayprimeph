@@ -39,7 +39,7 @@ export default async function EditListingPage({ params, searchParams }: { params
               <span className="absolute left-4 top-4"><StatusBadge status={property.status} /></span>
             </div>
             <div className="p-5">
-              <h2 className="text-2xl font-bold leading-tight text-[#21170f]">{property.title}</h2>
+              <h2 className="break-words text-2xl font-bold leading-tight text-[#21170f]">{property.title}</h2>
               <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-black/65">
                 <MapPin size={17} className="mt-0.5 shrink-0 text-[#083f35]" aria-hidden="true" />
                 <span>{property.address}, {formatPropertyLocation(property)}</span>
@@ -117,7 +117,7 @@ function Info({ icon: Icon, label, value }: { icon: LucideIcon; label: string; v
     <div className="rounded-2xl border border-black/10 bg-[#fbf7f2] p-4">
       <Icon size={18} className="text-[#083f35]" aria-hidden="true" />
       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-black/45">{label}</p>
-      <p className="mt-1 whitespace-pre-line text-lg font-bold leading-snug text-[#21170f]">{value}</p>
+      <p className="mt-1 break-words whitespace-pre-line text-lg font-bold leading-snug text-[#21170f]">{value}</p>
     </div>
   );
 }

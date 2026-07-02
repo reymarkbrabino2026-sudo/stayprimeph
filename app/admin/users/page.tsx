@@ -103,11 +103,11 @@ export default async function AdminUsersPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex items-start justify-between gap-4">
                   <span className="text-black/45">Name</span>
-                  <span className={`text-right font-semibold ${alreadyDeleted ? "text-black/45" : ""}`}>{user.name}</span>
+                  <span className={`min-w-0 break-words text-right font-semibold ${alreadyDeleted ? "text-black/45" : ""}`}>{user.name}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">
                   <span className="text-black/45">Email</span>
-                  <span className={`text-right ${alreadyDeleted ? "text-black/45" : ""}`}>{user.email}</span>
+                  <span className={`min-w-0 break-all text-right ${alreadyDeleted ? "text-black/45" : ""}`}>{user.email}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-black/45">Role</span>
@@ -157,7 +157,7 @@ export default async function AdminUsersPage() {
                 return (
                   <tr key={user.id} className="border-t align-top">
                     <td className={`px-4 py-4 font-medium ${alreadyDeleted ? "text-black/45" : ""}`}>{user.name}</td>
-                    <td className={`px-4 py-4 ${alreadyDeleted ? "text-black/45" : ""}`}>{user.email}</td>
+                    <td className={`break-all px-4 py-4 ${alreadyDeleted ? "text-black/45" : ""}`}>{user.email}</td>
                     <td className="px-4 py-4 capitalize">{user.role}</td>
                     <td className="px-4 py-4 text-black/60">{user.phone || "Not set"}</td>
                     <td className="px-4 py-4">
