@@ -19,6 +19,7 @@ type ExpenseRow = {
 };
 
 const initialRows = [{ id: "initial-expense", name: "" }];
+const unitOptions = ["PC", "SET", "PACK", "BOX", "BOTTLE", "ROLL", "KG", "L", "HR"];
 
 export function HostExpenseForm({ action, categories, csrfToken, defaultDate, defaultOpen = false, hostOptions = [] }: HostExpenseFormProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -43,6 +44,11 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
   return (
     <form action={action} className="mt-4 grid gap-4">
       <input type="hidden" name={csrfFieldName} value={csrfToken} />
+      <datalist id="expense-unit-options">
+        {unitOptions.map((unit) => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
       {hostOptions.length > 0 ? (
         <label className="grid max-w-md gap-2 text-sm font-semibold text-black/70">
           Host
@@ -88,16 +94,24 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
               </select>
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
-              Amount
-              <input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
+              Unit amount
+              <input name="amount" type="number" min="0.01" step="0.01" placeholder="200.00" className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-3">
+            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+              Quantity
+              <input name="quantity" type="number" min="0.01" step="0.01" placeholder="1" className="min-h-12 rounded-2xl border px-4 font-normal text-black" />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+              Unit
+              <input name="unit" type="text" list="expense-unit-options" maxLength={30} placeholder="PC" className="min-h-12 rounded-2xl border px-4 font-normal uppercase text-black" />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
               Expense name or vendor
               <input
                 name="vendor"
                 type="text"
                 maxLength={120}
-                placeholder="Cleaning, supplier, contractor, utility company"
+                placeholder="Trash can, supplier, contractor, utility company"
                 className="min-h-12 rounded-2xl border px-4 font-normal text-black"
                 onChange={(event) => {
                   const value = event.currentTarget.value;
@@ -106,7 +120,7 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
                 required
               />
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-3">
+            <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
               Receipt reference
               <input name="receiptReference" type="text" maxLength={180} placeholder="Receipt number, invoice link, or payment reference" className="min-h-12 rounded-2xl border px-4 font-normal text-black" />
             </label>

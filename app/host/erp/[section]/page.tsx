@@ -39,6 +39,7 @@ import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings, getBookingsForHost } from "@/lib/bookings";
 import { readHostCustomerProfiles } from "@/lib/host-customer-store";
+import { hostExpenseTotal } from "@/lib/host-expense-csv";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { adminLinks, hostLinks } from "@/lib/navigation";
@@ -1959,7 +1960,7 @@ export default async function HostErpSectionPage({
   const monthlyPaidBookings = scopedBookings.filter((booking) => booking.paymentStatus === "paid" && overlapNights(booking, currentMonth) > 0);
   const monthlyBookingPayout = monthlyPaidBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
   const manualSales = scopedReports.filter((report) => report.month === currentMonth).reduce((sum, report) => sum + report.salesAmount, 0);
-  const monthlyExpenses = scopedExpenses.filter((expense) => expense.month === currentMonth).reduce((sum, expense) => sum + expense.amount, 0);
+  const monthlyExpenses = scopedExpenses.filter((expense) => expense.month === currentMonth).reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
   const monthlyIncome = monthlyBookingPayout + manualSales;
   const monthlyProfit = monthlyIncome - monthlyExpenses;
   const bookedNights = monthlyPaidBookings.reduce((sum, booking) => sum + overlapNights(booking, currentMonth), 0);
@@ -1987,7 +1988,7 @@ export default async function HostErpSectionPage({
     const manualRevenue = scopedReports
       .filter((report) => (report.reportDate ?? `${report.month}-01`) === date)
       .reduce((sum, report) => sum + report.salesAmount, 0);
-    const expensesForDay = scopedExpenses.filter((expense) => expense.expenseDate === date).reduce((sum, expense) => sum + expense.amount, 0);
+    const expensesForDay = scopedExpenses.filter((expense) => expense.expenseDate === date).reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
     return { day, expenses: Math.round(expensesForDay), revenue: Math.round(bookingRevenue + manualRevenue) };
   });
   const expenseCategories = Object.values(
@@ -1995,7 +1996,7 @@ export default async function HostErpSectionPage({
       .filter((expense) => expense.month === currentMonth)
       .reduce<Record<string, { amount: number; category: string }>>((totals, expense) => {
         totals[expense.category] = totals[expense.category] ?? { amount: 0, category: expense.category };
-        totals[expense.category].amount += expense.amount;
+        totals[expense.category].amount += hostExpenseTotal(expense);
         return totals;
       }, {}),
   )
@@ -2020,7 +2021,7 @@ export default async function HostErpSectionPage({
     const paidBookings = scopedBookings.filter((booking) => booking.paymentStatus === "paid" && overlapNights(booking, month) > 0);
     const bookingPayout = paidBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
     const reportSales = scopedReports.filter((report) => report.month === month).reduce((sum, report) => sum + report.salesAmount, 0);
-    const expensesForMonth = scopedExpenses.filter((expense) => expense.month === month).reduce((sum, expense) => sum + expense.amount, 0);
+    const expensesForMonth = scopedExpenses.filter((expense) => expense.month === month).reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
     const revenue = bookingPayout + reportSales;
     const monthDays = nightsBetween(monthRange(month).start, monthRange(month).end);
     const profit = revenue - expensesForMonth;

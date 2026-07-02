@@ -1,4 +1,4 @@
-import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, ReceiptText, UsersRound } from "lucide-react";
+import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, Download, ReceiptText, UsersRound } from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -13,6 +13,7 @@ import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getCsrfToken } from "@/lib/csrf";
+import { hostExpensesToCsv, hostExpenseTotal } from "@/lib/host-expense-csv";
 import { hostExpenseCategories } from "@/lib/host-expense-categories";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
@@ -98,7 +99,7 @@ export default async function HostReportsPage({
     .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + lifetimeExternalPaidTotal;
   const selectedMonthReports = scopedReports.filter((report) => report.month === selectedMonth);
   const manualSales = selectedMonthReports.reduce((sum, report) => sum + report.salesAmount, 0);
-  const monthlyExpenseTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const monthlyExpenseTotal = monthExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
   const netIncome = bookingPayout + manualSales - monthlyExpenseTotal;
   const bookedNights = monthBookings.reduce((sum, booking) => sum + paidNightsInMonth(booking, selectedMonth), 0) + monthPaidBlocks.length;
   const daysInSelectedMonth = nightsBetween(monthRange(selectedMonth).start, monthRange(selectedMonth).end);
@@ -123,6 +124,7 @@ export default async function HostReportsPage({
       ...expense,
       hostName: users.find((item) => item.id === expense.hostId)?.name ?? "Host",
     }));
+  const expenseCsv = hostExpensesToCsv(expenseRows);
   const sortedSelectedMonthReports = selectedMonthReports
     .map((report) => ({
       ...report,
@@ -289,7 +291,17 @@ export default async function HostReportsPage({
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Manual expenses</p>
               <h3 className="mt-2 text-xl font-bold">Review entries</h3>
             </div>
-            <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
+            <div className="flex flex-col gap-2 sm:items-end">
+              <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
+              <a
+                href={`data:text/csv;charset=utf-8,${encodeURIComponent(`\ufeff${expenseCsv}`)}`}
+                download={`stayprimeph-expenses-${selectedMonth}.csv`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black"
+              >
+                <Download className="size-4" aria-hidden="true" />
+                Export CSV
+              </a>
+            </div>
           </div>
           <HostExpenseReview
             categories={hostExpenseCategories}

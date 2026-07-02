@@ -22,6 +22,15 @@ function cleanAmount(value: FormDataEntryValue | null) {
   return Math.round(amount * 100) / 100;
 }
 
+function cleanOptionalQuantity(value: FormDataEntryValue | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return undefined;
+
+  const quantity = Number(text);
+  if (!Number.isFinite(quantity) || quantity <= 0) return null;
+  return Math.round(quantity * 100) / 100;
+}
+
 function cleanRequiredText(value: FormDataEntryValue | null, maxLength: number) {
   return String(value ?? "").trim().slice(0, maxLength);
 }
@@ -142,6 +151,8 @@ export async function saveHostExpense(formData: FormData) {
   const expenseDates = formData.getAll("expenseDate");
   const categories = formData.getAll("category");
   const amounts = formData.getAll("amount");
+  const quantities = formData.getAll("quantity");
+  const units = formData.getAll("unit");
   const vendors = formData.getAll("vendor");
   const descriptions = formData.getAll("description");
   const receiptReferences = formData.getAll("receiptReference");
@@ -157,7 +168,14 @@ export async function saveHostExpense(formData: FormData) {
     if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
 
     const amount = cleanAmount(formValueAt(amounts, index));
-    if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter an expense amount greater than zero." }));
+    if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount greater than zero." }));
+
+    const quantity = cleanOptionalQuantity(formValueAt(quantities, index));
+    const unit = cleanRequiredText(formValueAt(units, index), 30).toUpperCase();
+    if (quantity === null) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a valid quantity greater than zero." }));
+    if ((quantity !== undefined && !unit) || (quantity === undefined && unit)) {
+      redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter both quantity and unit, or leave both blank." }));
+    }
 
     const vendor = cleanRequiredText(formValueAt(vendors, index), 120);
     if (!vendor) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a vendor or payee." }));
@@ -171,6 +189,8 @@ export async function saveHostExpense(formData: FormData) {
       month: monthFromDate(expenseDate),
       category,
       amount,
+      quantity,
+      unit: unit || undefined,
       vendor,
       description: cleanRequiredText(formValueAt(descriptions, index), 500) || undefined,
       receiptReference: cleanRequiredText(formValueAt(receiptReferences, index), 180) || undefined,
@@ -201,7 +221,14 @@ export async function updateHostExpense(formData: FormData) {
   if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
 
   const amount = cleanAmount(formData.get("amount"));
-  if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter an expense amount greater than zero." }));
+  if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount greater than zero." }));
+
+  const quantity = cleanOptionalQuantity(formData.get("quantity"));
+  const unit = cleanRequiredText(formData.get("unit"), 30).toUpperCase();
+  if (quantity === null) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a valid quantity greater than zero." }));
+  if ((quantity !== undefined && !unit) || (quantity === undefined && unit)) {
+    redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter both quantity and unit, or leave both blank." }));
+  }
 
   const vendor = cleanRequiredText(formData.get("vendor"), 120);
   if (!vendor) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a vendor or payee." }));
@@ -217,6 +244,8 @@ export async function updateHostExpense(formData: FormData) {
     month: monthFromDate(expenseDate),
     category,
     amount,
+    quantity,
+    unit: unit || undefined,
     vendor,
     description: cleanRequiredText(formData.get("description"), 500) || undefined,
     receiptReference: cleanRequiredText(formData.get("receiptReference"), 180) || undefined,

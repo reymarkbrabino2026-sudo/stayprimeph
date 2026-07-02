@@ -172,6 +172,8 @@ export interface HostExpense {
   month: string;
   category: string;
   amount: number;
+  quantity?: number;
+  unit?: string;
   vendor: string;
   description?: string;
   receiptReference?: string;

@@ -9,6 +9,7 @@ export const hostExpenseCategories = [
   "Labor",
   "Furniture & Fixtures",
   "Housekeeping Supplies",
+  "Office Supplies",
   "Meals",
   "Transportation",
   "Delivery Fee",

@@ -280,6 +280,8 @@ model HostExpense {
   month            String
   category         String
   amount           Float
+  quantity         Float?
+  unit             String?
   vendor           String
   description      String?
   receiptReference String?
@@ -408,17 +410,17 @@ model ListingAvailability {
 }
 
 model AvailabilityBlock {
-  id         String   @id
-  propertyId String
-  date       DateTime
-  available  Boolean  @default(true)
-  minNights  Int?
-  reason     String?
-  note       String?
+  id                 String   @id
+  propertyId         String
+  date               DateTime
+  available          Boolean  @default(true)
+  minNights          Int?
+  reason             String?
+  note               String?
   bookingPackageId   String?
   bookingPackageName String?
-  createdAt  DateTime @default(now())
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  property           Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@unique([propertyId, date])
   @@index([propertyId, date])

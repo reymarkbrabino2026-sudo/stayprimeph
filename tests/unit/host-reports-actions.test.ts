@@ -65,14 +65,18 @@ describe("saveHostExpense", () => {
   it("saves every submitted expense row", async () => {
     const formData = new FormData();
     formData.append("expenseDate", "2026-06-10");
-    formData.append("category", "Cleaning Materials");
+    formData.append("category", "Office Supplies");
     formData.append("amount", "120.50");
-    formData.append("vendor", "Cleaner A");
+    formData.append("quantity", "1");
+    formData.append("unit", "pc");
+    formData.append("vendor", "Trash can");
     formData.append("receiptReference", "OR-1");
-    formData.append("description", "Turnover clean");
+    formData.append("description", "Office bin");
     formData.append("expenseDate", "2026-06-11");
     formData.append("category", "Electricity");
     formData.append("amount", "80");
+    formData.append("quantity", "");
+    formData.append("unit", "");
     formData.append("vendor", "Power Co");
     formData.append("receiptReference", "BILL-2");
     formData.append("description", "Electric bill");
@@ -85,11 +89,13 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-10",
         month: "2026-06",
-        category: "Cleaning Materials",
+        category: "Office Supplies",
         amount: 120.5,
-        vendor: "Cleaner A",
+        quantity: 1,
+        unit: "PC",
+        vendor: "Trash can",
         receiptReference: "OR-1",
-        description: "Turnover clean",
+        description: "Office bin",
       }),
       expect.objectContaining({
         hostId: "host-1",
@@ -112,6 +118,8 @@ describe("saveHostExpense", () => {
     formData.append("expenseDate", "2026-06-12");
     formData.append("category", "Repairs");
     formData.append("amount", "450");
+    formData.append("quantity", "2");
+    formData.append("unit", "set");
     formData.append("vendor", "Repair team");
 
     await expect(saveHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
@@ -122,9 +130,24 @@ describe("saveHostExpense", () => {
         expenseDate: "2026-06-12",
         category: "Repairs",
         amount: 450,
+        quantity: 2,
+        unit: "SET",
         vendor: "Repair team",
       }),
     ]);
+  });
+
+  it("requires quantity and unit to be submitted together", async () => {
+    const formData = new FormData();
+    formData.append("expenseDate", "2026-06-12");
+    formData.append("category", "Office Supplies");
+    formData.append("amount", "200");
+    formData.append("quantity", "1");
+    formData.append("vendor", "Trash can");
+
+    await expect(saveHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
+
+    expect(appendHostExpenses).not.toHaveBeenCalled();
   });
 
   it("updates an existing host expense", async () => {
@@ -145,9 +168,11 @@ describe("saveHostExpense", () => {
     const formData = new FormData();
     formData.append("expenseId", "expense-1");
     formData.append("expenseDate", "2026-06-15");
-    formData.append("category", "Electricity");
+    formData.append("category", "Office Supplies");
     formData.append("amount", "250");
-    formData.append("vendor", "Power Co");
+    formData.append("quantity", "3");
+    formData.append("unit", "box");
+    formData.append("vendor", "Paper supplies");
     formData.append("receiptReference", "BILL-9");
     formData.append("description", "Updated bill");
 
@@ -159,9 +184,11 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-15",
         month: "2026-06",
-        category: "Electricity",
+        category: "Office Supplies",
         amount: 250,
-        vendor: "Power Co",
+        quantity: 3,
+        unit: "BOX",
+        vendor: "Paper supplies",
         receiptReference: "BILL-9",
         description: "Updated bill",
       }),

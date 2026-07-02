@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { csrfFieldName } from "@/lib/csrf-fields";
+import { hostExpenseTotal } from "@/lib/host-expense-csv";
 import type { HostExpense } from "@/lib/types";
 
 type HostExpenseReviewProps = {
@@ -16,17 +17,33 @@ type HostExpenseReviewProps = {
   updateAction: (formData: FormData) => void | Promise<void>;
 };
 
-function formatCurrency(value: number) {
+function formatCurrency(value: number, withCents = false) {
   return new Intl.NumberFormat("en-PH", {
     currency: "PHP",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: withCents ? 2 : 0,
+    minimumFractionDigits: withCents ? 2 : 0,
     style: "currency",
   }).format(value);
+}
+
+function formatQuantity(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatQuantityUnit(expense: Pick<HostExpense, "quantity" | "unit">) {
+  const quantity = typeof expense.quantity === "number" ? formatQuantity(expense.quantity) : "";
+  if (quantity && expense.unit) return `${quantity} ${expense.unit}`;
+  if (expense.unit) return expense.unit;
+  return quantity || "None";
 }
 
 function displayDate(value: string) {
   return new Date(`${value}T00:00:00Z`).toLocaleDateString();
 }
+
+const unitOptions = ["PC", "SET", "PACK", "BOX", "BOTTLE", "ROLL", "KG", "L", "HR"];
 
 export function HostExpenseReview({ categories, csrfToken, deleteAction, expenses, isAdmin, updateAction }: HostExpenseReviewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,7 +78,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Vendor</th>
-              <th className="px-4 py-3 font-medium">Amount</th>
+              <th className="px-4 py-3 font-medium">Unit amount</th>
+              <th className="px-4 py-3 font-medium">Qty / Unit</th>
+              <th className="px-4 py-3 font-medium">Total amount</th>
               <th className="px-4 py-3 font-medium">Receipt</th>
               <th className="px-4 py-3 font-medium">Notes</th>
               <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -71,7 +90,7 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
             {expenses.map((expense) => (
               <tr key={expense.id} className="border-t border-black/10 align-top">
                 {editingId === expense.id ? (
-                  <td colSpan={isAdmin ? 8 : 7} className="bg-white p-4">
+                  <td colSpan={isAdmin ? 10 : 9} className="bg-white p-4">
                     <EditExpenseForm categories={categories} csrfToken={csrfToken} expense={expense} isAdmin={isAdmin} onCancel={() => setEditingId(null)} updateAction={updateAction} />
                   </td>
                 ) : (
@@ -80,7 +99,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
                     <td className="px-4 py-4">{displayDate(expense.expenseDate)}</td>
                     <td className="px-4 py-4">{expense.category}</td>
                     <td className="px-4 py-4">{expense.vendor}</td>
-                    <td className="px-4 py-4">{formatCurrency(expense.amount)}</td>
+                    <td className="px-4 py-4">{formatCurrency(expense.amount, true)}</td>
+                    <td className="px-4 py-4">{formatQuantityUnit(expense)}</td>
+                    <td className="px-4 py-4">{formatCurrency(hostExpenseTotal(expense), true)}</td>
                     <td className="px-4 py-4">{expense.receiptReference ?? "None"}</td>
                     <td className="px-4 py-4">{expense.description ?? "None"}</td>
                     <td className="px-4 py-3">
@@ -105,7 +126,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
                 <ExpenseDetail label="Date" value={displayDate(expense.expenseDate)} />
                 <ExpenseDetail label="Category" value={expense.category} />
                 <ExpenseDetail label="Vendor" value={expense.vendor} />
-                <ExpenseDetail label="Amount" value={formatCurrency(expense.amount)} />
+                <ExpenseDetail label="Unit amount" value={formatCurrency(expense.amount, true)} />
+                <ExpenseDetail label="Qty / Unit" value={formatQuantityUnit(expense)} />
+                <ExpenseDetail label="Total amount" value={formatCurrency(hostExpenseTotal(expense), true)} />
                 <ExpenseDetail label="Receipt" value={expense.receiptReference ?? "None"} />
                 <ExpenseDetail label="Notes" value={expense.description ?? "None"} />
                 <RowActions onDelete={() => setConfirmingExpense(expense)} onEdit={() => setEditingId(expense.id)} />
@@ -193,7 +216,7 @@ function DeleteExpenseDialog({
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9b3b1d]/70">Confirm delete</p>
             <h2 id="delete-expense-title" className="mt-1 text-xl font-bold text-black">Delete this expense?</h2>
             <p className="mt-2 text-sm leading-6 text-black/60">
-              This will remove the {expense.category.toLowerCase()} entry for {formatCurrency(expense.amount)} from your manual expenses.
+              This will remove the {expense.category.toLowerCase()} entry for {formatCurrency(hostExpenseTotal(expense), true)} from your manual expenses.
             </p>
           </div>
         </div>
@@ -205,12 +228,18 @@ function DeleteExpenseDialog({
           <div className="rounded-2xl border border-black/10 bg-[#fbfaf8] p-4 text-sm">
             <div className="flex items-center justify-between gap-4">
               <span className="font-semibold text-black">{expense.vendor}</span>
-              <span className="font-bold text-black">{formatCurrency(expense.amount)}</span>
+              <span className="font-bold text-black">{formatCurrency(hostExpenseTotal(expense), true)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between gap-4 text-black/55">
               <span>{displayDate(expense.expenseDate)}</span>
               <span>{expense.receiptReference ?? "No receipt"}</span>
             </div>
+            {formatQuantityUnit(expense) !== "None" ? (
+              <div className="mt-2 flex items-center justify-between gap-4 text-black/55">
+                <span>Qty / Unit</span>
+                <span>{formatQuantityUnit(expense)}</span>
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button
@@ -257,10 +286,17 @@ function EditExpenseForm({
   onCancel: () => void;
   updateAction: (formData: FormData) => void | Promise<void>;
 }) {
+  const unitDatalistId = `expense-edit-unit-options-${expense.id}`;
+
   return (
     <form action={updateAction} className="grid gap-3">
       <input type="hidden" name={csrfFieldName} value={csrfToken} />
       <input type="hidden" name="expenseId" value={expense.id} />
+      <datalist id={unitDatalistId}>
+        {unitOptions.map((unit) => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
       {isAdmin ? (
         <p className="text-sm font-semibold text-black/55">Editing expense for {expense.hostName ?? "Host"}</p>
       ) : null}
@@ -278,14 +314,22 @@ function EditExpenseForm({
           </select>
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
-          Amount
+          Unit amount
           <input name="amount" type="number" min="0.01" step="0.01" defaultValue={expense.amount} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
         </label>
-        <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-3">
+        <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+          Quantity
+          <input name="quantity" type="number" min="0.01" step="0.01" defaultValue={expense.quantity ?? ""} className="min-h-11 rounded-2xl border px-4 font-normal text-black" />
+        </label>
+        <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+          Unit
+          <input name="unit" type="text" list={unitDatalistId} maxLength={30} defaultValue={expense.unit ?? ""} className="min-h-11 rounded-2xl border px-4 font-normal uppercase text-black" />
+        </label>
+        <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
           Expense name or vendor
           <input name="vendor" type="text" maxLength={120} defaultValue={expense.vendor} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
         </label>
-        <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-3">
+        <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
           Receipt reference
           <input name="receiptReference" type="text" maxLength={180} defaultValue={expense.receiptReference} className="min-h-11 rounded-2xl border px-4 font-normal text-black" />
         </label>

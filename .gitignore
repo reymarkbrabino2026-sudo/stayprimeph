@@ -66,6 +66,7 @@ yarn-error.log*
 # local JSON store — fills with real PII (names, emails, password/token hashes) on local runs
 /data/users.json
 /data/auth-tokens.json
+/data/sessions.json
 /data/bookings.json
 /data/payments.json
 /data/messages.json

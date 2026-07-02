@@ -2188,6 +2188,8 @@ type DatabaseHostExpense = {
   month: string;
   category: string;
   amount: number;
+  quantity: number | null;
+  unit: string | null;
   vendor: string;
   description: string | null;
   receiptReference: string | null;
@@ -2204,6 +2206,8 @@ export async function listHostExpensesFromDatabase(): Promise<HostExpense[]> {
     month: expense.month,
     category: expense.category,
     amount: expense.amount,
+    quantity: expense.quantity ?? undefined,
+    unit: expense.unit ?? undefined,
     vendor: expense.vendor,
     description: expense.description ?? undefined,
     receiptReference: expense.receiptReference ?? undefined,
@@ -2224,6 +2228,8 @@ export async function writeHostExpensesToDatabase(expenses: HostExpense[]) {
           month: expense.month,
           category: expense.category,
           amount: expense.amount,
+          quantity: expense.quantity ?? null,
+          unit: expense.unit ?? null,
           vendor: expense.vendor,
           description: expense.description ?? null,
           receiptReference: expense.receiptReference ?? null,
@@ -2243,6 +2249,8 @@ function hostExpenseData(expense: HostExpense) {
     month: expense.month,
     category: expense.category,
     amount: expense.amount,
+    quantity: expense.quantity ?? null,
+    unit: expense.unit ?? null,
     vendor: expense.vendor,
     description: expense.description ?? null,
     receiptReference: expense.receiptReference ?? null,
@@ -2258,6 +2266,8 @@ function hostExpenseUpdateData(expense: HostExpense) {
     month: expense.month,
     category: expense.category,
     amount: expense.amount,
+    quantity: expense.quantity ?? null,
+    unit: expense.unit ?? null,
     vendor: expense.vendor,
     description: expense.description ?? null,
     receiptReference: expense.receiptReference ?? null,
