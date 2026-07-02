@@ -163,6 +163,40 @@ describe("saveHostExpense", () => {
     ]);
   });
 
+  it("saves a manually typed category", async () => {
+    const formData = new FormData();
+    formData.append("expenseDate", "2026-06-12");
+    formData.append("category", "Pillow Freebies");
+    formData.append("amount", "0");
+    formData.append("quantity", "2");
+    formData.append("unit", "pc");
+    formData.append("vendor", "Free pillow");
+
+    await expect(saveHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
+
+    expect(appendHostExpenses).toHaveBeenCalledWith([
+      expect.objectContaining({
+        category: "Pillow Freebies",
+        amount: 0,
+        quantity: 2,
+        unit: "PC",
+        vendor: "Free pillow",
+      }),
+    ]);
+  });
+
+  it("requires a category to be entered", async () => {
+    const formData = new FormData();
+    formData.append("expenseDate", "2026-06-12");
+    formData.append("category", "");
+    formData.append("amount", "0");
+    formData.append("vendor", "Free pillow");
+
+    await expect(saveHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06&expenseError=Enter+an+expense+category.");
+
+    expect(appendHostExpenses).not.toHaveBeenCalled();
+  });
+
   it("still requires a unit amount to be entered", async () => {
     const formData = new FormData();
     formData.append("expenseDate", "2026-06-12");
@@ -262,10 +296,48 @@ describe("saveHostExpense", () => {
     expect(replaceHostExpense).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "expense-1",
+        category: "Office Supplies",
         amount: 0,
         quantity: 1,
         unit: "PC",
         vendor: "Free pillow",
+      }),
+    );
+  });
+
+  it("updates an existing expense to a manually typed category", async () => {
+    vi.mocked(readHostExpenses).mockResolvedValueOnce([
+      {
+        id: "expense-1",
+        hostId: "host-1",
+        expenseDate: "2026-06-01",
+        month: "2026-06",
+        category: "Office Supplies",
+        amount: 100,
+        vendor: "Old pillow",
+        createdAt: "2026-06-01T00:00:00.000Z",
+        updatedAt: "2026-06-01T00:00:00.000Z",
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.append("expenseId", "expense-1");
+    formData.append("expenseDate", "2026-06-15");
+    formData.append("category", "Pillow Freebies");
+    formData.append("amount", "0");
+    formData.append("quantity", "1");
+    formData.append("unit", "pc");
+    formData.append("vendor", "Free pillow");
+
+    await expect(updateHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
+
+    expect(replaceHostExpense).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "expense-1",
+        category: "Pillow Freebies",
+        amount: 0,
+        quantity: 1,
+        unit: "PC",
       }),
     );
   });

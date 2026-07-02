@@ -298,6 +298,7 @@ function EditExpenseForm({
   updateAction: (formData: FormData) => void | Promise<void>;
 }) {
   const unitDatalistId = `expense-edit-unit-options-${expense.id}`;
+  const categoryDatalistId = `expense-edit-category-options-${expense.id}`;
   const [amountValue, setAmountValue] = useState(String(expense.amount));
   const [quantityValue, setQuantityValue] = useState(expense.quantity ? String(expense.quantity) : "");
 
@@ -310,6 +311,11 @@ function EditExpenseForm({
           <option key={unit} value={unit} />
         ))}
       </datalist>
+      <datalist id={categoryDatalistId}>
+        {categories.map((category) => (
+          <option key={category} value={category} />
+        ))}
+      </datalist>
       {isAdmin ? (
         <p className="text-sm font-semibold text-black/55">Editing expense for {expense.hostName ?? "Host"}</p>
       ) : null}
@@ -320,11 +326,7 @@ function EditExpenseForm({
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
           Category
-          <select name="category" defaultValue={expense.category} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required>
-            {categories.map((category) => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <input name="category" type="text" list={categoryDatalistId} maxLength={40} defaultValue={expense.category} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
           Unit amount (0 if free)
@@ -349,11 +351,11 @@ function EditExpenseForm({
           <input name="vendor" type="text" maxLength={120} defaultValue={expense.vendor} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
-          Receipt number
+          Receipt number (optional)
           <input name="receiptReference" type="text" maxLength={180} defaultValue={expense.receiptReference} className="min-h-11 rounded-2xl border px-4 font-normal text-black" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-12">
-          Description
+          Description (optional)
           <textarea name="description" rows={2} maxLength={500} defaultValue={expense.description} className="rounded-2xl border px-4 py-3 font-normal text-black" />
         </label>
       </div>

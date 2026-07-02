@@ -6,15 +6,12 @@ import { redirect } from "next/navigation";
 
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
-import { hostExpenseCategories } from "@/lib/host-expense-categories";
 import { appendHostExpenses, readHostExpenses, removeHostExpense, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport, saveHostMonthlyReport as saveHostMonthlyReportEntry } from "@/lib/host-report-store";
 import { logger } from "@/lib/logger";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { HostExpense, HostMonthlyReport } from "@/lib/types";
 import { getUsers } from "@/lib/users";
-
-const expenseCategorySet = new Set<string>(hostExpenseCategories);
 
 function cleanAmount(value: FormDataEntryValue | null) {
   const amount = Number(value ?? 0);
@@ -42,6 +39,10 @@ function cleanOptionalQuantity(value: FormDataEntryValue | null) {
 
 function cleanRequiredText(value: FormDataEntryValue | null, maxLength: number) {
   return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function cleanExpenseCategory(value: FormDataEntryValue | null) {
+  return cleanRequiredText(value, 40);
 }
 
 function monthFromDate(value: string) {
@@ -173,8 +174,8 @@ export async function saveHostExpense(formData: FormData) {
     const expenseDate = cleanRequiredText(dateValue, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDate)) redirect(reportsPath(firstMonth, { expenseError: "Choose a valid expense date." }));
 
-    const category = cleanRequiredText(formValueAt(categories, index), 40);
-    if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
+    const category = cleanExpenseCategory(formValueAt(categories, index));
+    if (!category) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter an expense category." }));
 
     const amount = cleanExpenseAmount(formValueAt(amounts, index));
     if (amount === null) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount of 0 or higher." }));
@@ -226,8 +227,8 @@ export async function updateHostExpense(formData: FormData) {
   const expenseDate = cleanRequiredText(formData.get("expenseDate"), 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDate)) redirect(reportsPath(new Date().toISOString().slice(0, 7), { expenseError: "Choose a valid expense date." }));
 
-  const category = cleanRequiredText(formData.get("category"), 40);
-  if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
+  const category = cleanExpenseCategory(formData.get("category"));
+  if (!category) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter an expense category." }));
 
   const amount = cleanExpenseAmount(formData.get("amount"));
   if (amount === null) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount of 0 or higher." }));

@@ -71,6 +71,11 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
           <option key={unit} value={unit} />
         ))}
       </datalist>
+      <datalist id="expense-category-options">
+        {categories.map((category) => (
+          <option key={category} value={category} />
+        ))}
+      </datalist>
       {hostOptions.length > 0 ? (
         <label className="grid max-w-md gap-2 text-sm font-semibold text-black/70">
           Host
@@ -109,11 +114,7 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
               Category
-              <select name="category" className="min-h-12 rounded-2xl border px-4 font-normal text-black" required>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+              <input name="category" type="text" list="expense-category-options" maxLength={40} defaultValue={categories[0] ?? ""} placeholder="Type or choose" className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
               Unit amount (0 if free)
@@ -172,11 +173,11 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
-              Receipt number
+              Receipt number (optional)
               <input name="receiptReference" type="text" maxLength={180} placeholder="12345, invoice, or payment reference" className="min-h-12 rounded-2xl border px-4 font-normal text-black" />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-12">
-              Description
+              Description (optional)
               <textarea name="description" rows={2} maxLength={500} className="rounded-2xl border px-4 py-3 font-normal text-black" placeholder="MOP, trash can, cleaning refill, office supplies" />
             </label>
           </div>
