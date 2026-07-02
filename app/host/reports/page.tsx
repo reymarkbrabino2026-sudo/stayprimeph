@@ -124,6 +124,14 @@ export default async function HostReportsPage({
       ...expense,
       hostName: users.find((item) => item.id === expense.hostId)?.name ?? "Host",
     }));
+  const recentOtherMonthExpenseRows = scopedExpenses
+    .filter((expense) => expense.month !== selectedMonth)
+    .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate) || b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5)
+    .map((expense) => ({
+      ...expense,
+      hostName: users.find((item) => item.id === expense.hostId)?.name ?? "Host",
+    }));
   const expenseCsv = hostExpensesToCsv(expenseRows);
   const sortedSelectedMonthReports = selectedMonthReports
     .map((report) => ({
@@ -300,14 +308,36 @@ export default async function HostReportsPage({
               </a>
             </div>
           </div>
-          <HostExpenseReview
-            categories={hostExpenseCategories}
-            csrfToken={csrfToken}
-            deleteAction={deleteHostExpense}
-            expenses={expenseRows}
-            isAdmin={isAdmin}
-            updateAction={updateHostExpense}
-          />
+          {expenseRows.length > 0 ? (
+            <HostExpenseReview
+              categories={hostExpenseCategories}
+              csrfToken={csrfToken}
+              deleteAction={deleteHostExpense}
+              expenses={expenseRows}
+              isAdmin={isAdmin}
+              updateAction={updateHostExpense}
+            />
+          ) : (
+            <div className="rounded-[1.25rem] border border-dashed border-black/15 bg-[#fbfaf8] p-5 text-center text-sm text-black/55">
+              No expenses for this month.
+            </div>
+          )}
+          {expenseRows.length === 0 && recentOtherMonthExpenseRows.length > 0 ? (
+            <div className="mt-5 grid gap-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <h4 className="text-base font-bold text-black">Recent saved expenses</h4>
+                <p className="text-sm font-semibold text-black/55">{recentOtherMonthExpenseRows.length} entries from other months</p>
+              </div>
+              <HostExpenseReview
+                categories={hostExpenseCategories}
+                csrfToken={csrfToken}
+                deleteAction={deleteHostExpense}
+                expenses={recentOtherMonthExpenseRows}
+                isAdmin={isAdmin}
+                updateAction={updateHostExpense}
+              />
+            </div>
+          ) : null}
         </div>
       </section>
 
