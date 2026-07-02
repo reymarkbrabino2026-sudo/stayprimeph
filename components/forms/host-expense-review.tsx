@@ -39,6 +39,17 @@ function formatQuantityUnit(expense: Pick<HostExpense, "quantity" | "unit">) {
   return quantity || "None";
 }
 
+function positiveNumber(value: string) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function lineTotal(amount: string, quantity: string) {
+  const amountValue = positiveNumber(amount);
+  const quantityValue = positiveNumber(quantity) || 1;
+  return Math.round(amountValue * quantityValue * 100) / 100;
+}
+
 function displayDate(value: string) {
   return new Date(`${value}T00:00:00Z`).toLocaleDateString();
 }
@@ -287,6 +298,8 @@ function EditExpenseForm({
   updateAction: (formData: FormData) => void | Promise<void>;
 }) {
   const unitDatalistId = `expense-edit-unit-options-${expense.id}`;
+  const [amountValue, setAmountValue] = useState(String(expense.amount));
+  const [quantityValue, setQuantityValue] = useState(expense.quantity ? String(expense.quantity) : "");
 
   return (
     <form action={updateAction} className="grid gap-3">
@@ -315,16 +328,22 @@ function EditExpenseForm({
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
           Unit amount
-          <input name="amount" type="number" min="0.01" step="0.01" defaultValue={expense.amount} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
+          <input name="amount" type="number" min="0.01" step="0.01" value={amountValue} onChange={(event) => setAmountValue(event.currentTarget.value)} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
           Quantity
-          <input name="quantity" type="number" min="0.01" step="0.01" defaultValue={expense.quantity ?? ""} className="min-h-11 rounded-2xl border px-4 font-normal text-black" />
+          <input name="quantity" type="number" min="0.01" step="0.01" value={quantityValue} onChange={(event) => setQuantityValue(event.currentTarget.value)} className="min-h-11 rounded-2xl border px-4 font-normal text-black" />
         </label>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
           Unit
           <input name="unit" type="text" list={unitDatalistId} maxLength={30} defaultValue={expense.unit ?? ""} className="min-h-11 rounded-2xl border px-4 font-normal uppercase text-black" />
         </label>
+        <div className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+          <span>Total amount</span>
+          <output className="grid min-h-11 place-items-center rounded-2xl border border-black/10 bg-white px-4 text-right font-bold text-black">
+            {formatCurrency(lineTotal(amountValue, quantityValue), true)}
+          </output>
+        </div>
         <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
           Expense name or vendor
           <input name="vendor" type="text" maxLength={120} defaultValue={expense.vendor} className="min-h-11 rounded-2xl border px-4 font-normal text-black" required />

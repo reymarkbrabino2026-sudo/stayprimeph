@@ -131,16 +131,31 @@ export default async function HostReportsPage({
       hostName: users.find((item) => item.id === report.hostId)?.name ?? "Host",
     }))
     .sort((a, b) => (b.reportDate ?? `${b.month}-01`).localeCompare(a.reportDate ?? `${a.month}-01`) || b.updatedAt.localeCompare(a.updatedAt));
+  const recentOtherMonthReports = scopedReports
+    .filter((report) => report.month !== selectedMonth)
+    .map((report) => ({
+      ...report,
+      hostName: users.find((item) => item.id === report.hostId)?.name ?? "Host",
+    }))
+    .sort((a, b) => (b.reportDate ?? `${b.month}-01`).localeCompare(a.reportDate ?? `${a.month}-01`) || b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 5);
+  function manualSaleCells(report: (typeof sortedSelectedMonthReports)[number]) {
+    return [
+      new Date(`${report.reportDate ?? `${report.month}-01`}T00:00:00Z`).toLocaleDateString(),
+      formatCurrency(report.salesAmount),
+      report.notes ?? "None",
+      new Date(report.updatedAt).toLocaleDateString(),
+    ];
+  }
   const reportRows = sortedSelectedMonthReports
     .map((report) => {
-      const cells = [
-        new Date(`${report.reportDate ?? `${report.month}-01`}T00:00:00Z`).toLocaleDateString(),
-        formatCurrency(report.salesAmount),
-        report.notes ?? "None",
-        new Date(report.updatedAt).toLocaleDateString(),
-      ];
+      const cells = manualSaleCells(report);
       return isAdmin ? [report.hostName, ...cells] : cells;
     });
+  const recentReportRows = recentOtherMonthReports.map((report) => {
+    const cells = [monthLabel(report.month), ...manualSaleCells(report)];
+    return isAdmin ? [report.hostName, ...cells] : cells;
+  });
   const propertyById = new Map(scopedProperties.map((property) => [property.id, property]));
   const packagePerformanceGroups = new Map<string, { bookings: number; guests: number; label: string; listing: string; payout: number; units: number }>();
   monthBookings.forEach((booking) => {
@@ -352,7 +367,31 @@ export default async function HostReportsPage({
               </div>
             </div>
             {selectedMonthReports.length === 0 ? (
-              <EmptyState title="No manual sales for this month" body={`Add offline event income, adjustments, or other host revenue for ${monthLabel(selectedMonth)}.`} />
+              <div className="grid gap-4">
+                <EmptyState title="No manual sales for this month" body={`Add offline event income, adjustments, or other host revenue for ${monthLabel(selectedMonth)}.`} />
+                {recentOtherMonthReports.length > 0 ? (
+                  <div className="grid gap-3">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                      <h4 className="text-base font-bold text-black">Recent saved manual sales</h4>
+                      <p className="text-sm font-semibold text-black/55">{recentOtherMonthReports.length} entries from other months</p>
+                    </div>
+                    <DataTable
+                      embedded
+                      headers={["Month", "Date", "Amount", "Note", "Updated", "Actions"]}
+                      rows={recentOtherMonthReports.map((report, index) => [
+                        ...recentReportRows[index],
+                        <HostMonthlyReportActions
+                          key={`${report.id}-recent-actions`}
+                          csrfToken={csrfToken}
+                          deleteAction={deleteHostMonthlyReport}
+                          editHref={`/host/reports?month=${report.month}&reportEdit=${report.id}#manual-sale-form`}
+                          report={report}
+                        />,
+                      ])}
+                    />
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <DataTable
                 embedded
@@ -382,7 +421,21 @@ export default async function HostReportsPage({
             </div>
           </div>
           {selectedMonthReports.length === 0 ? (
-            <EmptyState title="No manual sales for this month" body="Host manual sales for the selected month will appear here once submitted." />
+            <div className="grid gap-4">
+              <EmptyState title="No manual sales for this month" body="Host manual sales for the selected month will appear here once submitted." />
+              {recentOtherMonthReports.length > 0 ? (
+                <div className="grid gap-3">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <h3 className="text-xl font-bold">Recent saved manual sales</h3>
+                    <p className="text-sm font-semibold text-black/55">{recentOtherMonthReports.length} entries from other months</p>
+                  </div>
+                  <DataTable
+                    headers={["Host", "Month", "Date", "Amount", "Note", "Updated"]}
+                    rows={recentReportRows}
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : (
             <DataTable
               headers={["Host", "Date", "Amount", "Note", "Updated"]}

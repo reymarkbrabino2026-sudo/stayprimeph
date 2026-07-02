@@ -14,16 +14,38 @@ type HostExpenseFormProps = {
 };
 
 type ExpenseRow = {
+  amount: string;
   id: string;
   name: string;
+  quantity: string;
 };
 
-const initialRows = [{ id: "initial-expense", name: "" }];
+const initialRows = [{ amount: "", id: "initial-expense", name: "", quantity: "" }];
 const unitOptions = ["PC", "SET", "PACK", "BOX", "BOTTLE", "ROLL", "KG", "L", "HR"];
+
+function positiveNumber(value: string) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function lineTotal(amount: string, quantity: string) {
+  const amountValue = positiveNumber(amount);
+  const quantityValue = positiveNumber(quantity) || 1;
+  return Math.round(amountValue * quantityValue * 100) / 100;
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    currency: "PHP",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
+}
 
 export function HostExpenseForm({ action, categories, csrfToken, defaultDate, defaultOpen = false, hostOptions = [] }: HostExpenseFormProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [rows, setRows] = useState<ExpenseRow[]>([{ id: "initial-expense", name: "" }]);
+  const [rows, setRows] = useState<ExpenseRow[]>(initialRows);
   const saveLabel = rows.length === 1 ? "Save expense" : `Save ${rows.length} expenses`;
 
   if (!isOpen) {
@@ -95,16 +117,45 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
               Unit amount
-              <input name="amount" type="number" min="0.01" step="0.01" placeholder="200.00" className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
+              <input
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="200.00"
+                className="min-h-12 rounded-2xl border px-4 font-normal text-black"
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setRows((current) => current.map((item) => item.id === row.id ? { ...item, amount: value } : item));
+                }}
+                required
+              />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
               Quantity
-              <input name="quantity" type="number" min="0.01" step="0.01" placeholder="1" className="min-h-12 rounded-2xl border px-4 font-normal text-black" />
+              <input
+                name="quantity"
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="1"
+                className="min-h-12 rounded-2xl border px-4 font-normal text-black"
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setRows((current) => current.map((item) => item.id === row.id ? { ...item, quantity: value } : item));
+                }}
+              />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
               Unit
               <input name="unit" type="text" list="expense-unit-options" maxLength={30} placeholder="PC" className="min-h-12 rounded-2xl border px-4 font-normal uppercase text-black" />
             </label>
+            <div className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
+              <span>Total amount</span>
+              <output className="grid min-h-12 place-items-center rounded-2xl border border-black/10 bg-white px-4 text-right font-bold text-black">
+                {formatCurrency(lineTotal(row.amount, row.quantity))}
+              </output>
+            </div>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-4">
               Expense name or vendor
               <input
@@ -135,7 +186,7 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
 
       <button
         type="button"
-        onClick={() => setRows((current) => [...current, { id: `expense-${Date.now()}-${current.length}`, name: "" }])}
+        onClick={() => setRows((current) => [...current, { amount: "", id: `expense-${Date.now()}-${current.length}`, name: "", quantity: "" }])}
         className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-black/10 px-5 font-semibold text-black/65 transition hover:border-black/25 hover:text-black sm:w-fit"
       >
         <Plus className="size-4" aria-hidden="true" />
