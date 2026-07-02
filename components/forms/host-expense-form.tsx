@@ -116,13 +116,13 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
               </select>
             </label>
             <label className="grid gap-2 text-sm font-semibold text-black/70 lg:col-span-2">
-              Unit amount
+              Unit amount (0 if free)
               <input
                 name="amount"
                 type="number"
-                min="0.01"
+                min="0"
                 step="0.01"
-                placeholder="200.00"
+                placeholder="0.00"
                 className="min-h-12 rounded-2xl border px-4 font-normal text-black"
                 onChange={(event) => {
                   const value = event.currentTarget.value;

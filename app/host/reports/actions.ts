@@ -22,6 +22,15 @@ function cleanAmount(value: FormDataEntryValue | null) {
   return Math.round(amount * 100) / 100;
 }
 
+function cleanExpenseAmount(value: FormDataEntryValue | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const amount = Number(text);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  return Math.round(amount * 100) / 100;
+}
+
 function cleanOptionalQuantity(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   if (!text) return undefined;
@@ -167,8 +176,8 @@ export async function saveHostExpense(formData: FormData) {
     const category = cleanRequiredText(formValueAt(categories, index), 40);
     if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
 
-    const amount = cleanAmount(formValueAt(amounts, index));
-    if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount greater than zero." }));
+    const amount = cleanExpenseAmount(formValueAt(amounts, index));
+    if (amount === null) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount of 0 or higher." }));
 
     const quantity = cleanOptionalQuantity(formValueAt(quantities, index));
     const unit = cleanRequiredText(formValueAt(units, index), 30).toUpperCase();
@@ -220,8 +229,8 @@ export async function updateHostExpense(formData: FormData) {
   const category = cleanRequiredText(formData.get("category"), 40);
   if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
 
-  const amount = cleanAmount(formData.get("amount"));
-  if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount greater than zero." }));
+  const amount = cleanExpenseAmount(formData.get("amount"));
+  if (amount === null) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter a unit amount of 0 or higher." }));
 
   const quantity = cleanOptionalQuantity(formData.get("quantity"));
   const unit = cleanRequiredText(formData.get("unit"), 30).toUpperCase();

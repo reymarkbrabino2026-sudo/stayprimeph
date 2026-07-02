@@ -137,6 +137,44 @@ describe("saveHostExpense", () => {
     ]);
   });
 
+  it("saves free inventory items with a zero unit amount", async () => {
+    const formData = new FormData();
+    formData.append("expenseDate", "2026-06-12");
+    formData.append("category", "Office Supplies");
+    formData.append("amount", "0");
+    formData.append("quantity", "2");
+    formData.append("unit", "pc");
+    formData.append("vendor", "Free pillow");
+    formData.append("description", "Free item for inventory record");
+
+    await expect(saveHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
+
+    expect(appendHostExpenses).toHaveBeenCalledWith([
+      expect.objectContaining({
+        hostId: "host-1",
+        expenseDate: "2026-06-12",
+        category: "Office Supplies",
+        amount: 0,
+        quantity: 2,
+        unit: "PC",
+        vendor: "Free pillow",
+        description: "Free item for inventory record",
+      }),
+    ]);
+  });
+
+  it("still requires a unit amount to be entered", async () => {
+    const formData = new FormData();
+    formData.append("expenseDate", "2026-06-12");
+    formData.append("category", "Office Supplies");
+    formData.append("amount", "");
+    formData.append("vendor", "Free pillow");
+
+    await expect(saveHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06&expenseError=Enter+a+unit+amount+of+0+or+higher.");
+
+    expect(appendHostExpenses).not.toHaveBeenCalled();
+  });
+
   it("requires quantity and unit to be submitted together", async () => {
     const formData = new FormData();
     formData.append("expenseDate", "2026-06-12");
@@ -191,6 +229,43 @@ describe("saveHostExpense", () => {
         vendor: "Paper supplies",
         receiptReference: "BILL-9",
         description: "Updated bill",
+      }),
+    );
+  });
+
+  it("updates an existing expense to a zero unit amount", async () => {
+    vi.mocked(readHostExpenses).mockResolvedValueOnce([
+      {
+        id: "expense-1",
+        hostId: "host-1",
+        expenseDate: "2026-06-01",
+        month: "2026-06",
+        category: "Office Supplies",
+        amount: 100,
+        vendor: "Old pillow",
+        createdAt: "2026-06-01T00:00:00.000Z",
+        updatedAt: "2026-06-01T00:00:00.000Z",
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.append("expenseId", "expense-1");
+    formData.append("expenseDate", "2026-06-15");
+    formData.append("category", "Office Supplies");
+    formData.append("amount", "0");
+    formData.append("quantity", "1");
+    formData.append("unit", "pc");
+    formData.append("vendor", "Free pillow");
+
+    await expect(updateHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
+
+    expect(replaceHostExpense).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "expense-1",
+        amount: 0,
+        quantity: 1,
+        unit: "PC",
+        vendor: "Free pillow",
       }),
     );
   });

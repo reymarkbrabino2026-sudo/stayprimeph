@@ -36,4 +36,26 @@ describe("host expense csv export", () => {
 
     expect(hostExpenseTotal(expense)).toBe(350);
   });
+
+  it("exports free inventory items with zero amounts", () => {
+    const csv = hostExpensesToCsv([
+      {
+        id: "expense-free",
+        hostId: "host-1",
+        expenseDate: "2026-07-02",
+        month: "2026-07",
+        category: "Office Supplies",
+        quantity: 2,
+        unit: "PC",
+        amount: 0,
+        vendor: "Free pillow",
+        description: "Inventory record",
+        createdAt: "2026-07-02T00:00:00.000Z",
+        updatedAt: "2026-07-02T00:00:00.000Z",
+      },
+    ]);
+
+    expect(hostExpenseTotal({ amount: 0, quantity: 2 })).toBe(0);
+    expect(csv.split("\r\n")[1]).toBe("\"July 2, 2026\",\"Office Supplies\",\"2\",\"PC\",\"0.00\",\"0.00\",\"Free pillow\",\"\",\"Inventory record\"");
+  });
 });
