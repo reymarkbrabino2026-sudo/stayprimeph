@@ -39,11 +39,26 @@ const websiteLd = {
 
 const firstVisitLoaderBootScript = `
 (function () {
+  function shouldUseSessionLoaderStorage() {
+    var isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches ||
+      window.navigator.standalone === true ||
+      document.referrer.indexOf("android-app://") === 0;
+    var isMobile =
+      window.matchMedia("(max-width: 767px)").matches &&
+      /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
+
+    return isStandalone || isMobile;
+  }
+
   try {
-    if (window.localStorage.getItem("hasSeenFirstVisitLoader") === "true") {
+    var storage = shouldUseSessionLoaderStorage() ? window.sessionStorage : window.localStorage;
+
+    if (storage.getItem("hasSeenFirstVisitLoader") === "true") {
       document.documentElement.dataset.firstVisitLoader = "seen";
     } else {
-      window.localStorage.setItem("hasSeenFirstVisitLoader", "true");
+      storage.setItem("hasSeenFirstVisitLoader", "true");
       document.documentElement.dataset.firstVisitLoader = "active";
     }
   } catch (error) {
@@ -59,6 +74,7 @@ const firstVisitLoaderContentLockScript = `
   if (!appContent) return;
   appContent.setAttribute("inert", "");
   appContent.setAttribute("aria-hidden", "true");
+  document.body.dataset.firstVisitLoaderPreviousOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
 })();
 `;

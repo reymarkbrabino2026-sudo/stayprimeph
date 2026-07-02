@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.stayprimeph.app",
+      "sha256_cert_fingerprints": [
+        "ED:97:3A:00:C4:CC:CA:6C:E4:7F:25:32:80:3F:28:AE:EB:E3:A4:E8:33:90:9C:6D:22:D5:AE:70:96:D1:91:8C",
+        "FA:07:D4:4C:98:DF:27:D5:BE:FE:B9:6E:7E:BF:59:DD:AA:8F:8D:99:DB:35:E3:E2:9B:2A:93:2E:36:C2:1C:7B"
+      ]
+    }
+  }
+]

@@ -48,7 +48,7 @@ const logoGlyphs = [
 
 function hasSeenLoader() {
   try {
-    return window.localStorage.getItem(storageKey) === "true";
+    return getLoaderStorage().getItem(storageKey) === "true";
   } catch {
     return false;
   }
@@ -56,10 +56,27 @@ function hasSeenLoader() {
 
 function saveSeenLoader() {
   try {
-    window.localStorage.setItem(storageKey, "true");
+    getLoaderStorage().setItem(storageKey, "true");
   } catch {
-    // Private browsing or strict storage settings can block localStorage.
+    // Private browsing or strict storage settings can block web storage.
   }
+}
+
+function getLoaderStorage() {
+  return shouldUseSessionLoaderStorage() ? window.sessionStorage : window.localStorage;
+}
+
+function shouldUseSessionLoaderStorage() {
+  const navigatorWithStandalone = window.navigator as Navigator & { standalone?: boolean };
+  const userAgent = navigatorWithStandalone.userAgent;
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    navigatorWithStandalone.standalone === true ||
+    document.referrer.startsWith("android-app://");
+  const isMobile = window.matchMedia("(max-width: 767px)").matches && /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+
+  return isStandalone || isMobile;
 }
 
 export function FirstVisitLoader() {
@@ -82,7 +99,8 @@ export function FirstVisitLoader() {
     shouldSaveSeenFlag.current = true;
     saveSeenLoader();
     setAppContentInert(true);
-    previousBodyOverflow.current = document.body.style.overflow;
+    previousBodyOverflow.current = document.body.dataset.firstVisitLoaderPreviousOverflow ?? document.body.style.overflow;
+    delete document.body.dataset.firstVisitLoaderPreviousOverflow;
     document.body.style.overflow = "hidden";
 
     const startedAt = performance.now();
@@ -235,6 +253,7 @@ function LoaderLogoArtwork({ shouldReduceMotion }: { shouldReduceMotion: boolean
 function restoreBodyOverflow(previousBodyOverflow: MutableRefObject<string | null>) {
   if (previousBodyOverflow.current === null) return;
   document.body.style.overflow = previousBodyOverflow.current;
+  delete document.body.dataset.firstVisitLoaderPreviousOverflow;
   previousBodyOverflow.current = null;
 }
 

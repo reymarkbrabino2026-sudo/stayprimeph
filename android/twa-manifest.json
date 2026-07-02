@@ -1,0 +1,54 @@
+{
+  "packageId": "com.stayprimeph.app",
+  "host": "stayprimeph.com",
+  "name": "StayPrime PH",
+  "launcherName": "StayPrime",
+  "display": "standalone",
+  "themeColor": "#083F35",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://stayprimeph.com/meta-app-icon.png",
+  "maskableIconUrl": "https://stayprimeph.com/meta-app-icon.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "C:/bubblewrap-stayprime/keystores/stayprime-upload-key.jks",
+    "alias": "stayprime_upload"
+  },
+  "appVersionName": "1.0.1",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://stayprimeph.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://stayprimeph.com/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [
+    {
+      "value": "ED:97:3A:00:C4:CC:CA:6C:E4:7F:25:32:80:3F:28:AE:EB:E3:A4:E8:33:90:9C:6D:22:D5:AE:70:96:D1:91:8C"
+    },
+    {
+      "value": "FA:07:D4:4C:98:DF:27:D5:BE:FE:B9:6E:7E:BF:59:DD:AA:8F:8D:99:DB:35:E3:E2:9B:2A:93:2E:36:C2:1C:7B"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1.0.1"
+}
