@@ -906,7 +906,7 @@ describe("IDOR protections", () => {
         hostId: "host-2",
         expenseDate: "2026-06-20",
         month: "2026-06",
-        category: "Cleaning",
+        category: "Cleaning Materials",
         amount: 100,
         vendor: "Vendor",
         createdAt: "2026-06-20T00:00:00.000Z",
@@ -918,7 +918,7 @@ describe("IDOR protections", () => {
       updateHostExpense(formData({
         expenseId: "expense-1",
         expenseDate: "2026-06-21",
-        category: "Cleaning",
+        category: "Cleaning Materials",
         amount: "200",
         vendor: "Vendor",
       })),

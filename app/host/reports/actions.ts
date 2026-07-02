@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
+import { hostExpenseCategories } from "@/lib/host-expense-categories";
 import { appendHostExpenses, readHostExpenses, removeHostExpense, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport, saveHostMonthlyReport as saveHostMonthlyReportEntry } from "@/lib/host-report-store";
 import { logger } from "@/lib/logger";
@@ -13,16 +14,7 @@ import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { HostExpense, HostMonthlyReport } from "@/lib/types";
 import { getUsers } from "@/lib/users";
 
-const expenseCategories = new Set([
-  "Cleaning",
-  "Maintenance",
-  "Utilities",
-  "Supplies",
-  "Repairs",
-  "Marketing",
-  "Service fees",
-  "Other",
-]);
+const expenseCategorySet = new Set<string>(hostExpenseCategories);
 
 function cleanAmount(value: FormDataEntryValue | null) {
   const amount = Number(value ?? 0);
@@ -162,7 +154,7 @@ export async function saveHostExpense(formData: FormData) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDate)) redirect(reportsPath(firstMonth, { expenseError: "Choose a valid expense date." }));
 
     const category = cleanRequiredText(formValueAt(categories, index), 40);
-    if (!expenseCategories.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
+    if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
 
     const amount = cleanAmount(formValueAt(amounts, index));
     if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter an expense amount greater than zero." }));
@@ -206,7 +198,7 @@ export async function updateHostExpense(formData: FormData) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDate)) redirect(reportsPath(new Date().toISOString().slice(0, 7), { expenseError: "Choose a valid expense date." }));
 
   const category = cleanRequiredText(formData.get("category"), 40);
-  if (!expenseCategories.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
+  if (!expenseCategorySet.has(category)) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Choose a valid expense category." }));
 
   const amount = cleanAmount(formData.get("amount"));
   if (amount <= 0) redirect(reportsPath(monthFromDate(expenseDate), { expenseError: "Enter an expense amount greater than zero." }));

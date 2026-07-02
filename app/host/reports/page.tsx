@@ -13,6 +13,7 @@ import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
 import { getCsrfToken } from "@/lib/csrf";
+import { hostExpenseCategories } from "@/lib/host-expense-categories";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { hostLinks } from "@/lib/navigation";
@@ -56,8 +57,6 @@ function percent(value: number) {
   if (!Number.isFinite(value)) return "0%";
   return `${Math.round(value)}%`;
 }
-
-const expenseCategories = ["Cleaning", "Maintenance", "Utilities", "Supplies", "Repairs", "Marketing", "Service fees", "Other"];
 
 export default async function HostReportsPage({
   searchParams,
@@ -282,7 +281,7 @@ export default async function HostReportsPage({
           <p className="text-sm font-semibold text-black/55">Current total {formatCurrency(monthlyExpenseTotal)}</p>
         </div>
 
-        <HostExpenseForm action={saveHostExpense} categories={expenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} hostOptions={isAdmin ? hostOptions : undefined} />
+        <HostExpenseForm action={saveHostExpense} categories={hostExpenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} hostOptions={isAdmin ? hostOptions : undefined} />
 
         <div className="mt-6 border-t border-black/10 pt-5">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -293,7 +292,7 @@ export default async function HostReportsPage({
             <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
           </div>
           <HostExpenseReview
-            categories={expenseCategories}
+            categories={hostExpenseCategories}
             csrfToken={csrfToken}
             deleteAction={deleteHostExpense}
             expenses={expenseRows}

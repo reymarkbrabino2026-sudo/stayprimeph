@@ -65,13 +65,13 @@ describe("saveHostExpense", () => {
   it("saves every submitted expense row", async () => {
     const formData = new FormData();
     formData.append("expenseDate", "2026-06-10");
-    formData.append("category", "Cleaning");
+    formData.append("category", "Cleaning Materials");
     formData.append("amount", "120.50");
     formData.append("vendor", "Cleaner A");
     formData.append("receiptReference", "OR-1");
     formData.append("description", "Turnover clean");
     formData.append("expenseDate", "2026-06-11");
-    formData.append("category", "Utilities");
+    formData.append("category", "Electricity");
     formData.append("amount", "80");
     formData.append("vendor", "Power Co");
     formData.append("receiptReference", "BILL-2");
@@ -85,7 +85,7 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-10",
         month: "2026-06",
-        category: "Cleaning",
+        category: "Cleaning Materials",
         amount: 120.5,
         vendor: "Cleaner A",
         receiptReference: "OR-1",
@@ -95,7 +95,7 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-11",
         month: "2026-06",
-        category: "Utilities",
+        category: "Electricity",
         amount: 80,
         vendor: "Power Co",
         receiptReference: "BILL-2",
@@ -134,7 +134,7 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-01",
         month: "2026-06",
-        category: "Cleaning",
+        category: "Cleaning Materials",
         amount: 100,
         vendor: "Old vendor",
         createdAt: "2026-06-01T00:00:00.000Z",
@@ -145,7 +145,7 @@ describe("saveHostExpense", () => {
     const formData = new FormData();
     formData.append("expenseId", "expense-1");
     formData.append("expenseDate", "2026-06-15");
-    formData.append("category", "Utilities");
+    formData.append("category", "Electricity");
     formData.append("amount", "250");
     formData.append("vendor", "Power Co");
     formData.append("receiptReference", "BILL-9");
@@ -159,7 +159,7 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-15",
         month: "2026-06",
-        category: "Utilities",
+        category: "Electricity",
         amount: 250,
         vendor: "Power Co",
         receiptReference: "BILL-9",
@@ -175,7 +175,7 @@ describe("saveHostExpense", () => {
         hostId: "host-1",
         expenseDate: "2026-06-01",
         month: "2026-06",
-        category: "Cleaning",
+        category: "Cleaning Materials",
         amount: 100,
         vendor: "Cleaner",
         createdAt: "2026-06-01T00:00:00.000Z",

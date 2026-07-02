@@ -1,0 +1,17 @@
+export const hostExpenseCategories = [
+  "Cleaning Materials",
+  "Toiletries Supplies",
+  "Repairs",
+  "Electricity",
+  "Water",
+  "Communication",
+  "Laundry",
+  "Labor",
+  "Furniture & Fixtures",
+  "Housekeeping Supplies",
+  "Meals",
+  "Transportation",
+  "Delivery Fee",
+  "Permit",
+  "Bank Service Fee",
+];
