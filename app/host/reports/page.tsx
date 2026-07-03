@@ -96,7 +96,7 @@ function ReportMetricCell({
         : "bg-white/10 text-white";
 
   return (
-    <div className={`min-w-0 bg-[#0b8d65] p-3 min-[380px]:p-4 sm:p-5 ${className}`}>
+    <div className={`min-w-0 bg-[#21170f] p-3 min-[380px]:p-4 sm:p-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">{label}</p>
@@ -304,7 +304,7 @@ export default async function HostReportsPage({
       description={isAdmin ? "Review host booking payouts, sales, expenses, and itemized submissions." : "Review booking payouts, sales, and expenses for the selected month."}
       links={isAdmin ? [{ label: "Admin Overview", href: "/admin/dashboard" }, ...hostLinks] : hostLinks}
     >
-      <section className="overflow-hidden rounded-[1.25rem] bg-[#0b8d65] text-white soft-card sm:rounded-[1.75rem]">
+      <section className="overflow-hidden rounded-[1.25rem] bg-[#21170f] text-white soft-card sm:rounded-[1.75rem]">
         <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)] xl:items-start">
           <div className="min-w-0">
             <h2 className="break-words text-2xl font-bold leading-tight min-[380px]:text-3xl sm:text-4xl">{monthLabel(selectedMonth)}</h2>
@@ -313,7 +313,7 @@ export default async function HostReportsPage({
             </p>
           </div>
 
-          <form action="/host/reports" method="get" className="grid min-w-0 gap-3 rounded-[1.25rem] border border-white/10 bg-[#087553] p-3 sm:grid-cols-[minmax(13rem,1fr)_auto] sm:items-end sm:p-4">
+          <form action="/host/reports" method="get" className="grid min-w-0 gap-3 rounded-[1.25rem] border border-white/10 bg-white/[0.07] p-3 sm:grid-cols-[minmax(13rem,1fr)_auto] sm:items-end sm:p-4">
             <label className="grid gap-2 text-sm font-semibold text-white/75">
               Month
               <input name="month" type="month" defaultValue={selectedMonth} className="min-h-12 w-full min-w-0 rounded-2xl border-white/10 bg-white px-4 font-normal text-black" required />
@@ -325,8 +325,8 @@ export default async function HostReportsPage({
           </form>
         </div>
 
-        <div className="grid gap-px border-t border-white/10 bg-white/15 min-[380px]:grid-cols-2 md:grid-cols-4">
-          <div className="min-w-0 bg-[#087553] p-3 min-[380px]:col-span-2 min-[380px]:p-4 sm:p-5 md:col-span-1">
+        <div className="grid gap-px border-t border-white/10 bg-white/10 min-[380px]:grid-cols-2 md:grid-cols-4">
+          <div className="min-w-0 bg-[#2b1f16] p-3 min-[380px]:col-span-2 min-[380px]:p-4 sm:p-5 md:col-span-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">Net income</p>
