@@ -74,12 +74,14 @@ function percent(value: number) {
 }
 
 function ReportMetricCell({
+  className = "",
   description,
   icon: Icon,
   label,
   tone = "neutral",
   value,
 }: {
+  className?: string;
   description: string;
   icon: LucideIcon;
   label: string;
@@ -94,7 +96,7 @@ function ReportMetricCell({
         : "bg-white/10 text-white";
 
   return (
-    <div className="min-w-0 p-4 sm:p-5">
+    <div className={`min-w-0 bg-[#21170f] p-4 sm:p-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">{label}</p>
@@ -104,7 +106,7 @@ function ReportMetricCell({
           <Icon className="size-4" aria-hidden="true" />
         </span>
       </div>
-      <p className="mt-3 text-sm leading-5 text-white/55">{description}</p>
+      <p className="mt-3 hidden text-sm leading-5 text-white/55 sm:block">{description}</p>
     </div>
   );
 }
@@ -312,10 +314,10 @@ export default async function HostReportsPage({
       links={isAdmin ? [{ label: "Admin Overview", href: "/admin/dashboard" }, ...hostLinks] : hostLinks}
     >
       <section className="overflow-hidden rounded-[1.75rem] bg-[#21170f] text-white soft-card">
-        <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)] xl:items-start">
+        <div className="grid gap-5 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)] xl:items-start">
           <div className="min-w-0">
             <h2 className="break-words text-3xl font-bold leading-tight sm:text-4xl">{monthLabel(selectedMonth)}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60 sm:mt-3">
               {isAdmin ? "A consolidated view of host payouts, manual sales, and itemized expenses." : "Booking payouts, manual sales, and itemized expenses for this working month."}
             </p>
           </div>
@@ -332,8 +334,8 @@ export default async function HostReportsPage({
           </form>
         </div>
 
-        <div className="grid divide-y divide-white/10 border-t border-white/10 md:grid-cols-4 md:divide-x md:divide-y-0">
-          <div className="min-w-0 bg-white/[0.05] p-4 sm:p-5">
+        <div className="grid grid-cols-2 gap-px border-t border-white/10 bg-white/10 md:grid-cols-4">
+          <div className="col-span-2 min-w-0 bg-[#2b1f16] p-4 sm:p-5 md:col-span-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">Net income</p>
@@ -343,10 +345,10 @@ export default async function HostReportsPage({
                 <CircleDollarSign className="size-5" aria-hidden="true" />
               </span>
             </div>
-            <p className="mt-3 text-sm leading-5 text-white/55">Booking payout plus sales minus expenses.</p>
+            <p className="mt-3 hidden text-sm leading-5 text-white/55 sm:block">Booking payout plus sales minus expenses.</p>
           </div>
-          {financialMetrics.map((metric) => (
-            <ReportMetricCell key={metric.label} {...metric} />
+          {financialMetrics.map((metric, index) => (
+            <ReportMetricCell key={metric.label} className={index === 2 ? "col-span-2 md:col-span-1" : ""} {...metric} />
           ))}
         </div>
       </section>
