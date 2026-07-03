@@ -130,9 +130,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
         </table>
       </div>
 
-      <div className="grid gap-3 p-3 md:hidden">
+      <div className="grid gap-3 p-2 min-[380px]:p-3 md:hidden">
         {expenses.map((expense) => (
-          <article key={expense.id} className="rounded-[1rem] border border-black/10 bg-[#fbfaf8] p-4">
+          <article key={expense.id} className="rounded-[1rem] border border-black/10 bg-[#fbfaf8] p-3 min-[380px]:p-4">
             {editingId === expense.id ? (
               <EditExpenseForm categories={categories} csrfToken={csrfToken} expense={expense} isAdmin={isAdmin} onCancel={() => setEditingId(null)} updateAction={updateAction} />
             ) : (
@@ -167,9 +167,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
 
 function ExpenseDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-w-0 items-start justify-between gap-4 text-sm">
+    <div className="grid min-w-0 gap-1 text-sm min-[420px]:flex min-[420px]:items-start min-[420px]:justify-between min-[420px]:gap-4">
       <span className="font-semibold text-black/45">{label}</span>
-      <span className="min-w-0 max-w-[65%] break-words text-right font-medium text-black">{value}</span>
+      <span className="min-w-0 max-w-full break-words font-medium text-black min-[420px]:max-w-[65%] min-[420px]:text-right">{value}</span>
     </div>
   );
 }

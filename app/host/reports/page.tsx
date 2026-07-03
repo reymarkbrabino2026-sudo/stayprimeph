@@ -96,13 +96,13 @@ function ReportMetricCell({
         : "bg-white/10 text-white";
 
   return (
-    <div className={`min-w-0 bg-[#0b8d65] p-4 sm:p-5 ${className}`}>
+    <div className={`min-w-0 bg-[#0b8d65] p-3 min-[380px]:p-4 sm:p-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">{label}</p>
-          <p className="mt-2 break-words text-2xl font-bold leading-tight text-white sm:text-3xl">{value}</p>
+          <p className="mt-2 break-words text-xl font-bold leading-tight text-white min-[380px]:text-2xl sm:text-3xl">{value}</p>
         </div>
-        <span className={`grid size-9 shrink-0 place-items-center rounded-full ${toneClass}`}>
+        <span className={`grid size-8 shrink-0 place-items-center rounded-full min-[380px]:size-9 ${toneClass}`}>
           <Icon className="size-4" aria-hidden="true" />
         </span>
       </div>
@@ -113,14 +113,14 @@ function ReportMetricCell({
 
 function OperationMetricCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-[1.25rem] bg-white p-4 soft-card sm:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <p className="min-w-0 text-sm font-semibold leading-5 text-black/55">{label}</p>
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e8f7ef] text-[#0b8d65]">
-          <Icon className="size-5" aria-hidden="true" />
+    <div className="min-w-0 rounded-[1.25rem] bg-white p-3 soft-card sm:p-5">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <p className="min-w-0 text-xs font-semibold leading-5 text-black/55 sm:text-sm">{label}</p>
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e8f7ef] text-[#0b8d65] sm:size-10">
+          <Icon className="size-4 sm:size-5" aria-hidden="true" />
         </span>
       </div>
-      <p className="mt-4 break-words text-2xl font-bold leading-tight text-[#21170f] sm:text-3xl">{value}</p>
+      <p className="mt-3 break-words text-xl font-bold leading-tight text-[#21170f] sm:mt-4 sm:text-3xl">{value}</p>
     </div>
   );
 }
@@ -304,42 +304,42 @@ export default async function HostReportsPage({
       description={isAdmin ? "Review host booking payouts, sales, expenses, and itemized submissions." : "Review booking payouts, sales, and expenses for the selected month."}
       links={isAdmin ? [{ label: "Admin Overview", href: "/admin/dashboard" }, ...hostLinks] : hostLinks}
     >
-      <section className="overflow-hidden rounded-[1.75rem] bg-[#0b8d65] text-white soft-card">
-        <div className="grid gap-5 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)] xl:items-start">
+      <section className="overflow-hidden rounded-[1.25rem] bg-[#0b8d65] text-white soft-card sm:rounded-[1.75rem]">
+        <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)] xl:items-start">
           <div className="min-w-0">
-            <h2 className="break-words text-3xl font-bold leading-tight sm:text-4xl">{monthLabel(selectedMonth)}</h2>
+            <h2 className="break-words text-2xl font-bold leading-tight min-[380px]:text-3xl sm:text-4xl">{monthLabel(selectedMonth)}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60 sm:mt-3">
               {isAdmin ? "A consolidated view of host payouts, manual sales, and itemized expenses." : "Booking payouts, manual sales, and itemized expenses for this working month."}
             </p>
           </div>
 
-          <form action="/host/reports" method="get" className="grid gap-3 rounded-[1.25rem] border border-white/10 bg-[#087553] p-4 sm:grid-cols-[minmax(13rem,1fr)_auto] sm:items-end">
+          <form action="/host/reports" method="get" className="grid min-w-0 gap-3 rounded-[1.25rem] border border-white/10 bg-[#087553] p-3 sm:grid-cols-[minmax(13rem,1fr)_auto] sm:items-end sm:p-4">
             <label className="grid gap-2 text-sm font-semibold text-white/75">
               Month
-              <input name="month" type="month" defaultValue={selectedMonth} className="min-h-12 rounded-2xl border-white/10 bg-white px-4 font-normal text-black" required />
+              <input name="month" type="month" defaultValue={selectedMonth} className="min-h-12 w-full min-w-0 rounded-2xl border-white/10 bg-white px-4 font-normal text-black" required />
             </label>
-            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-5 font-semibold text-[#21170f] transition hover:bg-[#f4eee7]">
+            <button className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-5 font-semibold text-[#21170f] transition hover:bg-[#f4eee7]">
               <CalendarDays className="size-4" aria-hidden="true" />
               View month
             </button>
           </form>
         </div>
 
-        <div className="grid grid-cols-2 gap-px border-t border-white/10 bg-white/15 md:grid-cols-4">
-          <div className="col-span-2 min-w-0 bg-[#087553] p-4 sm:p-5 md:col-span-1">
+        <div className="grid gap-px border-t border-white/10 bg-white/15 min-[380px]:grid-cols-2 md:grid-cols-4">
+          <div className="min-w-0 bg-[#087553] p-3 min-[380px]:col-span-2 min-[380px]:p-4 sm:p-5 md:col-span-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">Net income</p>
-                <p className="mt-2 break-words text-3xl font-bold leading-tight text-white sm:text-4xl">{formatCurrency(netIncome)}</p>
+                <p className="mt-2 break-words text-2xl font-bold leading-tight text-white min-[380px]:text-3xl sm:text-4xl">{formatCurrency(netIncome)}</p>
               </div>
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#dff8ec] text-[#0b8d65]">
-                <CircleDollarSign className="size-5" aria-hidden="true" />
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#dff8ec] text-[#0b8d65] sm:size-10">
+                <CircleDollarSign className="size-4 sm:size-5" aria-hidden="true" />
               </span>
             </div>
             <p className="mt-3 hidden text-sm leading-5 text-white/55 sm:block">Booking payout plus sales minus expenses.</p>
           </div>
           {financialMetrics.map((metric, index) => (
-            <ReportMetricCell key={metric.label} className={index === 2 ? "col-span-2 md:col-span-1" : ""} {...metric} />
+            <ReportMetricCell key={metric.label} className={index === 2 ? "min-[380px]:col-span-2 md:col-span-1" : ""} {...metric} />
           ))}
         </div>
       </section>
@@ -356,10 +356,10 @@ export default async function HostReportsPage({
         </div>
       ) : null}
 
-      <section className="mt-4 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+      <section className="mt-4 rounded-[1.25rem] bg-white p-4 soft-card sm:rounded-[1.5rem] sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Capture today&apos;s activity</h2>
+            <h2 className="text-xl font-bold sm:text-2xl">Capture today&apos;s activity</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-black/55">Add manual sales or expenses without leaving the report.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[34rem]">
@@ -391,13 +391,13 @@ export default async function HostReportsPage({
         </div>
       </section>
 
-      <section id="manual-expenses" className="mt-6 scroll-mt-24 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+      <section id="manual-expenses" className="mt-6 scroll-mt-24 rounded-[1.25rem] bg-white p-4 soft-card sm:rounded-[1.5rem] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Add or review expenses</h2>
+            <h2 className="text-xl font-bold sm:text-2xl">Add or review expenses</h2>
             <p className="mt-2 text-sm leading-6 text-black/55">{monthLabel(selectedMonth)} cost entries and recent records.</p>
           </div>
-          <div className="inline-flex w-fit items-center gap-3 rounded-full border border-black/10 bg-[#fbfaf8] px-4 py-2 text-sm font-semibold text-black/65">
+          <div className="inline-flex max-w-full flex-wrap items-center gap-3 rounded-full border border-black/10 bg-[#fbfaf8] px-4 py-2 text-sm font-semibold text-black/65">
             <span>{monthExpenses.length} entries</span>
             <span className="h-4 w-px bg-black/10" aria-hidden="true" />
             <span>{formatCurrency(monthlyExpenseTotal)}</span>
@@ -414,12 +414,12 @@ export default async function HostReportsPage({
             <div className="flex flex-col gap-2 sm:items-end">
               <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <details className="group relative">
-                  <summary className="inline-flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black [&::-webkit-details-marker]:hidden">
+                <details className="group relative w-full sm:w-auto">
+                  <summary className="inline-flex min-h-11 w-full cursor-pointer list-none items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black sm:w-auto [&::-webkit-details-marker]:hidden">
                     <Upload className="size-4" aria-hidden="true" />
                     Import CSV
                   </summary>
-                  <div className="mt-2 rounded-[1.25rem] border border-black/10 bg-white p-3 shadow-xl shadow-black/10 sm:absolute sm:right-0 sm:z-20 sm:w-[30rem]">
+                  <div className="mt-2 min-w-0 rounded-[1.25rem] border border-black/10 bg-white p-3 shadow-xl shadow-black/10 sm:absolute sm:right-0 sm:z-20 sm:w-[30rem]">
                     <form action={importHostExpensesFromCsv} encType="multipart/form-data" className="grid gap-2">
                       <input type="hidden" name={csrfFieldName} value={csrfToken} />
                       <input type="hidden" name="month" value={selectedMonth} />
@@ -451,7 +451,7 @@ export default async function HostReportsPage({
                 <a
                   href={`data:text/csv;charset=utf-8,${encodeURIComponent(`\ufeff${expenseCsv}`)}`}
                   download={`stayprimeph-expenses-${selectedMonth}.csv`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black sm:w-auto"
                 >
                   <Download className="size-4" aria-hidden="true" />
                   Export CSV
@@ -477,10 +477,10 @@ export default async function HostReportsPage({
       </section>
 
       {!isAdmin ? (
-        <section id="manual-sale-form" className="mt-6 scroll-mt-24 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+        <section id="manual-sale-form" className="mt-6 scroll-mt-24 rounded-[1.25rem] bg-white p-4 soft-card sm:rounded-[1.5rem] sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-2xl font-bold">{isEditingSale ? "Edit sale" : "Add or review sales"}</h2>
+              <h2 className="text-xl font-bold sm:text-2xl">{isEditingSale ? "Edit sale" : "Add or review sales"}</h2>
               <p className="mt-2 text-sm leading-6 text-black/55">{monthLabel(selectedMonth)} manual revenue and recent records.</p>
               {editingReport ? (
                 <p className="mt-2 text-sm text-black/55">
@@ -488,7 +488,7 @@ export default async function HostReportsPage({
                 </p>
               ) : null}
             </div>
-            <div className="inline-flex w-fit items-center gap-3 rounded-full border border-black/10 bg-[#fbfaf8] px-4 py-2 text-sm font-semibold text-black/65">
+            <div className="inline-flex max-w-full flex-wrap items-center gap-3 rounded-full border border-black/10 bg-[#fbfaf8] px-4 py-2 text-sm font-semibold text-black/65">
               <span>{selectedMonthReports.length} entries</span>
               <span className="h-4 w-px bg-black/10" aria-hidden="true" />
               <span>{formatCurrency(manualSales)}</span>
@@ -599,20 +599,20 @@ export default async function HostReportsPage({
       <section className="mt-6">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Month health</h2>
+            <h2 className="text-xl font-bold sm:text-2xl">Month health</h2>
           </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
           {operationsMetrics.map((metric) => (
             <OperationMetricCard key={metric.label} {...metric} />
           ))}
         </div>
       </section>
 
-      <section className="mt-6 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+      <section className="mt-6 rounded-[1.25rem] bg-white p-4 soft-card sm:rounded-[1.5rem] sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Booking mix</h2>
+            <h2 className="text-xl font-bold sm:text-2xl">Booking mix</h2>
           </div>
           <p className="text-sm font-semibold text-black/55">{monthBookings.length + monthPaidBlocks.length} paid bookings / external blocks in {monthLabel(selectedMonth)}</p>
         </div>

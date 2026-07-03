@@ -19,7 +19,7 @@ export function DataTable({
     <>
       <div className="space-y-3 md:hidden">
         {rows.map((row, index) => (
-          <article key={index} className={embedded ? "min-w-0 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-4" : "min-w-0 rounded-[1.25rem] bg-white p-4 soft-card"}>
+          <article key={index} className={embedded ? "min-w-0 rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3 min-[380px]:p-4" : "min-w-0 rounded-[1.25rem] bg-white p-3 soft-card min-[380px]:p-4"}>
             <div className="space-y-3">
               {row.map((cell, cellIndex) => {
                 const headerLabel = headers[cellIndex] || "Action";
