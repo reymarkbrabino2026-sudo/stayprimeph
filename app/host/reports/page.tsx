@@ -288,7 +288,7 @@ export default async function HostReportsPage({
           <p className="text-sm font-semibold text-black/55">Current total {formatCurrency(monthlyExpenseTotal)}</p>
         </div>
 
-        <HostExpenseForm action={saveHostExpense} categories={hostExpenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} defaultOpen hostOptions={isAdmin ? hostOptions : undefined} />
+        <HostExpenseForm action={saveHostExpense} categories={hostExpenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} defaultOpen={Boolean(expenseError)} expandHash="#manual-expenses" hostOptions={isAdmin ? hostOptions : undefined} />
 
         <div className="mt-6 border-t border-black/10 pt-5">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

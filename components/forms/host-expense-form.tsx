@@ -1,7 +1,7 @@
 "use client";
 
-import { Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { csrfFieldName } from "@/lib/csrf-fields";
 
 type HostExpenseFormProps = {
@@ -10,6 +10,7 @@ type HostExpenseFormProps = {
   csrfToken: string;
   defaultDate: string;
   defaultOpen?: boolean;
+  expandHash?: string;
   hostOptions?: Array<{ id: string; name: string }>;
 };
 
@@ -43,10 +44,23 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function HostExpenseForm({ action, categories, csrfToken, defaultDate, defaultOpen = false, hostOptions = [] }: HostExpenseFormProps) {
+export function HostExpenseForm({ action, categories, csrfToken, defaultDate, defaultOpen = false, expandHash, hostOptions = [] }: HostExpenseFormProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [rows, setRows] = useState<ExpenseRow[]>(initialRows);
   const saveLabel = rows.length === 1 ? "Save expense" : `Save ${rows.length} expenses`;
+  const formId = "host-expense-form-fields";
+
+  useEffect(() => {
+    if (!expandHash) return;
+
+    const openFromHash = () => {
+      if (window.location.hash === expandHash) setIsOpen(true);
+    };
+
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, [expandHash]);
 
   if (!isOpen) {
     return (
@@ -54,17 +68,24 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#21170f] px-5 font-semibold text-white transition hover:bg-[#21170f]/90"
+          aria-controls={formId}
+          aria-expanded="false"
+          className="flex min-h-14 w-full items-center justify-between gap-3 rounded-[1.25rem] border border-dashed border-black/15 bg-[#fbfaf8] px-4 text-left font-semibold text-black transition hover:border-[#21170f]/25 hover:bg-white"
         >
-          <Plus className="size-4" aria-hidden="true" />
-          Add expense
+          <span className="inline-flex min-w-0 items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#21170f] text-white">
+              <Plus className="size-4" aria-hidden="true" />
+            </span>
+            <span className="truncate">Add expense</span>
+          </span>
+          <ChevronDown className="size-5 shrink-0 text-black/45" aria-hidden="true" />
         </button>
       </div>
     );
   }
 
   return (
-    <form action={action} className="mt-4 grid gap-4">
+    <form id={formId} action={action} className="mt-4 grid gap-4">
       <input type="hidden" name={csrfFieldName} value={csrfToken} />
       <datalist id="expense-unit-options">
         {unitOptions.map((unit) => (
@@ -87,6 +108,19 @@ export function HostExpenseForm({ action, categories, csrfToken, defaultDate, de
           </select>
         </label>
       ) : null}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          aria-controls={formId}
+          aria-expanded="true"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-black/10 px-4 text-sm font-semibold text-black/60 transition hover:border-black/25 hover:text-black"
+        >
+          <ChevronUp className="size-4" aria-hidden="true" />
+          Minimize
+        </button>
+      </div>
 
       {rows.map((row) => {
         const rowTitle = row.name.trim() || "New expense";
