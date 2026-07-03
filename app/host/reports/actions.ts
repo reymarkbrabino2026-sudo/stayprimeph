@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { assertValidCsrfForm } from "@/lib/csrf";
+import { hostExpenseReportMonth, parseHostExpensesCsv } from "@/lib/host-expense-csv";
 import { appendHostExpenses, readHostExpenses, removeHostExpense, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport, saveHostMonthlyReport as saveHostMonthlyReportEntry } from "@/lib/host-report-store";
 import { logger } from "@/lib/logger";
@@ -57,6 +58,15 @@ function reportsPath(month: string, params: Record<string, string | number>) {
   const search = new URLSearchParams({ month });
   Object.entries(params).forEach(([key, value]) => search.set(key, String(value)));
   return `/host/reports?${search.toString()}`;
+}
+
+function fallbackReportMonth(value: FormDataEntryValue | null) {
+  const month = cleanRequiredText(value, 7);
+  return month.match(/^\d{4}-\d{2}$/) ? month : new Date().toISOString().slice(0, 7);
+}
+
+function isUploadedFile(value: FormDataEntryValue | null): value is File {
+  return typeof value === "object" && value !== null && "text" in value && typeof value.text === "function";
 }
 
 async function requireHostReportUser(formData: FormData) {
@@ -220,6 +230,56 @@ export async function saveHostExpense(formData: FormData) {
   redirect(reportsPath(nextExpenses[0].month, { expenseSaved: nextExpenses.length }));
 }
 
+export async function importHostExpensesFromCsv(formData: FormData) {
+  const user = await requireHostOrAdminReportUser(formData, "Only hosts and admins can import expenses.");
+  const fallbackMonth = fallbackReportMonth(formData.get("month"));
+
+  let hostId = user.id;
+  if (user.role === "admin") {
+    const selectedHostId = cleanRequiredText(formData.get("hostId"), 100);
+    const hostUsers = (await getUsers()).filter((item) => item.role === "host");
+    if (!hostUsers.some((host) => host.id === selectedHostId)) {
+      redirect(reportsPath(fallbackMonth, { expenseError: "Choose a host before importing expenses." }));
+    }
+    hostId = selectedHostId;
+  }
+
+  const csvFile = formData.get("expenseCsv");
+  if (!isUploadedFile(csvFile) || csvFile.size === 0) {
+    redirect(reportsPath(fallbackMonth, { expenseError: "Choose a CSV file to import." }));
+  }
+  if (csvFile.size > 1_000_000) {
+    redirect(reportsPath(fallbackMonth, { expenseError: "CSV file is too large. Import up to 1 MB at a time." }));
+  }
+
+  let importedRows: ReturnType<typeof parseHostExpensesCsv>;
+  try {
+    importedRows = parseHostExpensesCsv(await csvFile.text());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "CSV could not be read.";
+    redirect(reportsPath(fallbackMonth, { expenseError: message }));
+  }
+
+  const now = new Date().toISOString();
+  const nextExpenses: HostExpense[] = importedRows.map((expense) => ({
+    ...expense,
+    id: randomUUID(),
+    hostId,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  try {
+    await appendHostExpenses(nextExpenses);
+  } catch (error) {
+    logger.error("host_expenses_import_failed", { actorId: user.id, hostId, count: nextExpenses.length, error });
+    redirect(reportsPath(nextExpenses[0]?.month ?? fallbackMonth, { expenseError: "We could not import the expenses. Please try again." }));
+  }
+
+  revalidatePath("/host/reports");
+  redirect(reportsPath(nextExpenses[0].month, { expenseImported: nextExpenses.length }));
+}
+
 export async function updateHostExpense(formData: FormData) {
   const user = await requireHostOrAdminReportUser(formData, "Only hosts and admins can edit expenses.");
 
@@ -280,7 +340,7 @@ export async function deleteHostExpense(formData: FormData) {
   const fallbackMonth = cleanRequiredText(formData.get("month"), 7);
   const expenses = await readHostExpenses();
   const existing = expenses.find((expense) => expense.id === expenseId);
-  const redirectMonth = existing?.month ?? (fallbackMonth.match(/^\d{4}-\d{2}$/) ? fallbackMonth : new Date().toISOString().slice(0, 7));
+  const redirectMonth = existing ? hostExpenseReportMonth(existing) : (fallbackMonth.match(/^\d{4}-\d{2}$/) ? fallbackMonth : new Date().toISOString().slice(0, 7));
   if (!existing) redirect(reportsPath(redirectMonth, { expenseError: "We could not find that expense." }));
   if (user.role !== "admin" && existing.hostId !== user.id) throw new Error("You can only delete your own expenses.");
 

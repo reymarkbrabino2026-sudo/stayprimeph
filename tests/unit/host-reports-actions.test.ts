@@ -54,7 +54,7 @@ vi.mock("@/lib/host-report-store", () => ({
 
 import { appendHostExpenses, readHostExpenses, removeHostExpense, replaceHostExpense } from "@/lib/host-expense-store";
 import { readHostMonthlyReports, removeHostMonthlyReport, saveHostMonthlyReport as saveHostMonthlyReportEntry } from "@/lib/host-report-store";
-import { deleteHostExpense, deleteHostMonthlyReport, saveHostExpense, saveHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
+import { deleteHostExpense, deleteHostMonthlyReport, importHostExpensesFromCsv, saveHostExpense, saveHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
 import { requireRole } from "@/lib/auth";
 
 describe("saveHostExpense", () => {
@@ -183,6 +183,56 @@ describe("saveHostExpense", () => {
         vendor: "Free pillow",
       }),
     ]);
+  });
+
+  it("imports expenses from a CSV template", async () => {
+    const csv = [
+      "\"DATE\",\"CATEGORY\",\"QUANTITY\",\"UNIT\",\"UNIT AMOUNT\",\"TOTAL AMOUNT\",\"SUPPLIER NAME\",\"RECEIPT NUMBER\",\"DESCRIPTION\"",
+      "\"June 26, 2026\",\"Furniture & Fixtures\",\"4\",\"PC\",\"59.00\",\"236.00\",\"MR. DIY\",\"SI#0000-0000071003\",\"A4 Photo Frame\"",
+      "\"2026-06-26\",\"Office Supplies\",\"1\",\"PC\",\"7.00\",\"7.00\",\"MR. DIY\",\"SI#0000-0000071003\",\"Eco Bag\"",
+    ].join("\r\n");
+    const formData = new FormData();
+    formData.append("month", "2026-06");
+    formData.append("expenseCsv", new File([csv], "expenses.csv", { type: "text/csv" }));
+
+    await expect(importHostExpensesFromCsv(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06&expenseImported=2");
+
+    expect(appendHostExpenses).toHaveBeenCalledWith([
+      expect.objectContaining({
+        hostId: "host-1",
+        expenseDate: "2026-06-26",
+        month: "2026-06",
+        category: "Furniture & Fixtures",
+        amount: 59,
+        quantity: 4,
+        unit: "PC",
+        vendor: "MR. DIY",
+        receiptReference: "SI#0000-0000071003",
+        description: "A4 Photo Frame",
+      }),
+      expect.objectContaining({
+        hostId: "host-1",
+        expenseDate: "2026-06-26",
+        month: "2026-06",
+        category: "Office Supplies",
+        amount: 7,
+        quantity: 1,
+        unit: "PC",
+        vendor: "MR. DIY",
+        receiptReference: "SI#0000-0000071003",
+        description: "Eco Bag",
+      }),
+    ]);
+  });
+
+  it("rejects CSV imports that do not match the template", async () => {
+    const formData = new FormData();
+    formData.append("month", "2026-06");
+    formData.append("expenseCsv", new File(["DATE,AMOUNT\r\n2026-06-26,10"], "expenses.csv", { type: "text/csv" }));
+
+    await expect(importHostExpensesFromCsv(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06&expenseError=CSV+must+use+the+expense+template+headers");
+
+    expect(appendHostExpenses).not.toHaveBeenCalled();
   });
 
   it("requires a category to be entered", async () => {
@@ -371,6 +421,30 @@ describe("saveHostExpense", () => {
     const formData = new FormData();
     formData.append("expenseId", "expense-1");
     formData.append("month", "2026-06");
+
+    await expect(deleteHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
+
+    expect(removeHostExpense).toHaveBeenCalledWith("expense-1");
+  });
+
+  it("uses the expense date month when deleting restored expenses", async () => {
+    vi.mocked(readHostExpenses).mockResolvedValueOnce([
+      {
+        id: "expense-1",
+        hostId: "host-1",
+        expenseDate: "2026-06-26",
+        month: "2026-07",
+        category: "Furniture & Fixtures",
+        amount: 59,
+        vendor: "MR. DIY",
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      },
+    ]);
+
+    const formData = new FormData();
+    formData.append("expenseId", "expense-1");
+    formData.append("month", "2026-07");
 
     await expect(deleteHostExpense(formData)).rejects.toThrow("NEXT_REDIRECT:/host/reports?month=2026-06");
 

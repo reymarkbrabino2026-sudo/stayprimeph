@@ -1,4 +1,4 @@
-import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, Download, ReceiptText, UsersRound } from "lucide-react";
+import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, Download, ReceiptText, Upload, UsersRound } from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -8,12 +8,13 @@ import { HostMonthlyReportActions } from "@/components/forms/host-monthly-report
 import { HostMonthlyReportForm } from "@/components/forms/host-monthly-report-form";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { deleteHostExpense, deleteHostMonthlyReport, saveHostExpense, saveHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
+import { deleteHostExpense, deleteHostMonthlyReport, importHostExpensesFromCsv, saveHostExpense, saveHostMonthlyReport, updateHostExpense } from "@/app/host/reports/actions";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings } from "@/lib/bookings";
+import { csrfFieldName } from "@/lib/csrf-fields";
 import { getCsrfToken } from "@/lib/csrf";
-import { hostExpensesToCsv, hostExpenseTotal } from "@/lib/host-expense-csv";
+import { hostExpenseReportMonth, hostExpensesToCsv, hostExpenseTotal } from "@/lib/host-expense-csv";
 import { hostExpenseCategories } from "@/lib/host-expense-categories";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
@@ -62,17 +63,17 @@ function percent(value: number) {
 export default async function HostReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ expenseDeleted?: string; expenseError?: string; expenseSaved?: string; expenseUpdated?: string; month?: string; reportDeleted?: string; reportEdit?: string; reportError?: string; reportSaved?: string; salesAdded?: string }>;
+  searchParams: Promise<{ expenseDeleted?: string; expenseError?: string; expenseImported?: string; expenseSaved?: string; expenseUpdated?: string; month?: string; reportDeleted?: string; reportEdit?: string; reportError?: string; reportSaved?: string; salesAdded?: string }>;
 }) {
   const user = await getCurrentUser();
-  const [{ expenseDeleted, expenseError, expenseSaved, expenseUpdated, month, reportDeleted, reportEdit, reportError, reportSaved, salesAdded }, bookings, availabilityBlocks, reports, expenses, properties, users, csrfToken] = await Promise.all([searchParams, getBookings(), getAvailabilityBlocks(), readHostMonthlyReports(), readHostExpenses(), getProperties(), getUsers(), getCsrfToken()]);
+  const [{ expenseDeleted, expenseError, expenseImported, expenseSaved, expenseUpdated, month, reportDeleted, reportEdit, reportError, reportSaved, salesAdded }, bookings, availabilityBlocks, reports, expenses, properties, users, csrfToken] = await Promise.all([searchParams, getBookings(), getAvailabilityBlocks(), readHostMonthlyReports(), readHostExpenses(), getProperties(), getUsers(), getCsrfToken()]);
   const isAdmin = user?.role === "admin";
   const selectedMonth = month?.match(/^\d{4}-\d{2}$/) ? month : currentMonth();
   const scopedReports = isAdmin ? reports : reports.filter((report) => report.hostId === user?.id);
   const editingReport = !isAdmin && reportEdit ? scopedReports.find((report) => report.id === reportEdit && report.hostId === user?.id && report.month === selectedMonth) : undefined;
   const isEditingSale = Boolean(editingReport);
   const scopedExpenses = isAdmin ? expenses : expenses.filter((expense) => expense.hostId === user?.id);
-  const monthExpenses = scopedExpenses.filter((expense) => expense.month === selectedMonth);
+  const monthExpenses = scopedExpenses.filter((expense) => hostExpenseReportMonth(expense) === selectedMonth);
   const scopedProperties = isAdmin ? properties : properties.filter((property) => property.hostId === user?.id);
   const scopedBookings = isAdmin ? bookings : bookings.filter((booking) => booking.hostId === user?.id);
   const monthBookings = scopedBookings.filter((booking) => booking.paymentStatus === "paid" && paidNightsInMonth(booking, selectedMonth) > 0);
@@ -101,6 +102,9 @@ export default async function HostReportsPage({
   const manualSales = selectedMonthReports.reduce((sum, report) => sum + report.salesAmount, 0);
   const monthlyExpenseTotal = monthExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
   const netIncome = bookingPayout + manualSales - monthlyExpenseTotal;
+  const overallAddedSales = scopedReports.reduce((sum, report) => sum + report.salesAmount, 0);
+  const overallExpenses = scopedExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
+  const overallNetIncome = lifetimePaidPayout + overallAddedSales - overallExpenses;
   const bookedNights = monthBookings.reduce((sum, booking) => sum + paidNightsInMonth(booking, selectedMonth), 0) + monthPaidBlocks.length;
   const daysInSelectedMonth = nightsBetween(monthRange(selectedMonth).start, monthRange(selectedMonth).end);
   const activeListings = scopedProperties.filter((property) => property.status === "approved").length;
@@ -122,14 +126,16 @@ export default async function HostReportsPage({
     .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate) || b.createdAt.localeCompare(a.createdAt))
     .map((expense) => ({
       ...expense,
+      month: hostExpenseReportMonth(expense),
       hostName: users.find((item) => item.id === expense.hostId)?.name ?? "Host",
     }));
   const recentOtherMonthExpenseRows = scopedExpenses
-    .filter((expense) => expense.month !== selectedMonth)
+    .filter((expense) => hostExpenseReportMonth(expense) !== selectedMonth)
     .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate) || b.createdAt.localeCompare(a.createdAt))
     .slice(0, 5)
     .map((expense) => ({
       ...expense,
+      month: hostExpenseReportMonth(expense),
       hostName: users.find((item) => item.id === expense.hostId)?.name ?? "Host",
     }));
   const expenseCsv = hostExpensesToCsv(expenseRows);
@@ -201,7 +207,9 @@ export default async function HostReportsPage({
   });
   const packagePerformance = Array.from(packagePerformanceGroups.values())
     .sort((a, b) => b.payout - a.payout || b.bookings - a.bookings);
-  const expenseSuccessMessage = expenseSaved
+  const expenseSuccessMessage = expenseImported
+    ? `${expenseImported} expense${expenseImported === "1" ? "" : "s"} imported.`
+    : expenseSaved
     ? `${expenseSaved} expense${expenseSaved === "1" ? "" : "s"} saved.`
     : expenseUpdated
       ? "Expense updated."
@@ -272,12 +280,35 @@ export default async function HostReportsPage({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard description="Paid booking payout for this month." label="Booking payout" value={formatCurrency(bookingPayout)} />
-        <StatsCard description="Sales you added below." label="Sales" value={formatCurrency(manualSales)} />
-        <StatsCard description="Expenses you added below." label="Expenses" value={formatCurrency(monthlyExpenseTotal)} />
-        <StatsCard description="Booking payout plus sales minus expenses." label="Net income" value={formatCurrency(netIncome)} />
-      </div>
+      <section className="mt-4">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Selected month</p>
+            <h2 className="mt-2 text-2xl font-bold">{monthLabel(selectedMonth)} totals</h2>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatsCard description="Paid booking payout for this month." label="Booking payout" value={formatCurrency(bookingPayout)} />
+          <StatsCard description="Sales you added below." label="Sales" value={formatCurrency(manualSales)} />
+          <StatsCard description="Expenses you added below." label="Expenses" value={formatCurrency(monthlyExpenseTotal)} />
+          <StatsCard description="Booking payout plus sales minus expenses." label="Net income" value={formatCurrency(netIncome)} />
+        </div>
+      </section>
+
+      <section className="mt-4">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Overall summary</p>
+            <h2 className="mt-2 text-2xl font-bold">All-time totals</h2>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatsCard description="Paid booking payout across all months." label="Total booking payout" value={formatCurrency(lifetimePaidPayout)} />
+          <StatsCard description="Sales added across all months." label="Total sales" value={formatCurrency(overallAddedSales)} />
+          <StatsCard description="Expenses recorded across all months." label="Total expenses" value={formatCurrency(overallExpenses)} />
+          <StatsCard description="Booking payout plus sales minus expenses." label="Overall net income" value={formatCurrency(overallNetIncome)} />
+        </div>
+      </section>
 
       <section id="manual-expenses" className="mt-6 scroll-mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -298,14 +329,42 @@ export default async function HostReportsPage({
             </div>
             <div className="flex flex-col gap-2 sm:items-end">
               <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
-              <a
-                href={`data:text/csv;charset=utf-8,${encodeURIComponent(`\ufeff${expenseCsv}`)}`}
-                download={`stayprimeph-expenses-${selectedMonth}.csv`}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black"
-              >
-                <Download className="size-4" aria-hidden="true" />
-                Export CSV
-              </a>
+              <div className="grid gap-2 lg:grid-cols-[minmax(18rem,1fr)_auto]">
+                <form action={importHostExpensesFromCsv} encType="multipart/form-data" className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto]">
+                  <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                  <input type="hidden" name="month" value={selectedMonth} />
+                  {isAdmin ? (
+                    <select name="hostId" className="min-h-11 rounded-full border border-black/10 px-4 text-sm font-semibold text-black/65" required>
+                      <option value="">Choose host</option>
+                      {hostOptions.map((host) => (
+                        <option key={host.id} value={host.id}>{host.name}</option>
+                      ))}
+                    </select>
+                  ) : null}
+                  <label className="min-w-0">
+                    <span className="sr-only">CSV file</span>
+                    <input
+                      name="expenseCsv"
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="block min-h-11 w-full rounded-full border border-black/10 text-sm font-semibold text-black/65 file:mr-3 file:min-h-11 file:rounded-full file:border-0 file:bg-[#fbf7f2] file:px-4 file:text-sm file:font-semibold file:text-black/65"
+                      required
+                    />
+                  </label>
+                  <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#21170f] px-5 text-sm font-semibold text-white transition hover:bg-[#21170f]/90">
+                    <Upload className="size-4" aria-hidden="true" />
+                    Import CSV
+                  </button>
+                </form>
+                <a
+                  href={`data:text/csv;charset=utf-8,${encodeURIComponent(`\ufeff${expenseCsv}`)}`}
+                  download={`stayprimeph-expenses-${selectedMonth}.csv`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black"
+                >
+                  <Download className="size-4" aria-hidden="true" />
+                  Export CSV
+                </a>
+              </div>
             </div>
           </div>
           {expenseRows.length > 0 ? (
