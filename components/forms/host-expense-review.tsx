@@ -81,7 +81,11 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
 
   return (
     <div className="overflow-hidden rounded-[1.25rem] border border-black/10">
-      <div className="hidden max-h-[70vh] overflow-auto md:block">
+      <div
+        data-lenis-prevent
+        data-lenis-prevent-wheel
+        className="hidden max-h-[70vh] overflow-auto overscroll-contain md:block"
+      >
         <table className="w-full min-w-[72rem] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#fbf7f2] text-black/55">
             <tr>
