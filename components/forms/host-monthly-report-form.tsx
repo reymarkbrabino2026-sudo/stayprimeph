@@ -1,8 +1,8 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { csrfFieldName } from "@/lib/csrf-fields";
 
 type HostMonthlyReportFormProps = {
@@ -15,6 +15,7 @@ type HostMonthlyReportFormProps = {
   defaultNotes?: string;
   defaultOpen?: boolean;
   defaultSales?: number;
+  expandHash?: string;
   intent?: "addSales" | "saveReport";
   reportId?: string;
 };
@@ -29,11 +30,25 @@ export function HostMonthlyReportForm({
   defaultNotes,
   defaultOpen = false,
   defaultSales,
+  expandHash,
   intent = "saveReport",
   reportId,
 }: HostMonthlyReportFormProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const isAddingSales = intent === "addSales";
+  const formId = "host-monthly-report-form-fields";
+
+  useEffect(() => {
+    if (!expandHash) return;
+
+    const openFromHash = () => {
+      if (window.location.hash === expandHash) setIsOpen(true);
+    };
+
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, [expandHash]);
 
   if (!isOpen) {
     return (
@@ -41,17 +56,24 @@ export function HostMonthlyReportForm({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#21170f] px-5 font-semibold text-white transition hover:bg-[#21170f]/90"
+          aria-controls={formId}
+          aria-expanded="false"
+          className="flex min-h-14 w-full items-center justify-between gap-3 rounded-[1.25rem] border border-dashed border-black/15 bg-[#fbfaf8] px-4 text-left font-semibold text-black transition hover:border-[#21170f]/25 hover:bg-white"
         >
-          <Plus className="size-4" aria-hidden="true" />
-          {buttonLabel}
+          <span className="inline-flex min-w-0 items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#0b8d65] text-white">
+              <Plus className="size-4" aria-hidden="true" />
+            </span>
+            <span className="truncate">{buttonLabel}</span>
+          </span>
+          <ChevronDown className="size-5 shrink-0 text-black/45" aria-hidden="true" />
         </button>
       </div>
     );
   }
 
   return (
-    <form action={action} className="mt-5 grid gap-4 md:grid-cols-2">
+    <form id={formId} action={action} className="mt-5 grid gap-4 md:grid-cols-2">
       <input type="hidden" name={csrfFieldName} value={csrfToken} />
       {reportId ? <input type="hidden" name="reportId" value={reportId} /> : null}
       <input type="hidden" name="reportIntent" value={intent} />

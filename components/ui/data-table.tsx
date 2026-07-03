@@ -34,9 +34,9 @@ export function DataTable({
           </article>
         ))}
       </div>
-      <div className={embedded ? "hidden overflow-hidden rounded-[1.25rem] border border-black/10 md:block" : "hidden overflow-hidden rounded-[1.5rem] bg-white soft-card md:block"}>
+      <div className={embedded ? "hidden overflow-hidden rounded-[1.25rem] border border-black/10 bg-white md:block" : "hidden overflow-hidden rounded-[1.5rem] bg-white soft-card md:block"}>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-[48rem] text-left text-sm">
             <thead className="bg-[#fbf7f2] text-black/55">
               <tr>
                 {headers.map((header) => (
@@ -48,7 +48,7 @@ export function DataTable({
             </thead>
             <tbody>
               {rows.map((row, index) => (
-                <tr key={index} className="border-t">
+                <tr key={index} className="border-t border-black/10 transition hover:bg-[#fbfaf8]">
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex} className={`px-4 py-4 align-top ${headers[cellIndex]?.toLowerCase() === "actions" ? "text-right" : ""}`}>
                       {cell}

@@ -1,7 +1,20 @@
-import { BedDouble, CalendarDays, ChartNoAxesCombined, ClipboardList, Download, ReceiptText, Upload, UsersRound } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Banknote,
+  BedDouble,
+  CalendarDays,
+  ChartNoAxesCombined,
+  CircleDollarSign,
+  ClipboardList,
+  Download,
+  ReceiptText,
+  Upload,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { StatsCard } from "@/components/dashboard/stats-card";
 import { HostExpenseForm } from "@/components/forms/host-expense-form";
 import { HostExpenseReview } from "@/components/forms/host-expense-review";
 import { HostMonthlyReportActions } from "@/components/forms/host-monthly-report-actions";
@@ -60,6 +73,56 @@ function percent(value: number) {
   return `${Math.round(value)}%`;
 }
 
+function ReportMetricCell({
+  description,
+  icon: Icon,
+  label,
+  tone = "neutral",
+  value,
+}: {
+  description: string;
+  icon: LucideIcon;
+  label: string;
+  tone?: "negative" | "neutral" | "positive";
+  value: string;
+}) {
+  const toneClass =
+    tone === "positive"
+      ? "bg-[#dff8ec] text-[#0b8d65]"
+      : tone === "negative"
+        ? "bg-[#fff0e8] text-[#a9441f]"
+        : "bg-white/10 text-white";
+
+  return (
+    <div className="min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">{label}</p>
+          <p className="mt-2 break-words text-2xl font-bold leading-tight text-white sm:text-3xl">{value}</p>
+        </div>
+        <span className={`grid size-9 shrink-0 place-items-center rounded-full ${toneClass}`}>
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+      </div>
+      <p className="mt-3 text-sm leading-5 text-white/55">{description}</p>
+    </div>
+  );
+}
+
+function OperationMetricCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-[1.25rem] bg-white p-4 soft-card sm:p-5">
+      <div className="flex items-start justify-between gap-4">
+        <p className="min-w-0 text-sm font-semibold leading-5 text-black/55">{label}</p>
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e8f7ef] text-[#0b8d65]">
+          <Icon className="size-5" aria-hidden="true" />
+        </span>
+      </div>
+      <p className="mt-4 break-words text-2xl font-bold leading-tight text-[#21170f] sm:text-3xl">{value}</p>
+    </div>
+  );
+}
+
 export default async function HostReportsPage({
   searchParams,
 }: {
@@ -113,6 +176,29 @@ export default async function HostReportsPage({
   const averageDailyRate = bookedNights > 0 ? bookingPayout / bookedNights : 0;
   const todayKey = new Date().toISOString().slice(0, 10);
   const openReservations = scopedBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed").length + paidBlocks.filter((block) => block.date >= todayKey).length;
+  const financialMetrics = [
+    {
+      description: "Paid bookings and external blocked-date revenue.",
+      icon: Banknote,
+      label: "Booking payout",
+      tone: "neutral" as const,
+      value: formatCurrency(bookingPayout),
+    },
+    {
+      description: `${selectedMonthReports.length} manual sale${selectedMonthReports.length === 1 ? "" : "s"} recorded.`,
+      icon: ArrowUpRight,
+      label: "Sales",
+      tone: "positive" as const,
+      value: formatCurrency(manualSales),
+    },
+    {
+      description: `${monthExpenses.length} expense ${monthExpenses.length === 1 ? "entry" : "entries"} recorded.`,
+      icon: ArrowDownRight,
+      label: "Expenses",
+      tone: "negative" as const,
+      value: formatCurrency(monthlyExpenseTotal),
+    },
+  ];
   const operationsMetrics = [
     { label: "Open reservations", value: String(openReservations), icon: BedDouble },
     { label: "Booked nights", value: String(bookedNights), icon: CalendarDays },
@@ -121,9 +207,19 @@ export default async function HostReportsPage({
     { label: "Active listings", value: String(activeListings), icon: ClipboardList },
     { label: "Lifetime paid payout", value: formatCurrency(lifetimePaidPayout), icon: ChartNoAxesCombined },
     { label: "Guest records", value: String(users.filter((guest) => guestIds.has(guest.id)).length), icon: UsersRound },
+    { label: "Overall net income", value: formatCurrency(overallNetIncome), icon: CircleDollarSign },
   ];
   const expenseRows = monthExpenses
     .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate) || b.createdAt.localeCompare(a.createdAt))
+    .map((expense) => ({
+      ...expense,
+      month: hostExpenseReportMonth(expense),
+      hostName: users.find((item) => item.id === expense.hostId)?.name ?? "Host",
+    }));
+  const recentOtherMonthExpenseRows = scopedExpenses
+    .filter((expense) => hostExpenseReportMonth(expense) !== selectedMonth)
+    .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate) || b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5)
     .map((expense) => ({
       ...expense,
       month: hostExpenseReportMonth(expense),
@@ -215,47 +311,43 @@ export default async function HostReportsPage({
       description={isAdmin ? "Review host booking payouts, sales, expenses, and itemized submissions." : "Review booking payouts, sales, and expenses for the selected month."}
       links={isAdmin ? [{ label: "Admin Overview", href: "/admin/dashboard" }, ...hostLinks] : hostLinks}
     >
-      <section className="rounded-[1.5rem] bg-white p-5 soft-card">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Working month</p>
-            <h2 className="mt-2 text-2xl font-bold">{monthLabel(selectedMonth)}</h2>
+      <section className="overflow-hidden rounded-[1.75rem] bg-[#21170f] text-white soft-card">
+        <div className="grid gap-6 p-5 sm:p-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)] xl:items-start">
+          <div className="min-w-0">
+            <h2 className="break-words text-3xl font-bold leading-tight sm:text-4xl">{monthLabel(selectedMonth)}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
+              {isAdmin ? "A consolidated view of host payouts, manual sales, and itemized expenses." : "Booking payouts, manual sales, and itemized expenses for this working month."}
+            </p>
           </div>
-          <form action="/host/reports" method="get" className="grid gap-3 sm:grid-cols-[minmax(14rem,1fr)_auto] sm:items-end">
-            <label className="grid gap-2 text-sm font-semibold text-black/70">
+
+          <form action="/host/reports" method="get" className="grid gap-3 rounded-[1.25rem] border border-white/10 bg-white/[0.07] p-4 sm:grid-cols-[minmax(13rem,1fr)_auto] sm:items-end">
+            <label className="grid gap-2 text-sm font-semibold text-white/75">
               Month
-              <input name="month" type="month" defaultValue={selectedMonth} className="min-h-12 rounded-2xl border px-4 font-normal text-black" required />
+              <input name="month" type="month" defaultValue={selectedMonth} className="min-h-12 rounded-2xl border-white/10 bg-white px-4 font-normal text-black" required />
             </label>
-            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#21170f] px-5 font-semibold text-white transition hover:bg-[#21170f]/90">
+            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-5 font-semibold text-[#21170f] transition hover:bg-[#f4eee7]">
               <CalendarDays className="size-4" aria-hidden="true" />
               View month
             </button>
           </form>
         </div>
-      </section>
 
-      <section className="mt-4 rounded-[1.5rem] bg-white p-5 soft-card">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Daily entries</p>
-            <h2 className="mt-2 text-2xl font-bold">What do you want to add?</h2>
+        <div className="grid divide-y divide-white/10 border-t border-white/10 md:grid-cols-4 md:divide-x md:divide-y-0">
+          <div className="min-w-0 bg-white/[0.05] p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/45">Net income</p>
+                <p className="mt-2 break-words text-3xl font-bold leading-tight text-white sm:text-4xl">{formatCurrency(netIncome)}</p>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#dff8ec] text-[#0b8d65]">
+                <CircleDollarSign className="size-5" aria-hidden="true" />
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-5 text-white/55">Booking payout plus sales minus expenses.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[28rem]">
-            <a
-              href="#manual-sale-form"
-              className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#0b8d65] px-5 text-base font-bold text-white transition hover:bg-[#076c4d]"
-            >
-              <ReceiptText className="size-5" aria-hidden="true" />
-              Add sale
-            </a>
-            <a
-              href="#manual-expenses"
-              className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-[#21170f] px-5 text-base font-bold text-white transition hover:bg-[#21170f]/90"
-            >
-              <ClipboardList className="size-5" aria-hidden="true" />
-              Add expense
-            </a>
-          </div>
+          {financialMetrics.map((metric) => (
+            <ReportMetricCell key={metric.label} {...metric} />
+          ))}
         </div>
       </section>
 
@@ -271,82 +363,98 @@ export default async function HostReportsPage({
         </div>
       ) : null}
 
-      <section className="mt-4">
-        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mt-4 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Selected month</p>
-            <h2 className="mt-2 text-2xl font-bold">{monthLabel(selectedMonth)} totals</h2>
+            <h2 className="text-2xl font-bold">Capture today&apos;s activity</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-black/55">Add manual sales or expenses without leaving the report.</p>
           </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatsCard description="Paid booking payout for this month." label="Booking payout" value={formatCurrency(bookingPayout)} />
-          <StatsCard description="Sales you added below." label="Sales" value={formatCurrency(manualSales)} />
-          <StatsCard description="Expenses you added below." label="Expenses" value={formatCurrency(monthlyExpenseTotal)} />
-          <StatsCard description="Booking payout plus sales minus expenses." label="Net income" value={formatCurrency(netIncome)} />
+          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[34rem]">
+            <a
+              href="#manual-sale-form"
+              className="group flex min-h-20 items-center justify-between gap-4 rounded-[1.25rem] bg-[#0b8d65] px-5 py-4 text-white transition hover:bg-[#076c4d]"
+            >
+              <span className="min-w-0">
+                <span className="block text-base font-bold">Add sale</span>
+                <span className="mt-1 block truncate text-sm font-semibold text-white/70">{formatCurrency(manualSales)} this month</span>
+              </span>
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white/15 transition group-hover:bg-white/20">
+                <ReceiptText className="size-5" aria-hidden="true" />
+              </span>
+            </a>
+            <a
+              href="#manual-expenses"
+              className="group flex min-h-20 items-center justify-between gap-4 rounded-[1.25rem] bg-[#21170f] px-5 py-4 text-white transition hover:bg-[#21170f]/90"
+            >
+              <span className="min-w-0">
+                <span className="block text-base font-bold">Add expense</span>
+                <span className="mt-1 block truncate text-sm font-semibold text-white/70">{formatCurrency(monthlyExpenseTotal)} this month</span>
+              </span>
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white/15 transition group-hover:bg-white/20">
+                <ClipboardList className="size-5" aria-hidden="true" />
+              </span>
+            </a>
+          </div>
         </div>
       </section>
 
-      <section className="mt-4">
-        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <section id="manual-expenses" className="mt-6 scroll-mt-24 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Overall summary</p>
-            <h2 className="mt-2 text-2xl font-bold">All-time totals</h2>
+            <h2 className="text-2xl font-bold">Add or review expenses</h2>
+            <p className="mt-2 text-sm leading-6 text-black/55">{monthLabel(selectedMonth)} cost entries and recent records.</p>
           </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatsCard description="Paid booking payout across all months." label="Total booking payout" value={formatCurrency(lifetimePaidPayout)} />
-          <StatsCard description="Sales added across all months." label="Total sales" value={formatCurrency(overallAddedSales)} />
-          <StatsCard description="Expenses recorded across all months." label="Total expenses" value={formatCurrency(overallExpenses)} />
-          <StatsCard description="Booking payout plus sales minus expenses." label="Overall net income" value={formatCurrency(overallNetIncome)} />
-        </div>
-      </section>
-
-      <section id="manual-expenses" className="mt-6 scroll-mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Expenses</p>
-            <h2 className="mt-2 text-2xl font-bold">Add expense</h2>
+          <div className="inline-flex w-fit items-center gap-3 rounded-full border border-black/10 bg-[#fbfaf8] px-4 py-2 text-sm font-semibold text-black/65">
+            <span>{monthExpenses.length} entries</span>
+            <span className="h-4 w-px bg-black/10" aria-hidden="true" />
+            <span>{formatCurrency(monthlyExpenseTotal)}</span>
           </div>
-          <p className="text-sm font-semibold text-black/55">Current total {formatCurrency(monthlyExpenseTotal)}</p>
         </div>
 
         <HostExpenseForm action={saveHostExpense} categories={hostExpenseCategories} csrfToken={csrfToken} defaultDate={`${selectedMonth}-01`} defaultOpen={Boolean(expenseError)} expandHash="#manual-expenses" hostOptions={isAdmin ? hostOptions : undefined} />
 
         <div className="mt-6 border-t border-black/10 pt-5">
-          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Expenses</p>
-              <h3 className="mt-2 text-xl font-bold">Saved expenses</h3>
+              <h3 className="text-xl font-bold">Saved expenses</h3>
             </div>
             <div className="flex flex-col gap-2 sm:items-end">
               <p className="text-sm font-semibold text-black/55">{monthExpenses.length} entries - Total {formatCurrency(monthlyExpenseTotal)}</p>
-              <div className="grid gap-2 lg:grid-cols-[minmax(18rem,1fr)_auto]">
-                <form action={importHostExpensesFromCsv} encType="multipart/form-data" className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto]">
-                  <input type="hidden" name={csrfFieldName} value={csrfToken} />
-                  <input type="hidden" name="month" value={selectedMonth} />
-                  {isAdmin ? (
-                    <select name="hostId" className="min-h-11 rounded-full border border-black/10 px-4 text-sm font-semibold text-black/65" required>
-                      <option value="">Choose host</option>
-                      {hostOptions.map((host) => (
-                        <option key={host.id} value={host.id}>{host.name}</option>
-                      ))}
-                    </select>
-                  ) : null}
-                  <label className="min-w-0">
-                    <span className="sr-only">CSV file</span>
-                    <input
-                      name="expenseCsv"
-                      type="file"
-                      accept=".csv,text/csv"
-                      className="block min-h-11 w-full rounded-full border border-black/10 text-sm font-semibold text-black/65 file:mr-3 file:min-h-11 file:rounded-full file:border-0 file:bg-[#fbf7f2] file:px-4 file:text-sm file:font-semibold file:text-black/65"
-                      required
-                    />
-                  </label>
-                  <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#21170f] px-5 text-sm font-semibold text-white transition hover:bg-[#21170f]/90">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <details className="group relative">
+                  <summary className="inline-flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 rounded-full border border-black/10 px-5 text-sm font-semibold text-black/65 transition hover:border-black/25 hover:text-black [&::-webkit-details-marker]:hidden">
                     <Upload className="size-4" aria-hidden="true" />
                     Import CSV
-                  </button>
-                </form>
+                  </summary>
+                  <div className="mt-2 rounded-[1.25rem] border border-black/10 bg-white p-3 shadow-xl shadow-black/10 sm:absolute sm:right-0 sm:z-20 sm:w-[30rem]">
+                    <form action={importHostExpensesFromCsv} encType="multipart/form-data" className="grid gap-2">
+                      <input type="hidden" name={csrfFieldName} value={csrfToken} />
+                      <input type="hidden" name="month" value={selectedMonth} />
+                      {isAdmin ? (
+                        <select name="hostId" className="min-h-11 rounded-full border border-black/10 px-4 text-sm font-semibold text-black/65" required>
+                          <option value="">Choose host</option>
+                          {hostOptions.map((host) => (
+                            <option key={host.id} value={host.id}>{host.name}</option>
+                          ))}
+                        </select>
+                      ) : null}
+                      <label className="min-w-0">
+                        <span className="sr-only">CSV file</span>
+                        <input
+                          name="expenseCsv"
+                          type="file"
+                          accept=".csv,text/csv"
+                          className="block min-h-11 w-full rounded-full border border-black/10 text-sm font-semibold text-black/65 file:mr-3 file:min-h-11 file:rounded-full file:border-0 file:bg-[#fbf7f2] file:px-4 file:text-sm file:font-semibold file:text-black/65"
+                          required
+                        />
+                      </label>
+                      <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#21170f] px-5 text-sm font-semibold text-white transition hover:bg-[#21170f]/90">
+                        <Upload className="size-4" aria-hidden="true" />
+                        Upload expenses
+                      </button>
+                    </form>
+                  </div>
+                </details>
                 <a
                   href={`data:text/csv;charset=utf-8,${encodeURIComponent(`\ufeff${expenseCsv}`)}`}
                   download={`stayprimeph-expenses-${selectedMonth}.csv`}
@@ -372,22 +480,42 @@ export default async function HostReportsPage({
               No expenses for this month.
             </div>
           )}
+          {expenseRows.length === 0 && recentOtherMonthExpenseRows.length > 0 ? (
+            <div className="mt-5 grid gap-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <h4 className="text-base font-bold text-black">Recent saved expenses</h4>
+                <p className="text-sm font-semibold text-black/55">{recentOtherMonthExpenseRows.length} entries from other months</p>
+              </div>
+              <HostExpenseReview
+                categories={hostExpenseCategories}
+                csrfToken={csrfToken}
+                deleteAction={deleteHostExpense}
+                expenses={recentOtherMonthExpenseRows}
+                isAdmin={isAdmin}
+                updateAction={updateHostExpense}
+              />
+            </div>
+          ) : null}
         </div>
       </section>
 
       {!isAdmin ? (
-        <section id="manual-sale-form" className="mt-6 scroll-mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <section id="manual-sale-form" className="mt-6 scroll-mt-24 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Sales</p>
-              <h2 className="mt-2 text-2xl font-bold">{isEditingSale ? "Edit sale" : "Add sale"}</h2>
+              <h2 className="text-2xl font-bold">{isEditingSale ? "Edit sale" : "Add or review sales"}</h2>
+              <p className="mt-2 text-sm leading-6 text-black/55">{monthLabel(selectedMonth)} manual revenue and recent records.</p>
               {editingReport ? (
                 <p className="mt-2 text-sm text-black/55">
                   Updating the {new Date(`${editingReport.reportDate ?? `${editingReport.month}-01`}T00:00:00Z`).toLocaleDateString()} entry.
                 </p>
               ) : null}
             </div>
-            <p className="text-sm font-semibold text-black/55">Total {formatCurrency(manualSales)}</p>
+            <div className="inline-flex w-fit items-center gap-3 rounded-full border border-black/10 bg-[#fbfaf8] px-4 py-2 text-sm font-semibold text-black/65">
+              <span>{selectedMonthReports.length} entries</span>
+              <span className="h-4 w-px bg-black/10" aria-hidden="true" />
+              <span>{formatCurrency(manualSales)}</span>
+            </div>
           </div>
 
           <HostMonthlyReportForm
@@ -399,8 +527,9 @@ export default async function HostReportsPage({
             defaultDate={editingReport?.reportDate ?? `${selectedMonth}-01`}
             defaultExpenses={0}
             defaultNotes={editingReport?.notes}
-            defaultOpen
+            defaultOpen={Boolean(editingReport || reportError)}
             defaultSales={editingReport?.salesAmount}
+            expandHash="#manual-sale-form"
             intent={editingReport ? "saveReport" : "addSales"}
             reportId={editingReport?.id}
           />
@@ -408,9 +537,9 @@ export default async function HostReportsPage({
           <div id="manual-sales" className="mt-6 scroll-mt-6 border-t border-black/10 pt-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Sales</p>
-                <h3 className="mt-2 text-xl font-bold">Saved sales</h3>
+                <h3 className="text-xl font-bold">Saved sales</h3>
               </div>
+              <p className="text-sm font-semibold text-black/55">{selectedMonthReports.length} entries - Total {formatCurrency(manualSales)}</p>
             </div>
             {selectedMonthReports.length === 0 ? (
               <div className="grid gap-4">
@@ -462,8 +591,7 @@ export default async function HostReportsPage({
         <section className="mt-6">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Sales</p>
-              <h2 className="mt-2 text-2xl font-bold">Saved sales</h2>
+              <h2 className="text-2xl font-bold">Saved sales</h2>
             </div>
           </div>
           {selectedMonthReports.length === 0 ? (
@@ -491,28 +619,23 @@ export default async function HostReportsPage({
         </section>
       ) : null}
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {operationsMetrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <div key={metric.label} className="rounded-[1.25rem] bg-white p-5 soft-card">
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-black/55">{metric.label}</p>
-                <span className="grid size-10 place-items-center rounded-full bg-[#e8f7ef] text-[#0b8d65]">
-                  <Icon className="size-5" aria-hidden="true" />
-                </span>
-              </div>
-              <p className="mt-4 text-3xl font-bold text-[#21170f]">{metric.value}</p>
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="mt-6 rounded-[1.5rem] bg-white p-5 soft-card">
+      <section className="mt-6">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-black/40">Business overview</p>
-            <h2 className="mt-2 text-2xl font-bold">Booking mix</h2>
+            <h2 className="text-2xl font-bold">Month health</h2>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {operationsMetrics.map((metric) => (
+            <OperationMetricCard key={metric.label} {...metric} />
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-[1.5rem] bg-white p-4 soft-card sm:p-5">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Booking mix</h2>
           </div>
           <p className="text-sm font-semibold text-black/55">{monthBookings.length + monthPaidBlocks.length} paid bookings / external blocks in {monthLabel(selectedMonth)}</p>
         </div>

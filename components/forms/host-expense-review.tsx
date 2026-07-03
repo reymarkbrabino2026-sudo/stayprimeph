@@ -82,16 +82,16 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
   return (
     <div className="overflow-hidden rounded-[1.25rem] border border-black/10">
       <div className="hidden max-h-[70vh] overflow-auto md:block">
-        <table className="min-w-full text-left text-sm">
+        <table className="min-w-[72rem] text-left text-sm">
           <thead className="sticky top-0 z-10 bg-[#fbf7f2] text-black/55">
             <tr>
               {isAdmin ? <th className="px-4 py-3 font-medium">Host</th> : null}
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Supplier / item</th>
-              <th className="px-4 py-3 font-medium">Unit amount</th>
+              <th className="px-4 py-3 text-right font-medium">Unit amount</th>
               <th className="px-4 py-3 font-medium">Qty / Unit</th>
-              <th className="px-4 py-3 font-medium">Total amount</th>
+              <th className="px-4 py-3 text-right font-medium">Total amount</th>
               <th className="px-4 py-3 font-medium">Receipt number</th>
               <th className="px-4 py-3 font-medium">Notes</th>
               <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -99,7 +99,7 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
           </thead>
           <tbody>
             {expenses.map((expense) => (
-              <tr key={expense.id} className="border-t border-black/10 align-top">
+              <tr key={expense.id} className="border-t border-black/10 align-top transition hover:bg-[#fbfaf8]">
                 {editingId === expense.id ? (
                   <td colSpan={isAdmin ? 10 : 9} className="bg-white p-4">
                     <EditExpenseForm categories={categories} csrfToken={csrfToken} expense={expense} isAdmin={isAdmin} onCancel={() => setEditingId(null)} updateAction={updateAction} />
@@ -110,9 +110,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
                     <td className="px-4 py-4">{displayDate(expense.expenseDate)}</td>
                     <td className="px-4 py-4">{expense.category}</td>
                     <td className="px-4 py-4">{expense.vendor}</td>
-                    <td className="px-4 py-4">{formatCurrency(expense.amount, true)}</td>
+                    <td className="px-4 py-4 text-right font-medium tabular-nums">{formatCurrency(expense.amount, true)}</td>
                     <td className="px-4 py-4">{formatQuantityUnit(expense)}</td>
-                    <td className="px-4 py-4">{formatCurrency(hostExpenseTotal(expense), true)}</td>
+                    <td className="px-4 py-4 text-right font-semibold tabular-nums">{formatCurrency(hostExpenseTotal(expense), true)}</td>
                     <td className="px-4 py-4">{expense.receiptReference ?? "None"}</td>
                     <td className="px-4 py-4">{expense.description ?? "None"}</td>
                     <td className="px-4 py-3">
