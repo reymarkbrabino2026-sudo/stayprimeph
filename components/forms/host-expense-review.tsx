@@ -81,9 +81,9 @@ export function HostExpenseReview({ categories, csrfToken, deleteAction, expense
 
   return (
     <div className="overflow-hidden rounded-[1.25rem] border border-black/10">
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden max-h-[70vh] overflow-auto md:block">
         <table className="min-w-[72rem] text-left text-sm">
-          <thead className="bg-[#fbf7f2] text-black/55">
+          <thead className="sticky top-0 z-10 bg-[#fbf7f2] text-black/55">
             <tr>
               {isAdmin ? <th className="px-4 py-3 font-medium">Host</th> : null}
               <th className="px-4 py-3 font-medium">Date</th>
