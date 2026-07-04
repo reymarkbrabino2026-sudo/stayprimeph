@@ -16,7 +16,6 @@ export const hostLinks = [
   { label: "Create Listing", href: "/host/listings/create" },
   { label: "Calendar Availability", href: "/host/calendar" },
   { label: "Booking Requests", href: "/host/bookings" },
-  { label: "Earnings", href: "/host/earnings" },
   { label: "Payout Settings", href: "/host/payouts" },
   { label: "Messages", href: "/host/messages" },
   { label: "Notifications", href: "/host/notifications" },

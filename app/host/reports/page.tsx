@@ -30,6 +30,7 @@ import { getCsrfToken } from "@/lib/csrf";
 import { hostExpenseReportMonth, hostExpensesToCsv, hostExpenseTotal } from "@/lib/host-expense-csv";
 import { hostExpenseCategories } from "@/lib/host-expense-categories";
 import { readHostExpenses } from "@/lib/host-expense-store";
+import { getHostFinancialMonthSummary, paidNightsInMonth } from "@/lib/host-financials";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { hostLinks } from "@/lib/navigation";
 import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
@@ -46,26 +47,6 @@ function monthLabel(value: string) {
   const [year, month] = value.split("-").map(Number);
   if (!year || !month) return value;
   return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date(Date.UTC(year, month - 1, 1)));
-}
-
-function monthRange(value: string) {
-  const [year, month] = value.split("-").map(Number);
-  const start = new Date(Date.UTC(year, month - 1, 1));
-  const end = new Date(Date.UTC(year, month, 1));
-  return { end, start };
-}
-
-function nightsBetween(start: Date, end: Date) {
-  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000));
-}
-
-function paidNightsInMonth(booking: { checkIn: string; checkOut: string }, selectedMonth: string) {
-  const range = monthRange(selectedMonth);
-  const checkIn = new Date(`${booking.checkIn}T00:00:00Z`);
-  const checkOut = new Date(`${booking.checkOut}T00:00:00Z`);
-  const overlapStart = checkIn > range.start ? checkIn : range.start;
-  const overlapEnd = checkOut < range.end ? checkOut : range.end;
-  return nightsBetween(overlapStart, overlapEnd);
 }
 
 function percent(value: number) {
@@ -138,12 +119,27 @@ export default async function HostReportsPage({
   const editingReport = !isAdmin && reportEdit ? scopedReports.find((report) => report.id === reportEdit && report.hostId === user?.id && report.month === selectedMonth) : undefined;
   const isEditingSale = Boolean(editingReport);
   const scopedExpenses = isAdmin ? expenses : expenses.filter((expense) => expense.hostId === user?.id);
-  const monthExpenses = scopedExpenses.filter((expense) => hostExpenseReportMonth(expense) === selectedMonth);
   const scopedProperties = isAdmin ? properties : properties.filter((property) => property.hostId === user?.id);
   const scopedBookings = isAdmin ? bookings : bookings.filter((booking) => booking.hostId === user?.id);
-  const monthBookings = scopedBookings.filter((booking) => booking.paymentStatus === "paid" && paidNightsInMonth(booking, selectedMonth) > 0);
   const paidBlocks = paidAvailabilityBlocksForProperties(availabilityBlocks, scopedProperties);
-  const monthPaidBlocks = paidBlocks.filter((block) => block.date.startsWith(`${selectedMonth}-`));
+  const financialSummary = getHostFinancialMonthSummary({
+    bookings: scopedBookings,
+    expenses: scopedExpenses,
+    month: selectedMonth,
+    paidBlocks,
+    reports: scopedReports,
+  });
+  const {
+    bookedNights,
+    bookingPayout,
+    expenseTotal: monthlyExpenseTotal,
+    manualSales,
+    monthExpenses,
+    monthPaidBlocks,
+    netIncome,
+    paidBookings: monthBookings,
+    selectedMonthReports,
+  } = financialSummary;
   const guestIds = new Set(scopedBookings.map((booking) => booking.guestId));
   const hostUsers = users.filter((item) => item.role === "host");
   const hostNameCounts = hostUsers.reduce<Record<string, number>>((counts, host) => {
@@ -157,23 +153,15 @@ export default async function HostReportsPage({
       name: hostNameCounts[item.name.trim().toLowerCase()] > 1 ? `${item.name} (${item.email})` : item.name,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const externalPaidTotal = monthPaidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
   const lifetimeExternalPaidTotal = paidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
-  const bookingPayout = monthBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + externalPaidTotal;
   const lifetimePaidPayout = scopedBookings
     .filter((booking) => booking.paymentStatus === "paid")
     .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + lifetimeExternalPaidTotal;
-  const selectedMonthReports = scopedReports.filter((report) => report.month === selectedMonth);
-  const manualSales = selectedMonthReports.reduce((sum, report) => sum + report.salesAmount, 0);
-  const monthlyExpenseTotal = monthExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
-  const netIncome = bookingPayout + manualSales - monthlyExpenseTotal;
   const overallAddedSales = scopedReports.reduce((sum, report) => sum + report.salesAmount, 0);
   const overallExpenses = scopedExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
   const overallNetIncome = lifetimePaidPayout + overallAddedSales - overallExpenses;
-  const bookedNights = monthBookings.reduce((sum, booking) => sum + paidNightsInMonth(booking, selectedMonth), 0) + monthPaidBlocks.length;
-  const daysInSelectedMonth = nightsBetween(monthRange(selectedMonth).start, monthRange(selectedMonth).end);
   const activeListings = scopedProperties.filter((property) => property.status === "approved").length;
-  const availableNights = activeListings * daysInSelectedMonth;
+  const availableNights = activeListings * financialSummary.daysInMonth;
   const occupancyRate = availableNights > 0 ? (bookedNights / availableNights) * 100 : 0;
   const averageDailyRate = bookedNights > 0 ? bookingPayout / bookedNights : 0;
   const todayKey = new Date().toISOString().slice(0, 10);
