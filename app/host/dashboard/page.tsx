@@ -16,6 +16,10 @@ import { getPropertiesForHost } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
 
+// Always render fresh so the earnings/net-profit figures reflect the latest
+// bookings, sales, and expenses on every load (no route or data caching).
+export const dynamic = "force-dynamic";
+
 export default async function HostDashboardPage() {
   const user = await getCurrentUser();
   const hostId = user?.id ?? "";
