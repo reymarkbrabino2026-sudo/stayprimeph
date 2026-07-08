@@ -2688,10 +2688,10 @@ export default async function HostErpSectionPage({
             value: String(departures.length),
           },
           {
-            description: `From ${monthLabel(currentMonth)} reservations.`,
+            description: `${monthLabel(currentMonth)} income (bookings, blocks, and sales).`,
             icon: PhilippinePeso,
             label: "Total revenue (MTD)",
-            value: formatCurrency(monthlyBookingPayout),
+            value: formatCurrency(monthlyIncome),
           },
         ];
 
