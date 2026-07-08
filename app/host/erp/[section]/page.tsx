@@ -1514,6 +1514,14 @@ function FinancialDashboard({
     },
     { cursor: 0, stops: [] },
   ).stops.join(", ");
+  const cashFlowRows = dailyFinancials
+    .filter((point) => point.revenue > 0 || point.expenses > 0)
+    .reduce<Array<{ balance: number; day: number; inflow: number; net: number; outflow: number }>>((rows, point) => {
+      const net = point.revenue - point.expenses;
+      const balance = (rows[rows.length - 1]?.balance ?? 0) + net;
+      rows.push({ balance, day: point.day, inflow: point.revenue, net, outflow: point.expenses });
+      return rows;
+    }, []);
 
   return (
     <section className="mt-6 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_16px_42px_rgba(33,23,15,0.08)]">
@@ -1573,6 +1581,8 @@ function FinancialDashboard({
         </div>
       </div>
 
+      {financialTab === "overview" ? (
+        <>
       <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[1.05fr_0.8fr_0.82fr]">
         <section className="rounded-[1.25rem] border border-black/10 bg-white p-4 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-5">
           <div className="flex items-center justify-between gap-4">
@@ -1751,6 +1761,216 @@ function FinancialDashboard({
           </div>
         </section>
       </div>
+        </>
+      ) : null}
+
+      {financialTab === "income" ? (
+        <div className="p-4 sm:p-5">
+          <div className="mx-auto max-w-2xl rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-6">
+            <div className="flex items-center justify-between gap-4 border-b border-black/10 pb-4">
+              <h3 className="text-lg font-bold">Income Statement</h3>
+              <span className="text-sm text-black/50">{monthLabel(currentMonth)}</span>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/40">Revenue</p>
+              {revenueSources.map((source) => (
+                <div key={source.label} className="flex items-center justify-between gap-4">
+                  <span className="text-black/65">{source.label}</span>
+                  <span className="font-semibold">{formatCurrency(source.amount)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between gap-4 border-t border-black/10 pt-2 font-bold">
+                <span>Total Revenue</span>
+                <span>{formatCurrency(totalRevenue)}</span>
+              </div>
+              <p className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-black/40">Operating Expenses</p>
+              {expenseCategories.length === 0 ? (
+                <p className="text-black/45">No expenses recorded.</p>
+              ) : (
+                expenseCategories.map((category) => (
+                  <div key={category.category} className="flex items-center justify-between gap-4">
+                    <span className="text-black/65">{category.category}</span>
+                    <span className="font-semibold">{formatCurrency(category.amount)}</span>
+                  </div>
+                ))
+              )}
+              <div className="flex items-center justify-between gap-4 border-t border-black/10 pt-2 font-bold">
+                <span>Total Expenses</span>
+                <span>{formatCurrency(totalExpenses)}</span>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-4 rounded-2xl bg-[#fbf7f2] px-4 py-3 text-base font-bold">
+                <span>Net Profit</span>
+                <span className={netProfit < 0 ? "text-rose-600" : "text-emerald-700"}>{formatCurrency(netProfit)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-black/55">
+                <span>Net Profit Margin</span>
+                <span>{percent(grossProfitMargin)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {financialTab === "expenses" ? (
+        <div className="p-4 sm:p-5">
+          <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-6">
+            <div className="flex items-center justify-between gap-4 border-b border-black/10 pb-4">
+              <h3 className="text-lg font-bold">Expense Breakdown</h3>
+              <span className="text-sm text-black/50">{monthLabel(currentMonth)}</span>
+            </div>
+            {expenseCategories.length === 0 ? (
+              <p className="mt-6 rounded-2xl border border-dashed border-black/10 p-4 text-sm text-black/50">No expenses recorded for this period.</p>
+            ) : (
+              <div className="mt-5 grid gap-4">
+                {expenseCategories.map((category) => (
+                  <div key={category.category} className="grid gap-2">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="flex min-w-0 items-center gap-2 font-semibold">
+                        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                        <span className="truncate">{category.category}</span>
+                      </span>
+                      <span className="shrink-0 font-bold">{formatCurrency(category.amount)} <span className="text-xs font-normal text-black/45">{category.percent.toFixed(1)}%</span></span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
+                      <div className="h-full rounded-full" style={{ backgroundColor: category.color, width: `${Math.min(100, category.percent)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-6 flex items-center justify-between border-t border-black/10 pt-4 text-base font-bold">
+              <span>Total Expenses</span>
+              <span>{formatCurrency(totalExpenses)}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {financialTab === "cashflow" ? (
+        <div className="grid gap-4 p-4 sm:p-5">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+              <p className="text-sm text-black/45">Cash In</p>
+              <p className="mt-2 break-words text-2xl font-bold text-emerald-700">{formatCurrency(totalRevenue)}</p>
+              <p className="mt-1 text-xs text-black/45">Booking payouts, external blocks, and manual sales.</p>
+            </div>
+            <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+              <p className="text-sm text-black/45">Cash Out</p>
+              <p className="mt-2 break-words text-2xl font-bold text-rose-600">{formatCurrency(totalExpenses)}</p>
+              <p className="mt-1 text-xs text-black/45">Recorded operating expenses.</p>
+            </div>
+            <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+              <p className="text-sm text-black/45">Net Cash Flow</p>
+              <p className={`mt-2 break-words text-2xl font-bold ${netProfit < 0 ? "text-rose-600" : "text-black"}`}>{formatCurrency(netProfit)}</p>
+              <p className="mt-1 text-xs text-black/45">{monthLabel(currentMonth)} inflows minus outflows.</p>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-[1.25rem] border border-black/10 bg-white shadow-[0_10px_28px_rgba(33,23,15,0.05)]">
+            <div className="border-b border-black/10 p-5"><h3 className="font-bold">Daily Cash Movement</h3></div>
+            {cashFlowRows.length === 0 ? (
+              <div className="p-6"><EmptyState title="No cash movement yet" body="Paid bookings, external blocks, sales, and expenses for this month will appear here." /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-[560px] w-full text-left text-sm">
+                  <thead className="bg-[#fbf7f2] text-xs text-black/50">
+                    <tr>
+                      {["Date", "Cash In", "Cash Out", "Net", "Balance"].map((header) => (
+                        <th key={header} className="px-4 py-3 font-semibold">{header}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cashFlowRows.map((row) => (
+                      <tr key={`cash-${row.day}`} className="border-t border-black/10">
+                        <td className="px-4 py-3 font-semibold">{compactDate(`${currentMonth}-${String(row.day).padStart(2, "0")}`)}</td>
+                        <td className="px-4 py-3 text-emerald-700">{row.inflow > 0 ? formatCurrency(row.inflow) : "-"}</td>
+                        <td className="px-4 py-3 text-rose-600">{row.outflow > 0 ? formatCurrency(row.outflow) : "-"}</td>
+                        <td className={`px-4 py-3 font-semibold ${row.net < 0 ? "text-rose-600" : "text-black"}`}>{formatCurrency(row.net)}</td>
+                        <td className="px-4 py-3 font-bold">{formatCurrency(row.balance)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {financialTab === "tax" ? (
+        <div className="p-4 sm:p-5">
+          <div className="mx-auto max-w-2xl rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-6">
+            <div className="flex items-center justify-between gap-4 border-b border-black/10 pb-4">
+              <h3 className="text-lg font-bold">Tax Summary</h3>
+              <span className="text-sm text-black/50">{monthLabel(currentMonth)}</span>
+            </div>
+            <div className="mt-4 grid gap-3 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-black/65">Gross Revenue</span>
+                <span className="font-semibold">{formatCurrency(totalRevenue)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-black/65">Less: Deductible Expenses</span>
+                <span className="font-semibold">{formatCurrency(totalExpenses)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 border-t border-black/10 pt-3 text-base font-bold">
+                <span>Net Taxable Income</span>
+                <span className={netProfit < 0 ? "text-rose-600" : "text-black"}>{formatCurrency(netProfit)}</span>
+              </div>
+            </div>
+            <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+              These are gross and net figures only &mdash; no tax rate has been applied. Confirm your applicable VAT, percentage tax, or income tax with your accountant or the BIR before filing.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {financialTab === "custom" ? (
+        <div className="grid gap-4 p-4 sm:p-5">
+          <div className="rounded-[1.25rem] border border-black/10 bg-white p-5 shadow-[0_10px_28px_rgba(33,23,15,0.05)] sm:p-6">
+            <div className="flex flex-col gap-3 border-b border-black/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold">Custom Reports</h3>
+                <p className="mt-1 text-sm text-black/55">Compare the last four months and export the summary.</p>
+              </div>
+              <a
+                href={`data:text/csv;charset=utf-8,${encodeURIComponent(reportCsv)}`}
+                download={`stayprimeph-financial-report-${currentMonth}.csv`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#ef4444] px-4 text-sm font-semibold text-white"
+              >
+                <Download className="size-4" aria-hidden="true" />
+                Export CSV
+              </a>
+            </div>
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[640px] w-full text-left text-sm">
+                <thead className="bg-[#fbf7f2] text-xs text-black/50">
+                  <tr>
+                    {["Month", "Revenue", "Expenses", "Net Profit", "Margin", "Action"].map((header) => (
+                      <th key={header} className={`px-4 py-3 font-semibold ${header === "Action" ? "text-right" : ""}`}>{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlySummaries.map((summary) => (
+                    <tr key={`custom-${summary.month}`} className="border-t border-black/10">
+                      <td className="px-4 py-3 font-bold">{monthLabel(summary.month)}</td>
+                      <td className="px-4 py-3">{formatCurrency(summary.revenue)}</td>
+                      <td className="px-4 py-3">{formatCurrency(summary.expenses)}</td>
+                      <td className="px-4 py-3 font-semibold">{formatCurrency(summary.netProfit)}</td>
+                      <td className="px-4 py-3">{percent(summary.margin)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Link href={`/host/reports?month=${summary.month}`} className="inline-flex min-h-9 items-center rounded-lg border border-black/10 px-3 text-xs font-bold text-black/70">Open</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <Link href="/host/reports" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl border border-black/10 px-4 text-sm font-bold text-black/70">Open detailed monthly reports &rarr;</Link>
+        </div>
+      ) : null}
     </section>
   );
 }

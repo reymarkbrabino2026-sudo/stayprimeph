@@ -7,9 +7,9 @@ import { getAccountSettings } from "@/lib/account-settings";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForHost } from "@/lib/bookings";
+import { getHostFinancialMonthSummary } from "@/lib/host-financials";
 import { hostLinks } from "@/lib/navigation";
 import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
-import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getPropertiesForHost } from "@/lib/properties";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/utils";
@@ -31,9 +31,17 @@ export default async function HostDashboardPage() {
   const externalBlockPreview = upcomingExternalBlocks.slice(0, Math.max(0, 3 - upcomingBookingPreview.length));
   const upcomingReservationCount = upcomingBookings.length + upcomingExternalBlocks.length;
   const hasPayoutMethod = Boolean(accountSettings?.financial.payoutMethods.length);
-  const paidTotal = hostBookings
-    .filter((booking) => booking.paymentStatus === "paid")
-    .reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0) + paidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
+  // Scope paid earnings to the current calendar month so the Overview matches the
+  // month-scoped figures on the ERP dashboard and Host Reports (all use the same helper).
+  const currentMonthKey = todayKey.slice(0, 7);
+  const monthSummary = getHostFinancialMonthSummary({
+    bookings: hostBookings,
+    expenses: [],
+    month: currentMonthKey,
+    paidBlocks,
+    reports: [],
+  });
+  const paidTotal = monthSummary.bookingPayout;
 
   return (
     <DashboardShell
@@ -45,7 +53,7 @@ export default async function HostDashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <StatsCard label="Listings" value={String(hostListings.length)} />
         <StatsCard description="Includes paid blocked dates marked as guest or external bookings." label="Upcoming bookings" value={String(upcomingReservationCount)} />
-        <StatsCard description="Includes outside paid bookings recorded on the host calendar." label="Paid earnings" value={formatCurrency(paidTotal)} />
+        <StatsCard description="Paid bookings and external blocked-date revenue for this month." label="Paid earnings this month" value={formatCurrency(paidTotal)} />
       </div>
 
       {!hasPayoutMethod ? (
