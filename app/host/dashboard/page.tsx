@@ -7,7 +7,7 @@ import { getAccountSettings } from "@/lib/account-settings";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForHost } from "@/lib/bookings";
-import { getHostFinancialMonthSummary } from "@/lib/host-financials";
+import { getHostFinancialMonthSummary, getHostFinancialYearSummary } from "@/lib/host-financials";
 import { hostLinks } from "@/lib/navigation";
 import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { getPropertiesForHost } from "@/lib/properties";
@@ -42,6 +42,11 @@ export default async function HostDashboardPage() {
     reports: [],
   });
   const paidTotal = monthSummary.bookingPayout;
+  // Whole-year paid earnings for the current calendar year, using the same
+  // booking-payout convention as the month card so the figures are comparable.
+  const currentYearKey = todayKey.slice(0, 4);
+  const yearSummary = getHostFinancialYearSummary({ bookings: hostBookings, paidBlocks, year: currentYearKey });
+  const paidYearTotal = yearSummary.bookingPayout;
 
   return (
     <DashboardShell
@@ -50,10 +55,11 @@ export default async function HostDashboardPage() {
       description="Track reservations, listing approvals, and payout readiness from one place."
       links={hostLinks}
     >
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCard label="Listings" value={String(hostListings.length)} />
         <StatsCard description="Includes paid blocked dates marked as guest or external bookings." label="Upcoming bookings" value={String(upcomingReservationCount)} />
         <StatsCard description="Paid bookings and external blocked-date revenue for this month." label="Paid earnings this month" value={formatCurrency(paidTotal)} />
+        <StatsCard description={`Paid bookings and external blocked-date revenue for all of ${currentYearKey}.`} label="Paid earnings this year" value={formatCurrency(paidYearTotal)} />
       </div>
 
       {!hasPayoutMethod ? (

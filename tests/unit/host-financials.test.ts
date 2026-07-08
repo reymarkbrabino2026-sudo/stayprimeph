@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getHostFinancialMonthSummary, paidNightsInMonth } from "@/lib/host-financials";
+import { getHostFinancialMonthSummary, getHostFinancialYearSummary, paidNightsInMonth } from "@/lib/host-financials";
 import type { Booking, HostExpense, HostMonthlyReport } from "@/lib/types";
 import type { PaidAvailabilityBlock } from "@/lib/paid-availability-blocks";
 
@@ -103,5 +103,46 @@ describe("host financial month summary", () => {
   it("counts only the paid booking nights that overlap the selected month", () => {
     expect(paidNightsInMonth(paidBooking({ checkIn: "2026-06-29", checkOut: "2026-07-02" }), "2026-07")).toBe(1);
     expect(paidNightsInMonth(paidBooking({ checkIn: "2026-07-30", checkOut: "2026-08-02" }), "2026-07")).toBe(2);
+  });
+});
+
+describe("host financial year summary", () => {
+  it("sums paid bookings and external blocks across the whole year", () => {
+    const summary = getHostFinancialYearSummary({
+      bookings: [
+        paidBooking({ id: "jan", checkIn: "2026-01-10", checkOut: "2026-01-12", totalPrice: 18000 }),
+        paidBooking({ id: "jul", checkIn: "2026-07-02", checkOut: "2026-07-04", totalPrice: 18000 }),
+      ],
+      paidBlocks: [paidBlock({ date: "2026-03-05", totalPrice: 40500 })],
+      year: "2026",
+    });
+
+    expect(summary.bookingOnlyPayout).toBe(30000);
+    expect(summary.externalPaidTotal).toBe(40500);
+    expect(summary.bookingPayout).toBe(70500);
+  });
+
+  it("counts a booking that spans two months only once", () => {
+    const summary = getHostFinancialYearSummary({
+      bookings: [paidBooking({ id: "spanning", checkIn: "2026-06-29", checkOut: "2026-07-03", totalPrice: 18000 })],
+      paidBlocks: [],
+      year: "2026",
+    });
+
+    expect(summary.paidBookings).toHaveLength(1);
+    expect(summary.bookingPayout).toBe(15000);
+  });
+
+  it("excludes unpaid bookings and revenue from other years", () => {
+    const summary = getHostFinancialYearSummary({
+      bookings: [
+        paidBooking({ id: "unpaid", paymentStatus: "pending" }),
+        paidBooking({ id: "last-year", checkIn: "2025-12-10", checkOut: "2025-12-12" }),
+      ],
+      paidBlocks: [paidBlock({ id: "last-year-block", date: "2025-11-01", totalPrice: 999 })],
+      year: "2026",
+    });
+
+    expect(summary.bookingPayout).toBe(0);
   });
 });

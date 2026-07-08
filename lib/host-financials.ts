@@ -69,3 +69,44 @@ export function getHostFinancialMonthSummary({
     selectedMonthReports,
   };
 }
+
+export function yearRange(value: string) {
+  const year = Number(value);
+  return { end: new Date(Date.UTC(year + 1, 0, 1)), start: new Date(Date.UTC(year, 0, 1)) };
+}
+
+export function paidNightsInYear(booking: Pick<Booking, "checkIn" | "checkOut">, year: string) {
+  const range = yearRange(year);
+  const checkIn = new Date(`${booking.checkIn}T00:00:00Z`);
+  const checkOut = new Date(`${booking.checkOut}T00:00:00Z`);
+  const overlapStart = checkIn > range.start ? checkIn : range.start;
+  const overlapEnd = checkOut < range.end ? checkOut : range.end;
+  return nightsBetween(overlapStart, overlapEnd);
+}
+
+// Whole-year paid earnings. Mirrors the month summary's convention (a paid
+// booking is counted once, in full, when any of its nights fall in the period),
+// so each booking is counted a single time across the year - never double-counted
+// the way summing twelve month summaries would for stays that span months.
+export function getHostFinancialYearSummary({
+  bookings,
+  paidBlocks,
+  year,
+}: {
+  bookings: Booking[];
+  paidBlocks: PaidAvailabilityBlock[];
+  year: string;
+}) {
+  const paidBookings = bookings.filter((booking) => booking.paymentStatus === "paid" && paidNightsInYear(booking, year) > 0);
+  const yearPaidBlocks = paidBlocks.filter((block) => block.date.startsWith(`${year}-`));
+  const bookingOnlyPayout = paidBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
+  const externalPaidTotal = yearPaidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
+
+  return {
+    bookingOnlyPayout,
+    bookingPayout: bookingOnlyPayout + externalPaidTotal,
+    externalPaidTotal,
+    paidBookings,
+    yearPaidBlocks,
+  };
+}
