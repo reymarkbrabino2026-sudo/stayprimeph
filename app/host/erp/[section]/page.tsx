@@ -2123,6 +2123,10 @@ function RevenueDashboard({
   );
 }
 
+// Always render fresh so ERP revenue, expense, and reservation figures reflect
+// the latest data on every load (no route or data caching).
+export const dynamic = "force-dynamic";
+
 export default async function HostErpSectionPage({
   params,
   searchParams,
@@ -2688,7 +2692,7 @@ export default async function HostErpSectionPage({
             value: String(departures.length),
           },
           {
-            description: `${monthLabel(currentMonth)} income (bookings, blocks, and sales).`,
+            description: `${monthLabel(currentMonth)} paid bookings, external bookings, and manual sales.`,
             icon: PhilippinePeso,
             label: "Total revenue (MTD)",
             value: formatCurrency(monthlyIncome),
