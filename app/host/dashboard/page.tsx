@@ -37,20 +37,20 @@ export default async function HostDashboardPage() {
   const externalBlockPreview = upcomingExternalBlocks.slice(0, Math.max(0, 3 - upcomingBookingPreview.length));
   const upcomingReservationCount = upcomingBookings.length + upcomingExternalBlocks.length;
   const hasPayoutMethod = Boolean(accountSettings?.financial.payoutMethods.length);
-  // Scope paid earnings to the current calendar month so the Overview matches the
-  // month-scoped figures on the ERP dashboard and Host Reports (all use the same helper).
+  // Total revenue for the current month (paid bookings + external blocks + manual
+  // sales), matching the ERP "Total Revenue (MTD)" and Host Reports for the month.
   const currentMonthKey = todayKey.slice(0, 7);
   const monthSummary = getHostFinancialMonthSummary({
     bookings: hostBookings,
-    expenses: [],
+    expenses: hostExpenses,
     month: currentMonthKey,
     paidBlocks,
-    reports: [],
+    reports: hostReports,
   });
-  const paidTotal = monthSummary.bookingPayout;
-  // Whole-year figures for the current calendar year, using the same booking-payout
-  // convention as the month card so the figures are comparable. Net profit deducts
-  // the year's recorded expenses from paid earnings plus manual sales.
+  const monthRevenue = monthSummary.income;
+  // Whole-year figures. Total revenue is the sum of each month's Total Revenue, and
+  // net profit is the sum of each month's net income, so both reconcile with the
+  // per-month ERP / Reports figures (a loss month lowers the net profit).
   const currentYearKey = todayKey.slice(0, 4);
   const yearSummary = getHostFinancialYearSummary({
     bookings: hostBookings,
@@ -59,7 +59,7 @@ export default async function HostDashboardPage() {
     reports: hostReports,
     year: currentYearKey,
   });
-  const paidYearTotal = yearSummary.bookingPayout;
+  const yearRevenue = yearSummary.income;
   const netProfitYear = yearSummary.netIncome;
 
   return (
@@ -72,9 +72,9 @@ export default async function HostDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatsCard label="Listings" value={String(hostListings.length)} />
         <StatsCard description="Includes paid blocked dates marked as guest or external bookings." label="Upcoming bookings" value={String(upcomingReservationCount)} />
-        <StatsCard description="Paid bookings and external blocked-date revenue for this month." label="Paid earnings this month" value={formatCurrency(paidTotal)} />
-        <StatsCard description={`Paid bookings and external blocked-date revenue for all of ${currentYearKey}.`} label="Paid earnings this year" value={formatCurrency(paidYearTotal)} />
-        <StatsCard description={`Paid earnings and sales for ${currentYearKey}, minus recorded expenses.`} label="Net profit this year" value={formatCurrency(netProfitYear)} />
+        <StatsCard description="Paid bookings, external blocks, and manual sales for this month." label="Total revenue this month" value={formatCurrency(monthRevenue)} />
+        <StatsCard description={`Paid bookings, external blocks, and manual sales for all of ${currentYearKey}.`} label="Total revenue this year" value={formatCurrency(yearRevenue)} />
+        <StatsCard description={`Total revenue for ${currentYearKey} minus recorded expenses.`} label="Net profit this year" value={formatCurrency(netProfitYear)} />
       </div>
 
       {!hasPayoutMethod ? (
