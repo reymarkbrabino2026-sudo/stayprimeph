@@ -101,17 +101,25 @@ export function getHostFinancialYearSummary({
   reports: HostMonthlyReport[];
   year: string;
 }) {
+  // Paid earnings for the year: each paid booking counted once, in full, when any
+  // night falls in the year (never double-counted across months).
   const paidBookings = bookings.filter((booking) => booking.paymentStatus === "paid" && paidNightsInYear(booking, year) > 0);
   const yearPaidBlocks = paidBlocks.filter((block) => block.date.startsWith(`${year}-`));
-  const yearReports = reports.filter((report) => report.month.startsWith(`${year}-`));
-  const yearExpenses = expenses.filter((expense) => hostExpenseReportMonth(expense).startsWith(`${year}-`));
   const bookingOnlyPayout = paidBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
   const externalPaidTotal = yearPaidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
   const bookingPayout = bookingOnlyPayout + externalPaidTotal;
-  const manualSales = yearReports.reduce((sum, report) => sum + report.salesAmount, 0);
-  const expenseTotal = yearExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
-  const income = bookingPayout + manualSales;
-  const netIncome = income - expenseTotal;
+
+  // Net profit for the year is the SUM of each month's net income, so it matches the
+  // per-month figures on Host Reports / ERP (e.g. a loss month like June lowers the
+  // total). Reuses the month summary so there is a single source of truth per month.
+  const monthlySummaries = Array.from({ length: 12 }, (_, index) => ({
+    month: `${year}-${String(index + 1).padStart(2, "0")}`,
+    summary: getHostFinancialMonthSummary({ bookings, expenses, month: `${year}-${String(index + 1).padStart(2, "0")}`, paidBlocks, reports }),
+  }));
+  const income = monthlySummaries.reduce((sum, { summary }) => sum + summary.income, 0);
+  const manualSales = monthlySummaries.reduce((sum, { summary }) => sum + summary.manualSales, 0);
+  const expenseTotal = monthlySummaries.reduce((sum, { summary }) => sum + summary.expenseTotal, 0);
+  const netIncome = monthlySummaries.reduce((sum, { summary }) => sum + summary.netIncome, 0);
 
   return {
     bookingOnlyPayout,
@@ -120,10 +128,9 @@ export function getHostFinancialYearSummary({
     externalPaidTotal,
     income,
     manualSales,
+    netByMonth: monthlySummaries.map(({ month, summary }) => ({ month, netIncome: summary.netIncome })),
     netIncome,
     paidBookings,
-    yearExpenses,
     yearPaidBlocks,
-    yearReports,
   };
 }

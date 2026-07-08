@@ -152,6 +152,23 @@ describe("host financial year summary", () => {
     expect(summary.bookingPayout).toBe(0);
   });
 
+  it("sums each month's net income, so a loss month lowers the yearly total", () => {
+    const summary = getHostFinancialYearSummary({
+      // July payout = 15000 (18000 gross), no June income.
+      bookings: [paidBooking({ id: "jul", checkIn: "2026-07-02", checkOut: "2026-07-04", totalPrice: 18000 })],
+      expenses: [
+        expense({ id: "jun", expenseDate: "2026-06-10", month: "2026-06", amount: 20000, quantity: 1 }),
+        expense({ id: "jul", expenseDate: "2026-07-10", month: "2026-07", amount: 5000, quantity: 1 }),
+      ],
+      paidBlocks: [],
+      reports: [],
+      year: "2026",
+    });
+
+    // June net = 0 - 20000 = -20000; July net = 15000 - 5000 = 10000; total = -10000.
+    expect(summary.netIncome).toBe(-10000);
+  });
+
   it("computes net profit as paid earnings plus sales minus the year's expenses", () => {
     const summary = getHostFinancialYearSummary({
       bookings: [paidBooking({ id: "jul", checkIn: "2026-07-02", checkOut: "2026-07-04", totalPrice: 18000 })],
