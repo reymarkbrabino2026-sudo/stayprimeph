@@ -84,29 +84,46 @@ export function paidNightsInYear(booking: Pick<Booking, "checkIn" | "checkOut">,
   return nightsBetween(overlapStart, overlapEnd);
 }
 
-// Whole-year paid earnings. Mirrors the month summary's convention (a paid
+// Whole-year financial summary. Mirrors the month summary's convention (a paid
 // booking is counted once, in full, when any of its nights fall in the period),
 // so each booking is counted a single time across the year - never double-counted
 // the way summing twelve month summaries would for stays that span months.
 export function getHostFinancialYearSummary({
   bookings,
+  expenses,
   paidBlocks,
+  reports,
   year,
 }: {
   bookings: Booking[];
+  expenses: HostExpense[];
   paidBlocks: PaidAvailabilityBlock[];
+  reports: HostMonthlyReport[];
   year: string;
 }) {
   const paidBookings = bookings.filter((booking) => booking.paymentStatus === "paid" && paidNightsInYear(booking, year) > 0);
   const yearPaidBlocks = paidBlocks.filter((block) => block.date.startsWith(`${year}-`));
+  const yearReports = reports.filter((report) => report.month.startsWith(`${year}-`));
+  const yearExpenses = expenses.filter((expense) => hostExpenseReportMonth(expense).startsWith(`${year}-`));
   const bookingOnlyPayout = paidBookings.reduce((sum, booking) => sum + calculateHostPayoutFromTotal(booking.totalPrice), 0);
   const externalPaidTotal = yearPaidBlocks.reduce((sum, block) => sum + block.totalPrice, 0);
+  const bookingPayout = bookingOnlyPayout + externalPaidTotal;
+  const manualSales = yearReports.reduce((sum, report) => sum + report.salesAmount, 0);
+  const expenseTotal = yearExpenses.reduce((sum, expense) => sum + hostExpenseTotal(expense), 0);
+  const income = bookingPayout + manualSales;
+  const netIncome = income - expenseTotal;
 
   return {
     bookingOnlyPayout,
-    bookingPayout: bookingOnlyPayout + externalPaidTotal,
+    bookingPayout,
+    expenseTotal,
     externalPaidTotal,
+    income,
+    manualSales,
+    netIncome,
     paidBookings,
+    yearExpenses,
     yearPaidBlocks,
+    yearReports,
   };
 }

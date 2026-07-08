@@ -7,7 +7,9 @@ import { getAccountSettings } from "@/lib/account-settings";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForHost } from "@/lib/bookings";
+import { readHostExpenses } from "@/lib/host-expense-store";
 import { getHostFinancialMonthSummary, getHostFinancialYearSummary } from "@/lib/host-financials";
+import { readHostMonthlyReports } from "@/lib/host-report-store";
 import { hostLinks } from "@/lib/navigation";
 import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { getPropertiesForHost } from "@/lib/properties";
@@ -17,12 +19,16 @@ import { formatCurrency, formatStayDateRange, formatStayTimeRange } from "@/lib/
 export default async function HostDashboardPage() {
   const user = await getCurrentUser();
   const hostId = user?.id ?? "";
-  const [hostBookings, hostListings, availabilityBlocks, accountSettings] = await Promise.all([
+  const [hostBookings, hostListings, availabilityBlocks, accountSettings, allReports, allExpenses] = await Promise.all([
     hostId ? getBookingsForHost(hostId) : Promise.resolve([]),
     hostId ? getPropertiesForHost(hostId) : Promise.resolve([]),
     hostId ? getAvailabilityBlocks() : Promise.resolve([]),
     user ? getAccountSettings(user) : Promise.resolve(null),
+    hostId ? readHostMonthlyReports() : Promise.resolve([]),
+    hostId ? readHostExpenses() : Promise.resolve([]),
   ]);
+  const hostReports = allReports.filter((report) => report.hostId === hostId);
+  const hostExpenses = allExpenses.filter((expense) => expense.hostId === hostId);
   const upcomingBookings = hostBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
   const paidBlocks = paidAvailabilityBlocksForProperties(availabilityBlocks, hostListings);
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -42,11 +48,19 @@ export default async function HostDashboardPage() {
     reports: [],
   });
   const paidTotal = monthSummary.bookingPayout;
-  // Whole-year paid earnings for the current calendar year, using the same
-  // booking-payout convention as the month card so the figures are comparable.
+  // Whole-year figures for the current calendar year, using the same booking-payout
+  // convention as the month card so the figures are comparable. Net profit deducts
+  // the year's recorded expenses from paid earnings plus manual sales.
   const currentYearKey = todayKey.slice(0, 4);
-  const yearSummary = getHostFinancialYearSummary({ bookings: hostBookings, paidBlocks, year: currentYearKey });
+  const yearSummary = getHostFinancialYearSummary({
+    bookings: hostBookings,
+    expenses: hostExpenses,
+    paidBlocks,
+    reports: hostReports,
+    year: currentYearKey,
+  });
   const paidYearTotal = yearSummary.bookingPayout;
+  const netProfitYear = yearSummary.netIncome;
 
   return (
     <DashboardShell
@@ -55,11 +69,12 @@ export default async function HostDashboardPage() {
       description="Track reservations, listing approvals, and payout readiness from one place."
       links={hostLinks}
     >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatsCard label="Listings" value={String(hostListings.length)} />
         <StatsCard description="Includes paid blocked dates marked as guest or external bookings." label="Upcoming bookings" value={String(upcomingReservationCount)} />
         <StatsCard description="Paid bookings and external blocked-date revenue for this month." label="Paid earnings this month" value={formatCurrency(paidTotal)} />
         <StatsCard description={`Paid bookings and external blocked-date revenue for all of ${currentYearKey}.`} label="Paid earnings this year" value={formatCurrency(paidYearTotal)} />
+        <StatsCard description={`Paid earnings and sales for ${currentYearKey}, minus recorded expenses.`} label="Net profit this year" value={formatCurrency(netProfitYear)} />
       </div>
 
       {!hasPayoutMethod ? (

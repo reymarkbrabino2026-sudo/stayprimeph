@@ -113,7 +113,9 @@ describe("host financial year summary", () => {
         paidBooking({ id: "jan", checkIn: "2026-01-10", checkOut: "2026-01-12", totalPrice: 18000 }),
         paidBooking({ id: "jul", checkIn: "2026-07-02", checkOut: "2026-07-04", totalPrice: 18000 }),
       ],
+      expenses: [],
       paidBlocks: [paidBlock({ date: "2026-03-05", totalPrice: 40500 })],
+      reports: [],
       year: "2026",
     });
 
@@ -125,7 +127,9 @@ describe("host financial year summary", () => {
   it("counts a booking that spans two months only once", () => {
     const summary = getHostFinancialYearSummary({
       bookings: [paidBooking({ id: "spanning", checkIn: "2026-06-29", checkOut: "2026-07-03", totalPrice: 18000 })],
+      expenses: [],
       paidBlocks: [],
+      reports: [],
       year: "2026",
     });
 
@@ -139,10 +143,35 @@ describe("host financial year summary", () => {
         paidBooking({ id: "unpaid", paymentStatus: "pending" }),
         paidBooking({ id: "last-year", checkIn: "2025-12-10", checkOut: "2025-12-12" }),
       ],
+      expenses: [],
       paidBlocks: [paidBlock({ id: "last-year-block", date: "2025-11-01", totalPrice: 999 })],
+      reports: [],
       year: "2026",
     });
 
     expect(summary.bookingPayout).toBe(0);
+  });
+
+  it("computes net profit as paid earnings plus sales minus the year's expenses", () => {
+    const summary = getHostFinancialYearSummary({
+      bookings: [paidBooking({ id: "jul", checkIn: "2026-07-02", checkOut: "2026-07-04", totalPrice: 18000 })],
+      expenses: [
+        expense({ id: "jan", expenseDate: "2026-01-15", month: "2026-01", amount: 500, quantity: 2 }),
+        expense({ id: "other-year", expenseDate: "2025-01-15", month: "2025-01", amount: 9999, quantity: 1 }),
+      ],
+      paidBlocks: [paidBlock({ date: "2026-03-05", totalPrice: 40500 })],
+      reports: [
+        report({ id: "sale", month: "2026-02", salesAmount: 2000 }),
+        report({ id: "other-year-sale", month: "2025-02", salesAmount: 9999 }),
+      ],
+      year: "2026",
+    });
+
+    // bookingPayout 15000 + external 40500 = 55500 paid earnings; + 2000 sales = 57500 income
+    expect(summary.bookingPayout).toBe(55500);
+    expect(summary.manualSales).toBe(2000);
+    expect(summary.expenseTotal).toBe(1000); // 500 * 2, other-year expense excluded
+    expect(summary.income).toBe(57500);
+    expect(summary.netIncome).toBe(56500); // 57500 - 1000
   });
 });
