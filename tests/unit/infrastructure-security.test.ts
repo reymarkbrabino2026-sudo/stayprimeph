@@ -358,6 +358,32 @@ describe("infrastructure security controls", () => {
     expect(erpPage).toContain('return value || "Date unavailable";');
   });
 
+  test("guards ERP mutation forms with signed CSRF tokens", async () => {
+    const [erpActions, erpPage, customerClassificationSelect] = await Promise.all([
+      readRepoFile("app/host/erp/[section]/actions.ts"),
+      readRepoFile("app/host/erp/[section]/page.tsx"),
+      readRepoFile("components/host/customer-classification-select.tsx"),
+    ]);
+
+    expect(erpActions).toContain('import { assertValidCsrfForm } from "@/lib/csrf";');
+    const normalizedErpActions = erpActions.replace(/\r\n/g, "\n");
+    [
+      "createManualLead",
+      "updateManualLead",
+      "updateLeadStatus",
+      "archiveManualLead",
+      "updateCustomerClassification",
+      "createExternalReservation",
+    ].forEach((actionName) => {
+      expect(normalizedErpActions).toContain(`export async function ${actionName}(formData: FormData) {\n  await assertTrustedRequestOrigin();\n  await assertValidCsrfForm(formData);`);
+    });
+    expect(erpPage).toContain('import { csrfFieldName, getCsrfToken } from "@/lib/csrf";');
+    expect(erpPage).toContain("getCsrfToken()");
+    expect(erpPage).toContain('name={csrfFieldName} value={csrfToken}');
+    expect(customerClassificationSelect).toContain('import { csrfFieldName } from "@/lib/csrf-fields";');
+    expect(customerClassificationSelect).toContain('name={csrfFieldName} value={csrfToken}');
+  });
+
   test("configures API CORS through an explicit allowlist", async () => {
     const [cors, proxy, productionEnv] = await Promise.all([
       readRepoFile("lib/cors.ts"),

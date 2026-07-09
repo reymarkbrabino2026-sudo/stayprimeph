@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { csrfFieldName } from "@/lib/csrf-fields";
 import type { HostCustomerClassification } from "@/lib/types";
 
 type CustomerClassificationSelectProps = {
   action: (formData: FormData) => void | Promise<void>;
+  csrfToken: string;
   customerName: string;
   guestId: string;
   hostId: string;
@@ -16,6 +18,7 @@ type CustomerClassificationSelectProps = {
 
 export function CustomerClassificationSelect({
   action,
+  csrfToken,
   customerName,
   guestId,
   hostId,
@@ -27,6 +30,7 @@ export function CustomerClassificationSelect({
 
   return (
     <form action={action} className="relative inline-flex min-w-0 shrink-0">
+      <input type="hidden" name={csrfFieldName} value={csrfToken} />
       <input type="hidden" name="guestId" value={guestId} />
       <input type="hidden" name="hostId" value={hostId} />
       <input type="hidden" name="returnTo" value={returnTo} />
