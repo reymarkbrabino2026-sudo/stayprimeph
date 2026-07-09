@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  Archive,
   BedDouble,
   BriefcaseBusiness,
   CalendarCheck2,
@@ -34,6 +33,7 @@ import {
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { CustomerClassificationSelect } from "@/components/host/customer-classification-select";
+import { InquiryKanbanBoard } from "@/components/host/inquiry-kanban-board";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getAvailabilityBlocks } from "@/lib/availability";
@@ -344,13 +344,6 @@ function leadPriorityLabel(priority: LeadPriority) {
   return leadPriorityOptions.find((option) => option.id === priority)?.label ?? priority;
 }
 
-function leadPriorityTone(priority: LeadPriority) {
-  if (priority === "urgent") return "bg-rose-100 text-rose-700";
-  if (priority === "high") return "bg-amber-100 text-amber-700";
-  if (priority === "low") return "bg-sky-100 text-sky-700";
-  return "bg-zinc-100 text-zinc-700";
-}
-
 function leadCode(leadId: string) {
   const code = leadId.replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase().padStart(6, "0");
   return `INQ-${code}`;
@@ -361,11 +354,6 @@ function leadDateRange(lead: Pick<Lead, "checkIn" | "checkOut">) {
   if (lead.checkIn) return `From ${compactDate(lead.checkIn)}`;
   if (lead.checkOut) return `Until ${compactDate(lead.checkOut)}`;
   return "Dates not set";
-}
-
-function leadContactLine(lead: Pick<Lead, "contactEmail" | "contactPhone">) {
-  if (lead.contactPhone && lead.contactEmail) return `${lead.contactPhone} / ${lead.contactEmail}`;
-  return lead.contactPhone || lead.contactEmail || "No contact details";
 }
 
 function userName(users: User[], id: string) {
@@ -873,91 +861,17 @@ function LeadDashboard({
         </div>
       ) : null}
 
-      <div className="grid auto-cols-[minmax(18rem,1fr)] grid-flow-col gap-4 overflow-x-auto overscroll-x-contain p-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:p-5 xl:grid-flow-row xl:grid-cols-6 xl:overflow-visible [&::-webkit-scrollbar]:hidden">
-        {leadColumns.map((column) => {
-          const columnLeads = filteredLeads.filter((lead) => lead.status === column.id);
-          return (
-            <section key={column.id} id={`lead-column-${column.id}`} className="min-h-[28rem] rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3">
-              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3">
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-bold" style={{ color: column.accent }}>{column.label}</h3>
-                  <p className="mt-1 text-xs text-black/45">{columnLeads.length} inquir{columnLeads.length === 1 ? "y" : "ies"}</p>
-                </div>
-                <span className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ backgroundColor: column.bg, color: column.accent }}>{columnLeads.length}</span>
-              </div>
-
-              <div className="mt-3 grid gap-3">
-                {columnLeads.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-black/10 bg-white p-4 text-sm text-black/50">No inquiries here yet.</div>
-                ) : null}
-                {columnLeads.map((lead) => (
-                  <article key={lead.id} className="rounded-2xl border border-black/10 bg-white p-4 shadow-[0_8px_20px_rgba(33,23,15,0.05)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/35">{lead.code}</p>
-                        <h4 className="mt-1 break-words font-bold">{lead.contactName}</h4>
-                        {lead.companyOrGroup ? <p className="mt-1 break-words text-xs font-semibold text-black/50">{lead.companyOrGroup}</p> : null}
-                      </div>
-                      <span className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${leadPriorityTone(lead.priority)}`}>{leadPriorityLabel(lead.priority)}</span>
-                    </div>
-
-                    <div className="mt-4 grid gap-2 text-xs text-black/55">
-                      <p className="break-all">{leadContactLine(lead)}</p>
-                      <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#fbf7f2] p-3">
-                        <div className="min-w-0">
-                          <p className="text-black/40">Source</p>
-                          <p className="mt-1 truncate font-semibold text-black/70">{lead.source || "Not set"}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-black/40">Estimate</p>
-                          <p className="mt-1 break-words font-semibold text-black/70">{lead.estimatedValue ? formatCurrency(lead.estimatedValue) : "Not set"}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-black/40">Guests</p>
-                          <p className="mt-1 font-semibold text-black/70">{lead.guests ?? "Not set"}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-black/40">Contacted</p>
-                          <p className="mt-1 font-semibold text-black/70">{lead.lastContactedAt ? compactDate(lead.lastContactedAt) : "Not yet"}</p>
-                        </div>
-                      </div>
-                      <p className="break-words"><span className="font-semibold text-black/65">Listing:</span> {lead.propertyLabel}</p>
-                      <p className="break-words"><span className="font-semibold text-black/65">Dates:</span> {leadDateRange(lead)}</p>
-                      {isAdmin ? <p className="break-words"><span className="font-semibold text-black/65">Host:</span> {lead.hostName}</p> : null}
-                      {lead.notes ? <p className="line-clamp-3 break-words rounded-xl bg-white text-black/55">{lead.notes}</p> : null}
-                    </div>
-
-                    <form action={updateLeadStatus} className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                      <input type="hidden" name={csrfFieldName} value={csrfToken} />
-                      <input type="hidden" name="id" value={lead.id} />
-                      <input type="hidden" name="returnTo" value={currentLeadPath} />
-                      <select name="status" defaultValue={lead.status} className="min-h-10 min-w-0 rounded-xl border border-black/10 px-3 text-sm font-semibold text-black/70 outline-none focus:border-[#2563eb]" aria-label={`Move ${lead.contactName} to another status`}>
-                        {leadColumns.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                      </select>
-                      <button className="min-h-10 rounded-xl bg-[#2563eb] px-3 text-xs font-bold text-white">Move</button>
-                    </form>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Link href={`/host/erp/leads${buildQuery({ ...queryBase, editLead: lead.id })}`} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 text-sm font-bold text-black/70">
-                        Edit
-                      </Link>
-                      <form action={archiveManualLead}>
-                        <input type="hidden" name={csrfFieldName} value={csrfToken} />
-                        <input type="hidden" name="id" value={lead.id} />
-                        <input type="hidden" name="returnTo" value={currentLeadPath} />
-                        <button className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-rose-200 text-sm font-bold text-rose-700">
-                          <Archive className="size-4" aria-hidden="true" />
-                          Archive
-                        </button>
-                      </form>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      <InquiryKanbanBoard
+        archiveAction={archiveManualLead}
+        columns={leadColumns}
+        csrfToken={csrfToken}
+        currentLeadPath={currentLeadPath}
+        currentMonth={currentMonth}
+        isAdmin={isAdmin}
+        leads={filteredLeads}
+        leadSearch={leadSearch}
+        moveAction={updateLeadStatus}
+      />
     </section>
   );
 }
