@@ -33,6 +33,11 @@ export async function generateMetadata({ params }: { params: Promise<{ location:
       url: `/staycation/${location.slug}`,
       type: "website",
     },
+    twitter: {
+      card: "summary_large_image",
+      title: location.title,
+      description: location.intro,
+    },
   };
 }
 
@@ -65,6 +70,20 @@ export default async function StaycationLocationPage({ params }: { params: Promi
       { "@type": "ListItem", position: 2, name: location.name, item: pageUrl },
     ],
   };
+  const itemListLd: Record<string, unknown> | null = listings.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: `${location.name} stays on StayPrime PH`,
+        numberOfItems: listings.length,
+        itemListElement: listings.slice(0, 24).map((property, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: property.title,
+          url: `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`,
+        })),
+      }
+    : null;
 
   const otherLocations = seoLocations.filter((entry) => entry.slug !== location.slug);
 
@@ -72,6 +91,7 @@ export default async function StaycationLocationPage({ params }: { params: Promi
     <div className="bg-white text-[#1f1b16]">
       <JsonLd data={collectionLd} />
       <JsonLd data={breadcrumbLd} />
+      {itemListLd ? <JsonLd data={itemListLd} /> : null}
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6 lg:px-12">

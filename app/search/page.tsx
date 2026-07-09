@@ -8,7 +8,9 @@ import { SearchPageHeader } from "@/components/search/search-page-header";
 import { SearchFilters } from "@/components/search/search-filters";
 import { SearchResultCard } from "@/components/search/search-result-card";
 import { SearchResultsLayout } from "@/components/search/search-results-layout";
+import { JsonLd } from "@/components/seo/json-ld";
 import { propertyMatchesAmenityFilter } from "@/lib/amenity-filters";
+import { env } from "@/lib/env";
 import { getPublicListingSummaries } from "@/lib/properties";
 import { getPropertyTypeId, getPropertyTypeLabel, propertyTypeMatches } from "@/lib/property-types";
 import { formatSearchLocationLabel, normalizePropertyLocationSearchQuery, propertyMatchesLocationSearch } from "@/lib/property-location";
@@ -18,15 +20,68 @@ import { formatCurrency } from "@/lib/utils";
 
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "Find Vacation Rentals & Staycations in the Philippines",
-  description:
-    "Search short-term rentals, condo staycations, and private vacation homes across the Philippines. Browse affordable stays near you and book your next getaway.",
-  alternates: { canonical: "/search" },
+type SearchPageParams = {
+  location?: string;
+  guests?: string;
+  checkIn?: string;
+  checkOut?: string;
+  type?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  beds?: string;
+  amenities?: string;
+  near?: string;
 };
 
 type LatLng = { lat: number; lng: number };
 const NEARBY_RADIUS_KM = 75;
+
+function hasSearchFilters(query: SearchPageParams) {
+  return Object.values(query).some((value) => Boolean(value?.trim()));
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchPageParams>;
+}): Promise<Metadata> {
+  const query = await searchParams;
+  const location = normalizePropertyLocationSearchQuery(query.location);
+  const locationLabel = formatSearchLocationLabel(query.location);
+  const requestedNearby = location === "nearby" || Boolean(query.near);
+  const filtered = hasSearchFilters(query);
+  const title = locationLabel && !requestedNearby
+    ? `${locationLabel} Vacation Rentals & Staycations`
+    : "Find Vacation Rentals & Staycations in the Philippines";
+  const description = locationLabel && !requestedNearby
+    ? `Search staycations, short-term rentals, condos, and private homes in ${locationLabel}. Compare prices, amenities, and available stays on StayPrime PH.`
+    : "Search short-term rentals, condo staycations, and private vacation homes across the Philippines. Browse affordable stays near you and book your next getaway.";
+
+  return {
+    title,
+    description,
+    alternates: { canonical: "/search" },
+    robots: {
+      index: !filtered,
+      follow: true,
+      googleBot: {
+        index: !filtered,
+        follow: true,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${env.NEXT_PUBLIC_APP_URL}/search`,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 function parseQueryDate(value?: string) {
   if (!value) return null;
@@ -67,7 +122,7 @@ function distanceKm(from: LatLng, property: PublicListingSummary) {
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ location?: string; guests?: string; checkIn?: string; checkOut?: string; type?: string; minPrice?: string; maxPrice?: string; beds?: string; amenities?: string; near?: string }>;
+  searchParams: Promise<SearchPageParams>;
 }) {
   const query = await searchParams;
   const approved = await getPublicListingSummaries();
@@ -163,9 +218,35 @@ export default async function SearchPage({
     if (value) clearFilterParams.set(key, value);
   }
   const clearFiltersHref = `/search${clearFilterParams.toString() ? `?${clearFilterParams.toString()}` : ""}`;
+  const searchPageUrl = `${env.NEXT_PUBLIC_APP_URL}/search`;
+  const collectionLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: resultsTitle,
+    description: locationLabel && !requestedNearby
+      ? `StayPrime PH search results for vacation rentals and staycations in ${locationLabel}.`
+      : "StayPrime PH search results for vacation rentals and staycations in the Philippines.",
+    url: searchPageUrl,
+  };
+  const itemListLd: Record<string, unknown> | null = orderedResults.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: resultsTitle,
+        numberOfItems: orderedResults.length,
+        itemListElement: orderedResults.slice(0, 24).map((property, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: property.title,
+          url: `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`,
+        })),
+      }
+    : null;
 
   return (
     <div className="bg-white lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+      <JsonLd data={collectionLd} />
+      {itemListLd ? <JsonLd data={itemListLd} /> : null}
       <SearchPageHeader
         summary={compactSearchSummary}
         filters={{

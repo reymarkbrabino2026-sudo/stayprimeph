@@ -55,12 +55,13 @@ import { addDays } from "@/lib/availability-calendar";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookingsForProperty } from "@/lib/bookings";
 import { getListingVideoEmbed } from "@/lib/listing-video";
+import { buildListingProductJsonLd } from "@/lib/listing-product-json-ld";
 import { getPropertyById } from "@/lib/properties";
 import { getPropertyTypeIconName, getPropertyTypeLabel } from "@/lib/property-types";
 import { formatPropertyLocation } from "@/lib/property-location";
 import { buildRoomPhotoTourGroups } from "@/lib/room-photo-tour";
 import { getReviewsForProperty } from "@/lib/reviews";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { getUserById, getUsersByIds } from "@/lib/users";
 
 function isRenderableImage(src?: string): src is string {
@@ -126,26 +127,42 @@ export async function generateMetadata({
   if (!property || property.status !== "approved") return { title: "Stay not found | StayPrimePH" };
 
   const locationLabel = formatPropertyLocation(property);
+  const propertyTypeLabel = getPropertyTypeLabel(property.propertyType, "stay");
+  const nightlyPrice = formatCurrency(calculateGuestPriceWithMarkup(property.pricePerNight));
   const title = `${property.title} | ${locationLabel} | StayPrimePH`;
-  const description = property.description;
+  const description = `${property.description} ${propertyTypeLabel} in ${locationLabel} for up to ${property.maxGuests} guests from ${nightlyPrice} per night.`;
   const image = property.images[0]?.imageUrl;
+  const imageUrl = isRenderableImage(image)
+    ? image!.startsWith("http")
+      ? image!
+      : `${env.NEXT_PUBLIC_APP_URL}${image}`
+    : undefined;
 
   return {
     title,
     description,
+    keywords: [
+      property.title,
+      `${locationLabel} staycation`,
+      `${locationLabel} vacation rental`,
+      `${propertyTypeLabel} in ${locationLabel}`,
+      "StayPrime PH",
+    ],
     alternates: { canonical: `/rooms/${property.id}` },
     openGraph: {
       title,
       description,
       type: "website",
       url: `/rooms/${property.id}`,
-      images: isRenderableImage(image) ? [{ url: image! }] : undefined,
+      siteName: "StayPrime PH",
+      locale: "en_PH",
+      images: imageUrl ? [{ url: imageUrl, alt: property.title }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: isRenderableImage(image) ? [image!] : undefined,
+      images: imageUrl ? [imageUrl] : undefined,
     },
   };
 }
@@ -272,30 +289,13 @@ export default async function RoomPage({
     .filter((url) => isRenderableImage(url))
     .map((url) => (url.startsWith("http") ? url : `${env.NEXT_PUBLIC_APP_URL}${url}`));
 
-  const listingJsonLd: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: property.title,
-    description: property.description,
-    ...(listingImages.length ? { image: listingImages } : {}),
-    brand: { "@type": "Brand", name: "StayPrime PH" },
-    offers: {
-      "@type": "Offer",
-      price: calculateGuestPriceWithMarkup(property.pricePerNight),
-      priceCurrency: property.currency || "PHP",
-      availability: "https://schema.org/InStock",
-      url: listingUrl,
-    },
-    ...(propertyReviews.length
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: Number(averageRating),
-            reviewCount: propertyReviews.length,
-          },
-        }
-      : {}),
-  };
+  const listingJsonLd = buildListingProductJsonLd({
+    property,
+    reviews: propertyReviews,
+    reviewGuestById,
+    listingUrl,
+    listingImages,
+  });
 
   const breadcrumbJsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -320,7 +320,7 @@ export default async function RoomPage({
 
   return (
     <div className="bg-[#efefed] text-[#111111]">
-      <JsonLd data={listingJsonLd} />
+      {listingJsonLd ? <JsonLd data={listingJsonLd} /> : null}
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={faqJsonLd} />
       <Navbar transparentOnTop hideBottomNav />

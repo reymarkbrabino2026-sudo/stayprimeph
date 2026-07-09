@@ -34,6 +34,19 @@ function homeListingsJsonLd(properties: Awaited<ReturnType<typeof getPublicListi
     position: index + 1,
     name: property.title,
     url: `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`,
+    item: {
+      "@type": "Accommodation",
+      name: property.title,
+      url: `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`,
+      ...(property.images[0]?.imageUrl ? { image: property.images[0].imageUrl } : {}),
+      address: [property.barangay, property.city, property.province, property.country].filter(Boolean).join(", "),
+      offers: {
+        "@type": "Offer",
+        price: property.pricePerNight,
+        priceCurrency: "PHP",
+        url: `${env.NEXT_PUBLIC_APP_URL}/rooms/${property.id}`,
+      },
+    },
   }));
 
   if (itemListElement.length === 0) return null;
