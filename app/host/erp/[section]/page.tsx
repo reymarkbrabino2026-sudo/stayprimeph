@@ -39,6 +39,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getAvailabilityBlocks } from "@/lib/availability";
 import { getCurrentUser } from "@/lib/auth";
 import { getBookings, getBookingsForHost } from "@/lib/bookings";
+import { csrfFieldName, getCsrfToken } from "@/lib/csrf";
 import { readHostCustomerProfiles } from "@/lib/host-customer-store";
 import { hostExpenseTotal } from "@/lib/host-expense-csv";
 import { readHostExpenses } from "@/lib/host-expense-store";
@@ -484,9 +485,11 @@ function csvCell(value: string | number) {
 
 function ExternalReservationForm({
   currentMonth,
+  csrfToken,
   listings,
 }: {
   currentMonth: string;
+  csrfToken: string;
   listings: Property[];
 }) {
   const labelClass = "grid min-w-0 gap-2 text-sm font-semibold text-black/70";
@@ -515,6 +518,7 @@ function ExternalReservationForm({
           </div>
         ) : (
           <form action={createExternalReservation} className="mt-5 grid min-w-0 max-w-full gap-4 sm:grid-cols-2 lg:grid-cols-12">
+            <input type="hidden" name={csrfFieldName} value={csrfToken} />
             <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
               Listing
               <select name="propertyId" className={fieldClass} required>
@@ -608,6 +612,7 @@ type LeadBoardItem = Lead & {
 
 function LeadForm({
   currentMonth,
+  csrfToken,
   hosts,
   isAdmin,
   lead,
@@ -615,6 +620,7 @@ function LeadForm({
   returnTo,
 }: {
   currentMonth: string;
+  csrfToken: string;
   hosts: User[];
   isAdmin: boolean;
   lead?: Lead;
@@ -641,6 +647,7 @@ function LeadForm({
         </div>
 
         <form action={action} className="mt-5 grid min-w-0 max-w-full gap-4 sm:grid-cols-2 lg:grid-cols-12">
+          <input type="hidden" name={csrfFieldName} value={csrfToken} />
           <input type="hidden" name="returnTo" value={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} />
           {lead ? <input type="hidden" name="id" value={lead.id} /> : null}
           {isAdmin ? (
@@ -742,6 +749,7 @@ function LeadForm({
 function LeadDashboard({
   activeTab,
   currentMonth,
+  csrfToken,
   editingLead,
   filteredLeads,
   hosts,
@@ -754,6 +762,7 @@ function LeadDashboard({
 }: {
   activeTab: (typeof erpTabs)[number];
   currentMonth: string;
+  csrfToken: string;
   editingLead?: LeadBoardItem;
   filteredLeads: LeadBoardItem[];
   hosts: User[];
@@ -821,6 +830,7 @@ function LeadDashboard({
       {showLeadForm ? (
         <LeadForm
           currentMonth={currentMonth}
+          csrfToken={csrfToken}
           hosts={hosts}
           isAdmin={isAdmin}
           lead={editingLead}
@@ -918,6 +928,7 @@ function LeadDashboard({
                     </div>
 
                     <form action={updateLeadStatus} className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                      <input type="hidden" name={csrfFieldName} value={csrfToken} />
                       <input type="hidden" name="id" value={lead.id} />
                       <input type="hidden" name="returnTo" value={currentLeadPath} />
                       <select name="status" defaultValue={lead.status} className="min-h-10 min-w-0 rounded-xl border border-black/10 px-3 text-sm font-semibold text-black/70 outline-none focus:border-[#2563eb]" aria-label={`Move ${lead.contactName} to another status`}>
@@ -931,6 +942,7 @@ function LeadDashboard({
                         Edit
                       </Link>
                       <form action={archiveManualLead}>
+                        <input type="hidden" name={csrfFieldName} value={csrfToken} />
                         <input type="hidden" name="id" value={lead.id} />
                         <input type="hidden" name="returnTo" value={currentLeadPath} />
                         <button className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-rose-200 text-sm font-bold text-rose-700">
@@ -953,6 +965,7 @@ function LeadDashboard({
 function ReservationDashboard({
   activeTab,
   currentMonth,
+  csrfToken,
   filteredCount,
   listings,
   page,
@@ -966,6 +979,7 @@ function ReservationDashboard({
 }: {
   activeTab: (typeof erpTabs)[number];
   currentMonth: string;
+  csrfToken: string;
   filteredCount: number;
   listings: Property[];
   page: number;
@@ -1069,7 +1083,7 @@ function ReservationDashboard({
         </div>
       </div>
 
-      {showExternalReservationForm ? <ExternalReservationForm currentMonth={currentMonth} listings={listings} /> : null}
+      {showExternalReservationForm ? <ExternalReservationForm currentMonth={currentMonth} csrfToken={csrfToken} listings={listings} /> : null}
 
       <div className="border-b border-black/10 p-4 sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1525,6 +1539,7 @@ function CustomerStatusPill({ active }: { active: boolean }) {
 function CustomerDashboard({
   activeTab,
   currentMonth,
+  csrfToken,
   customerPage,
   customerSearch,
   customerSegment,
@@ -1536,6 +1551,7 @@ function CustomerDashboard({
 }: {
   activeTab: (typeof erpTabs)[number];
   currentMonth: string;
+  csrfToken: string;
   customerPage: number;
   customerSearch: string;
   customerSegment: CustomerSegment;
@@ -1727,6 +1743,7 @@ function CustomerDashboard({
                     <td className="px-4 py-4">
                       <CustomerClassificationSelect
                         action={updateCustomerClassification}
+                        csrfToken={csrfToken}
                         customerName={customer.name}
                         guestId={customer.id}
                         hostId={customer.hostId}
@@ -1772,6 +1789,7 @@ function CustomerDashboard({
                   <div className="grid justify-items-end gap-2">
                     <CustomerClassificationSelect
                       action={updateCustomerClassification}
+                      csrfToken={csrfToken}
                       customerName={customer.name}
                       guestId={customer.id}
                       hostId={customer.hostId}
@@ -2554,7 +2572,7 @@ export default async function HostErpSectionPage({
   // Hosts only ever see their own rows (the JS scoping below already enforces this),
   // so fetch host-scoped data at the database level instead of loading the entire
   // platform's bookings/properties on every ERP page load. Admins still see everything.
-  const [bookings, properties, users, reports, expenses, availabilityBlocks, customerProfiles, leads] = await Promise.all([
+  const [bookings, properties, users, reports, expenses, availabilityBlocks, customerProfiles, leads, csrfToken] = await Promise.all([
     isAdmin ? getBookings() : getBookingsForHost(hostScopeId),
     isAdmin ? getProperties() : getPropertiesForHost(hostScopeId),
     getUsers(),
@@ -2563,6 +2581,7 @@ export default async function HostErpSectionPage({
     getAvailabilityBlocks(),
     readHostCustomerProfiles(isAdmin ? undefined : hostScopeId),
     readLeads(isAdmin ? undefined : hostScopeId),
+    getCsrfToken(),
   ]);
   const currentMonth = validMonthKey(queryValue(resolvedSearchParams.month)) ?? monthKey();
   const requestedReservationStatus = queryValue(resolvedSearchParams.status) as ReservationFilter | undefined;
@@ -3215,6 +3234,7 @@ export default async function HostErpSectionPage({
         <LeadDashboard
           activeTab={activeTab}
           currentMonth={currentMonth}
+          csrfToken={csrfToken}
           editingLead={editingLead}
           filteredLeads={filteredLeadRows}
           hosts={hostOptions}
@@ -3231,6 +3251,7 @@ export default async function HostErpSectionPage({
         <ReservationDashboard
           activeTab={activeTab}
           currentMonth={currentMonth}
+          csrfToken={csrfToken}
           filteredCount={filteredReservationRows.length}
           listings={activeListings}
           page={reservationPage}
@@ -3275,6 +3296,7 @@ export default async function HostErpSectionPage({
         <CustomerDashboard
           activeTab={activeTab}
           currentMonth={currentMonth}
+          csrfToken={csrfToken}
           customerPage={customerPage}
           customerSearch={reservationSearch}
           customerSegment={customerSegment}

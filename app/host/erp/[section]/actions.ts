@@ -23,6 +23,7 @@ import {
   recordManualPaymentInDatabase,
   usesPrismaPersistence,
 } from "@/lib/repositories";
+import { assertValidCsrfForm } from "@/lib/csrf";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
 import type { Booking, HostCustomerClassification, Lead, LeadPriority, LeadStatus, Payment, PaymentMethod, Property, User } from "@/lib/types";
 import { getUsers } from "@/lib/users";
@@ -174,6 +175,10 @@ function optionalLeadText(value: string) {
   return value.trim() || undefined;
 }
 
+function optionalFormText(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value : undefined;
+}
+
 function leadStatusValue(value: FormDataEntryValue | null): LeadStatus {
   return leadStatusValues.includes(value as LeadStatus) ? value as LeadStatus : "new";
 }
@@ -217,12 +222,13 @@ async function findAccessibleLead(user: User, leadId: string) {
 
 export async function createManualLead(formData: FormData) {
   await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
   const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can create inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadFormSchema.safeParse({
-    hostId: formData.get("hostId"),
+    hostId: optionalFormText(formData.get("hostId")),
     contactName: formData.get("contactName"),
     contactEmail: formData.get("contactEmail") ?? "",
     contactPhone: formData.get("contactPhone") ?? "",
@@ -276,13 +282,14 @@ export async function createManualLead(formData: FormData) {
 
 export async function updateManualLead(formData: FormData) {
   await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
   const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadFormSchema.safeParse({
-    id: formData.get("id"),
-    hostId: formData.get("hostId"),
+    id: optionalFormText(formData.get("id")),
+    hostId: optionalFormText(formData.get("hostId")),
     contactName: formData.get("contactName"),
     contactEmail: formData.get("contactEmail") ?? "",
     contactPhone: formData.get("contactPhone") ?? "",
@@ -334,6 +341,7 @@ export async function updateManualLead(formData: FormData) {
 
 export async function updateLeadStatus(formData: FormData) {
   await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
   const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update inquiries." });
   requireVerifiedEmail(user);
@@ -341,7 +349,7 @@ export async function updateLeadStatus(formData: FormData) {
   const parsed = leadStatusSchema.safeParse({
     id: formData.get("id"),
     status: leadStatusValue(formData.get("status")),
-    returnTo: formData.get("returnTo"),
+    returnTo: optionalFormText(formData.get("returnTo")),
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Inquiry not found.");
 
@@ -361,13 +369,14 @@ export async function updateLeadStatus(formData: FormData) {
 
 export async function archiveManualLead(formData: FormData) {
   await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
   const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can archive inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadArchiveSchema.safeParse({
     id: formData.get("id"),
-    returnTo: formData.get("returnTo"),
+    returnTo: optionalFormText(formData.get("returnTo")),
   });
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Inquiry not found.");
 
@@ -379,6 +388,7 @@ export async function archiveManualLead(formData: FormData) {
 
 export async function updateCustomerClassification(formData: FormData) {
   await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
   const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update customer types." });
   requireVerifiedEmail(user);
@@ -404,6 +414,7 @@ export async function updateCustomerClassification(formData: FormData) {
 
 export async function createExternalReservation(formData: FormData) {
   await assertTrustedRequestOrigin();
+  await assertValidCsrfForm(formData);
 
   const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts can create external reservations." });
   requireVerifiedEmail(user);
