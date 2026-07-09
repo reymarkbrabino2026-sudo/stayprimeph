@@ -71,7 +71,7 @@ const erpTabs: Array<{
   label: string;
 }> = [
   { id: "reservations", label: "Reservation Management", href: "/host/erp/reservations", icon: CalendarCheck2, accent: "#119b6e", bg: "#eefbf5" },
-  { id: "leads", label: "Leads Board", href: "/host/erp/leads", icon: ClipboardList, accent: "#2563eb", bg: "#eff6ff" },
+  { id: "leads", label: "Inquiry Board", href: "/host/erp/leads", icon: ClipboardList, accent: "#2563eb", bg: "#eff6ff" },
   { id: "revenue", label: "Revenue Dashboard", href: "/host/erp/revenue", icon: ChartNoAxesCombined, accent: "#1683bd", bg: "#eef8ff" },
   { id: "operations", label: "Operations Dashboard", href: "/host/erp/operations", icon: ClipboardCheck, accent: "#9346ad", bg: "#fbf0ff" },
   { id: "customers", label: "Customer Database", href: "/host/erp/customers", icon: UsersRound, accent: "#c77a05", bg: "#fff8eb" },
@@ -88,12 +88,12 @@ const reservationFilters: Array<{ id: ReservationFilter; label: string }> = [
 ];
 
 const leadColumns: Array<{ id: LeadStatus; label: string; accent: string; bg: string }> = [
-  { id: "new", label: "New", accent: "#2563eb", bg: "#eff6ff" },
+  { id: "new", label: "New Inquiry", accent: "#2563eb", bg: "#eff6ff" },
   { id: "contacted", label: "Contacted", accent: "#0f9f6e", bg: "#ecfdf5" },
-  { id: "qualified", label: "Qualified", accent: "#7c3aed", bg: "#f5f3ff" },
-  { id: "proposal", label: "Proposal Sent", accent: "#c77a05", bg: "#fff7ed" },
-  { id: "won", label: "Won", accent: "#15803d", bg: "#f0fdf4" },
-  { id: "lost", label: "Lost", accent: "#dc2626", bg: "#fef2f2" },
+  { id: "qualified", label: "Details Confirmed", accent: "#7c3aed", bg: "#f5f3ff" },
+  { id: "proposal", label: "Quote Sent", accent: "#c77a05", bg: "#fff7ed" },
+  { id: "won", label: "Booked", accent: "#15803d", bg: "#f0fdf4" },
+  { id: "lost", label: "Closed", accent: "#dc2626", bg: "#fef2f2" },
 ];
 
 const leadPriorityOptions: Array<{ id: LeadPriority; label: string }> = [
@@ -352,7 +352,7 @@ function leadPriorityTone(priority: LeadPriority) {
 
 function leadCode(leadId: string) {
   const code = leadId.replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase().padStart(6, "0");
-  return `LEAD-${code}`;
+  return `INQ-${code}`;
 }
 
 function leadDateRange(lead: Pick<Lead, "checkIn" | "checkOut">) {
@@ -627,13 +627,13 @@ function LeadForm({
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="lead-form-title" className="fixed inset-0 z-50 grid place-items-center p-3 sm:p-6">
-      <Link href={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} className="absolute inset-0 bg-black/45 backdrop-blur-sm" aria-label="Close lead form" />
+      <Link href={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} className="absolute inset-0 bg-black/45 backdrop-blur-sm" aria-label="Close inquiry form" />
       <div className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-[1.25rem] border border-[#2563eb]/20 bg-white p-4 shadow-[0_24px_80px_rgba(33,23,15,0.22)] sm:max-h-[calc(100dvh-3rem)] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#2563eb]">{lead ? "Edit lead" : "Manual lead input"}</p>
-            <h3 id="lead-form-title" className="mt-1 text-xl font-bold">{lead ? lead.contactName : "Add lead"}</h3>
-            <p className="mt-2 text-sm leading-6 text-black/55">Capture direct inquiries before they become reservations.</p>
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#2563eb]">{lead ? "Edit inquiry" : "Manual inquiry input"}</p>
+            <h3 id="lead-form-title" className="mt-1 text-xl font-bold">{lead ? lead.contactName : "Add inquiry"}</h3>
+            <p className="mt-2 text-sm leading-6 text-black/55">Capture direct guest inquiries before they become reservations.</p>
           </div>
           <Link href={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 px-4 text-sm font-bold text-black/60 sm:self-start">
             Cancel
@@ -645,7 +645,7 @@ function LeadForm({
           {lead ? <input type="hidden" name="id" value={lead.id} /> : null}
           {isAdmin ? (
             <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
-              Lead owner
+              Inquiry owner
               <select name="hostId" defaultValue={lead?.hostId ?? ""} className={fieldClass} required>
                 <option value="">Choose host</option>
                 {hosts.map((host) => (
@@ -655,7 +655,7 @@ function LeadForm({
             </label>
           ) : null}
           <label className={`${labelClass} sm:col-span-2 ${isAdmin ? "lg:col-span-4" : "lg:col-span-6"}`}>
-            Contact name
+            Guest name
             <input name="contactName" type="text" maxLength={120} defaultValue={lead?.contactName ?? ""} className={fieldClass} required />
           </label>
           <label className={`${labelClass} sm:col-span-2 ${isAdmin ? "lg:col-span-4" : "lg:col-span-6"}`}>
@@ -727,7 +727,7 @@ function LeadForm({
           <div className="sticky bottom-0 z-10 grid min-w-0 max-w-full gap-3 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-[0_14px_36px_rgba(33,23,15,0.14)] backdrop-blur sm:col-span-2 sm:flex lg:col-span-12">
             <button className="inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#2563eb] px-4 text-sm font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] sm:w-auto sm:px-5 sm:text-base">
               <Plus className="size-4" aria-hidden="true" />
-              <span className="truncate">{lead ? "Save lead" : "Add lead"}</span>
+              <span className="truncate">{lead ? "Save inquiry" : "Add inquiry"}</span>
             </button>
             <Link href={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-black/10 px-5 font-bold text-black/60 sm:w-auto">
               Cancel
@@ -768,7 +768,7 @@ function LeadDashboard({
   const queryBase = { month: currentMonth, q: leadSearch || undefined };
   const currentLeadPath = `/host/erp/leads${buildQuery(queryBase)}`;
   const csv = [
-    ["Lead ID", "Contact", "Email", "Phone", "Company / Group", "Source", "Listing", "Dates", "Guests", "Estimate", "Status", "Priority", "Host"].map(csvCell).join(","),
+    ["Inquiry ID", "Guest", "Email", "Phone", "Company / Group", "Source", "Listing", "Dates", "Guests", "Estimate", "Status", "Priority", "Host"].map(csvCell).join(","),
     ...filteredLeads.map((lead) =>
       [
         lead.code,
@@ -798,14 +798,14 @@ function LeadDashboard({
             <Icon className="size-6 sm:size-7" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold sm:text-2xl">Leads Board</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">Track manually entered inquiries from first contact to won or lost.</p>
+            <h2 className="text-xl font-bold sm:text-2xl">Inquiry Board</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">Track manually entered guest inquiries from first message to booking outcome.</p>
           </div>
         </div>
         <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
           <a
             href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}
-            download={`stayprimeph-leads-${currentMonth}.csv`}
+            download={`stayprimeph-inquiries-${currentMonth}.csv`}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/10 px-4 text-sm font-semibold text-black/70"
           >
             <Download className="size-4" aria-hidden="true" />
@@ -813,7 +813,7 @@ function LeadDashboard({
           </a>
           <Link href={`/host/erp/leads${buildQuery({ ...queryBase, newLead: 1 })}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2563eb] px-4 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.25)]">
             <Plus className="size-4" aria-hidden="true" />
-            Add Lead
+            Add Inquiry
           </Link>
         </div>
       </div>
@@ -850,7 +850,7 @@ function LeadDashboard({
             <input
               name="q"
               defaultValue={leadSearch}
-              placeholder="Search lead, source, listing, phone, or email..."
+              placeholder="Search inquiry, guest, listing, phone, or email..."
               className="min-h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm outline-none transition placeholder:text-black/35 focus:border-[#2563eb]"
             />
           </form>
@@ -859,7 +859,7 @@ function LeadDashboard({
 
       {filteredLeads.length === 0 && totalLeads > 0 ? (
         <div className="p-4 pb-0 sm:p-5 sm:pb-0">
-          <EmptyState title="No leads found" body="Try a different search term." />
+          <EmptyState title="No inquiries found" body="Try a different search term." />
         </div>
       ) : null}
 
@@ -871,14 +871,14 @@ function LeadDashboard({
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3">
                 <div className="min-w-0">
                   <h3 className="truncate text-sm font-bold" style={{ color: column.accent }}>{column.label}</h3>
-                  <p className="mt-1 text-xs text-black/45">{columnLeads.length} lead{columnLeads.length === 1 ? "" : "s"}</p>
+                  <p className="mt-1 text-xs text-black/45">{columnLeads.length} inquir{columnLeads.length === 1 ? "y" : "ies"}</p>
                 </div>
                 <span className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ backgroundColor: column.bg, color: column.accent }}>{columnLeads.length}</span>
               </div>
 
               <div className="mt-3 grid gap-3">
                 {columnLeads.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-black/10 bg-white p-4 text-sm text-black/50">No leads in {column.label.toLowerCase()}.</div>
+                  <div className="rounded-2xl border border-dashed border-black/10 bg-white p-4 text-sm text-black/50">No inquiries here yet.</div>
                 ) : null}
                 {columnLeads.map((lead) => (
                   <article key={lead.id} className="rounded-2xl border border-black/10 bg-white p-4 shadow-[0_8px_20px_rgba(33,23,15,0.05)]">
@@ -3008,33 +3008,33 @@ export default async function HostErpSectionPage({
           {
             accent: "#2563eb",
             bg: "#eff6ff",
-            description: "Active manual inquiries on the board.",
+            description: "Active manual guest inquiries on the board.",
             icon: ClipboardList,
-            label: "Total Leads",
+            label: "Total Inquiries",
             value: String(leadRows.length),
           },
           {
             accent: "#0f9f6e",
             bg: "#ecfdf5",
-            description: "Leads still moving toward a booking.",
+            description: "Inquiries still moving toward a booking.",
             icon: UsersRound,
-            label: "Open Leads",
+            label: "Open Inquiries",
             value: String(openLeads.length),
           },
           {
             accent: "#15803d",
             bg: "#f0fdf4",
-            description: "Leads marked as won.",
+            description: "Inquiries marked as booked.",
             icon: CalendarCheck2,
-            label: "Won Leads",
+            label: "Booked Inquiries",
             value: String(wonLeads.length),
           },
           {
             accent: "#c77a05",
             bg: "#fff7ed",
-            description: "Estimated value across non-won, non-lost leads.",
+            description: "Estimated quote value across open inquiries.",
             icon: PhilippinePeso,
-            label: "Open Pipeline",
+            label: "Open Quote Value",
             value: formatCurrency(openLeadPipelineValue),
           },
         ]

@@ -113,7 +113,7 @@ const optionalLeadInteger = (min: number, max: number) =>
 const leadFormSchema = z.object({
   id: z.string().trim().optional(),
   hostId: z.string().trim().optional(),
-  contactName: z.string().trim().min(2, "Enter the lead contact name.").max(120),
+  contactName: z.string().trim().min(2, "Enter the guest name.").max(120),
   contactEmail: z.string().trim().max(160).refine((value) => !value || z.string().email().safeParse(value).success, "Enter a valid email."),
   contactPhone: z.string().trim().max(60),
   companyOrGroup: z.string().trim().max(120),
@@ -131,20 +131,20 @@ const leadFormSchema = z.object({
   if (data.checkIn && data.checkOut && dateTime(data.checkOut) <= dateTime(data.checkIn)) {
     context.addIssue({
       code: "custom",
-      message: "Lead check-out must be after check-in.",
+      message: "Inquiry check-out must be after check-in.",
       path: ["checkOut"],
     });
   }
 });
 
 const leadStatusSchema = z.object({
-  id: z.string().trim().min(1, "Lead not found."),
+  id: z.string().trim().min(1, "Inquiry not found."),
   status: z.enum(leadStatusValues),
   returnTo: z.string().trim().optional(),
 });
 
 const leadArchiveSchema = z.object({
-  id: z.string().trim().min(1, "Lead not found."),
+  id: z.string().trim().min(1, "Inquiry not found."),
   returnTo: z.string().trim().optional(),
 });
 
@@ -192,11 +192,11 @@ async function resolveLeadHostId(user: User, submittedHostId: string | undefined
   if (user.role !== "admin") return user.id;
 
   const hostId = submittedHostId?.trim();
-  if (!hostId) throw new Error("Choose the host that owns this lead.");
+  if (!hostId) throw new Error("Choose the host that owns this inquiry.");
 
   const users = await getUsers();
   const host = users.find((item) => item.id === hostId && item.role === "host");
-  if (!host) throw new Error("Choose a valid host for this lead.");
+  if (!host) throw new Error("Choose a valid host for this inquiry.");
   return host.id;
 }
 
@@ -211,14 +211,14 @@ async function assertLeadPropertyBelongsToHost(propertyId: string | undefined, h
 async function findAccessibleLead(user: User, leadId: string) {
   const leads = await readLeads(user.role === "admin" ? undefined : user.id);
   const lead = leads.find((item) => item.id === leadId);
-  if (!lead) throw new Error("Lead not found.");
+  if (!lead) throw new Error("Inquiry not found.");
   return { lead, leads };
 }
 
 export async function createManualLead(formData: FormData) {
   await assertTrustedRequestOrigin();
 
-  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can create leads." });
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can create inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadFormSchema.safeParse({
@@ -238,7 +238,7 @@ export async function createManualLead(formData: FormData) {
     notes: formData.get("notes") ?? "",
     lastContactedAt: formData.get("lastContactedAt") ?? "",
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Please complete the lead form.");
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Please complete the inquiry form.");
 
   const data = parsed.data;
   const hostId = await resolveLeadHostId(user, data.hostId);
@@ -277,7 +277,7 @@ export async function createManualLead(formData: FormData) {
 export async function updateManualLead(formData: FormData) {
   await assertTrustedRequestOrigin();
 
-  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update leads." });
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadFormSchema.safeParse({
@@ -298,9 +298,9 @@ export async function updateManualLead(formData: FormData) {
     notes: formData.get("notes") ?? "",
     lastContactedAt: formData.get("lastContactedAt") ?? "",
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Please complete the lead form.");
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Please complete the inquiry form.");
   const leadId = parsed.data.id;
-  if (!leadId) throw new Error("Lead not found.");
+  if (!leadId) throw new Error("Inquiry not found.");
 
   const data = parsed.data;
   const { lead: existing } = await findAccessibleLead(user, leadId);
@@ -335,7 +335,7 @@ export async function updateManualLead(formData: FormData) {
 export async function updateLeadStatus(formData: FormData) {
   await assertTrustedRequestOrigin();
 
-  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update leads." });
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadStatusSchema.safeParse({
@@ -343,7 +343,7 @@ export async function updateLeadStatus(formData: FormData) {
     status: leadStatusValue(formData.get("status")),
     returnTo: formData.get("returnTo"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Lead not found.");
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Inquiry not found.");
 
   const { lead, leads } = await findAccessibleLead(user, parsed.data.id);
   const movedToContacted = parsed.data.status === "contacted" && lead.status !== "contacted";
@@ -362,14 +362,14 @@ export async function updateLeadStatus(formData: FormData) {
 export async function archiveManualLead(formData: FormData) {
   await assertTrustedRequestOrigin();
 
-  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can archive leads." });
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can archive inquiries." });
   requireVerifiedEmail(user);
 
   const parsed = leadArchiveSchema.safeParse({
     id: formData.get("id"),
     returnTo: formData.get("returnTo"),
   });
-  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Lead not found.");
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Inquiry not found.");
 
   await findAccessibleLead(user, parsed.data.id);
   await archiveLead(parsed.data.id, new Date().toISOString());
