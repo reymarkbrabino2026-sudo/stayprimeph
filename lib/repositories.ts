@@ -9,7 +9,7 @@ import { normalizeListingPhotoCategory } from "@/lib/listing-photo-categories";
 import { bookingBlocksListingDelete } from "@/lib/listing-delete-guards";
 import { duplicatePaymentReferenceMessage } from "@/lib/payment-references";
 import { calculateStayprimeMarkupFromTotal } from "@/lib/pricing";
-import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, ListingRateAdjustment, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
+import type { AdminLog, AuditLog, AuditLogAction, AuthSession, AuthToken, AvailabilityBlock, Booking, BookingPackage, Cancellation, HostCustomerClassification, HostCustomerProfile, HostExpense, HostMonthlyReport, Lead, LeadPriority, LeadStatus, ListingRateAdjustment, Message, Passkey, Payment, Payout, PlatformLedgerEntry, Property, PropertyImage, PropertyRoom, PublicListingSummary, Review, SeasonalRate, User } from "@/lib/types";
 
 function toPropertyImage(image: { id: string; propertyId: string; imageUrl: string; tone: string | null; category?: string | null }): PropertyImage {
   return {
@@ -47,6 +47,7 @@ let paymentColumnsReady: Promise<void> | null = null;
 let authSessionTableReady: Promise<void> | null = null;
 let passkeyTableReady: Promise<void> | null = null;
 let hostCustomerProfileTableReady: Promise<void> | null = null;
+let leadTableReady: Promise<void> | null = null;
 
 function cacheGlobalEnsure(db: unknown, cached: Promise<void> | null, setCached: (promise: Promise<void> | null) => void, ensure: () => Promise<void>) {
   // Production schema is managed by Prisma migrations; request-time DDL can block
@@ -400,6 +401,58 @@ async function ensureHostCustomerProfileTable(db: Pick<typeof prisma, "$executeR
     await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "HostCustomerProfile_hostId_guestId_key" ON "HostCustomerProfile"("hostId", "guestId")`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HostCustomerProfile_hostId_idx" ON "HostCustomerProfile"("hostId")`);
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HostCustomerProfile_guestId_idx" ON "HostCustomerProfile"("guestId")`);
+  });
+}
+
+async function ensureLeadTable(db: Pick<typeof prisma, "$executeRawUnsafe"> = prisma) {
+  return cacheGlobalEnsure(db, leadTableReady, (promise) => {
+    leadTableReady = promise;
+  }, async () => {
+    await db.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Lead" (
+        "id" TEXT NOT NULL,
+        "hostId" TEXT NOT NULL,
+        "contactName" TEXT NOT NULL,
+        "contactEmail" TEXT,
+        "contactPhone" TEXT,
+        "companyOrGroup" TEXT,
+        "source" TEXT,
+        "preferredPropertyId" TEXT,
+        "checkIn" TIMESTAMP(3),
+        "checkOut" TIMESTAMP(3),
+        "guests" INTEGER,
+        "estimatedValue" INTEGER,
+        "status" TEXT NOT NULL DEFAULT 'new',
+        "priority" TEXT NOT NULL DEFAULT 'normal',
+        "notes" TEXT,
+        "lastContactedAt" TIMESTAMP(3),
+        "displayOrder" INTEGER NOT NULL DEFAULT 0,
+        "archivedAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Lead_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactEmail" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "contactPhone" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "companyOrGroup" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "source" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "preferredPropertyId" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "checkIn" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "checkOut" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "guests" INTEGER`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "estimatedValue" INTEGER`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'new'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "priority" TEXT NOT NULL DEFAULT 'normal'`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "notes" TEXT`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "lastContactedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "displayOrder" INTEGER NOT NULL DEFAULT 0`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMP(3)`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    await db.$executeRawUnsafe(`ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Lead_hostId_status_displayOrder_idx" ON "Lead"("hostId", "status", "displayOrder")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Lead_hostId_archivedAt_idx" ON "Lead"("hostId", "archivedAt")`);
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Lead_preferredPropertyId_idx" ON "Lead"("preferredPropertyId")`);
   });
 }
 
@@ -2178,6 +2231,149 @@ export async function upsertHostCustomerProfileInDatabase({
     ON CONFLICT ("hostId", "guestId") DO UPDATE SET
       "classification" = EXCLUDED."classification",
       "updatedAt" = EXCLUDED."updatedAt"
+  `;
+}
+
+type DatabaseLead = {
+  id: string;
+  hostId: string;
+  contactName: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  companyOrGroup: string | null;
+  source: string | null;
+  preferredPropertyId: string | null;
+  checkIn: Date | null;
+  checkOut: Date | null;
+  guests: number | null;
+  estimatedValue: number | null;
+  status: string;
+  priority: string;
+  notes: string | null;
+  lastContactedAt: Date | null;
+  displayOrder: number;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function toLeadStatus(value: string): LeadStatus {
+  return value === "contacted" || value === "qualified" || value === "proposal" || value === "won" || value === "lost" ? value : "new";
+}
+
+function toLeadPriority(value: string): LeadPriority {
+  return value === "low" || value === "high" || value === "urgent" ? value : "normal";
+}
+
+function toDateOnly(value: Date | null) {
+  return value?.toISOString().slice(0, 10);
+}
+
+function leadDate(value: string | undefined) {
+  return value ? new Date(`${value}T00:00:00.000Z`) : null;
+}
+
+function toLead(lead: DatabaseLead): Lead {
+  return {
+    id: lead.id,
+    hostId: lead.hostId,
+    contactName: lead.contactName,
+    contactEmail: lead.contactEmail ?? undefined,
+    contactPhone: lead.contactPhone ?? undefined,
+    companyOrGroup: lead.companyOrGroup ?? undefined,
+    source: lead.source ?? undefined,
+    preferredPropertyId: lead.preferredPropertyId ?? undefined,
+    checkIn: toDateOnly(lead.checkIn),
+    checkOut: toDateOnly(lead.checkOut),
+    guests: lead.guests ?? undefined,
+    estimatedValue: lead.estimatedValue ?? undefined,
+    status: toLeadStatus(lead.status),
+    priority: toLeadPriority(lead.priority),
+    notes: lead.notes ?? undefined,
+    lastContactedAt: toDateOnly(lead.lastContactedAt),
+    displayOrder: lead.displayOrder,
+    archivedAt: lead.archivedAt?.toISOString(),
+    createdAt: lead.createdAt.toISOString(),
+    updatedAt: lead.updatedAt.toISOString(),
+  };
+}
+
+export async function listLeadsFromDatabase(hostId?: string): Promise<Lead[]> {
+  await ensureLeadTable();
+  const leads = hostId
+    ? await prisma.$queryRaw<DatabaseLead[]>`
+        SELECT
+          "id", "hostId", "contactName", "contactEmail", "contactPhone", "companyOrGroup", "source",
+          "preferredPropertyId", "checkIn", "checkOut", "guests", "estimatedValue", "status", "priority",
+          "notes", "lastContactedAt", "displayOrder", "archivedAt", "createdAt", "updatedAt"
+        FROM "Lead"
+        WHERE "hostId" = ${hostId} AND "archivedAt" IS NULL
+        ORDER BY "displayOrder" ASC, "updatedAt" DESC
+      `
+    : await prisma.$queryRaw<DatabaseLead[]>`
+        SELECT
+          "id", "hostId", "contactName", "contactEmail", "contactPhone", "companyOrGroup", "source",
+          "preferredPropertyId", "checkIn", "checkOut", "guests", "estimatedValue", "status", "priority",
+          "notes", "lastContactedAt", "displayOrder", "archivedAt", "createdAt", "updatedAt"
+        FROM "Lead"
+        WHERE "archivedAt" IS NULL
+        ORDER BY "displayOrder" ASC, "updatedAt" DESC
+      `;
+
+  return leads.map(toLead);
+}
+
+export async function createLeadInDatabase(lead: Lead) {
+  await ensureLeadTable();
+  await prisma.$executeRaw`
+    INSERT INTO "Lead" (
+      "id", "hostId", "contactName", "contactEmail", "contactPhone", "companyOrGroup", "source",
+      "preferredPropertyId", "checkIn", "checkOut", "guests", "estimatedValue", "status", "priority",
+      "notes", "lastContactedAt", "displayOrder", "archivedAt", "createdAt", "updatedAt"
+    )
+    VALUES (
+      ${lead.id}, ${lead.hostId}, ${lead.contactName}, ${lead.contactEmail ?? null}, ${lead.contactPhone ?? null},
+      ${lead.companyOrGroup ?? null}, ${lead.source ?? null}, ${lead.preferredPropertyId ?? null}, ${leadDate(lead.checkIn)},
+      ${leadDate(lead.checkOut)}, ${lead.guests ?? null}, ${lead.estimatedValue ?? null}, ${lead.status}, ${lead.priority},
+      ${lead.notes ?? null}, ${leadDate(lead.lastContactedAt)}, ${lead.displayOrder}, ${lead.archivedAt ? new Date(lead.archivedAt) : null},
+      ${new Date(lead.createdAt)}, ${new Date(lead.updatedAt)}
+    )
+  `;
+}
+
+export async function updateLeadInDatabase(lead: Lead) {
+  await ensureLeadTable();
+  await prisma.$executeRaw`
+    UPDATE "Lead"
+    SET
+      "hostId" = ${lead.hostId},
+      "contactName" = ${lead.contactName},
+      "contactEmail" = ${lead.contactEmail ?? null},
+      "contactPhone" = ${lead.contactPhone ?? null},
+      "companyOrGroup" = ${lead.companyOrGroup ?? null},
+      "source" = ${lead.source ?? null},
+      "preferredPropertyId" = ${lead.preferredPropertyId ?? null},
+      "checkIn" = ${leadDate(lead.checkIn)},
+      "checkOut" = ${leadDate(lead.checkOut)},
+      "guests" = ${lead.guests ?? null},
+      "estimatedValue" = ${lead.estimatedValue ?? null},
+      "status" = ${lead.status},
+      "priority" = ${lead.priority},
+      "notes" = ${lead.notes ?? null},
+      "lastContactedAt" = ${leadDate(lead.lastContactedAt)},
+      "displayOrder" = ${lead.displayOrder},
+      "archivedAt" = ${lead.archivedAt ? new Date(lead.archivedAt) : null},
+      "updatedAt" = ${new Date(lead.updatedAt)}
+    WHERE "id" = ${lead.id}
+  `;
+}
+
+export async function archiveLeadInDatabase(leadId: string, archivedAt: string) {
+  await ensureLeadTable();
+  await prisma.$executeRaw`
+    UPDATE "Lead"
+    SET "archivedAt" = ${new Date(archivedAt)}, "updatedAt" = ${new Date(archivedAt)}
+    WHERE "id" = ${leadId}
   `;
 }
 

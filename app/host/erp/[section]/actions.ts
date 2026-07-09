@@ -11,6 +11,7 @@ import { requireRole, requireVerifiedEmail } from "@/lib/auth";
 import { getBookings, getBookingsForHost, hasDateConflict } from "@/lib/bookings";
 import { readStoredBookings, writeStoredBookings } from "@/lib/booking-store";
 import { saveHostCustomerClassification } from "@/lib/host-customer-store";
+import { archiveLead, createLead, readLeads, replaceLead } from "@/lib/lead-store";
 import { readStoredPayments, writeStoredPayments } from "@/lib/payment-store";
 import { assertUniquePaymentReference } from "@/lib/payment-references";
 import { allowsPackageBooking, allowsStayBooking } from "@/lib/pricing";
@@ -23,7 +24,7 @@ import {
   usesPrismaPersistence,
 } from "@/lib/repositories";
 import { assertTrustedRequestOrigin } from "@/lib/request-safety";
-import type { Booking, HostCustomerClassification, Payment, PaymentMethod, Property, User } from "@/lib/types";
+import type { Booking, HostCustomerClassification, Lead, LeadPriority, LeadStatus, Payment, PaymentMethod, Property, User } from "@/lib/types";
 import { getUsers } from "@/lib/users";
 import { readStoredUsers, writeStoredUsers } from "@/lib/user-store";
 
@@ -99,6 +100,54 @@ const externalReservationSchema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
+const leadStatusValues = ["new", "contacted", "qualified", "proposal", "won", "lost"] as const;
+const leadPriorityValues = ["low", "normal", "high", "urgent"] as const;
+
+const optionalLeadDate = z.string().trim().refine((value) => !value || isIsoDate(value), "Use a valid date.");
+const optionalLeadInteger = (min: number, max: number) =>
+  z.preprocess((value) => {
+    const raw = typeof value === "string" ? value.trim() : value;
+    return raw === "" || raw === null ? undefined : raw;
+  }, z.coerce.number().int().min(min).max(max).optional());
+
+const leadFormSchema = z.object({
+  id: z.string().trim().optional(),
+  hostId: z.string().trim().optional(),
+  contactName: z.string().trim().min(2, "Enter the lead contact name.").max(120),
+  contactEmail: z.string().trim().max(160).refine((value) => !value || z.string().email().safeParse(value).success, "Enter a valid email."),
+  contactPhone: z.string().trim().max(60),
+  companyOrGroup: z.string().trim().max(120),
+  source: z.string().trim().max(80),
+  preferredPropertyId: z.string().trim(),
+  checkIn: optionalLeadDate,
+  checkOut: optionalLeadDate,
+  guests: optionalLeadInteger(1, 100),
+  estimatedValue: optionalLeadInteger(1, 50_000_000),
+  status: z.enum(leadStatusValues),
+  priority: z.enum(leadPriorityValues),
+  notes: z.string().trim().max(1000),
+  lastContactedAt: optionalLeadDate,
+}).superRefine((data, context) => {
+  if (data.checkIn && data.checkOut && dateTime(data.checkOut) <= dateTime(data.checkIn)) {
+    context.addIssue({
+      code: "custom",
+      message: "Lead check-out must be after check-in.",
+      path: ["checkOut"],
+    });
+  }
+});
+
+const leadStatusSchema = z.object({
+  id: z.string().trim().min(1, "Lead not found."),
+  status: z.enum(leadStatusValues),
+  returnTo: z.string().trim().optional(),
+});
+
+const leadArchiveSchema = z.object({
+  id: z.string().trim().min(1, "Lead not found."),
+  returnTo: z.string().trim().optional(),
+});
+
 function customerReturnPath(value: FormDataEntryValue | null) {
   const fallback = "/host/erp/customers";
   if (typeof value !== "string") return fallback;
@@ -108,8 +157,224 @@ function customerReturnPath(value: FormDataEntryValue | null) {
   return trimmed;
 }
 
+function leadReturnPath(value: FormDataEntryValue | string | null | undefined) {
+  const fallback = "/host/erp/leads";
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/host/erp/leads")) return fallback;
+  if (trimmed.includes("\n") || trimmed.includes("\r")) return fallback;
+  return trimmed;
+}
+
 function normalizeCustomerClassification(value: FormDataEntryValue | null): HostCustomerClassification {
   return value === "vip" ? "vip" : "ordinary";
+}
+
+function optionalLeadText(value: string) {
+  return value.trim() || undefined;
+}
+
+function leadStatusValue(value: FormDataEntryValue | null): LeadStatus {
+  return leadStatusValues.includes(value as LeadStatus) ? value as LeadStatus : "new";
+}
+
+function leadPriorityValue(value: FormDataEntryValue | null): LeadPriority {
+  return leadPriorityValues.includes(value as LeadPriority) ? value as LeadPriority : "normal";
+}
+
+function revalidateLeadPaths() {
+  revalidatePath("/host/erp");
+  revalidatePath("/host/erp/leads");
+  revalidatePath("/admin/erp");
+}
+
+async function resolveLeadHostId(user: User, submittedHostId: string | undefined) {
+  if (user.role !== "admin") return user.id;
+
+  const hostId = submittedHostId?.trim();
+  if (!hostId) throw new Error("Choose the host that owns this lead.");
+
+  const users = await getUsers();
+  const host = users.find((item) => item.id === hostId && item.role === "host");
+  if (!host) throw new Error("Choose a valid host for this lead.");
+  return host.id;
+}
+
+async function assertLeadPropertyBelongsToHost(propertyId: string | undefined, hostId: string) {
+  if (!propertyId) return;
+
+  const properties = await getProperties();
+  const property = properties.find((item) => item.id === propertyId);
+  if (!property || property.hostId !== hostId) throw new Error("Choose a listing owned by the selected host.");
+}
+
+async function findAccessibleLead(user: User, leadId: string) {
+  const leads = await readLeads(user.role === "admin" ? undefined : user.id);
+  const lead = leads.find((item) => item.id === leadId);
+  if (!lead) throw new Error("Lead not found.");
+  return { lead, leads };
+}
+
+export async function createManualLead(formData: FormData) {
+  await assertTrustedRequestOrigin();
+
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can create leads." });
+  requireVerifiedEmail(user);
+
+  const parsed = leadFormSchema.safeParse({
+    hostId: formData.get("hostId"),
+    contactName: formData.get("contactName"),
+    contactEmail: formData.get("contactEmail") ?? "",
+    contactPhone: formData.get("contactPhone") ?? "",
+    companyOrGroup: formData.get("companyOrGroup") ?? "",
+    source: formData.get("source") ?? "",
+    preferredPropertyId: formData.get("preferredPropertyId") ?? "",
+    checkIn: formData.get("checkIn") ?? "",
+    checkOut: formData.get("checkOut") ?? "",
+    guests: formData.get("guests") ?? "",
+    estimatedValue: formData.get("estimatedValue") ?? "",
+    status: leadStatusValue(formData.get("status")),
+    priority: leadPriorityValue(formData.get("priority")),
+    notes: formData.get("notes") ?? "",
+    lastContactedAt: formData.get("lastContactedAt") ?? "",
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Please complete the lead form.");
+
+  const data = parsed.data;
+  const hostId = await resolveLeadHostId(user, data.hostId);
+  const preferredPropertyId = optionalLeadText(data.preferredPropertyId);
+  await assertLeadPropertyBelongsToHost(preferredPropertyId, hostId);
+
+  const now = new Date().toISOString();
+  const hostLeads = await readLeads(hostId);
+  const lead: Lead = {
+    id: randomUUID(),
+    hostId,
+    contactName: data.contactName,
+    contactEmail: optionalLeadText(data.contactEmail),
+    contactPhone: optionalLeadText(data.contactPhone),
+    companyOrGroup: optionalLeadText(data.companyOrGroup),
+    source: optionalLeadText(data.source),
+    preferredPropertyId,
+    checkIn: optionalLeadText(data.checkIn),
+    checkOut: optionalLeadText(data.checkOut),
+    guests: data.guests,
+    estimatedValue: data.estimatedValue,
+    status: data.status,
+    priority: data.priority,
+    notes: optionalLeadText(data.notes),
+    lastContactedAt: optionalLeadText(data.lastContactedAt),
+    displayOrder: hostLeads.filter((item) => item.status === data.status).length,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await createLead(lead);
+  revalidateLeadPaths();
+  redirect(leadReturnPath(formData.get("returnTo")));
+}
+
+export async function updateManualLead(formData: FormData) {
+  await assertTrustedRequestOrigin();
+
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update leads." });
+  requireVerifiedEmail(user);
+
+  const parsed = leadFormSchema.safeParse({
+    id: formData.get("id"),
+    hostId: formData.get("hostId"),
+    contactName: formData.get("contactName"),
+    contactEmail: formData.get("contactEmail") ?? "",
+    contactPhone: formData.get("contactPhone") ?? "",
+    companyOrGroup: formData.get("companyOrGroup") ?? "",
+    source: formData.get("source") ?? "",
+    preferredPropertyId: formData.get("preferredPropertyId") ?? "",
+    checkIn: formData.get("checkIn") ?? "",
+    checkOut: formData.get("checkOut") ?? "",
+    guests: formData.get("guests") ?? "",
+    estimatedValue: formData.get("estimatedValue") ?? "",
+    status: leadStatusValue(formData.get("status")),
+    priority: leadPriorityValue(formData.get("priority")),
+    notes: formData.get("notes") ?? "",
+    lastContactedAt: formData.get("lastContactedAt") ?? "",
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Please complete the lead form.");
+  const leadId = parsed.data.id;
+  if (!leadId) throw new Error("Lead not found.");
+
+  const data = parsed.data;
+  const { lead: existing } = await findAccessibleLead(user, leadId);
+  const hostId = await resolveLeadHostId(user, data.hostId || existing.hostId);
+  const preferredPropertyId = optionalLeadText(data.preferredPropertyId);
+  await assertLeadPropertyBelongsToHost(preferredPropertyId, hostId);
+
+  await replaceLead({
+    ...existing,
+    hostId,
+    contactName: data.contactName,
+    contactEmail: optionalLeadText(data.contactEmail),
+    contactPhone: optionalLeadText(data.contactPhone),
+    companyOrGroup: optionalLeadText(data.companyOrGroup),
+    source: optionalLeadText(data.source),
+    preferredPropertyId,
+    checkIn: optionalLeadText(data.checkIn),
+    checkOut: optionalLeadText(data.checkOut),
+    guests: data.guests,
+    estimatedValue: data.estimatedValue,
+    status: data.status,
+    priority: data.priority,
+    notes: optionalLeadText(data.notes),
+    lastContactedAt: optionalLeadText(data.lastContactedAt),
+    updatedAt: new Date().toISOString(),
+  });
+
+  revalidateLeadPaths();
+  redirect(leadReturnPath(formData.get("returnTo")));
+}
+
+export async function updateLeadStatus(formData: FormData) {
+  await assertTrustedRequestOrigin();
+
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can update leads." });
+  requireVerifiedEmail(user);
+
+  const parsed = leadStatusSchema.safeParse({
+    id: formData.get("id"),
+    status: leadStatusValue(formData.get("status")),
+    returnTo: formData.get("returnTo"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Lead not found.");
+
+  const { lead, leads } = await findAccessibleLead(user, parsed.data.id);
+  const movedToContacted = parsed.data.status === "contacted" && lead.status !== "contacted";
+  await replaceLead({
+    ...lead,
+    status: parsed.data.status,
+    displayOrder: lead.status === parsed.data.status ? lead.displayOrder : leads.filter((item) => item.hostId === lead.hostId && item.status === parsed.data.status).length,
+    lastContactedAt: movedToContacted && !lead.lastContactedAt ? new Date().toISOString().slice(0, 10) : lead.lastContactedAt,
+    updatedAt: new Date().toISOString(),
+  });
+
+  revalidateLeadPaths();
+  redirect(leadReturnPath(parsed.data.returnTo));
+}
+
+export async function archiveManualLead(formData: FormData) {
+  await assertTrustedRequestOrigin();
+
+  const user = await requireRole(["host", "admin"], { forbiddenMessage: "Only hosts and admins can archive leads." });
+  requireVerifiedEmail(user);
+
+  const parsed = leadArchiveSchema.safeParse({
+    id: formData.get("id"),
+    returnTo: formData.get("returnTo"),
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Lead not found.");
+
+  await findAccessibleLead(user, parsed.data.id);
+  await archiveLead(parsed.data.id, new Date().toISOString());
+  revalidateLeadPaths();
+  redirect(leadReturnPath(parsed.data.returnTo));
 }
 
 export async function updateCustomerClassification(formData: FormData) {

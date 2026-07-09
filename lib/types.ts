@@ -8,6 +8,8 @@ export type PaymentStatus = "paid" | "partially_paid" | "pending" | "submitted" 
 export type AvailabilityBlockReason = "booked_elsewhere" | "booked_by_guest" | "owner_use" | "maintenance" | "other";
 export type ListingBookingType = "stay" | "package" | "both";
 export type ListingRateAdjustmentType = "monthly" | "custom" | "discount";
+export type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+export type LeadPriority = "low" | "normal" | "high" | "urgent";
 
 export interface User { id: string; name: string; email: string; role: UserRole; avatar: string; phone: string; createdAt: string; passwordHash?: string; emailVerifiedAt?: string; passwordChangedAt?: string; }
 export interface PropertyImage { id: string; propertyId: string; imageUrl: string; tone: string; category?: ListingPhotoCategory; }
@@ -177,6 +179,28 @@ export interface HostExpense {
   vendor: string;
   description?: string;
   receiptReference?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface Lead {
+  id: string;
+  hostId: string;
+  contactName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  companyOrGroup?: string;
+  source?: string;
+  preferredPropertyId?: string;
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  estimatedValue?: number;
+  status: LeadStatus;
+  priority: LeadPriority;
+  notes?: string;
+  lastContactedAt?: string;
+  displayOrder: number;
+  archivedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

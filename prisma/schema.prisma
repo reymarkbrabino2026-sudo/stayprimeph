@@ -33,6 +33,7 @@ model User {
   authSessions      AuthSession[]
   passkeys          Passkey[]
   accountSettings   AccountSettings?
+  leads             Lead[]           @relation("HostLeads")
 }
 
 model Property {
@@ -75,6 +76,7 @@ model Property {
   cancellations    Cancellation[]
   reports          Report[]
   messages         Message[]
+  leads            Lead[]
 
   @@index([hostId])
   @@index([status, city])
@@ -318,6 +320,35 @@ model HostCustomerProfile {
   @@unique([hostId, guestId])
   @@index([hostId])
   @@index([guestId])
+}
+
+model Lead {
+  id                  String    @id
+  hostId              String
+  contactName         String
+  contactEmail        String?
+  contactPhone        String?
+  companyOrGroup      String?
+  source              String?
+  preferredPropertyId String?
+  checkIn             DateTime?
+  checkOut            DateTime?
+  guests              Int?
+  estimatedValue      Int?
+  status              String    @default("new")
+  priority            String    @default("normal")
+  notes               String?
+  lastContactedAt     DateTime?
+  displayOrder        Int       @default(0)
+  archivedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  host                User      @relation("HostLeads", fields: [hostId], references: [id], onDelete: Cascade)
+  preferredProperty   Property? @relation(fields: [preferredPropertyId], references: [id], onDelete: SetNull)
+
+  @@index([hostId, status, displayOrder])
+  @@index([hostId, archivedAt])
+  @@index([preferredPropertyId])
 }
 
 model AuthToken {

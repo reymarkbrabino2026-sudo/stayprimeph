@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  Archive,
   BedDouble,
   BriefcaseBusiness,
   CalendarCheck2,
@@ -43,16 +44,17 @@ import { hostExpenseTotal } from "@/lib/host-expense-csv";
 import { readHostExpenses } from "@/lib/host-expense-store";
 import { getHostFinancialMonthSummary } from "@/lib/host-financials";
 import { readHostMonthlyReports } from "@/lib/host-report-store";
+import { readLeads } from "@/lib/lead-store";
 import { adminLinks, hostLinks } from "@/lib/navigation";
 import { paidAvailabilityBlocksForProperties } from "@/lib/paid-availability-blocks";
 import { calculateHostPayoutFromTotal } from "@/lib/pricing";
 import { getProperties, getPropertiesForHost } from "@/lib/properties";
-import type { AvailabilityBlock, Booking, HostCustomerClassification, Property, User } from "@/lib/types";
+import type { AvailabilityBlock, Booking, HostCustomerClassification, Lead, LeadPriority, LeadStatus, Property, User } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { getUsers } from "@/lib/users";
-import { createExternalReservation, updateCustomerClassification } from "./actions";
+import { archiveManualLead, createExternalReservation, createManualLead, updateCustomerClassification, updateLeadStatus, updateManualLead } from "./actions";
 
-type ErpSection = "reservations" | "revenue" | "operations" | "customers" | "financial";
+type ErpSection = "reservations" | "leads" | "revenue" | "operations" | "customers" | "financial";
 type ReservationFilter = "all" | "confirmed" | "pending" | "checked_in" | "checked_out" | "cancelled";
 type OperationDepartment = "all" | "front_office" | "housekeeping" | "maintenance" | "engineering";
 type OperationTaskStatus = "Pending" | "In Progress" | "Completed" | "Open";
@@ -69,6 +71,7 @@ const erpTabs: Array<{
   label: string;
 }> = [
   { id: "reservations", label: "Reservation Management", href: "/host/erp/reservations", icon: CalendarCheck2, accent: "#119b6e", bg: "#eefbf5" },
+  { id: "leads", label: "Leads Board", href: "/host/erp/leads", icon: ClipboardList, accent: "#2563eb", bg: "#eff6ff" },
   { id: "revenue", label: "Revenue Dashboard", href: "/host/erp/revenue", icon: ChartNoAxesCombined, accent: "#1683bd", bg: "#eef8ff" },
   { id: "operations", label: "Operations Dashboard", href: "/host/erp/operations", icon: ClipboardCheck, accent: "#9346ad", bg: "#fbf0ff" },
   { id: "customers", label: "Customer Database", href: "/host/erp/customers", icon: UsersRound, accent: "#c77a05", bg: "#fff8eb" },
@@ -83,6 +86,24 @@ const reservationFilters: Array<{ id: ReservationFilter; label: string }> = [
   { id: "checked_out", label: "Checked Out" },
   { id: "cancelled", label: "Cancelled" },
 ];
+
+const leadColumns: Array<{ id: LeadStatus; label: string; accent: string; bg: string }> = [
+  { id: "new", label: "New", accent: "#2563eb", bg: "#eff6ff" },
+  { id: "contacted", label: "Contacted", accent: "#0f9f6e", bg: "#ecfdf5" },
+  { id: "qualified", label: "Qualified", accent: "#7c3aed", bg: "#f5f3ff" },
+  { id: "proposal", label: "Proposal Sent", accent: "#c77a05", bg: "#fff7ed" },
+  { id: "won", label: "Won", accent: "#15803d", bg: "#f0fdf4" },
+  { id: "lost", label: "Lost", accent: "#dc2626", bg: "#fef2f2" },
+];
+
+const leadPriorityOptions: Array<{ id: LeadPriority; label: string }> = [
+  { id: "low", label: "Low" },
+  { id: "normal", label: "Normal" },
+  { id: "high", label: "High" },
+  { id: "urgent", label: "Urgent" },
+];
+
+const leadSources = ["Facebook", "Airbnb inquiry", "Referral", "Walk-in", "Website", "Other"];
 
 const operationDepartments: Array<{ id: OperationDepartment; label: string }> = [
   { id: "all", label: "All Departments" },
@@ -314,6 +335,42 @@ function statusLabel(status: ReservationFilter) {
   return reservationFilters.find((filter) => filter.id === status)?.label ?? status;
 }
 
+function leadStatusLabel(status: LeadStatus) {
+  return leadColumns.find((column) => column.id === status)?.label ?? status;
+}
+
+function leadPriorityLabel(priority: LeadPriority) {
+  return leadPriorityOptions.find((option) => option.id === priority)?.label ?? priority;
+}
+
+function leadPriorityTone(priority: LeadPriority) {
+  if (priority === "urgent") return "bg-rose-100 text-rose-700";
+  if (priority === "high") return "bg-amber-100 text-amber-700";
+  if (priority === "low") return "bg-sky-100 text-sky-700";
+  return "bg-zinc-100 text-zinc-700";
+}
+
+function leadCode(leadId: string) {
+  const code = leadId.replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase().padStart(6, "0");
+  return `LEAD-${code}`;
+}
+
+function leadDateRange(lead: Pick<Lead, "checkIn" | "checkOut">) {
+  if (lead.checkIn && lead.checkOut) return `${compactDate(lead.checkIn)} - ${compactDate(lead.checkOut)}`;
+  if (lead.checkIn) return `From ${compactDate(lead.checkIn)}`;
+  if (lead.checkOut) return `Until ${compactDate(lead.checkOut)}`;
+  return "Dates not set";
+}
+
+function leadContactLine(lead: Pick<Lead, "contactEmail" | "contactPhone">) {
+  if (lead.contactPhone && lead.contactEmail) return `${lead.contactPhone} / ${lead.contactEmail}`;
+  return lead.contactPhone || lead.contactEmail || "No contact details";
+}
+
+function userName(users: User[], id: string) {
+  return users.find((user) => user.id === id)?.name ?? "Host";
+}
+
 function customerIsActive(lastStay: string | undefined, today: string) {
   if (!lastStay) return false;
   const daysSinceStay = nightsBetween(new Date(`${lastStay}T00:00:00Z`), new Date(`${today}T00:00:00Z`));
@@ -362,7 +419,7 @@ function revenueColor(index: number) {
 function ErpTabs({ active, month }: { active: ErpSection; month: string }) {
   return (
     <nav aria-label="ERP sections" className="sticky top-0 z-20 max-w-full overflow-hidden rounded-[1.25rem] border border-black/10 bg-white shadow-[0_12px_32px_rgba(33,23,15,0.08)] sm:static">
-      <div className="flex max-w-full snap-x overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:grid-cols-2 xl:grid-cols-5 [&::-webkit-scrollbar]:hidden">
+      <div className="flex max-w-full snap-x overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:grid-cols-2 xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
       {erpTabs.map((tab) => {
         const Icon = tab.icon;
         const selected = tab.id === active;
@@ -537,6 +594,356 @@ function ExternalReservationForm({
             </div>
           </form>
         )}
+      </div>
+    </section>
+  );
+}
+
+type LeadBoardItem = Lead & {
+  code: string;
+  hostName: string;
+  propertyLabel: string;
+  searchText: string;
+};
+
+function LeadForm({
+  currentMonth,
+  hosts,
+  isAdmin,
+  lead,
+  listings,
+  returnTo,
+}: {
+  currentMonth: string;
+  hosts: User[];
+  isAdmin: boolean;
+  lead?: Lead;
+  listings: Property[];
+  returnTo: string;
+}) {
+  const labelClass = "grid min-w-0 gap-2 text-sm font-semibold text-black/70";
+  const fieldClass = "min-h-12 w-full min-w-0 rounded-2xl border border-black/10 px-4 text-base font-normal text-black outline-none transition focus:border-[#2563eb] sm:text-sm";
+  const action = lead ? updateManualLead : createManualLead;
+
+  return (
+    <section className="border-b border-black/10 bg-[#f8fbff] p-3 sm:p-6">
+      <div className="rounded-[1.25rem] border border-[#2563eb]/20 bg-white p-3 shadow-[0_10px_28px_rgba(33,23,15,0.06)] sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#2563eb]">{lead ? "Edit lead" : "Manual lead input"}</p>
+            <h3 className="mt-1 text-xl font-bold">{lead ? lead.contactName : "Add lead"}</h3>
+            <p className="mt-2 text-sm leading-6 text-black/55">Capture direct inquiries before they become reservations.</p>
+          </div>
+          <Link href={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 px-4 text-sm font-bold text-black/60 sm:self-start">
+            Cancel
+          </Link>
+        </div>
+
+        <form action={action} className="mt-5 grid min-w-0 max-w-full gap-4 sm:grid-cols-2 lg:grid-cols-12">
+          <input type="hidden" name="returnTo" value={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} />
+          {lead ? <input type="hidden" name="id" value={lead.id} /> : null}
+          {isAdmin ? (
+            <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
+              Lead owner
+              <select name="hostId" defaultValue={lead?.hostId ?? ""} className={fieldClass} required>
+                <option value="">Choose host</option>
+                {hosts.map((host) => (
+                  <option key={host.id} value={host.id}>{host.name}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label className={`${labelClass} sm:col-span-2 ${isAdmin ? "lg:col-span-4" : "lg:col-span-6"}`}>
+            Contact name
+            <input name="contactName" type="text" maxLength={120} defaultValue={lead?.contactName ?? ""} className={fieldClass} required />
+          </label>
+          <label className={`${labelClass} sm:col-span-2 ${isAdmin ? "lg:col-span-4" : "lg:col-span-6"}`}>
+            Company or group
+            <input name="companyOrGroup" type="text" maxLength={120} placeholder="Optional" defaultValue={lead?.companyOrGroup ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-4`}>
+            Email
+            <input name="contactEmail" type="email" maxLength={160} placeholder="Optional" defaultValue={lead?.contactEmail ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-4`}>
+            Phone
+            <input name="contactPhone" type="tel" maxLength={60} placeholder="Optional" defaultValue={lead?.contactPhone ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-4`}>
+            Source
+            <input name="source" list="lead-source-options" maxLength={80} placeholder="Facebook, referral, walk-in..." defaultValue={lead?.source ?? ""} className={fieldClass} />
+            <datalist id="lead-source-options">
+              {leadSources.map((source) => <option key={source} value={source} />)}
+            </datalist>
+          </label>
+          <label className={`${labelClass} sm:col-span-2 lg:col-span-4`}>
+            Preferred listing
+            <select name="preferredPropertyId" defaultValue={lead?.preferredPropertyId ?? ""} className={fieldClass}>
+              <option value="">No preferred listing</option>
+              {listings.map((property) => (
+                <option key={property.id} value={property.id}>
+                  {isAdmin ? `${userName(hosts, property.hostId)} - ${property.title}` : property.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={`${labelClass} lg:col-span-2`}>
+            Check-in
+            <input name="checkIn" type="date" defaultValue={lead?.checkIn ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-2`}>
+            Check-out
+            <input name="checkOut" type="date" defaultValue={lead?.checkOut ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-2`}>
+            Guests
+            <input name="guests" type="number" min="1" max="100" defaultValue={lead?.guests ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-2`}>
+            Estimate
+            <input name="estimatedValue" type="number" min="1" max="50000000" step="1" defaultValue={lead?.estimatedValue ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} lg:col-span-3`}>
+            Status
+            <select name="status" defaultValue={lead?.status ?? "new"} className={fieldClass}>
+              {leadColumns.map((column) => <option key={column.id} value={column.id}>{column.label}</option>)}
+            </select>
+          </label>
+          <label className={`${labelClass} lg:col-span-3`}>
+            Priority
+            <select name="priority" defaultValue={lead?.priority ?? "normal"} className={fieldClass}>
+              {leadPriorityOptions.map((priority) => <option key={priority.id} value={priority.id}>{priority.label}</option>)}
+            </select>
+          </label>
+          <label className={`${labelClass} lg:col-span-3`}>
+            Last contacted
+            <input name="lastContactedAt" type="date" defaultValue={lead?.lastContactedAt ?? ""} className={fieldClass} />
+          </label>
+          <label className={`${labelClass} sm:col-span-2 lg:col-span-12`}>
+            Notes
+            <textarea name="notes" maxLength={1000} rows={4} placeholder="Inquiry details, follow-up plan, quoted package, or special requests" defaultValue={lead?.notes ?? ""} className={`${fieldClass} min-h-28 py-3`} />
+          </label>
+          <div className="sticky bottom-20 z-10 grid min-w-0 max-w-full gap-3 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-[0_14px_36px_rgba(33,23,15,0.14)] backdrop-blur sm:static sm:col-span-2 sm:flex sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none lg:col-span-12">
+            <button className="inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#2563eb] px-4 text-sm font-bold text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] sm:w-auto sm:px-5 sm:text-base">
+              <Plus className="size-4" aria-hidden="true" />
+              <span className="truncate">{lead ? "Save lead" : "Add lead"}</span>
+            </button>
+            <Link href={returnTo || `/host/erp/leads${buildQuery({ month: currentMonth })}`} className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-black/10 px-5 font-bold text-black/60 sm:w-auto">
+              Cancel
+            </Link>
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function LeadDashboard({
+  activeTab,
+  currentMonth,
+  editingLead,
+  filteredLeads,
+  hosts,
+  isAdmin,
+  leadSearch,
+  listings,
+  showLeadForm,
+  statusCounts,
+  totalLeads,
+}: {
+  activeTab: (typeof erpTabs)[number];
+  currentMonth: string;
+  editingLead?: LeadBoardItem;
+  filteredLeads: LeadBoardItem[];
+  hosts: User[];
+  isAdmin: boolean;
+  leadSearch: string;
+  listings: Property[];
+  showLeadForm: boolean;
+  statusCounts: Record<LeadStatus, number>;
+  totalLeads: number;
+}) {
+  const Icon = activeTab.icon;
+  const queryBase = { month: currentMonth, q: leadSearch || undefined };
+  const currentLeadPath = `/host/erp/leads${buildQuery(queryBase)}`;
+  const csv = [
+    ["Lead ID", "Contact", "Email", "Phone", "Company / Group", "Source", "Listing", "Dates", "Guests", "Estimate", "Status", "Priority", "Host"].map(csvCell).join(","),
+    ...filteredLeads.map((lead) =>
+      [
+        lead.code,
+        lead.contactName,
+        lead.contactEmail ?? "",
+        lead.contactPhone ?? "",
+        lead.companyOrGroup ?? "",
+        lead.source ?? "",
+        lead.propertyLabel,
+        leadDateRange(lead),
+        lead.guests ?? "",
+        lead.estimatedValue ?? "",
+        leadStatusLabel(lead.status),
+        leadPriorityLabel(lead.priority),
+        lead.hostName,
+      ]
+        .map(csvCell)
+        .join(","),
+    ),
+  ].join("\n");
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_16px_42px_rgba(33,23,15,0.08)]">
+      <div className="flex flex-col gap-4 border-b border-black/10 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full text-white sm:size-14" style={{ backgroundColor: activeTab.accent }}>
+            <Icon className="size-6 sm:size-7" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold sm:text-2xl">Leads Board</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/55">Track manually entered inquiries from first contact to won or lost.</p>
+          </div>
+        </div>
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
+          <a
+            href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}
+            download={`stayprimeph-leads-${currentMonth}.csv`}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/10 px-4 text-sm font-semibold text-black/70"
+          >
+            <Download className="size-4" aria-hidden="true" />
+            Export
+          </a>
+          <Link href={`/host/erp/leads${buildQuery({ ...queryBase, newLead: 1 })}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2563eb] px-4 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(37,99,235,0.25)]">
+            <Plus className="size-4" aria-hidden="true" />
+            Add Lead
+          </Link>
+        </div>
+      </div>
+
+      {showLeadForm ? (
+        <LeadForm
+          currentMonth={currentMonth}
+          hosts={hosts}
+          isAdmin={isAdmin}
+          lead={editingLead}
+          listings={listings}
+          returnTo={currentLeadPath}
+        />
+      ) : null}
+
+      <div className="border-b border-black/10 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
+            {leadColumns.map((column) => (
+              <a
+                key={column.id}
+                href={`#lead-column-${column.id}`}
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-black/65 transition hover:bg-black/[0.02]"
+              >
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: column.accent }} aria-hidden="true" />
+                {column.label}
+                <span className="rounded-full bg-black/[0.04] px-2 py-0.5 text-xs text-black/55">{statusCounts[column.id]}</span>
+              </a>
+            ))}
+          </div>
+          <form action="/host/erp/leads" className="relative w-full xl:max-w-md">
+            <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-black/35" aria-hidden="true" />
+            <input type="hidden" name="month" value={currentMonth} />
+            <input
+              name="q"
+              defaultValue={leadSearch}
+              placeholder="Search lead, source, listing, phone, or email..."
+              className="min-h-12 w-full rounded-xl border border-black/10 bg-white pl-11 pr-4 text-sm outline-none transition placeholder:text-black/35 focus:border-[#2563eb]"
+            />
+          </form>
+        </div>
+      </div>
+
+      {filteredLeads.length === 0 && totalLeads > 0 ? (
+        <div className="p-4 pb-0 sm:p-5 sm:pb-0">
+          <EmptyState title="No leads found" body="Try a different search term." />
+        </div>
+      ) : null}
+
+      <div className="grid auto-cols-[minmax(18rem,1fr)] grid-flow-col gap-4 overflow-x-auto overscroll-x-contain p-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:p-5 xl:grid-flow-row xl:grid-cols-6 xl:overflow-visible [&::-webkit-scrollbar]:hidden">
+        {leadColumns.map((column) => {
+          const columnLeads = filteredLeads.filter((lead) => lead.status === column.id);
+          return (
+            <section key={column.id} id={`lead-column-${column.id}`} className="min-h-[28rem] rounded-[1.25rem] border border-black/10 bg-[#fbfaf8] p-3">
+              <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-bold" style={{ color: column.accent }}>{column.label}</h3>
+                  <p className="mt-1 text-xs text-black/45">{columnLeads.length} lead{columnLeads.length === 1 ? "" : "s"}</p>
+                </div>
+                <span className="grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ backgroundColor: column.bg, color: column.accent }}>{columnLeads.length}</span>
+              </div>
+
+              <div className="mt-3 grid gap-3">
+                {columnLeads.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-black/10 bg-white p-4 text-sm text-black/50">No leads in {column.label.toLowerCase()}.</div>
+                ) : null}
+                {columnLeads.map((lead) => (
+                  <article key={lead.id} className="rounded-2xl border border-black/10 bg-white p-4 shadow-[0_8px_20px_rgba(33,23,15,0.05)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/35">{lead.code}</p>
+                        <h4 className="mt-1 break-words font-bold">{lead.contactName}</h4>
+                        {lead.companyOrGroup ? <p className="mt-1 break-words text-xs font-semibold text-black/50">{lead.companyOrGroup}</p> : null}
+                      </div>
+                      <span className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${leadPriorityTone(lead.priority)}`}>{leadPriorityLabel(lead.priority)}</span>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 text-xs text-black/55">
+                      <p className="break-all">{leadContactLine(lead)}</p>
+                      <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#fbf7f2] p-3">
+                        <div className="min-w-0">
+                          <p className="text-black/40">Source</p>
+                          <p className="mt-1 truncate font-semibold text-black/70">{lead.source || "Not set"}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-black/40">Estimate</p>
+                          <p className="mt-1 break-words font-semibold text-black/70">{lead.estimatedValue ? formatCurrency(lead.estimatedValue) : "Not set"}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-black/40">Guests</p>
+                          <p className="mt-1 font-semibold text-black/70">{lead.guests ?? "Not set"}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-black/40">Contacted</p>
+                          <p className="mt-1 font-semibold text-black/70">{lead.lastContactedAt ? compactDate(lead.lastContactedAt) : "Not yet"}</p>
+                        </div>
+                      </div>
+                      <p className="break-words"><span className="font-semibold text-black/65">Listing:</span> {lead.propertyLabel}</p>
+                      <p className="break-words"><span className="font-semibold text-black/65">Dates:</span> {leadDateRange(lead)}</p>
+                      {isAdmin ? <p className="break-words"><span className="font-semibold text-black/65">Host:</span> {lead.hostName}</p> : null}
+                      {lead.notes ? <p className="line-clamp-3 break-words rounded-xl bg-white text-black/55">{lead.notes}</p> : null}
+                    </div>
+
+                    <form action={updateLeadStatus} className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                      <input type="hidden" name="id" value={lead.id} />
+                      <input type="hidden" name="returnTo" value={currentLeadPath} />
+                      <select name="status" defaultValue={lead.status} className="min-h-10 min-w-0 rounded-xl border border-black/10 px-3 text-sm font-semibold text-black/70 outline-none focus:border-[#2563eb]" aria-label={`Move ${lead.contactName} to another status`}>
+                        {leadColumns.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                      </select>
+                      <button className="min-h-10 rounded-xl bg-[#2563eb] px-3 text-xs font-bold text-white">Move</button>
+                    </form>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Link href={`/host/erp/leads${buildQuery({ ...queryBase, editLead: lead.id })}`} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 text-sm font-bold text-black/70">
+                        Edit
+                      </Link>
+                      <form action={archiveManualLead}>
+                        <input type="hidden" name="id" value={lead.id} />
+                        <input type="hidden" name="returnTo" value={currentLeadPath} />
+                        <button className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-rose-200 text-sm font-bold text-rose-700">
+                          <Archive className="size-4" aria-hidden="true" />
+                          Archive
+                        </button>
+                      </form>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </section>
   );
@@ -2146,7 +2553,7 @@ export default async function HostErpSectionPage({
   // Hosts only ever see their own rows (the JS scoping below already enforces this),
   // so fetch host-scoped data at the database level instead of loading the entire
   // platform's bookings/properties on every ERP page load. Admins still see everything.
-  const [bookings, properties, users, reports, expenses, availabilityBlocks, customerProfiles] = await Promise.all([
+  const [bookings, properties, users, reports, expenses, availabilityBlocks, customerProfiles, leads] = await Promise.all([
     isAdmin ? getBookings() : getBookingsForHost(hostScopeId),
     isAdmin ? getProperties() : getPropertiesForHost(hostScopeId),
     getUsers(),
@@ -2154,6 +2561,7 @@ export default async function HostErpSectionPage({
     readHostExpenses(),
     getAvailabilityBlocks(),
     readHostCustomerProfiles(isAdmin ? undefined : hostScopeId),
+    readLeads(isAdmin ? undefined : hostScopeId),
   ]);
   const currentMonth = validMonthKey(queryValue(resolvedSearchParams.month)) ?? monthKey();
   const requestedReservationStatus = queryValue(resolvedSearchParams.status) as ReservationFilter | undefined;
@@ -2167,6 +2575,7 @@ export default async function HostErpSectionPage({
   const reservationSearch = (queryValue(resolvedSearchParams.q) ?? "").trim();
   const requestedPage = Number(queryValue(resolvedSearchParams.page) ?? "1");
   const showExternalReservationForm = queryValue(resolvedSearchParams.newReservation) === "1";
+  const requestedLeadEditId = queryValue(resolvedSearchParams.editLead);
   const today = todayKey();
   const tomorrow = addDays(today, 1);
   const scopedProperties = isAdmin ? properties : properties.filter((property) => property.hostId === user?.id);
@@ -2175,12 +2584,54 @@ export default async function HostErpSectionPage({
     .filter((booking) => scopedPropertyIds.has(booking.propertyId));
   const scopedReports = isAdmin ? reports : reports.filter((report) => report.hostId === user?.id);
   const scopedExpenses = isAdmin ? expenses : expenses.filter((expense) => expense.hostId === user?.id);
+  const scopedLeads = isAdmin ? leads : leads.filter((lead) => lead.hostId === user?.id);
   const scopedBlocks = availabilityBlocks.filter((block) => scopedPropertyIds.has(block.propertyId));
   const scopedCustomerProfiles = isAdmin ? customerProfiles : customerProfiles.filter((profile) => profile.hostId === user?.id);
   const customerProfileMap = new Map(scopedCustomerProfiles.map((profile) => [`${profile.hostId}:${profile.guestId}`, profile]));
   const paidBlocks = paidAvailabilityBlocksForProperties(scopedBlocks, scopedProperties);
 
   const activeListings = scopedProperties.filter((property) => property.status === "approved");
+  const hostOptions = users.filter((item) => item.role === "host");
+  const leadRows: LeadBoardItem[] = scopedLeads
+    .map((lead) => {
+      const property = lead.preferredPropertyId ? scopedProperties.find((item) => item.id === lead.preferredPropertyId) : undefined;
+      const host = users.find((item) => item.id === lead.hostId);
+      const code = leadCode(lead.id);
+      const propertyLabel = property?.title ?? (lead.preferredPropertyId ? "Listing unavailable" : "No preferred listing");
+      const hostName = host?.name ?? "Host";
+      return {
+        ...lead,
+        code,
+        hostName,
+        propertyLabel,
+        searchText: [
+          code,
+          lead.contactName,
+          lead.contactEmail ?? "",
+          lead.contactPhone ?? "",
+          lead.companyOrGroup ?? "",
+          lead.source ?? "",
+          propertyLabel,
+          hostName,
+          lead.notes ?? "",
+        ].join(" ").toLowerCase(),
+      };
+    })
+    .sort((a, b) => a.displayOrder - b.displayOrder || b.updatedAt.localeCompare(a.updatedAt));
+  const leadSearch = reservationSearch.toLowerCase();
+  const filteredLeadRows = leadRows.filter((lead) => !leadSearch || lead.searchText.includes(leadSearch));
+  const leadStatusCounts = leadColumns.reduce<Record<LeadStatus, number>>(
+    (counts, column) => {
+      counts[column.id] = leadRows.filter((lead) => lead.status === column.id).length;
+      return counts;
+    },
+    { new: 0, contacted: 0, qualified: 0, proposal: 0, won: 0, lost: 0 },
+  );
+  const openLeads = leadRows.filter((lead) => lead.status !== "won" && lead.status !== "lost");
+  const wonLeads = leadRows.filter((lead) => lead.status === "won");
+  const openLeadPipelineValue = openLeads.reduce((sum, lead) => sum + (lead.estimatedValue ?? 0), 0);
+  const editingLead = requestedLeadEditId ? leadRows.find((lead) => lead.id === requestedLeadEditId) : undefined;
+  const showLeadForm = queryValue(resolvedSearchParams.newLead) === "1" || Boolean(editingLead);
   const openReservations = scopedBookings.filter((booking) => booking.status === "pending" || booking.status === "confirmed");
   const openReservationCount = openReservations.length + paidBlocks.filter((block) => block.date >= today).length;
   const arrivals = scopedBookings.filter((booking) => booking.checkIn === today && booking.status !== "cancelled");
@@ -2551,7 +3002,42 @@ export default async function HostErpSectionPage({
 
   const links = isAdmin ? adminLinks : hostLinks;
   const overviewCards =
-    activeSection === "operations"
+    activeSection === "leads"
+      ? [
+          {
+            accent: "#2563eb",
+            bg: "#eff6ff",
+            description: "Active manual inquiries on the board.",
+            icon: ClipboardList,
+            label: "Total Leads",
+            value: String(leadRows.length),
+          },
+          {
+            accent: "#0f9f6e",
+            bg: "#ecfdf5",
+            description: "Leads still moving toward a booking.",
+            icon: UsersRound,
+            label: "Open Leads",
+            value: String(openLeads.length),
+          },
+          {
+            accent: "#15803d",
+            bg: "#f0fdf4",
+            description: "Leads marked as won.",
+            icon: CalendarCheck2,
+            label: "Won Leads",
+            value: String(wonLeads.length),
+          },
+          {
+            accent: "#c77a05",
+            bg: "#fff7ed",
+            description: "Estimated value across non-won, non-lost leads.",
+            icon: PhilippinePeso,
+            label: "Open Pipeline",
+            value: formatCurrency(openLeadPipelineValue),
+          },
+        ]
+      : activeSection === "operations"
       ? [
           {
             accent: "#119b6e",
@@ -2723,6 +3209,22 @@ export default async function HostErpSectionPage({
       <div className="mt-6">
         <ErpTabs active={activeSection} month={currentMonth} />
       </div>
+
+      {activeSection === "leads" ? (
+        <LeadDashboard
+          activeTab={activeTab}
+          currentMonth={currentMonth}
+          editingLead={editingLead}
+          filteredLeads={filteredLeadRows}
+          hosts={hostOptions}
+          isAdmin={isAdmin}
+          leadSearch={reservationSearch}
+          listings={activeListings}
+          showLeadForm={showLeadForm}
+          statusCounts={leadStatusCounts}
+          totalLeads={leadRows.length}
+        />
+      ) : null}
 
       {activeSection === "reservations" ? (
         <ReservationDashboard
